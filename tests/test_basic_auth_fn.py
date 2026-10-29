@@ -30,14 +30,14 @@ def _hash(user: str, pw: str) -> str:
 @pytest.mark.skipif(not shutil.which("node") and not os.environ.get("CI"), reason="node not installed")
 @pytest.mark.parametrize("header,stored,allowed", [
     (None, "{h1}", False),
-    ("Basic " + base64.b64encode(b"neo:pw").decode(), "{h1}", True),
+    ("Basic " + base64.b64encode(b"demo:pw").decode(), "{h1}", True),
     ("Basic " + base64.b64encode(b"aws:pw").decode(), "{h1},{h2}", True),        # alias user
     ("Basic " + base64.b64encode(b"aws:wrong").decode(), "{h1},{h2}", False),
-    ("Basic " + base64.b64encode(b"neo:pw").decode(), "", False),               # missing hash ⇒ fail closed
-    ("Basic " + base64.b64encode(b"neo:pw").decode(), "garbage", False),
+    ("Basic " + base64.b64encode(b"demo:pw").decode(), "", False),               # missing hash ⇒ fail closed
+    ("Basic " + base64.b64encode(b"demo:pw").decode(), "garbage", False),
 ])
 def test_handler_logic(tmp_path, header, stored, allowed):
-    stored = stored.format(h1=_hash("neo", "pw"), h2=_hash("aws", "pw"))
+    stored = stored.format(h1=_hash("demo", "pw"), h2=_hash("aws", "pw"))
     body = SRC.replace("import cf from 'cloudfront';", "").replace("const crypto = require('crypto');", "")
     harness = f"""
 const crypto = require('crypto');

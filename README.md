@@ -96,7 +96,7 @@ CloudFront costs are small for one deployment. Destroy demo stages when you are 
 ## ⚠️ Deliberately vulnerable demo code
 
 `integrations/continuum/targets/` contains small repositories that are **vulnerable on purpose** (an unpatched PHP
-runtime, a remote file inclusion, a smart contract that trusts a well-known public test key, a Node.js runtime with a
+runtime, a smart contract that trusts a well-known public test key, a Node.js runtime with a
 known decompression flaw). They exist only as scan targets for the demo. **Do not deploy them, and do not reuse any key
 or address from them.**
 

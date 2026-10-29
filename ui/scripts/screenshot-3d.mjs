@@ -39,7 +39,8 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 async function waitReady(retries = 40) {
   for (let i = 0; i < retries; i++) {
-    try { if ((await fetch(`${BASE}/`)).ok) return; } catch { /* retry */ }
+    // semgrep react-insecure-request: loopback preview server started by this script; TLS does not apply
+    try { if ((await fetch(`${BASE}/`)).ok) return; } catch { /* retry */ } // nosemgrep
     await new Promise(r => setTimeout(r, 500));
   }
   throw new Error('Dev server never became ready');

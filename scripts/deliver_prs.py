@@ -33,7 +33,8 @@ TARGETS = ROOT / "integrations" / "continuum" / "targets"
 
 
 def sh(*a: str, cwd: Path | None = None) -> str:
-    return subprocess.run(a, cwd=cwd, capture_output=True, text=True, check=True).stdout
+    # semgrep dangerous-subprocess-use-audit: argv list (no shell); every caller passes code constants or repo paths
+    return subprocess.run(a, cwd=cwd, capture_output=True, text=True, check=True).stdout  # nosemgrep
 
 
 def site_reader(url: str, user: str, password: str) -> Callable[[str], bytes]:

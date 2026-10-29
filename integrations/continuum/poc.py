@@ -79,7 +79,8 @@ def setup() -> None:
                  "Resource": f"arn:aws:logs:{REGION}:{acct}:log-group:/aws/securityagent/*"}]}))
         s["role_arn"] = role["Arn"]
         _save(s)
-        time.sleep(12)  # IAM propagation
+        # semgrep arbitrary-sleep: IAM is eventually consistent and no waiter covers propagation to another service
+        time.sleep(12)  # nosemgrep
     if "agent_space_id" not in s:
         r = sa.create_agent_space(name=NAME, description="Security Radar → Security Agent PoC",
                                   awsResources={"s3Buckets": [f"arn:aws:s3:::{bucket}"], "iamRoles": [s["role_arn"]]},

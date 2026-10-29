@@ -60,7 +60,8 @@ const THEMES = ['light', 'dark'];
 async function waitForServer(retries = 20) {
   for (let i = 0; i < retries; i++) {
     try {
-      const r = await fetch(`${BASE}/`);
+      // semgrep react-insecure-request: loopback preview server started by this script; TLS does not apply
+      const r = await fetch(`${BASE}/`); // nosemgrep
       if (r.ok) return;
     } catch { /* not ready yet */ }
     await new Promise(r => setTimeout(r, 500));

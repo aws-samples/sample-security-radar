@@ -76,7 +76,8 @@ def setup() -> None:
                  "Resource": f"arn:aws:s3:::{bucket}/continuum-patches/*"}]}))
         s["role_arn"] = role["Arn"]
         _save(s)
-        time.sleep(15)  # IAM propagation before Continuum validates the role
+        # semgrep arbitrary-sleep: IAM is eventually consistent and no waiter covers propagation to another service
+        time.sleep(15)  # nosemgrep
     if "integration_id" not in s:
         r = cn.create_integration(name=NAME, clientToken=f"{NAME}-int-1",
                                   providerConfiguration={"s3": {"bucket": bucket, "roleArn": s["role_arn"], "externalId": s["external_id"]}})

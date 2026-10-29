@@ -57,7 +57,8 @@ const ONLY = process.argv.slice(2);
 async function waitForServer(retries = 20) {
   for (let i = 0; i < retries; i++) {
     try {
-      if ((await fetch(`${BASE}/`)).ok) return;
+      // semgrep react-insecure-request: loopback preview server started by this script; TLS does not apply
+      if ((await fetch(`${BASE}/`)).ok) return; // nosemgrep
     } catch { /* not ready yet */ }
     await new Promise(r => setTimeout(r, 500));
   }

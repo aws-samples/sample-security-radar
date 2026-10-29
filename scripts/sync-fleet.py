@@ -77,7 +77,8 @@ def read_env() -> dict[str, str]:
 
 
 def run(*cmd: str, cwd: Path | None = None, env: dict[str, str] | None = None, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, cwd=cwd, env=env, check=check, capture_output=True, text=True)
+    # semgrep dangerous-subprocess-use-audit: argv list (no shell); every caller passes code constants or repo paths
+    return subprocess.run(cmd, cwd=cwd, env=env, check=check, capture_output=True, text=True)  # nosemgrep
 
 
 def gitlab(token: str, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:

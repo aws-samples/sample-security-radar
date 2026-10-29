@@ -10,7 +10,7 @@ from __future__ import annotations
 TARGETS: tuple[tuple[str, str, str], ...] = (
     ("demo-shop", "demo-shop", "PHP 商城：运行时钉在 PHP 8.3.30（PHP2Shell 受影响版本）"),
     ("node-gateway", "node-gateway", "Node.js 遥测网关：Node 24.22.0 + 对公网请求体做 Brotli 解压（Node2Shell）"),
-    ("wp-storefront", "wp-storefront", "WordPress 店铺：自研插件按 URL 参数 include 模板（远程文件包含）"),
+    ("wp-storefront", "wp-storefront", "WordPress 店铺：自研插件按 URL 参数选模板（已修复的白名单写法）"),
     ("alps-vault", "alps-vault", "BNB Chain 质押金库：白名单含 Hardhat 默认账户、现货储备定价、先转账后记账"),
     ("security-radar", "security-radar", "本雷达自身仓库（Python 3.12 Lambda + Node 24 构建的 React UI）"),
 )
