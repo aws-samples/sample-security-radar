@@ -186,6 +186,9 @@ class RadarStack(Stack):
         # DNS Firewall (M3.4): an empty demo VPC (no NAT, no internet path) whose DNS goes through a radar-owned rule group.
         # Domain list contents and rules are runtime state of the mitigate station (CFN never sets them ⇒ never wipes them).
         dns_vpc = ec2.Vpc(self, "DnsDemoVpc", max_azs=1, nat_gateways=0, restrict_default_security_group=True,
+                          flow_logs={"all": ec2.FlowLogOptions(destination=ec2.FlowLogDestination.to_cloud_watch_logs(
+                              logs.LogGroup(self, "DnsDemoVpcFlowLogs", retention=logs.RetentionDays.ONE_WEEK,
+                                            removal_policy=RemovalPolicy.DESTROY)))},   # cdk-nag VPC7
                           subnet_configuration=[ec2.SubnetConfiguration(name="isolated", cidr_mask=24,
                                                                         subnet_type=ec2.SubnetType.PRIVATE_ISOLATED)])
         ioc_list = r53r.CfnFirewallDomainList(self, "IocDomains", name=f"{name}-ioc-domains")
@@ -263,8 +266,12 @@ class RadarStack(Stack):
                       .next(respond_step)
                       .next(mitigate_step)
                       .next(publish_task))
+        # every state transition logged (no execution data: payloads carry event ids only, still kept out) + X-Ray (cdk-nag SF1/SF2)
         machine = sfn.StateMachine(self, "Cycle", definition_body=sfn.DefinitionBody.from_chainable(definition),
-                                   timeout=Duration.minutes(25))
+                                   timeout=Duration.minutes(25), tracing_enabled=True,
+                                   logs=sfn.LogOptions(destination=logs.LogGroup(self, "CycleLogs", retention=logs.RetentionDays.ONE_MONTH,
+                                                                                 removal_policy=RemovalPolicy.DESTROY),
+                                                       level=sfn.LogLevel.ALL, include_execution_data=False))
         # off until the auth gate is verified (deploy order: empty origin → gate → anonymous 401 → content)
         events.Rule(self, "Every10Min", schedule=events.Schedule.rate(Duration.minutes(CYCLE_MINUTES)),
                     targets=[targets.SfnStateMachine(machine)],
