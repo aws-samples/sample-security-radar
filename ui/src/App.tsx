@@ -7,6 +7,7 @@ import { Web3Page } from '@/pages/Web3Page';
 import { VulnPage } from '@/pages/VulnPage';
 import { SourcesPage } from '@/pages/SourcesPage';
 import { OpsPage } from '@/pages/OpsPage';
+import { MitigatePage } from '@/pages/MitigatePage';
 import { WallPage } from '@/pages/WallPage';
 import { ContinuumPage } from '@/pages/ContinuumPage';
 
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="continuum" element={<ContinuumPage />} />
             <Route path="sources" element={<SourcesPage />} />
             <Route path="ops" element={<OpsPage />} />
+            <Route path="mitigate" element={<MitigatePage />} />
           </Route>
         </Routes>
       </HashRouter>

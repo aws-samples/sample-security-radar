@@ -47,3 +47,22 @@ def test_iam_actions_equal_the_calls_in_code():
 def test_no_wildcard_service_actions_left():
     src = (ROOT / "infra" / "stack.py").read_text()
     assert not re.search(r'"(securityagent|continuum):\*"', src)
+
+
+def _waf_calls() -> set[str]:
+    tree = ast.parse((ROOT / "src" / "radar" / "mitigate_aws.py").read_text())
+    return {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Call)
+            and isinstance(n.value.func, ast.Name) and n.value.func.id == "_waf"}
+
+
+def test_mitigate_waf_actions_equal_the_calls_and_writes_are_prefix_scoped():
+    tree = ast.parse((ROOT / "infra" / "stack.py").read_text())
+    c = {n.targets[0].id: ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+         and isinstance(n.targets[0], ast.Name) and n.targets[0].id in ("WAF_READ_ACTIONS", "WAF_WRITE_ACTIONS")}
+    # case-insensitive: boto3 snake_case loses the acronym (update_web_acl ↔ UpdateWebACL)
+    assert {_camel(x).lower() for x in _waf_calls()} == {a.lower() for a in c["WAF_READ_ACTIONS"] + c["WAF_WRITE_ACTIONS"]}
+    src = (ROOT / "infra" / "stack.py").read_text()
+    # B3: the write is scoped to radar-prefixed web ACLs, never "*"
+    assert 'global/webacl/security-radar-*/*' in src and not re.search(r'"wafv2:\*"', src)
+    from radar import mitigate
+    assert mitigate.RADAR_ACL_PREFIX == "security-radar-"

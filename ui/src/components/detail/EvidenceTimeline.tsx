@@ -75,7 +75,7 @@ export function EvidenceTimeline({ groups, numbers, expanded, onToggle, flashId 
 
 const KIND_WORD: Record<TimelineEntry['kind'], string> = {
   created: '事件创建', item_added: '加入证据', merged: '合并', level_change: '等级变化',
-  severity_change: '严重度变化', exploitation_change: '利用状态变化', amount_change: '金额修订',
+  severity_change: '严重度变化', exploitation_change: '利用状态变化', amount_change: '金额修订', repaired: '人工修复',
 };
 
 /** 变化记录 — collapsed by default (it is the audit trail, not the story). */

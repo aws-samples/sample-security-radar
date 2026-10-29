@@ -14,3 +14,13 @@ Test fixtures (tests/fixtures/snapshots/2026-10-23/) — recorded once on 2026-1
   dates); the original article text is not included. Rights in titles and the remaining sentences stay with
   their publishers.
 - tests/fixtures/x_search/ — synthetic: short neutral rewrites shaped like an X search response; not original posts.
+
+Test fixtures recorded on 2026-10-29 (tests/fixtures/snapshots/2026-10-29/, tests/fixtures/inspector/):
+
+- waf-changelog.html — the changelog tables of the AWS WAF Developer Guide page "AWS Managed Rules changelog"
+  (https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-changelog.html), page chrome removed.
+- waf-groups.jsonl — rule and label names returned by the AWS WAF DescribeManagedRuleGroup API.
+- scan-radar-2026-10-29.json — an Amazon Inspector ScanSbom response for this repository's own lockfiles; vulnerability
+  descriptions in it come from the public advisory databases Inspector cites (e.g. NVD, GitHub Advisory Database).
+- sbom-radar-2026-10-29.json, ui-package-lock-2026-10-29.json, uv-2026-10-29.lock — this repository's own SBOM and
+  lockfiles at that date (package names and versions of open-source dependencies).

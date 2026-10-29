@@ -50,6 +50,22 @@ describe('Mock data schema validation', () => {
     expect((data as { kind: string }).kind).toBe('continuum');
   });
 
+  it('mitigate.json validates against schema', () => {
+    const data = loadJson(join(dataDir, 'mitigate.json'));
+    const valid = validate(data);
+    if (!valid) {
+      console.error('Validation errors:', JSON.stringify(validate.errors, null, 2));
+    }
+    expect(valid).toBe(true);
+    expect((data as { kind: string }).kind).toBe('mitigate');
+  });
+
+  it('at least one event detail carries a mitigation block (M3 panel under test / a11y)', () => {
+    const files = readdirSync(join(dataDir, 'events')).filter(f => f.endsWith('.json'));
+    const hit = files.filter(f => (loadJson(join(dataDir, 'events', f)) as { mitigation?: unknown }).mitigation);
+    expect(hit.length).toBeGreaterThan(0);
+  });
+
   // Test each event detail file
   const eventDir = join(dataDir, 'events');
   let eventFiles: string[] = [];

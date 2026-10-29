@@ -18,7 +18,12 @@ def test_each_rule_fires_on_its_fact():
                     "notify": {"slack": {"status": "not_configured"}, "lark": {"status": "error", "error": "401"}},
                     "gitlab_error": "AccessDenied", "cost_error": {"at": "t", "error": "throttled"}},
          "events": [{"event_id": "e1", "tx": [{"chain": "bsc", "check_error": "rpc_unreachable: Forbidden", "checked_at": "t"}]}],
-         "digest": {"status": "failed", "day": "2026-10-29", "reason": "refused"}}
+         "digest": {"status": "failed", "day": "2026-10-29", "reason": "refused"},
+         "mitigate": {"run_at": "t", "errors": [{"channel": "waf", "what": "web ACL x", "error": "AccessDenied"}],
+                      "events": {"e1": {"plans": [{"state": "staged"}, {"state": "blocking"}]}},
+                      "inspector": {"security-radar": {"scanned_on": "2026-10-29", "findings": [
+                          {"severity": "critical", "purl": "pkg:npm/vitest@2.1.9", "fixed": "3.2.6"},
+                          {"severity": "medium", "purl": "pkg:npm/x@1", "fixed": None}]}}}}
     got = ops.attention(f)
     codes = {i["code"] for i in got}
     assert codes == set(ops.RULES), set(ops.RULES) - codes                      # every rule is reachable
@@ -26,6 +31,10 @@ def test_each_rule_fires_on_its_fact():
     over = next(i for i in got if i["code"] == "over_budget")
     assert "1464.08" in over["detail"] and "500" in over["detail"]             # actual + limit (error 4 elements)
     assert next(i for i in got if i["code"] == "chain_rpc_error")["link"] == "/events/e1"
+    mit = [i for i in got if i["code"] == "mitigate"]
+    assert [i["level"] for i in mit] == ["warn", "warn", "info"] and mit[2]["title"].startswith("1 条")   # not checked ≠ waiting
+    dep = next(i for i in mit if "Inspector" in i["title"])
+    assert "1 个 critical" in dep["title"] and "vitest@2.1.9 → 3.2.6" in dep["detail"]
 
 
 def test_an_unconfigured_channel_is_info_not_an_error():

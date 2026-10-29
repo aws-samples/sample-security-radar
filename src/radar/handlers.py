@@ -491,3 +491,28 @@ def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     _store.put_source_state(CONTINUUM_KEY, led)
     changed = sorted(set(passthrough["changed"]) | set(touched))
     return {"changed": changed[:MAX_CHANGED_IDS], "full": passthrough["full"], "responded": len(touched)}
+
+
+def mitigate_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
+    """Mitigate station (M3): affected targets → WAF plans → read-only check → staged apply on radar-owned web ACLs.
+    Its own Lambda and role (UpdateWebACL scoped to the radar prefix); a failure never blocks publish."""
+    from radar import mitigate_aws, mitigate_station
+    out = mitigate_station.run(_store, mitigate_aws, timeutil.now())
+    log.info(json.dumps({"station": "mitigate", **out}))
+    changed = sorted(set(event.get("changed") or []) | set(out["events"]))
+    return {"changed": changed[:MAX_CHANGED_IDS], "full": bool(event.get("full"))}
+
+
+def dns_probe(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
+    """M3 B5: resolve one name from inside the DNS demo VPC, so Route 53 Resolver DNS Firewall sees (and logs) the
+    query. Only names under the radar's canary are allowed — this function is not a general resolver."""
+    import socket
+
+    from radar.mitigate import DNS_CANARY
+    name = str(event.get("name") or DNS_CANARY)
+    if name != DNS_CANARY:
+        return {"name": name, "error": "only the radar canary may be probed"}
+    try:
+        return {"name": name, "answers": sorted({a[4][0] for a in socket.getaddrinfo(name, 443)})}
+    except OSError as e:   # NXDOMAIN for .invalid (and a BLOCK rule) — live it surfaces as gaierror OR OSError(EBUSY)
+        return {"name": name, "error": f"{type(e).__name__} {e.errno}: {e.strerror}"}

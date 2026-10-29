@@ -1,0 +1,2237 @@
+<!-- recorded 2026-10-29 from https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-changelog.html (firecrawl rawHtml); only the changelog tables are kept -->
+<html><body>
+<table id="w581aac11c21c21c25c17b7"><thead>
+						<tr>
+							<th>Rule group and rules</th>
+							<th>Description</th>
+							<th>Date</th>
+						</tr>
+					</thead>
+						
+						<tbody><tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-php-app">PHP application managed rule group</a>
+								<p>This release updates the following rules:</p>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">PHP2Shell_BODY_Extended</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 2.5 of this rule group.</p>
+								<p>Improved the detection signatures for the PHP web runtime
+									remote code execution vulnerabilities <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-109618" rel="noopener noreferrer" target="_blank"><span>CVE-2026-109618</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a> and <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-109619" rel="noopener noreferrer" target="_blank"><span>CVE-2026-109619</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a>.</p>
+							</td>
+							<td tabindex="-1">2026-10-22</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-php-app">PHP application managed rule group</a>
+								<p>This release updates the following rules:</p>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">PHP2Shell_BODY_Extended</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 2.4 of this rule group.</p>
+								<p>The new <code class="code">PHP2Shell_BODY_Extended</code> rule adds detection
+									for requests that match the PHP web runtime remote code execution
+									vulnerability <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-109618" rel="noopener noreferrer" target="_blank"><span>CVE-2026-109618</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a>. For more information, see <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-109618" rel="noopener noreferrer" target="_blank"><span>NIST:
+										National Vulnerability Database: CVE-2026-109618</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a>.</p>
+								<p>This rule group now detects CVE-2026-109618 directly. This
+									supersedes the guidance in the version 2.3 entry, which directed
+									you to the <code class="code">SizeRestrictions_BODY</code> rule in the AWS WAF
+									<a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>.</p>
+							</td>
+							<td tabindex="-1">2026-10-22</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-php-app">PHP application managed rule group</a>
+								<p>This release updates the following rules:</p>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">PHP2Shell_BODY</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 2.3 of this rule group.</p>
+								<p>The new <code class="code">PHP2Shell_BODY</code> rule adds detection for requests
+									that match the PHP web runtime remote code execution vulnerability
+									CVE-2026-109619. For more information, see <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-109619" rel="noopener noreferrer" target="_blank"><span>NIST:
+										National Vulnerability Database: CVE-2026-109619</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a>.</p>
+								<p>For <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-109618" rel="noopener noreferrer" target="_blank"><span>CVE-2026-109618</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a>, the
+									<code class="code">SizeRestrictions_BODY</code> rule in the AWS WAF <a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a> adds
+									protection by blocking request bodies that are over 8 KB (8,192
+									bytes).</p>
+							</td>
+							<td tabindex="-1">2026-10-21</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a></td>
+							<td tabindex="-1">
+								<p>Released static version 7.0 of this rule group.</p>
+								<p>Added token provenance labels at the targeted protection level. These labels flag a change in the category of IP address between the request that acquired an AWS WAF token and the request that presents it.</p>
+								<p>Added device ID labels at the targeted protection level. These labels come from the device ID that the AWS WAF Android SDK collects.</p>
+								<p>Added the cloud service provider label <code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:fastly</code>.</p>
+								<p>For more information, see <a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html#aws-managed-rule-groups-bot-labels-rg">Bot Control labels</a>.</p>
+							</td>
+							<td tabindex="-1">2026-10-15</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-sql-db">SQL database managed rule group</a>
+								<p>This release updates the following rules:</p>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">SQLi_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_HEADER</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 2.5 of this rule group.</p>
+								<p>Updated the <code class="code">SQLi_BODY</code> rule and all <code class="code">SQLiExtendedPatterns</code> rules to reduce false positives and improve detection.</p>
+							</td>
+							<td tabindex="-1">2026-09-16</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<p>This release updates the following rules:</p>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">CrossSiteScripting_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 1.23 of this rule group.</p>
+								<p>Improved detection signatures for the cross site scripting rules.</p>
+							</td>
+							<td tabindex="-1">2026-08-28</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-sql-db">SQL database managed rule group</a>
+								<p>This release updates the following rules:</p>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">SQLi_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLi_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLi_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLi_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_HEADER</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 2.4 of this rule group.</p>
+								<p>This release updates all rules to improve SQL injection detection logic.</p>
+							</td>
+							<td tabindex="-1">2026-08-12</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a></td>
+							<td tabindex="-1">
+								<p>Released static version 6.1 of this rule group.</p>
+								<p>Added new bot detection signatures across multiple categories, including Advertising, AI, Content Fetcher, Scraping Framework, Search Engine, Security, SEO, and Social Media.</p>
+							</td>
+							<td tabindex="-1">2026-07-24</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">GenericLFI_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">GenericLFI_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">GenericLFI_BODY</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 1.22 of this rule group. </p>
+								<p>Improved detection signatures for the generic LFI rules.</p>
+							</td>
+							<td tabindex="-1">2026-07-20</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">ReactJSRCE_BODY</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 1.26 of this rule group. </p>
+								<p>Added the <code class="code">REMOVE_NULLS</code> text transformation to the listed rule.</p>
+							</td>
+							<td tabindex="-1">2026-07-15</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-windows-os">Windows operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">WindowsShellCommands_HEADER</code></p>
+									</li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_QUERYSTRING</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 2.5 of this rule group. </p>
+								<p>Removed <code class="code">WindowsShellCommands_QUERYARGUMENTS</code> and replaced it with
+									<code class="code">WindowsShellCommands_QUERYSTRING</code>. </p>
+								<p>Updated WindowsShellCommands rules to improve detection logic.</p>
+							</td>
+							<td tabindex="-1">2026-06-01</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a></td>
+							<td tabindex="-1">
+								<p>Released static version 6.0 of this rule group.</p>
+								<p>Added new bot detection signatures across multiple categories, including Advertising, Content Fetcher, and Search Engine.</p>
+								<p>Expanded Web Bot Auth support to commercial partition regional AWS WAF integrations.</p>
+								<p>Changed the behavior of Web Bot Auth verified bots to be treated as standard verified
+									bots for all categories, not only the AI category.</p>
+								<p>This static version does not change the default version behavior.</p>
+							</td>
+							<td tabindex="-1">2026-05-22</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-sql-db">SQL database managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">SQLi_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLi_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLi_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLi_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_HEADER</code></p>
+									</li><li class="listitem">
+										<p><code class="code">SQLiExtendedPatterns_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 2.3 of this rule group. </p>
+								<p>Added new rules <code class="code">SQLiExtendedPatterns_HEADER</code> and
+									<code class="code">SQLiExtendedPatterns_URIPATH</code>. </p>
+								<p>Added <code class="code">REPLACE_COMMENTS</code> text transformations to all rules. </p>
+								<p>Added <code class="code">JS_DECODE</code> text transformations to <code class="code">SQLi_COOKIE</code>,
+									<code class="code">SQLi_URIPATH</code>, and to all the new rules. </p>
+								<p>Updated all the rules to improve detection logic.</p>
+								<p>Version_2.3 is the successor to Version_1.3, not Version_2.0. These are separate lineages with different detection trade-offs. Customers relying on Version_2.0 detection behavior should pin that version explicitly.</p>
+							</td>
+							<td tabindex="-1">2026-04-29</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-windows-os">Windows operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">WindowsShellCommands_HEADER</code></p>
+									</li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_QUERYARGUMENTS</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 2.4 of this rule group. </p>
+								<p>Removed <code class="code">WindowsShellCommands_COOKIE</code> and replaced it with
+									<code class="code">WindowsShellCommands_HEADER</code> which matches on all headers. </p>
+								<p>Added new rule <code class="code">WindowsShellCommands_URIPATH</code>. </p>
+								<p>Added JSON body inspection to the <code class="code">WindowsShellCommands_BODY</code>. </p>
+								<p>Added double <code class="code">URL_DECODE_UNI</code> and <code class="code">JS_DECODE</code> text
+									transformations to the WindowsShellCommands rules. </p>
+								<p>Updated WindowsShellCommands rules to reduce false positives.</p>
+							</td>
+							<td tabindex="-1">2026-04-28</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">RestrictedExtensions_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">RestrictedExtensions_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 1.21 of this rule group. </p>
+								<p>Improved detection signatures for these rules.</p>
+							</td>
+							<td tabindex="-1">2026-04-06</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-php-app">PHP application managed rule group</a>
+									<div class="itemizedlist">
+										 
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">PHPHighRiskMethodsVariables_BODY</code></p>
+										</li><li class="listitem">
+											<p><code class="code">PHPHighRiskMethodsVariables_QUERYSTRING</code></p>
+										</li><li class="listitem">
+											<p><code class="code">PHPHighRiskMethodsVariables_HEADER</code></p>
+										</li><li class="listitem">
+											<p><code class="code">PHPHighRiskMethodsVariables_URIPATH</code></p>
+										</li></ul></div></td>
+							<td tabindex="-1">
+								<p>Released static version 2.2 of this rule group. </p>
+									<p>Improved detections and added
+											<code class="code">PHPHighRiskMethodsVariables_URIPATH</code>
+										rule.</p>
+							</td>
+							<td tabindex="-1">2026-03-24</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a>
+								<p>New rules:</p>
+								<div class="itemizedlist">
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">CategoryPagePreview</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CategoryWebhooks</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 5.0 of this rule group.</p>
+								<p>Added 400+ new bots across multiple categories, including two new bot categories with their respective rules: Page Preview and Webhooks.</p>
+								<p><b>Key Improvements</b></p>
+									<p>Improved accuracy of bot detection signals and generic bot
+										pattern matching, resulting in more precise traffic
+										classification. </p>
+									<p>This update changes how the managed rule group prioritizes
+										bot detection. Specific unverified bot patterns are now
+										evaluated before generic patterns and detection signals.
+										This means that requests are more likely to be classified
+										based on their most specific characteristics rather than
+										generic indicators.</p>
+									<p><b>What this means for your
+											traffic:</b></p>
+									<p>Generic bot pattern will now match less frequently. These
+										patterns only apply when no more specific bot rule has
+										already identified the traffic. This reduces
+										over-classification and ensures that requests are labeled
+										with the most accurate bot identification available.</p>
+									<p>Detection signals such as indicators that a request
+										originates from a cloud service provider, known bot data
+										center, or uses a non-browser user agent, are now applied
+										after bot identification rules. This ensures that specific
+										bot classifications take precedence over generic traffic
+										signals.</p>
+									<p><b>Impact:</b></p>
+									<p>You may see fewer labels for generic bot patterns in your
+										traffic logs, as requests are now more accurately classified
+										by specific bot rules. This provides clearer insight into
+										the actual nature of your automated traffic and reduces
+										noise from overly broad pattern matching. Unverified bot
+										classifications will be more prominent and accurate, helping
+										you better understand and manage automated requests to your
+										applications.</p>
+								<p><b>Note:</b> This version includes the
+											<code class="code">awswaf:managed:aws:bot-control:bot:web_bot_auth</code>
+										labels and rules updates from Version_4.0, but the <code class="code">Web
+											Bot Auth</code> functionality is still only available in
+										CloudFront.</p>
+							</td>
+							<td tabindex="-1">2026-02-25</td>
+						</tr>
+						<tr>
+						<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-posix-os">POSIX operating system managed rule group</a>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 3.2 of this rule group. </p>
+								<p>Improved detection signatures for all the rules.</p>
+							</td>
+							<td tabindex="-1">2026-01-15</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">ReactJSRCE_BODY</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+									<p>Released static version 1.25 of this rule group.</p>
+								<p>Updated the <code class="code">ReactJSRCE_BODY</code> to improve detection.</p>
+							</td>
+							<td tabindex="-1">2025-12-08</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-posix-os">POSIX operating system managed rule group</a>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 3.1 of this rule group. </p>
+								<p>Improved detection signatures for all the rules.</p>
+							</td>
+							<td tabindex="-1">2025-12-08</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">ReactJSRCE_BODY</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+									<p>Released static version 1.24 of this rule group.</p>
+								<p>Updated the <code class="code">ReactJSRCE_BODY</code> to improve detection.</p>
+							</td>
+							<td tabindex="-1">2025-12-04</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a>
+									<p>New labels:</p><div class="itemizedlist">
+										 
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:web_bot_auth&lt;status&gt;</code></p>
+											<div class="itemizedlist">
+												 
+												 
+												 
+												 
+											<ul class="itemizedlist"><li class="listitem">
+												<p><code class="code">verified</code> – Successful verification
+												</p>
+												</li><li class="listitem">
+												<p><code class="code">invalid</code> – Failed verification attempt</p>
+												</li><li class="listitem">
+												<p><code class="code">expired</code> –Expired key
+												usage</p>
+												</li><li class="listitem">
+												<p><code class="code">unknown_bot</code> – Unrecognized key usage</p>
+												</li></ul></div>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:vendor&lt;vendor_name&gt;</code>
+												– Bot vendor or operator</p>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:name&lt;rfc_name&gt;</code>
+												– Bot name (RFC token from WBA)</p>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:account&lt;hash&gt;</code>
+												– AWS account identifier. (Amazon Bedrock Agent Core
+												agents only)</p>
+										</li></ul></div> Scope: CloudFront</td>
+							<td tabindex="-1">
+									<p>Deployed new static version
+											<code class="code">AWSManagedRulesBotControlRuleSet</code>
+										Version_4.0 with Web Bot Authentication (WBA) support for
+										cryptographic bot verification. This version must be
+										explicitly selected and does not automatically update
+										existing deployments using the default version.</p>
+									<p>New capabilities:</p>
+									<div class="itemizedlist">
+										 
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p>Web Bot Authentication (WBA) cryptographic
+												verification for AI bots and agents</p>
+										</li><li class="listitem">
+											<p>Automatic allowlisting of verified WBA bots in
+												Category AI rule</p>
+										</li><li class="listitem">
+											<p>Enhanced bot identification with vendor, name, and
+												account labels</p>
+										</li><li class="listitem">
+											<p>Support for Amazon Bedrock Agent Core bot detection</p>
+										</li></ul></div>
+									<p>Rule updates:</p>
+									<div class="itemizedlist">
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">Category AI </code>(Action: Block) </p>
+											<div class="itemizedlist">
+												 
+												 
+											<ul class="itemizedlist"><li class="listitem">
+												<p>Update to not match requests with
+												<code class="code">web_bot_auth:verified </code>label.</p>
+												</li><li class="listitem">
+												<p>Verified WBA bots are automatically
+												allowed</p>
+												</li></ul></div>
+										</li><li class="listitem">
+											<p><code class="code">TGT_TokenAbsent</code> (Action:
+												Count)</p>
+											<div class="itemizedlist">
+												 
+											<ul class="itemizedlist"><li class="listitem">
+												<p>Updated to not match requests with
+												<code class="code">web_bot_auth:verified</code> label</p>
+												</li></ul></div>
+										</li></ul></div>
+									<div class="awsdocs-note awsdocs-important"><div class="awsdocs-note-title"><awsui-icon name="status-warning" variant="error"></awsui-icon><h6>Important</h6></div><div class="awsdocs-note-text"><p>Version_4.0 is a static version only – it does
+											not change the default version behavior. To use WBA
+											features, explicitly select Version _4.0 when
+											configuring your web ACL.</p></div></div>
+							</td>
+							<td tabindex="-1">2025-11-20</td>
+						</tr>
+							<tr>
+								<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a>
+									<p>New verified bot labels:</p><p>Advertising:</p><div class="itemizedlist">
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:name:meta-externalads</code>–
+												Meta advertising bot</p>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:organization:facebook</code>–
+												Meta organization</p>
+										</li></ul></div><p>AI:</p><div class="itemizedlist">
+										 
+										 
+										 
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:name:meta-webindexer</code>–
+												Meta web indexer</p>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:name:perplexity-user</code>–
+												Perplexity user bot</p>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:name:perplexitybot</code>
+												– Perplexity bot</p>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:name:bytespider</code>
+												– Bytespider bot</p>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:name:duckassistbot</code>
+												– DuckDuckGo assistant bot</p>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:organization:facebook</code>
+												– Meta organization</p>
+										</li></ul></div><p>Content Fetcher:</p><div class="itemizedlist">
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:name:meta-externalfetcher</code>
+												– Meta content fetcher</p>
+										</li><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:organization:facebook-externalfetcher</code>
+												– Meta organization</p>
+										</li></ul></div><p>Social Media:</p><div class="itemizedlist">
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">awswaf:managed:aws:bot-control:bot:name:tiktok</code>
+												– TikTok bot</p>
+										</li></ul></div></td>
+								<td tabindex="-1">
+									<p>Key improvements:</p>
+									<p></p>
+									<div class="itemizedlist">
+										 
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p>Expanded verified bot detection across multiple
+												categories (Advertising, AI, Content Fetcher and
+												Social Media)</p>
+										</li><li class="listitem">
+											<p>Added organization-level labels for Meta, Facebook
+												bots</p>
+										</li><li class="listitem">
+											<p>Enhanced AI bot detection including Perplexity,
+												Bytespider, and DuckDuckGo bots </p>
+										</li><li class="listitem">
+											<p>Added TikTok social media bot detection</p>
+										</li></ul></div>
+									<div class="awsdocs-note awsdocs-important"><div class="awsdocs-note-title"><awsui-icon name="status-warning" variant="error"></awsui-icon><h6>Important</h6></div><div class="awsdocs-note-text"><p>Bot category rules in Bot Control trigger only on unverified
+											bots, except for CategoryAI which also triggers on
+											verified bots. Version_3.3 is a static version only
+											– it doesn't change the default version
+											behavior.</p></div></div>
+								</td>
+								<td tabindex="-1">2025-11-17</td>
+							</tr>
+						   <tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_QUERYARGUMENTS</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 1.20 of this rule group. </p>
+								<p>Improved detection signatures for the Server Side Request Forgery (SSRF) rules.</p>
+							</td>
+							<td tabindex="-1">2025-10-02</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">CrossSiteScripting_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 1.19 of this rule group. </p>
+								<p>Improved detection signatures for the cross site scripting
+									rules.</p>
+							</td>
+							<td tabindex="-1">2025-08-14</td>
+						</tr>	
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">CrossSiteScripting_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released static version 1.18 of this rule group. </p>
+								<p>Improved detection signatures for the cross site scripting
+									rules.</p>
+							</td>
+							<td tabindex="-1">2025-06-18</td>
+						</tr>	
+							<tr>
+								<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a>
+									<p>New labels:</p>
+									<div class="itemizedlist">
+										 
+										 
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p>Search engine bots:</p>
+											<div class="itemizedlist">
+												 
+												 
+											<ul class="itemizedlist"><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:name:evensi</code></p>
+												</li><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:name:yisouspider</code></p>
+												</li></ul></div>
+										</li><li class="listitem">
+											<p>AI bots:</p>
+											<div class="itemizedlist">
+												 
+												 
+											<ul class="itemizedlist"><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:name:searchbot</code></p>
+												</li><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:name:nova_act</code></p>
+												</li></ul></div>
+										</li><li class="listitem">
+											<p>Organization labels for AI bots:</p>
+											<div class="itemizedlist">
+												 
+												 
+												 
+												 
+												 
+											<ul class="itemizedlist"><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:organization:openai</code></p>
+												</li><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:organization:marfeel</code></p>
+												</li><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:organization:facebook</code></p>
+												</li><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:organization:metaexternalagent</code></p>
+												</li><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:organization:amazon</code></p>
+												</li></ul></div>
+										</li><li class="listitem">
+											<p>Content fetcher bots:</p>
+											<div class="itemizedlist">
+												 
+											<ul class="itemizedlist"><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:bot:name:google_cloud_vertex_bot</code></p>
+												</li></ul></div>
+										</li><li class="listitem">
+											<p>Cloud service provider signals:</p>
+											<div class="itemizedlist">
+												 
+											<ul class="itemizedlist"><li class="listitem">
+												<p><code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:alibaba</code></p>
+												</li></ul></div>
+										</li></ul></div>
+								</td>
+								<td tabindex="-1">
+									<p>Released static version 3.2 of this rule group. </p>
+									<p>Added the listed new labels. </p>
+								</td>
+								<td tabindex="-1">2025-05-29</td>
+							</tr>
+							<tr>
+								<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+									<div class="itemizedlist">
+										 
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">CrossSiteScripting_BODY</code></p>
+										</li><li class="listitem">
+											<p><code class="code">CrossSiteScripting_COOKIE</code></p>
+										</li><li class="listitem">
+											<p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p>
+										</li><li class="listitem">
+											<p><code class="code">CrossSiteScripting_URIPATH</code></p>
+										</li></ul></div>
+								</td>
+								<td tabindex="-1">
+									<p>Released static version 1.17 of this rule group. </p>
+									<p>Improved detection signatures for the cross site scripting
+										rules.</p>
+								</td>
+								<td tabindex="-1">2025-03-03</td>
+							</tr>	
+						<tr>
+								<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-sql-db">SQL database managed rule group</a>
+					
+									<div class="itemizedlist">
+										 
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">SQLi_COOKIE</code></p>
+										</li><li class="listitem">
+											<p><code class="code">SQLi_URIPATH</code></p>
+										</li><li class="listitem">
+											<p><code class="code">SQLi_QUERYARGUMENTS</code></p>
+										</li><li class="listitem">
+											<p><code class="code">SQLi_BODY</code></p>
+										</li></ul></div>
+								</td>
+								<td tabindex="-1"><p>Released static version 1.3 of this rule group. </p>
+									<p>Added double <code class="code">URL_DECODE_UNI</code> text transformation to the listed rules.</p>
+								</td>
+								<td tabindex="-1">2025-01-24</td>
+							</tr>
+							<tr>
+								<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-linux-os">Linux operating system managed rule group</a>
+									<div class="itemizedlist">
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">LFI_HEADER</code></p>
+										</li><li class="listitem">
+											<p><code class="code">LFI_URIPATH</code></p>
+										</li><li class="listitem">
+											<p><code class="code">LFI_QUERYSTRING</code></p>
+										</li></ul></div>
+								</td>
+								<td tabindex="-1"><p>Released static version 2.6 of this rule group. </p>
+									<p>Added signatures to improve detection. </p>
+								</td>
+								<td tabindex="-1">2025-01-24</td>
+							</tr>
+							<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a>
+                                                            <p>New bot name label in the Bot Control labels: <code class="code">awswaf:managed:aws:bot-control:bot::name:nytimes</code></p>
+                                                        </td>
+                                                        <td tabindex="-1"><p>Released static version 3.1 of this rule group. </p>
+                                                            <p>Added the New York Times label to the list of bot name labels. </p>
+			                		</td>
+			                		<td tabindex="-1">2024-11-07</td>
+			                	</tr>
+						<tr> 
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">CrossSiteScripting_BODY</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_COOKIE</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_URIPATH</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.16 of this rule group. </p>
+                                                            <p>Improved detection signatures for the cross site scripting rules. </p>
+                                                        </td>
+							<td tabindex="-1">2024-10-16</td>
+						</tr>
+			                	<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a>
+								<p>New rules:</p>
+								<div class="itemizedlist">
+									 
+									 
+
+									 
+                                                                         
+                                                                 
+                                                         
+                                                 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">TGT_TokenAbsent</code></p></li><li class="listitem"><p><code class="code">TGT_VolumetricSessionMaximum</code></p></li><li class="listitem"><p><code class="code">TGT_SignalBrowserAutomationExtension</code></p></li><li class="listitem"><p><code class="code">TGT_ML_CoordinatedActivityLow</code>, 
+                                                                        <code class="code">TGT_ML_CoordinatedActivityMedium</code>, and 
+                                                                        <code class="code">TGT_ML_CoordinatedActivityHigh</code></p></li><li class="listitem"><p><code class="code">TGT_TokenReuseIpLow</code>, 
+                                                                <code class="code">TGT_TokenReuseIpMedium</code>, and 
+                                                                <code class="code">TGT_TokenReuseIpHigh</code></p></li><li class="listitem"><p><code class="code">TGT_TokenReuseAsnLow</code>, 
+                                                        <code class="code">TGT_TokenReuseAsnMedium</code>, and 
+                                                        <code class="code">TGT_TokenReuseAsnHigh</code></p></li><li class="listitem"><p><code class="code">TGT_TokenReuseCountryLow</code>, 
+                                                <code class="code">TGT_TokenReuseCountryMedium</code>, and 
+                                                <code class="code">TGT_TokenReuseCountryHigh</code></p></li></ul></div>
+								<p>Deleted rules:</p>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">TGT_TokenReuseIp</code>. Replaced with the corresponding new low, medium, and high rules.</p></li></ul></div>
+								<p>New labels:</p>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"><p>HTTP Library bots:</p>
+										<div class="itemizedlist">
+											 
+										<ul class="itemizedlist"><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:fasthttp</code></p></li></ul></div>
+									</li><li class="listitem"><p>AI bots:</p>
+										<div class="itemizedlist">
+											 
+											 
+											 
+											 
+											 
+											 
+											 
+											 
+											 
+											 
+										<ul class="itemizedlist"><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:bedrockbot</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:claudebot</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:anthropic</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:metaexternalagent</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:bytespider</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:omgili</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:diffbot</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:perplexitybot</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:timpibot</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:cohere</code></p></li></ul></div>
+									</li><li class="listitem"><p>Search engine bots:</p>
+										<div class="itemizedlist">
+											 
+										<ul class="itemizedlist"><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:naver</code></p></li></ul></div>
+									</li><li class="listitem"><p>Advertising bots:</p>
+										<div class="itemizedlist">
+											 
+										<ul class="itemizedlist"><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:naver_ads</code></p></li></ul></div>
+									</li><li class="listitem"><p>Social media bots:</p>
+										<div class="itemizedlist">
+											 
+										<ul class="itemizedlist"><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:snapchat</code></p></li></ul></div>
+									</li><li class="listitem"><p>Content fetcher bots:</p>
+										<div class="itemizedlist">
+											 
+											 
+											 
+											 
+										<ul class="itemizedlist"><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:naver_preview</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:censys</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:imessage_preview</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:bot:name:imagesift</code></p></li></ul></div>
+									</li><li class="listitem"><p>Cloud service provider signals:</p>
+										<div class="itemizedlist">
+											 
+											 
+											 
+											 
+											 
+											 
+											 
+											 
+										<ul class="itemizedlist"><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:aws</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:azure</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:gcp</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:oracle</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:digital_ocean</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:akamai</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:cloudflare</code></p></li><li class="listitem"><p><code class="code">awswaf:managed:aws:bot-control:signal:cloud_service_provider:ibm_cloud</code></p></li></ul></div>
+									</li></ul></div>
+
+								<p>Additional labeling in existing rules.</p>
+							</td>
+                                                        <td tabindex="-1"><p>Released static versions 2.0 and 3.0 of this rule group. Version 2.0 is the same as 
+                                                        version 3.0, but with rule actions for all new rules set to Count. This guide documents 
+                                                    the latest version of each rule group. </p>
+                                                            <p>Added the listed new rules. </p>
+                                                            <p>Updated labeling so that all rules apply a label with the pattern 
+                                                            <code class="code">awswaf:managed:aws:bot-control:<code class="replaceable">&lt;RuleName&gt;</code></code>. </p>
+                                                            <p>Added cloud service provider labels to the Bot Control signal labels. </p>
+							    <p>Added new bot name labels that are inspected for by bot category rules. </p>
+			                		</td>
+			                		<td tabindex="-1">2024-09-13</td>
+			                	</tr>
+			                	<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-atp.html">AWS WAF Fraud Control account takeover prevention (ATP) rule group</a>
+								<p>All rules</p>
+			                		</td>
+							<td tabindex="-1"><p>Released static version 1.1 of this rule group. </p>
+                                                            <p>Updated labeling so that all rules apply a label with the pattern 
+                                                            <code class="code">awswaf:managed:aws:atp:<code class="replaceable">&lt;RuleName&gt;</code></code>. </p>
+			                		</td>
+			                		<td tabindex="-1">2024-09-13</td>
+			                	</tr>
+			                	<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-acfp.html">AWS WAF Fraud Control account creation fraud prevention (ACFP) rule group</a>
+								<p>All rules</p>
+			                		</td>
+							<td tabindex="-1"><p>Released static version 1.1 of this rule group. </p>
+                                                            <p>Updated labeling so that all rules apply a label with the pattern 
+                                                            <code class="code">awswaf:managed:aws:acfp:<code class="replaceable">&lt;RuleName&gt;</code></code>. </p>
+			                		</td>
+			                		<td tabindex="-1">2024-09-13</td>
+			                	</tr>
+			                	<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-linux-os">Linux operating system managed rule group</a>
+								<p>All rules</p>
+			                		</td>
+							<td tabindex="-1"><p>Released static version 2.5 of this rule group.  </p>
+                                                            <p>Added signatures to improve detection. </p>
+			                		</td>
+			                		<td tabindex="-1">2024-09-02</td>
+			                	</tr>
+						<tr> 
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">GenericLFI_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">GenericLFI_URIPATH</code></p></li><li class="listitem"><p><code class="code">GenericLFI_BODY</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.15 of this rule group. </p>
+                                                            <p>Improved detection signatures for the generic LFI rules. </p>
+                                                        </td>
+							<td tabindex="-1">2024-08-30</td>
+						</tr>
+                                                <tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-windows-os">Windows operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+								         
+								         
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">WindowsShellCommands_QUERYARGUMENTS</code></p>
+								        </li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_BODY</code></p>
+								        </li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_COOKIE</code></p>
+								        </li></ul></div>
+							</td>
+                                                        <td tabindex="-1"><p>Released static version 2.3 of this rule group.  </p>
+                                                            <p>Adjusted detection signatures in the listed rules to reduce false positives. </p>
+							</td>
+							<td tabindex="-1">2024-08-28</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-wordpress-app">WordPress application managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">WordPressExploitableCommands_QUERYSTRING</code></p>
+								        </li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.3 of this rule group.  </p>
+                                                            <p>Added the JS_DECODE text transformation to the listed rule. </p>
+							</td>
+                                                        <td tabindex="-1">2024-07-15</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-linux-os">Linux operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">LFI_QUERYSTRING</code></p>
+								        </li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 2.4 of this rule group.  </p>
+                                                            <p>Added the JS_DECODE text transformation to the listed rule. </p>
+							</td>
+                                                        <td tabindex="-1">2024-07-12</td>
+						</tr>
+						<tr> 
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">EC2MetaDataSSRF_BODY</code></p></li><li class="listitem"><p><code class="code">EC2MetaDataSSRF_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">GenericLFI_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">GenericLFI_BODY</code></p></li><li class="listitem"><p><code class="code">RestrictedExtensions_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">GenericRFI_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">GenericRFI_BODY</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_BODY</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_COOKIE</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_URIPATH</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.14 of this rule group. </p>
+                                                            <p>Added the JS_DECODE text transformation to the listed rules. </p>
+                                                        </td>
+							<td tabindex="-1">2024-07-09</td>
+						</tr>
+                                                <tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-php-app">PHP application managed rule group</a>
+                                                            <div class="itemizedlist">
+								 
+								 
+							    <ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">PHPHighRiskMethodsVariables_BODY</code></p>
+								</li><li class="listitem">
+									<p><code class="code">PHPHighRiskMethodsVariables_QUERYSTRING</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 2.1 of this rule group. </p>
+                                                            <p>Added the JS_DECODE text transformation to the listed rules. </p>
+                                                        </td>
+							<td tabindex="-1">2024-07-03</td>
+						</tr>
+                                                <tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-windows-os">Windows operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+								         
+								         
+								         
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">WindowsShellCommands_QUERYARGUMENTS</code></p>
+								        </li><li class="listitem">
+										<p><code class="code">WindowsShellCommands_BODY</code></p>
+								        </li><li class="listitem">
+										<p><code class="code">PowerShellCommands_QUERYARGUMENTS</code></p>
+								        </li><li class="listitem">
+										<p><code class="code">PowerShellCommands_BODY</code></p>
+									</li></ul></div>
+							</td>
+                                                        <td tabindex="-1"><p>Released static version 2.2 of this rule group.  </p>
+                                                            <p>Added the JS_DECODE text transformation to the listed rules. </p>
+							</td>
+							<td tabindex="-1">2024-07-03</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-linux-os">Linux operating system managed rule group</a>
+								<p>All rules</p>
+							</td>
+							<td tabindex="-1"><p>Released static version 2.3 of this rule group.  </p>
+                                                            <p>Added signatures to improve detection. </p>
+							</td>
+                                                        <td tabindex="-1">2024-06-06</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a></p>
+								<p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-atp.html">AWS WAF Fraud Control account takeover prevention (ATP) rule group</a></p>
+								<p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-acfp.html">AWS WAF Fraud Control account creation fraud prevention (ACFP) rule group</a></p>
+							</td>
+                                                        <td tabindex="-1"><p>The bot and fraud rule groups are now versioned. If you're using any of these rule groups, 
+                                                        this update doesn't change how they handle your web traffic. </p> 
+                                                            <p>This update sets the current rule group version to static version 1.0 
+                                                            and sets the default version to point to it. </p>
+                                                             <p>For more information about versioned managed rules, see the following: </p>
+                                                             <div class="itemizedlist">
+                                                                  
+                                                                  
+                                                                  
+                                                             <ul class="itemizedlist"><li class="listitem"><p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/waf-managed-rule-groups-versioning.html">Using versioned managed rule groups in AWS WAF</a></p></li><li class="listitem"><p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/waf-managed-rule-groups-deployments.html">Deployments for versioned AWS Managed Rules rule groups</a></p></li><li class="listitem"><p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/waf-using-managed-rule-groups-sns-topic.html">Getting notified of new versions and updates to a managed rule group</a></p></li></ul></div>
+							</td>
+							<td tabindex="-1">2024-05-29</td>
+						</tr>
+						<tr> 
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-posix-os">POSIX operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">UNIXShellCommandsVariables_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">UNIXShellCommandsVariables_QUERYSTRING</code></p>
+									</li><li class="listitem">
+										<p><code class="code">UNIXShellCommandsVariables_HEADER</code></p>
+									</li><li class="listitem">
+										<p><code class="code">UNIXShellCommandsVariables_BODY</code></p>
+									</li></ul></div>
+							</td>
+                                                        <td tabindex="-1"><p>Released static version 3.0 of this rule group.  </p>
+                                                            <p>Removed <code class="code">UNIXShellCommandsVariables_QUERYARGUMENTS</code> and replaced it with 
+                                                            <code class="code">UNIXShellCommandsVariables_QUERYSTRING</code>. If you have rules that match on the label for 
+                                                            <code class="code">UNIXShellCommandsVariables_QUERYARGUMENTS</code>, when you use this version, switch them to match on the label 
+                                                            for <code class="code">UNIXShellCommandsVariables_QUERYSTRING</code>. The new label is 
+                                                        <code class="code">awswaf:managed:aws:posix-os:UNIXShellCommandsVariables_QueryString</code>.</p>
+                                                    <p>Added the rule <code class="code">UNIXShellCommandsVariables_HEADER</code>, which matches on all headers.</p>
+                                                            <p>Updated all the rules in the managed rule group with improved detection logic. </p>
+                                                            <p>Corrected the documented capitalization of the label for <code class="code">UNIXShellCommandsVariables_BODY</code>. </p>
+							</td>
+							<td tabindex="-1">2024-05-28</td>
+						</tr>
+						<tr> 
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">CrossSiteScripting*</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.12 of this rule group. </p>
+								<p>Added signatures to all of the cross site scripting rules to improve detection and reduce false positives. </p></td>
+							<td tabindex="-1">2024-05-21</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-sql-db">SQL database managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">SQLi_BODY</code></p></li><li class="listitem"><p><code class="code">SQLi_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">SQLiExtendedPatterns_QUERYARGUMENTS</code></p></li></ul></div>
+							</td>
+                                                        <td tabindex="-1">
+                                                            <p>Released static version 1.2 of this rule group.</p>
+                                                            <p>Added the <code class="code">JS_DECODE</code> text transformation to the listed rules. </p>
+							</td>
+							<td tabindex="-1">2024-05-14</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"> <p><code class="code">JavaDeserializationRCE_BODY</code></p> </li><li class="listitem"> <p><code class="code">JavaDeserializationRCE_QUERYSTRING</code></p> </li><li class="listitem"> <p><code class="code">Log4JRCE_QUERYSTRING</code></p> </li><li class="listitem"> <p><code class="code">Log4JRCE_BODY</code></p> </li><li class="listitem"> <p><code class="code">Log4JRCE_HEADER</code></p> </li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.22 of this rule group.</p>
+                                                            <p>Added the <code class="code">JS_DECODE</code> text transformation to the listed rules. </p>
+							</td>
+							<td tabindex="-1">2024-05-08</td>
+						</tr>
+						<tr> 
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-posix-os">POSIX operating system managed rule group</a>
+							</td>
+							<td tabindex="-1"><p>Released static version 2.2 of this rule group. </p>
+                                                            <p>Added the <code class="code">JS_DECODE</code> text transformation to both rules. </p>
+							</td>
+							<td tabindex="-1">2024-05-08</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-windows-os">Windows operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">PowerShellCommands_BODY</code></p>
+									</li></ul></div>
+							</td>
+                                                        <td tabindex="-1"><p>Released static version 2.1 of this rule group. </p>
+								<p>Added signatures to <code class="code">PowerShellCommands_BODY</code> to improve detection. </p>
+							</td>
+							<td tabindex="-1">2024-05-03</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html#aws-managed-rule-groups-ip-rep-amazon">Amazon IP reputation list managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">AWSManagedIPReputationList</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Updated the sources of the IP reputation list, to improve identification of 
+								addresses that are actively engaging in malicious activities and 
+								to reduce false positives. </p>
+								<p>This update doesn't involve a new version because this rule group isn't versioned. </p>
+							</td>
+							<td tabindex="-1">2024-03-13</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.21 of this rule group.</p>
+                                                            <p>Added signatures to improve detection and reduce false positives. </p>
+							</td>
+							<td tabindex="-1">2023-12-16</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">ExploitablePaths_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.20 of this rule group.</p>
+								<p>Updated the <code class="code">ExploitablePaths_URIPATH</code> rule to add detection for requests that match the Atlassian Confluence CVE-2023-22518 Improper Authorization vulnerability. This vulnerability affects all versions of Confluence Data Center and Server. For more information, see <a href="https://nvd.nist.gov/vuln/detail/CVE-2023-22518" rel="noopener noreferrer" target="_blank"><span>NIST: National Vulnerability Database: CVE-2023-22518 Detail</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a>.</p>
+								</td>
+							<td tabindex="-1">2023-12-14</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">CrossSiteScripting*</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.11 of this rule group. </p>
+								<p>Added signatures to all of the cross site scripting rules to improve detection and reduce false positives. </p></td>
+							<td tabindex="-1">2023-12-06</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a>
+								<div class="itemizedlist">
+								   
+								<ul class="itemizedlist"><li class="listitem">
+									<p>New label: <code class="code">awswaf:managed:aws:bot-control:targeted:aggregate:coordinated_activity:low</code></p>
+								  </li></ul></div>
+							</td> 
+							<td tabindex="-1"><p>Added the coordinated activity low label to the rule group's targeted protection level labels. 
+                                                        This label isn't associated with any rule. This labeling is in addition to the medium and high level rules and labels. </p></td>
+							<td tabindex="-1">2023-12-05</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html#aws-managed-rule-groups-bot-labels-rg">Bot Control labels</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p>Label:
+												<code class="code">awswaf:managed:aws:bot-control:targeted:signal:browser_automation_extension</code></p>
+									</li></ul></div>
+							</td> 
+							<td tabindex="-1"><p>Added a signal label to the rule group that indicates the detection of a browser extension that assists in automation. This label isn't specific to an individual rule.  </p> </td>
+							<td tabindex="-1">2023-11-14</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_QUERYARGUMENTS</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.10 of this rule group. </p>
+								<p>Updated one rule to improve detection and reduce false positives. </p></td>
+							<td tabindex="-1">2023-11-02</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_QUERYARGUMENTS</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.9 of this rule group. </p>
+								<p>Updated rules to improve detection and reduce false positives. </p></td>
+							<td tabindex="-1">2023-10-30</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-posix-os">POSIX operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">UNIXShellCommandsVariables_QUERYARGUMENTS</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 2.1 of this rule group. </p>
+								<p>Updated the query arguments rule to improve detection. </p> </td>
+							<td tabindex="-1">2023-10-12</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">GenericLFI_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">GenericLFI_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">RestrictedExtensions_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">RestrictedExtensions_QUERYARGUMENTS</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.8 of this rule group. </p>
+								<p>Updated rules to improve detection. </p></td>
+							<td tabindex="-1">2023-10-11</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">ExploitablePaths_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Exception deployment: released static version 1.19 of this rule group. Updated the default version to use version 1.19.</p>
+								<p>Updated the <code class="code">ExploitablePaths_URIPATH</code> rule to add detection for requests matching the Atlassian Confluence CVE-2023-22515 Privilege Escalation Vulnerability. This vulnerability affects some versions of Atlassian Confluence. For more information, see <a href="https://nvd.nist.gov/vuln/detail/CVE-2023-22515" rel="noopener noreferrer" target="_blank"><span>NIST: National Vulnerability Database: CVE-2023-22515 Detail</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a> and <a href="https://confluence.atlassian.com/kb/faq-for-cve-2023-22515-1295682188.html" rel="noopener noreferrer" target="_blank"><span>Atlassian Support: FAQ for CVE-2023-22515</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a>.</p>
+								<p>For information about this deployment type, see <a href="https://docs.aws.amazon.com/waf/latest/developerguide/waf-managed-rule-groups-deployments-exceptions.html">Exception deployments for AWS Managed Rules</a>.</p></td>
+							<td tabindex="-1">2023-10-04</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">Host_localhost_HEADER</code></p>
+									</li><li class="listitem">
+										<p><code class="code">Log4J*</code></p>
+									</li><li class="listitem">
+										<p><code class="code">JavaDeserialization*</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Exception deployment: released static version 1.18 of this rule group. This is a quick rollout of this static version to accommodate the creation and rollout of version 1.19. </p>
+								<p>Updated the <code class="code">Host_localhost_HEADER</code> rule and all Log4J and Java deserialization rules for improved 
+									detection. </p>
+								<p>For information about this deployment type, see <a href="https://docs.aws.amazon.com/waf/latest/developerguide/waf-managed-rule-groups-deployments-exceptions.html">Exception deployments for AWS Managed Rules</a>.</p></td>
+							<td tabindex="-1">2023-10-04</td>
+						</tr>
+						<tr>
+                                                    <td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a>
+                                                        <div class="itemizedlist">
+								 
+                                                                
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">TGT_TokenReuseIp</code></p>
+								</li><li class="listitem">
+									<p><code class="code">TGT_ML_CoordinatedActivityMedium</code></p>
+								</li><li class="listitem">
+									<p><code class="code">TGT_ML_CoordinatedActivityHigh</code></p>
+								</li></ul></div>
+							</td> 
+                                                        <td tabindex="-1"><p>Added rules to the rule group with Count action. </p>
+                                                            <p>The token reuse IP rule detects and counts token sharing across IP addresses. </p>
+                                                            <p>The coordinated activity rules use automated, machine-learning (ML) analysis of website traffic 
+                                                            to detect bot-related activity. In your rule group configuration, you can opt out of the use of ML. 
+                                                            With this release, customers who are currently using the targeted protection level are opted in to 
+                                                            the use of ML. 
+                                                            Opting out disables the coordinated activity rules. </p></td>
+							<td tabindex="-1">2023-09-06</td>
+                                                </tr>
+						<tr>
+                                                    <td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a>
+                                                        <div class="itemizedlist">
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">CategoryAI</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Added the rule <code class="code">CategoryAI</code> to the rule group. </p></td>
+							<td tabindex="-1">2023-08-30</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">RestrictedExtensions_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">RestrictedExtensions_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">EC2MetaDataSSRF_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.7 of this rule group. </p>
+								<p>Updated restricted extensions and EC2 metadata SSRF rules to improve detection and reduce false positives. </p></td>
+							<td tabindex="-1">2023-07-26</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-acfp.html">AWS WAF Fraud Control account creation fraud prevention (ACFP) rule group</a>
+								<p>All rules in new rule group</p>
+							</td>
+							<td tabindex="-1">Added the rule group <code class="code">AWSManagedRulesACFPRuleSet</code>. </td>
+							<td tabindex="-1">2023-06-13</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-linux-os">Linux operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">LFI_HEADER</code></p>
+									</li><li class="listitem">
+										<p><code class="code">LFI_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">LFI_QUERYSTRING</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 2.2 of this rule group. </p>
+                                                            <p>Added signatures to improve detection. </p>
+							</td>
+							<td tabindex="-1">2023-05-22</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">RestrictedExtensions_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">RestrictedExtensions_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_COOKIE</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_BODY</code></p>
+									</li><li class="listitem">
+										<p><code class="code">CrossSiteScripting_URIPATH</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.6 of this rule group. </p>
+								<p>Updated cross-site scripting (XSS) and restricted extension rules to improve
+									detection and reduce false positives. </p></td>
+							<td tabindex="-1">2023-04-28</td>
+						</tr>
+                        <tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-php-app">PHP application managed rule group</a>
+                                                            <div class="itemizedlist">
+								 
+								 
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p>Updated <code class="code">PHPHighRiskMethodsVariables_BODY</code></p>
+								</li><li class="listitem">
+									<p>Removed <code class="code">PHPHighRiskMethodsVariables_QUERYARGUMENTS</code></p>
+								</li><li class="listitem">
+									<p>Added <code class="code">PHPHighRiskMethodsVariables_QUERYSTRING</code></p>
+								</li><li class="listitem">
+									<p>Added <code class="code">PHPHighRiskMethodsVariables_HEADER</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 2.0 of this rule group. </p>
+                                                            <p>Added signatures to improve detection in all rules. </p>
+                                                            <p>Replaced the rule <code class="code">PHPHighRiskMethodsVariables_QUERYARGUMENTS</code> with <code class="code">PHPHighRiskMethodsVariables_QUERYSTRING</code>, which inspects the entire query string instead of just the query arguments. </p>
+                                                            <p>Added the rule <code class="code">PHPHighRiskMethodsVariables_HEADER</code>, to expand coverage to include all headers.</p>
+                                                            <p>Updated the following labels to align with standard AWS Managed Rules labeling:</p>
+                                                            <div class="itemizedlist">
+                                                                 
+                                                                 
+                                                            <ul class="itemizedlist"><li class="listitem"><p>Old name: <code class="code">PHPHighRiskMethodsVariables_BODY</code> New name: <code class="code">PHPHighRiskMethodsVariables_Body</code></p></li><li class="listitem"><p>Old name: <code class="code">PHPHighRiskMethodsVariables_QUERYARGUMENTS</code> New name: <code class="code">PHPHighRiskMethodsVariables_QueryString</code></p></li></ul></div>
+                                                        </td>
+							<td tabindex="-1">2023-02-27</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-atp.html">AWS WAF Fraud Control account takeover prevention (ATP) rule group</a><div class="itemizedlist">
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">VolumetricIpFailedLoginResponseHigh</code> </p>
+								</li><li class="listitem">
+									<p><code class="code">VolumetricSessionFailedLoginResponseHigh</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Added login response inspection rules for use with protected Amazon CloudFront distributions. These rules can block new login attempts from IP addresses and client sessions 
+								that have recently been the source of too many failed login attempts. </p></td>
+							<td tabindex="-1">2023-02-15</td>
+						</tr>
+                        <tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+                            <div class="itemizedlist">
+								 
+								 
+								 
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">NoUserAgent_HEADER</code></p>
+								</li><li class="listitem">
+									<p><code class="code">CrossSiteScripting_COOKIE</code></p>
+								</li><li class="listitem">
+									<p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p>
+								</li><li class="listitem">
+									<p><code class="code">CrossSiteScripting_BODY</code></p>
+								</li><li class="listitem">
+									<p><code class="code">CrossSiteScripting_URIPATH</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.5 of this rule group. </p>
+                                                            <p>Updated Cross Site Scripting (XSS) filters to improve detection. </p></td>
+							<td tabindex="-1">2023-01-25</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-linux-os">Linux operating system managed rule group</a>
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem">
+										<p><code class="code">LFI_COOKIE</code> - removed</p>
+									</li><li class="listitem">
+										<p><code class="code">LFI_HEADER</code> - added</p>
+									</li><li class="listitem">
+										<p><code class="code">LFI_URIPATH</code></p>
+									</li><li class="listitem">
+										<p><code class="code">LFI_QUERYSTRING</code></p>
+									</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 2.1 of this rule group. </p>
+								<p>Removed the rule <code class="code">LFI_COOKIE</code> and its label 
+									<code class="code">awswaf:managed:aws:linux-os:LFI_Cookie</code>, and 
+									replaced them with the new rule <code class="code">LFI_HEADER</code> and its
+									label <code class="code">awswaf:managed:aws:linux-os:LFI_Header</code>. This change
+									expands inspection to multiple headers. </p>
+								<p>Added text transformations and signatures to all rules to improve detection.</p>
+							</td>
+							<td tabindex="-1">2022-12-15</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+                            <div class="itemizedlist">
+								 
+								 
+								 
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">NoUserAgent_HEADER</code></p>
+								</li><li class="listitem">
+									<p><code class="code">CrossSiteScripting_COOKIE</code></p>
+								</li><li class="listitem">
+									<p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p>
+								</li><li class="listitem">
+									<p><code class="code">CrossSiteScripting_BODY</code></p>
+								</li><li class="listitem">
+									<p><code class="code">CrossSiteScripting_URIPATH</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.4 of this rule group. </p>
+                                                            <p>Added a text transformation to <code class="code">NoUserAgent_HEADER</code> to remove all null bytes. Updated the filters in the cross-site scripting rules to improve detection. </p></td>
+							<td tabindex="-1">2022-12-05</td>
+                                                </tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a>
+                                                        <div class="itemizedlist">
+								 
+								 
+								 
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_BODY</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_URIPATH</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_HEADER</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_QUERYSTRING</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Host_localhost_HEADER</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released static version 1.17 of this rule group. </p>
+								<p>Updated the Java deserialization rules to add detection for requests matching Apache CVE-2022-42889,
+									a remote code execution (RCE) vulnerability in Apache Commons Text versions prior to 1.10.0. 
+									For more information, see <a href="https://nvd.nist.gov/vuln/detail/CVE-2022-42889" rel="noopener noreferrer" target="_blank"><span>NIST: National Vulnerability Database: CVE-2022-42889 Detail</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a> and <a href="https://lists.apache.org/thread/n2bd4vdsgkqh2tm14l1wyc3jyol7s1om" rel="noopener noreferrer" target="_blank"><span>CVE-2022-42889: Apache Commons Text prior to 1.10.0 allows RCE when applied to untrusted input due to insecure interpolation defaults</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a>.</p>
+								<p>Improved detection in <code class="code">Host_localhost_HEADER</code>.</p></td>
+							<td tabindex="-1">2022-10-20</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a><div class="itemizedlist">
+								 
+								 
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">Log4JRCE_HEADER</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_QUERYSTRING</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_URIPATH</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_BODY</code></p>
+								</li></ul></div>
+							</td>
+                                                        <td tabindex="-1"><p>Released static version 1.16 of this rule group. </p>
+                                                            <p>Removed false positives that AWS identified in version 1.15.</p></td>
+							<td tabindex="-1">2022-10-05</td>
+						</tr>
+						<tr>
+                                                    <td tabindex="-1"><p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-posix-os">POSIX operating system managed rule group</a></p>
+                                                        <p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-php-app">PHP application managed rule group</a> </p>
+                                                        <p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-wordpress-app">WordPress application managed rule group</a> </p>
+							</td>
+                                                        <td tabindex="-1"><p>Corrected the documented label names. </p> </td>
+							<td tabindex="-1">2022-09-19</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html">IP reputation rule groups</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">AWSManagedIPDDoSList</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1"><p>This change doesn't alter how the rule group handles web traffic.</p><p> Added a new rule with Count action to inspect for IP addresses that are actively engaging in DDoS activities, according to Amazon threat intelligence.</p> </td>
+							<td tabindex="-1">2022-08-30</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a><div class="itemizedlist">
+								 
+								 
+								 
+								 
+								 
+								 
+								 
+								 
+								 
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">Log4JRCE</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_HEADER</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_QUERYSTRING</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_URIPATH</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_BODY</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_HEADER</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_BODY</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_URIPATH</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_QUERYSTRING</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Host_localhost_HEADER</code></p>
+								</li><li class="listitem">
+									<p><code class="code">PROPFIND_METHOD</code></p>
+								</li></ul></div>
+							</td>
+                                                        <td tabindex="-1"><p>Released static version 1.15 of this rule group. </p>
+                                                            <p>Removed <code class="code">Log4JRCE</code>
+                                                                and replaced it with <code class="code">Log4JRCE_HEADER</code>, <code class="code">Log4JRCE_QUERYSTRING</code>,
+                                                                <code class="code">Log4JRCE_URI</code>, and <code class="code">Log4JRCE_BODY</code>, for more granular monitoring 
+                                                                and management of false positives. </p>
+                                                            <p>Added signatures for improved detection and blocking to <code class="code">PROPFIND_METHOD</code> 
+                                                                and to all <code class="code">JavaDeserializationRCE*</code> and <code class="code">Log4JRCE*</code> rules. </p>
+                                                            <p>Updated labels to correct capitalization in <code class="code">Host_localhost_HEADER</code> and 
+                                                            in all <code class="code">JavaDeserializationRCE*</code> rules. </p>
+                                                            <p>Corrected the description of <code class="code">JavaDeserializationRCE_HEADER</code>.</p></td>
+							<td tabindex="-1">2022-08-22</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-atp.html">AWS WAF Fraud Control account takeover prevention (ATP) rule group</a><div class="itemizedlist">
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">UnsupportedCognitoIDP</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Added a rule to prevent the use of the account takeover prevention managed rule group for
+										Amazon Cognito user pool web traffic. </p></td>
+							<td tabindex="-1">2022-08-11</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a>
+							</td>
+                            <td tabindex="-1"><p>AWS has scheduled expiration for versions <code class="code">Version_1.2</code> and <code class="code">Version_2.0</code> of the rule group. The versions will expire on September 9, 2022. For information about version expiration, see <a href="https://docs.aws.amazon.com/waf/latest/developerguide/waf-managed-rule-groups-versioning.html">Using versioned managed rule groups in AWS WAF</a>.</p></td>
+							<td tabindex="-1">2022-06-09</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs">Core rule set (CRS) managed rule group</a><div class="itemizedlist">
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">GenericLFI_URIPATH</code></p>
+									<p><code class="code">GenericRFI_URIPATH</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released version 1.3 of this rule group. This release updates the match signatures in the rules <code class="code">GenericLFI_URIPATH</code> and <code class="code">GenericRFI_URIPATH</code>, to improve detection. </p></td>
+							<td tabindex="-1">2022-05-24</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html">AWS WAF Bot Control rule group</a><div class="itemizedlist">
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">CategoryEmailClient</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Added the rule <code class="code">CategoryEmailClient</code> to the rule group. </p></td>
+							<td tabindex="-1">2022-04-06</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a><div class="itemizedlist">
+								 
+								 
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_HEADER</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_BODY</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_URI</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_QUERYSTRING</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released version 1.14 of this rule group. The four <code class="code">JavaDeserializtionRCE</code> rules
+										are moved to Block mode.</p></td>
+							<td tabindex="-1">2022-03-31</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a><div class="itemizedlist">
+								 
+								 
+								 
+								 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_HEADER_RC_COUNT</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_BODY_RC_COUNT</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_URI_RC_COUNT</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_QUERYSTRING_RC_COUNT</code></p>
+								</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released version 1.13 of this rule group. Updated the text transformation for Spring Core and Cloud Function RCE vulnerabilities. These rules are in count mode to gather metrics and evaluate matched patterns. The label can be used to block requests in a custom rule. A subsequent version will be deployed with these rules in block mode.</p></td>
+							<td tabindex="-1">2022-03-31</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a><div class="itemizedlist">
+								 
+								 
+								 
+								 
+								 
+								 
+								 
+								 
+										 
+							<ul class="itemizedlist"><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_HEADER_RC_COUNT</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_BODY_RC_COUNT</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_URI_RC_COUNT</code></p>
+								</li><li class="listitem">
+									<p><code class="code">JavaDeserializationRCE_QUERYSTRING_RC_COUNT</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_HEADER</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_QUERYSTRING</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_URI</code></p>
+								</li><li class="listitem">
+									<p><code class="code">Log4JRCE_BODY</code></p>
+								</li><li class="listitem">
+											<p><code class="code">Log4JRCE</code></p>
+										</li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released version 1.12 of this rule group. Added signatures for Spring Core and Cloud Function RCE vulnerabilities. These rules are in count mode to gather metrics and evaluate matched patterns. The label can be used to block requests in a custom rule. A subsequent version will be deployed with these rules in block mode.</p>
+								<p>Removed the rules <code class="code">Log4JRCE_HEADER</code>, <code class="code">Log4JRCE_QUERYSTRING</code>, <code class="code">Log4JRCE_URI</code>, and <code class="code">Log4JRCE_BODY</code> and replaced them with the rule <code class="code">Log4JRCE</code>.</p></td>
+							<td tabindex="-1">2022-03-30</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html">IP reputation rule groups</a>
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">AWSManagedReconnaissanceList</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1">Updated the <code class="code">AWSManagedReconnaissanceList</code> rule to change the action from count to block. </td>
+							<td tabindex="-1">2022-02-15</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-atp.html">AWS WAF Fraud Control account takeover prevention (ATP) rule group</a>
+								<p>All rules in new rule group</p>
+							</td>
+							<td tabindex="-1">Added the rule group <code class="code">AWSManagedRulesATPRuleSet</code>. </td>
+							<td tabindex="-1">2022-02-11</td>
+						</tr>
+						<tr>
+							<td tabindex="-1"><a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs">Known bad inputs managed rule group</a><div class="itemizedlist">
+										 
+										 
+										 
+										 
+										 
+									<ul class="itemizedlist"><li class="listitem">
+											<p><code class="code">Log4JRCE</code></p>
+										</li><li class="listitem">
+											<p><code class="code">Log4JRCE_HEADER</code></p>
+										</li><li class="listitem">
+											<p><code class="code">Log4JRCE_QUERYSTRING</code></p>
+										</li><li class="listitem">
+											<p><code class="code">Log4JRCE_URI</code></p>
+										</li><li class="listitem">
+											<p><code class="code">Log4JRCE_BODY</code></p>
+										</li></ul></div>
+								</td>
+							<td tabindex="-1"><p>Released version 1.9 of this rule group. Removed the rule <code class="code">Log4JRCE</code>
+								and replaced it with the rules <code class="code">Log4JRCE_HEADER</code>, <code class="code">Log4JRCE_QUERYSTRING</code>, <code class="code">Log4JRCE_URI</code>, and <code class="code">Log4JRCE_BODY</code>, for flexibility in the use of this functionality. Added signatures to improve detection and blocking.</p></td>
+							<td tabindex="-1">2022-01-28</td>
+						</tr>
+						<tr>
+							<td tabindex="-1">Core rule set (CRS)
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">CrossSiteScripting_URIPATH</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_BODY</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">CrossSiteScripting_COOKIE</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released version 2.0 of this rule group. For these rules,
+									tuned detection signatures to reduce false positives.
+									Replaced the <code class="code">URL_DECODE</code> text transformation
+									with the double <code class="code">URL_DECODE_UNI</code> text
+									transformation. Added the <code class="code">HTML_ENTITY_DECODE</code>
+									text transformation.</p>
+							</td>
+							<td tabindex="-1">2022-01-10</td>
+						</tr>
+						<tr>
+							<td tabindex="-1">Core rule set (CRS)
+								<div class="itemizedlist">
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">RestrictedExtensions_URIPATH</code></p></li><li class="listitem"><p><code class="code">RestrictedExtensions_QUERYARGUMENTS</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>As part of the release of version 2.0 of this rule group,
+									added the <code class="code">URL_DECODE_UNI</code> text transformation.
+									Removed the <code class="code">URL_DECODE</code> text transformation from
+									<code class="code">RestrictedExtensions_URIPATH</code>.</p>
+							</td>
+							<td tabindex="-1">2022-01-10</td>
+						</tr>
+						<tr>
+							<td tabindex="-1">SQL database
+								<div class="itemizedlist">
+									 
+									 
+									 
+									 
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">SQLi_BODY</code></p></li><li class="listitem"><p><code class="code">SQLi_QUERYARGUMENTS</code></p></li><li class="listitem"><p><code class="code">SQLi_COOKIE</code></p></li><li class="listitem"><p><code class="code">SQLi_URIPATH</code></p></li><li class="listitem"><p><code class="code">SQLiExtendedPatterns_BODY</code></p></li><li class="listitem"><p><code class="code">SQLiExtendedPatterns_QUERYARGUMENTS</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1">
+								<p>Released version 2.0 of this rule group.
+									Replaced the <code class="code">URL_DECODE</code> text transformation
+									with the double <code class="code">URL_DECODE_UNI</code> text
+									transformation and added the
+									<code class="code">COMPRESS_WHITE_SPACE</code> text
+									transformation.</p>
+								<p>Added more detection signatures to
+									<code class="code">SQLiExtendedPatterns_QUERYARGUMENTS</code>.</p>
+								<p>Added JSON inspection to <code class="code">SQLi_BODY</code>.</p>
+								<p>Added the rule
+									<code class="code">SQLiExtendedPatterns_BODY</code>.</p>
+								<p>Removed the rule <code class="code">SQLi_URIPATH</code>.</p>
+							</td>
+							<td tabindex="-1">2022-01-10</td>
+						</tr>
+						<tr>
+							<td tabindex="-1">Known bad inputs
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">Log4JRCE</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released version 1.8 of the rule <code class="code">Log4JRCE</code>
+								to improve header inspection and matching criteria.</p></td>
+							<td tabindex="-1">2021-12-17</td>
+						</tr>
+						<tr>
+							<td tabindex="-1">Known bad inputs
+								<div class="itemizedlist">
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">Log4JRCE</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Released version 1.4 of the rule <code class="code">Log4JRCE</code>
+								to tune the matching criteria and to inspect additional headers. Released version 1.5 to
+								tune the matching criteria.</p></td>
+							<td tabindex="-1">2021-12-11</td>
+						</tr>
+						<tr>
+							<td tabindex="-1">Known bad inputs
+								<div class="itemizedlist">
+									 
+									 
+								<ul class="itemizedlist"><li class="listitem"><p><code class="code">Log4JRCE</code></p></li><li class="listitem"><p><code class="code">BadAuthToken_COOKIE_AUTHORIZATION</code></p></li></ul></div>
+							</td>
+							<td tabindex="-1"><p>Added the rule <code class="code">Log4JRCE</code> version 1.2 in response to the recently disclosed security issue within Log4j. For information see <a href="https://www.cve.org/CVERecord?id=CVE-2021-44228" rel="noopener noreferrer" target="_blank"><span>CVE-2021-44228</span><awsui-icon class="awsdocs-link-icon" name="external"></awsui-icon></a>. This rule inspects common URI paths, query strings, the first 8KB of the request body, and common headers. The rule uses double <code class="code">URL_DECODE_UNI</code> text transformations. Released version 1.3 of <code class="code">Log4JRCE</code>
+								to tune the matching criteria and to inspect additional headers. </p>
+								<p>Removed the rule <code class="code">BadAuthToken_COOKIE_AUTHORIZATION</code>.</p>
+							</td>
+							<td tabindex="-1">2021-12-10</td>
+						</tr>
+					</tbody></table>
+<table id="w581aac11c21c21c25c17c11"><thead>
+						<tr>
+							<th>Rule group and rules</th>
+							<th>Description</th>
+							<th>Date</th>
+						</tr>
+					</thead>
+                                            
+			                	<tbody><tr>
+			                		<td tabindex="-1">Amazon IP reputation list</td>
+			                		<td tabindex="-1"><p><code class="code">AWSManagedReconnaissanceList</code></p></td>
+			                		<td tabindex="-1">Added the <code class="code">AWSManagedReconnaissanceList</code> rule in
+									monitoring/count mode. This rule contains IP addresses that are
+									performing reconnaissance against AWS resources.</td>
+			                		<td tabindex="-1">2021-11-23</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Windows operating system</td>
+			                		<td tabindex="-1">
+			                			<p><code class="code">WindowsShellCommands</code></p>
+			                			<p><code class="code">PowerShellCommands</code></p>
+									</td>
+			                		<td tabindex="-1">
+			                			<p>Added three new rules for WindowsShell commands: <code class="code">WindowsShellCommands_COOKIE</code>, <code class="code">WindowsShellCommands_QUERYARGUMENTS</code>,
+			                				and <code class="code">WindowsShellCommands_BODY</code>.</p>
+			                			<p>Added a new PowerShell rule: <code class="code">PowerShellCommands_COOKIE</code>.</p>
+			                			<p>Restructured the <code class="code">PowerShellComands</code> rules naming by removing the string _Set1 and _Set2.</p>
+			                			<p>Added more comprehensive detection signatures to <code class="code">PowerShellRules</code>.</p>
+			                			<p>Added <code class="code">URL_DECODE_UNI</code> text transformation to all Windows operating system rules.</p>
+			                		</td>
+			                		<td tabindex="-1">2021-11-23</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Linux operating system</td>
+			                		<td tabindex="-1">
+			                			<p><code class="code">LFI_URIPATH</code></p>
+			                			<p><code class="code">LFI_QUERYSTRING</code></p>
+			                			<p><code class="code">LFI_BODY</code></p>
+			                			<p><code class="code">LFI_COOKIE</code></p>
+			                		</td>
+			                		<td tabindex="-1">
+			                			<p>Replaced double <code class="code">URL_DECODE</code> text transformation with double
+											<code class="code">URL_DECODE_UNI</code>.</p>
+			                			<p>Added <code class="code">NORMALIZE_PATH_WIN</code> as a second text transformation.</p>
+			                			<p>Replaced the <code class="code">LFI_BODY</code> rule with the <code class="code">LFI_COOKIE</code> rule.</p>
+			                			<p>Added more comprehensive detection signatures for all <code class="code">LFI</code> rules.</p>
+			                		</td>
+			                		<td tabindex="-1">2021-11-23</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Core rule set (CRS)</td>
+                                                        <td tabindex="-1">
+                                                            <p><code class="code">SizeRestrictions_BODY</code></p>
+                                                        </td>
+			                		<td tabindex="-1">Reduced the size limit to block web requests with body payloads larger than 8 KB. Previously, the limit was 10 KB. </td>
+			                		<td tabindex="-1">2021-10-27</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Core rule set (CRS)</td>
+                                                        <td tabindex="-1">
+                                                            <p><code class="code">EC2MetaDataSSRF_BODY</code></p>
+                                                            <p><code class="code">EC2MetaDataSSRF_COOKIE</code></p>
+                                                            <p><code class="code">EC2MetaDataSSRF_URIPATH</code></p>
+                                                            <p><code class="code">EC2MetaDataSSRF_QUERYARGUMENTS</code></p>
+                                                        </td>
+			                		<td tabindex="-1">Added more detection signatures. Added double unicode URL decode to improve blocking. </td>
+			                		<td tabindex="-1">2021-10-27</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Core rule set (CRS)</td>
+                                                        <td tabindex="-1">
+                                                            <p><code class="code">GenericLFI_QUERYARGUMENTS</code></p>
+                                                            <p><code class="code">GenericLFI_URIPATH</code></p>
+                                                            <p><code class="code">RestrictedExtensions_URIPATH</code></p>
+                                                            <p><code class="code">RestrictedExtensions_QUERYARGUMENTS</code></p>
+                                                        </td>
+			                		<td tabindex="-1">Added double unicode URL decode to improve blocking. </td>
+			                		<td tabindex="-1">2021-10-27</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Core rule set (CRS)</td>
+                                                        <td tabindex="-1">
+                                                            <p><code class="code">GenericRFI_QUERYARGUMENTS</code></p>
+                                                            <p><code class="code">GenericRFI_BODY</code></p>
+                                                            <p><code class="code">GenericRFI_URIPATH</code></p>
+                                                        </td>
+                                                        <td tabindex="-1">Updated the rule signatures to reduce false positives, based on customer feedback. Added double unicode URL decode to improve blocking. </td>
+			                		<td tabindex="-1">2021-10-27</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">All</td>
+			                		<td tabindex="-1"><p>All rules</p></td>
+			                		<td tabindex="-1">Added support for AWS WAF labels to all rules that didn't already support labeling. </td>
+			                		<td tabindex="-1">2021-10-25</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Amazon IP reputation list</td>
+                                                        <td tabindex="-1"><p><code class="code">AWSManagedIPReputationList_xxxx</code></p></td>
+			                		<td tabindex="-1">Restructured the IP reputation list, removed suffixes from rule name, and added support for AWS WAF labels. </td>
+			                		<td tabindex="-1">2021-05-04</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Anonymous IP list</td>
+                                                        <td tabindex="-1"><p><code class="code">AnonymousIPList</code></p>
+                                                            <p><code class="code">HostingProviderList</code></p></td>
+			                		<td tabindex="-1">Added support for AWS WAF labels. </td>
+			                		<td tabindex="-1">2021-05-04</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Bot Control</td>
+			                		<td tabindex="-1">All</td>
+			                		<td tabindex="-1">Added the Bot Control rule set. </td>
+			                		<td tabindex="-1">2021-04-01</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Core rule set (CRS)</td>
+			                		<td tabindex="-1"><p><code class="code">GenericRFI_QUERYARGUMENTS</code></p>
+			                		</td>
+			                		<td tabindex="-1">Added double URL decode. </td>
+			                		<td tabindex="-1">2021-03-03</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Core rule set (CRS)</td>
+			                		<td tabindex="-1"><p><code class="code">RestrictedExtensions_URIPATH</code></p>
+			                		</td>
+			                		<td tabindex="-1">Improved the configuration of the rules and added an extra URL decode. </td>
+			                		<td tabindex="-1">2021-03-03</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Admin protection</td>
+			                		<td tabindex="-1"><p><code class="code">AdminProtection_URIPATH</code></p>
+			                		</td>
+			                		<td tabindex="-1">Added double URL decode. </td>
+			                		<td tabindex="-1">2021-03-03</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Known bad inputs</td>
+			                		<td tabindex="-1"><p><code class="code">ExploitablePaths_URIPATH</code></p>
+			                		</td>
+			                		<td tabindex="-1">Improved the configuration of the rules and added an extra URL decode. </td>
+			                		<td tabindex="-1">2021-03-03</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Linux operating system</td>
+			                		<td tabindex="-1"><p><code class="code">LFI_QUERYARGUMENTS</code></p>
+			                		</td>
+			                		<td tabindex="-1">Improved the configuration of the rules and added an extra URL decode. </td>
+			                		<td tabindex="-1">2021-03-03</td>
+			                	</tr>
+			                	<tr>
+			                		<td tabindex="-1">Windows operating system</td>
+			                		<td tabindex="-1">All</td>
+			                		<td tabindex="-1">Improved the configuration of the rules. </td>
+			                		<td tabindex="-1">2020-09-23</td>
+			                	</tr>
+                                            <tr>
+						<td tabindex="-1">PHP application</td>
+                                                <td tabindex="-1"><p><code class="code">PHPHighRiskMethodsVariables_QUERYARGUMENTS</code></p>
+						     <p><code class="code">PHPHighRiskMethodsVariables_BODY</code></p>
+                                                </td>
+                                                <td tabindex="-1">Changed the text transformation from HTML decode to URL decode, to improve blocking. </td>
+			                	<td tabindex="-1">2020-09-16</td>
+                                            </tr>
+                                            <tr>
+						<td tabindex="-1">POSIX operating system</td>
+                                                <td tabindex="-1"><p><code class="code">UNIXShellCommandsVariables_QUERYARGUMENTS</code></p>
+                                                                    <p><code class="code">UNIXShellCommandsVariables_BODY</code></p>
+                                                </td>
+                                                <td tabindex="-1">Changed the text transformation from HTML decode to URL decode, to improve blocking. </td>
+			                	<td tabindex="-1">2020-09-16</td>
+                                            </tr>
+                                            <tr>
+						<td tabindex="-1">Core rule set</td>
+                                                <td tabindex="-1"><p><code class="code">GenericLFI_QUERYARGUMENTS</code></p>
+						    <p><code class="code">GenericLFI_URIPATH</code></p>
+						    <p>GenericLFI_BODY</p>
+                                                </td>
+                                                <td tabindex="-1">Changed the text transformation from HTML decode to URL decode, to improve blocking. </td>
+			                	<td tabindex="-1">2020-08-07</td>
+                                            </tr>
+                                            <tr>
+						<td tabindex="-1">Linux operating system</td>
+                                                <td tabindex="-1"><p><code class="code">LFI_URIPATH</code></p>
+							<p><code class="code">LFI_QUERYARGUMENTS</code></p>
+							<p><code class="code">LFI_BODY</code></p>
+                                                </td>
+                                                <td tabindex="-1">Changed the text transformation from HTML entity decode to URL decode, to improve detection and blocking. </td>
+			                	<td tabindex="-1">2020-05-19</td>
+                                            </tr>
+                                            <tr>
+						<td tabindex="-1">Anonymous IP List</td>
+						<td tabindex="-1">All</td>
+                                                <td tabindex="-1">New rule group in <a href="https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html">IP reputation rule groups</a> to block
+									requests from services that permit the obfuscation of viewer
+									identity, to help mitigate bots and evasion of geographic
+									restrictions. </td>
+			                	<td tabindex="-1">2020-03-06</td>
+                                            </tr>
+                                            <tr>
+						<td tabindex="-1">WordPress application</td>
+						<td tabindex="-1"><p><code class="code">WordPressExploitableCommands_QUERYSTRING</code></p>
+						    </td>
+						<td tabindex="-1">New rule that checks for exploitable commands in the query string.</td>
+			                	<td tabindex="-1">2020-03-03</td>
+                                            </tr>
+                                            <tr>
+						<td tabindex="-1">Core rule set (CRS)</td>
+						<td tabindex="-1"><p><code class="code">SizeRestrictions_QUERYSTRING</code></p>
+							<p><code class="code">SizeRestrictions_Cookie_HEADER</code></p>
+							<p><code class="code">SizeRestrictions_BODY</code></p>
+							<p><code class="code">SizeRestrictions_URIPATH</code></p>
+						    </td>
+						<td tabindex="-1">Adjusted the size value constraints for improved accuracy. </td>
+			                	<td tabindex="-1">2020-03-03</td>
+                                            </tr>
+							<tr>
+								<td tabindex="-1">SQL database</td>
+								<td tabindex="-1"><p><code class="code">SQLi_URIPATH</code></p>
+								</td>
+								<td tabindex="-1">The rules now check the message URI.</td>
+			                	                <td tabindex="-1">2020-01-23</td>
+							</tr>
+						<tr>
+							<td tabindex="-1">SQL database</td>
+							<td tabindex="-1"><p><code class="code">SQLi_BODY</code></p>
+								<p><code class="code">SQLi_QUERYARGUMENTS</code></p>
+								<p><code class="code">SQLi_COOKIE</code></p>
+							</td>
+							<td tabindex="-1">Updated text transformations.</td>
+			                	        <td tabindex="-1">2019-12-20</td>
+						</tr>
+						<tr>
+							<td tabindex="-1">Core rule set (CRS)</td>
+							<td tabindex="-1"><p><code class="code">CrossSiteScripting_URIPATH</code></p>
+							      <p><code class="code">CrossSiteScripting_BODY</code></p>
+							      <p><code class="code">CrossSiteScripting_QUERYARGUMENTS</code></p>
+							      <p><code class="code">CrossSiteScripting_COOKIE</code></p>
+								</td>
+							<td tabindex="-1">Updated text transformations.</td>
+			                	        <td tabindex="-1">2019-12-20</td>
+						</tr>
+					</tbody></table>
+</body></html>

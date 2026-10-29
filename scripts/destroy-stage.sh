@@ -34,4 +34,4 @@ for i in cn.list_integrations().get("items", []):
             print("integration not deleted yet:", ex)
 PY
 (cd infra && JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1 npx -y aws-cdk@latest destroy \
-  "SecurityRadar$SUFFIX" "SecurityRadarContinuum$SUFFIX" -c "stage=$STAGE" --force)
+  "SecurityRadar$SUFFIX" "SecurityRadarMitigateDemo$SUFFIX" "SecurityRadarContinuum$SUFFIX" -c "stage=$STAGE" --force)

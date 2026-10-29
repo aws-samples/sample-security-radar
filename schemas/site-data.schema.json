@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://security-radar/site-data.schema.json",
   "title": "Security Radar site-data (published to S3, read by the UI)",
-  "description": "Root documents. events.json = {kind:'events'}, events/<id>.json = {kind:'event'}, sources.json = {kind:'sources'}.",
+  "description": "Root documents. events.json = {kind:'events'}, events/<id>.json = {kind:'event'}, sources.json = {kind:'sources'}, mitigate.json = {kind:'mitigate'}.",
   "$defs": {
     "Domain": {
       "enum": [
@@ -283,7 +283,8 @@
             "level_change",
             "severity_change",
             "exploitation_change",
-            "amount_change"
+            "amount_change",
+            "repaired"
           ]
         },
         "from": {
@@ -361,6 +362,13 @@
             "number",
             "null"
           ]
+        },
+        "cwes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CWE-[0-9]+$"
+          }
         },
         "epss_percentile": {
           "type": [
@@ -1626,6 +1634,244 @@
           ]
         }
       }
+    },
+    "Mitigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note",
+        "updated_at",
+        "plans"
+      ],
+      "description": "M3 mitigate station: the fast path next to the patch (never a fix — note says so).",
+      "properties": {
+        "note": {
+          "type": "string"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "plans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MitigationPlan"
+          }
+        },
+        "inspector": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InspectorFinding"
+          }
+        },
+        "dns": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "domains",
+                "state",
+                "action"
+              ],
+              "properties": {
+                "domains": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "state": {
+                  "enum": [
+                    "in_place",
+                    "unchecked",
+                    "no_dns_firewall"
+                  ]
+                },
+                "action": {
+                  "enum": [
+                    "ALERT",
+                    "BLOCK",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "MitigationPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "key",
+        "target_id",
+        "tier",
+        "group",
+        "group_label",
+        "rules",
+        "min_version",
+        "reason",
+        "cves",
+        "labels",
+        "appliable",
+        "web_acl",
+        "promoted",
+        "state",
+        "detail",
+        "rule_json"
+      ],
+      "properties": {
+        "channel": {
+          "enum": [
+            "waf"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "cve",
+            "product",
+            "cwe"
+          ]
+        },
+        "group": {
+          "type": "string"
+        },
+        "group_label": {
+          "type": "string"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "min_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "cves": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "appliable": {
+          "type": "boolean"
+        },
+        "web_acl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "promoted": {
+          "type": "boolean"
+        },
+        "state": {
+          "enum": [
+            "absent",
+            "too_old",
+            "group_counted",
+            "staged",
+            "blocking",
+            "no_web_acl",
+            "unchecked"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "rule": {
+          "type": "string"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "counting": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rule_json": {
+          "type": "object"
+        }
+      }
+    },
+    "InspectorFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "severity",
+        "purl",
+        "fixed",
+        "cwes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "none",
+            "unknown"
+          ]
+        },
+        "purl": {
+          "type": "string"
+        },
+        "fixed": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cwes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target_id": {
+          "type": "string"
+        }
+      }
     }
   },
   "type": "object",
@@ -1760,6 +2006,16 @@
           "items": {
             "$ref": "#/$defs/PossibleDuplicate"
           }
+        },
+        "mitigation": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Mitigation"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -1878,6 +2134,106 @@
               "minimum": 0
             }
           }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at",
+        "note",
+        "run_at",
+        "web_acls",
+        "inspector",
+        "errors",
+        "applied",
+        "dns"
+      ],
+      "description": "mitigate.json — M3 mitigate station: radar-owned web ACLs, per-target Inspector dependency baseline, errors.",
+      "properties": {
+        "kind": {
+          "const": "mitigate"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "note": {
+          "type": "string"
+        },
+        "run_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "web_acls": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "inspector": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "target_id",
+              "state",
+              "components",
+              "scanned_on",
+              "findings"
+            ],
+            "properties": {
+              "target_id": {
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "scanned",
+                  "no_packages",
+                  "deferred",
+                  "error",
+                  "never"
+                ]
+              },
+              "components": {
+                "type": "integer"
+              },
+              "scanned_on": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/InspectorFinding"
+                }
+              }
+            }
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "applied": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "dns": {
+          "type": [
+            "object",
+            "null"
+          ]
         }
       }
     }

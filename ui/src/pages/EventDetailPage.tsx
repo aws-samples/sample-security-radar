@@ -9,6 +9,7 @@ import { AnalysisCard } from '@/components/detail/AnalysisCard';
 import { KeyData } from '@/components/detail/KeyData';
 import { EvidenceTimeline, ChangeLog } from '@/components/detail/EvidenceTimeline';
 import { EnvSection } from '@/components/env/EnvSection';
+import { MitigationPanel } from '@/components/detail/MitigationPanel';
 import { LevelBadge } from '@/components/LevelBadge';
 import { resolveImpact } from '@/utils/response';
 import { citationNumbers, groupEvidence } from '@/utils/evidence';
@@ -19,7 +20,7 @@ const SECTIONS = ['env', 'evidence'] as const;
 
 /**
  * L2 event detail — reading order is a hard constraint (UI-IA §2, spec 01 §4.2):
- * verdict (BLUF) → progress + system steps → 在你的环境中 → why this level → analysis → key data → evidence → change log.
+ * verdict (BLUF) → progress + system steps → 在你的环境中 → 缓解（快路，M3）→ why this level → analysis → key data → evidence → change log.
  * Deep links: `?section=env|evidence` (the hash is owned by HashRouter).
  */
 export function EventDetailPage() {
@@ -124,6 +125,9 @@ export function EventDetailPage() {
             <span className="dt-aside">AWS Security Agent + AWS Continuum{d.response ? ` · 更新 ${utcShort(d.response.updated_at)} UTC` : ''}</span></h2>
           <EnvSection response={d.response} steps={d.pipelineSteps} impact={impact} deepLinked={section === 'env'} />
         </section>
+
+        {/* 3b · mitigation fast path (M3) — absent / null ⇒ not rendered */}
+        <MitigationPanel mitigation={d.mitigation} />
 
         {/* 4 · why this level */}
         <section className="dt-section" aria-labelledby="dt-h-why">

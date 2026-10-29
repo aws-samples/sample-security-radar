@@ -6,7 +6,8 @@
 
 <p align="center">
   <b>The trigger for AWS Security Agent and AWS Continuum: a security headline from the outside world →<br/>
-  the exact line in your code → a validated patch delivered as a pull / merge request.</b>
+  the exact line in your code → a validated patch delivered as a pull / merge request —<br/>
+  and, until that patch ships, a virtual patch at the edge with AWS WAF and Route 53 Resolver DNS Firewall.</b>
 </p>
 
 <p align="center">
@@ -36,6 +37,9 @@ what is urgent, and when an event matches your code it **pulls the trigger**:
    proves the issue exploitable it produces a patch and opens a **native pull request (GitHub) or merge request (GitLab)**.
 3. **A human** reviews and merges.
 
+Patching takes hours to days; exploitation of a fresh disclosure can take minutes. So the radar also **mitigates what
+it located**, on resources it owns, in a non-blocking mode until a human promotes it (see *Fast path* below).
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/respond-loop-dark.svg">
   <img src="docs/diagrams/respond-loop.svg" alt="Respond loop: radar → AWS Security Agent + AWS Continuum">
@@ -52,6 +56,22 @@ what is urgent, and when an event matches your code it **pulls the trigger**:
 | **Cost guardrails** | A scan is requested only to validate radar findings that were submitted successfully, at most once per environment per 24 h, with scheduled scans off. A daily budget line is flagged on the ops page, never silently enforced. |
 | **Operator view** | Daily 08:00 HKT digest (code picks and counts, the LLM writes cited sentences), advisory "possible duplicate" hints, and an ops page listing what needs a human. |
 
+## Fast path: mitigate until the patch ships
+
+A mitigate station runs after the respond step. It acts **only on targets the radar or the AWS agents found affected**
+and **only writes resources the radar created** (IAM scopes every write to them). A mitigation is not a fix — every
+surface says so.
+
+| Channel | Where the plan comes from (code) | What the radar does | What a human does |
+|---|---|---|---|
+| **AWS WAF** | The AWS Managed Rules changelog parsed into CVE → rule group / rules / minimum version; then the product (PHP, WordPress); then the weakness class (CWE — advisory only) | Adds the managed rule group to the radar's web ACL with the rules in **Count**, and checks it (group overridden to Count? pinned to a version that predates the CVE?) | `scripts/promote.py waf …` to **Block**; the radar never demotes |
+| **Route 53 Resolver DNS Firewall** | Domain indicators written in **defanged** form in the evidence (`evil[.]com`) + the AWS-managed threat lists; major platforms are never blocked | Writes the radar's domain list; rules in **ALERT** | `promote.py dns …` to **BLOCK** |
+| **Amazon Inspector** | Target lockfiles → CycloneDX SBOM → `ScanSbom` (stateless, nothing enabled in the account, at most once per target per day) | Per-target dependency baseline; intersects event CVEs with it | Upgrade through the PR / MR channel |
+| **AWS Security Hub** (opt-in) | One ASFF finding per event × affected target, with the fix version and every mitigation's state | Imports on change, archives when no longer affected | Triage next to GuardDuty / Inspector findings |
+
+Inspector judges language packages, not runtimes (a PHP or Node.js version pin is judged by the radar's own product
+registry). End-to-end checks: `scripts/waf-e2e.py`, `scripts/dns-e2e.py`, `scripts/securityhub-check.py`.
+
 ## Architecture
 
 <picture>
@@ -59,13 +79,13 @@ what is urgent, and when an event matches your code it **pulls the trigger**:
   <img src="docs/diagrams/architecture.svg" alt="Security Radar architecture">
 </picture>
 
-Serverless on AWS: EventBridge (every 10 min) → Step Functions (plan → collect → process → analyze → respond → publish) →
+Serverless on AWS: EventBridge (every 10 min) → Step Functions (plan → collect → process → analyze → respond → mitigate → publish) →
 Lambda + DynamoDB + S3 → CloudFront. AWS Security Agent runs in the radar's Region; AWS Continuum runs in `us-east-1`.
 
 | Path | Content |
 |---|---|
 | `src/radar/` | Parsers, pipeline (normalize → cluster → verify → score), analyst, respond station, on-chain checks, digest, ops rules |
-| `infra/` | AWS CDK (Python): two stacks (radar + Security Agent in `ap-northeast-1`, Continuum side in `us-east-1`) |
+| `infra/` | AWS CDK (Python): three stacks — radar + Security Agent + DNS Firewall demo VPC in `ap-northeast-1`; Continuum side and the WAF demo (a web ACL in front of a CloudFront distribution that refuses every request) in `us-east-1` |
 | `integrations/continuum/targets/` | **Deliberately vulnerable** demo repositories used as scan targets (see below) |
 | `ui/` | React 18 + Vite + TypeScript; `ui/mock-data/` for local development only |
 | `tests/`, `mutations.txt` | pytest (fixtures recorded once, no network) and a mutation registry proving each guard's test fails when the guard is removed |
@@ -78,7 +98,7 @@ AWS Security Agent in `ap-northeast-1`; Amazon Bedrock access to Anthropic Claud
 
 ```bash
 export AWS_PROFILE=<non-production-profile>
-./scripts/deploy-all.sh                          # build → both CDK stacks → arm the UI gate → upload UI → one cycle → verify
+./scripts/deploy-all.sh                          # build → three CDK stacks → arm the UI gate → upload UI → one cycle → verify
 STAGE=demo ./scripts/deploy-all.sh               # an isolated copy (every name carries the stage)
 STAGE=demo ./scripts/verify.sh                   # PASS/FAIL acceptance + integration coverage
 STAGE=demo ./scripts/destroy-stage.sh            # remove that copy
@@ -89,9 +109,13 @@ AWS Continuum GitHub App once and set `github_repo` in `infra/cdk.json`) and Git
 personal access token in `~/.env`; set `gitlab_project`, and `gitlab_url` for a self-managed instance reachable by
 Continuum).
 
+Optional: AWS Security Hub export with `-c security_hub=on` (an account-wide service — enabled without any default
+standards; off by default in this sample).
+
 **Costs.** AWS Continuum code scanning bills per inference unit — see the AWS Continuum pricing page; scans are the
 dominant cost, which is why the radar scans only to validate its own findings. Bedrock, Lambda, DynamoDB, S3 and
-CloudFront costs are small for one deployment. Destroy demo stages when you are done.
+CloudFront costs are small for one deployment. The fast path adds roughly $10–15 a month (web ACL $5 + $1 per rule,
+ScanSbom $0.03 per call, DNS Firewall $0.60 per million queries). Destroy demo stages when you are done.
 
 ## ⚠️ Deliberately vulnerable demo code
 

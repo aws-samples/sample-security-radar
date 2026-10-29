@@ -87,7 +87,7 @@ def test_published_response_impact_and_continuum_overview_validate():
     store.put_source_state("__continuum__", {"counters": {"requirements_synced": 1}, "reviews": ["2026-10-23T04:00:00Z"]})
     docs = publish.build(store, FETCHED)
     validator = jsonschema.Draft202012Validator(SCHEMA, format_checker=jsonschema.FormatChecker())
-    for path in ("events.json", f"events/{php.event_id}.json", "continuum.json"):
+    for path in ("events.json", f"events/{php.event_id}.json", "continuum.json", "mitigate.json", "ops.json"):
         errors = sorted(validator.iter_errors(docs[path]), key=str)
         assert not errors, f"{path}: {errors[0].message}"
     d = docs[f"events/{php.event_id}.json"]

@@ -9,6 +9,7 @@ const navItems = [
   { to: '/continuum', label: 'Continuum', icon: '⟲', aria: 'AWS Continuum 融入' },
   { to: '/sources', label: 'Sources', icon: '◉' },
   { to: '/ops',     label: 'Ops',     icon: '⚑', aria: '需要人处理的事' },
+  { to: '/mitigate', label: '缓解',  icon: '⛨', aria: '缓解（WAF / DNS Firewall / Inspector）' },
 ];
 
 export function Layout() {

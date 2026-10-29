@@ -78,13 +78,52 @@ def classes_for(texts: list[str]) -> list[AttackClass]:
     return [c for c in CLASSES if re.search(c.title, blob)]
 
 
-def iocs(texts: list[str]) -> list[str]:
+def _addresses(texts: list[str]) -> list[str]:
     """EVM addresses stated verbatim in the evidence (checksummed spelling preserved, deduped case-insensitively)."""
     seen: dict[str, str] = {}
     for t in texts:
         for a in _ADDR.findall(t):
             seen.setdefault(a.lower(), a)
     return sorted(seen.values(), key=str.lower)
+
+
+# Domain IOCs: ONLY defanged spellings count. Defanging ("evil[.]com", "hxxps://") is how security writers mark an
+# indicator as malicious; a plain domain in an article is almost always a source, a vendor or a victim, and putting it on
+# a DNS block list would cut a legitimate service (M3 P0: 0 defanged domains in 343 live events — the bar is high on purpose).
+_DEFANGED = re.compile(r"(?i)\b(?:hxxps?|fxp)\[?:\]?//|\[\.\]|\(\.\)|\[dot\]|\(dot\)|\{\.\}")
+_DOMAIN_TOKEN = re.compile(r"(?i)(?:hxxps?\[?:\]?//)?((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\[\.\]|\(\.\)|\[dot\]|\(dot\)|\{\.\}|\.))+"
+                           r"[a-z]{2,24})\b")
+# never on a block list, whatever an article says (the radar must not take down the services everyone depends on)
+NEVER_BLOCK = ("amazonaws.com", "amazon.com", "aws.amazon.com", "cloudfront.net", "github.com", "githubusercontent.com",
+               "google.com", "googleapis.com", "microsoft.com", "windows.net", "azure.com", "apple.com", "cloudflare.com",
+               "npmjs.org", "npmjs.com", "pypi.org", "etherscan.io", "bscscan.com", "x.com", "twitter.com", "t.me", "telegram.org")
+
+
+def _domains(texts: list[str]) -> list[str]:
+    """Defanged domains stated in the evidence, refanged and lower-cased. A token counts only if it was defanged in the
+    text itself; NEVER_BLOCK (and their subdomains) are dropped."""
+    out: set[str] = set()
+    for t in texts:
+        for m in _DOMAIN_TOKEN.finditer(t):
+            raw = m.group(0)
+            if not _DEFANGED.search(raw):
+                continue
+            d = re.sub(r"(?i)\[\.\]|\(\.\)|\[dot\]|\(dot\)|\{\.\}", ".", m.group(1)).lower().strip(".")
+            if "." not in d or any(d == n or d.endswith("." + n) for n in NEVER_BLOCK):
+                continue
+            out.add(d)
+    return sorted(out)
+
+
+@dataclass(frozen=True)
+class Indicators:
+    addresses: list[str]    # EVM addresses, verbatim (respond: located in contract code)
+    domains: list[str]      # defanged domains, refanged (mitigate: DNS Firewall list)
+
+
+def indicators(texts: list[str]) -> Indicators:
+    """THE indicator extraction entry (M3 contract: one entry for every IOC kind, one verbatim rule for all)."""
+    return Indicators(_addresses(texts), _domains(texts))
 
 
 def scan(files: dict[str, str], class_ids: list[str], addresses: list[str]) -> list[dict]:

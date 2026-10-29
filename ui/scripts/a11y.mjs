@@ -1,6 +1,6 @@
 /**
  * a11y.mjs — accessibility audit using @axe-core/playwright.
- * Tests every entry of PAGES × 2 themes (12 × 2 = 24 today). Checks color-contrast and wcag2aa.
+ * Tests every entry of PAGES × 2 themes (15 × 2 = 30 today). Checks color-contrast and wcag2aa.
  * Clock and detail events are derived from mock-data (scripts/lib/mock-fixture.mjs).
  * Starts vite preview via lib/preview.mjs (requires dist/ — run `npm run build` first). An occupied port fails fast
  * instead of auditing a stray server, and the preview dies with this process on throw / Ctrl-C (NEXT-STEPS B3).
@@ -35,6 +35,8 @@ const PAGES = [
   // funnel drill-down applied + single lifecycle tab: pressed states, filter chip, ungrouped rows with impact chip
   { name: 'home-filtered', path: '/#/?tab=active&stage=corroborated', expect: '.row .impact-chip' },
   { name: 'detail',  path: `/#/events/${DETAIL_ID}`, expect: '[data-testid="verdict-panel"]' },
+  // M3 缓解（快路） with the rule JSON fold open (copy button + pre under audit)
+  { name: 'detail-mitigation', path: `/#/events/${DETAIL_ID}`, expect: '[data-testid="mitigation-panel"] .mt-plan', open: '[data-testid="mitigation-panel"] details' },
   // deep link into 在你的环境中 with the patch viewer open (diff lines, copy buttons, lanes all under audit)
   { name: 'detail-env', path: `/#/events/${DETAIL_ID}?section=env`, expect: '.diff-pre' },
   // response: null ⇒ the 未触发 explanation state
@@ -44,6 +46,8 @@ const PAGES = [
   { name: 'sources', path: '/#/sources'      },
   // D/M3 ops view: error / warn / info rows (left-border level + text label, never colour alone)
   { name: 'ops',     path: '/#/ops', expect: '.ops-row' },
+  // M3 mitigate station: note, web ACLs, DNS, Inspector baselines (state label + left-border tone), applied history
+  { name: 'mitigate', path: '/#/mitigate', expect: '[data-page="mitigate"] .mt-plan' },
   // AWS Continuum 融入: coverage ring (SVG text under contrast audit), gap list, capability flow, targets, recent, resources
   { name: 'continuum', path: '/#/continuum', expect: '[data-page="continuum"] h1 ~ .ct-legend + .ct-gap, [data-page="continuum"] .ring-pct' },
   { name: 'wall',    path: '/#/wall'         },
@@ -110,6 +114,8 @@ async function run() {
             await page.waitForSelector('table, [aria-label="Source health table"]', { timeout: 10_000 });
           } else if (pg.expect) {
             await page.waitForSelector(pg.expect, { timeout: 10_000 });
+            // `open`: unfold <details> so the folded content (e.g. rule JSON + copy button) is audited too
+            if (pg.open) await page.$$eval(pg.open, els => { for (const el of els) el.open = true; });
           } else if (pg.name === 'wall') {
             // Wall may take a moment to render KPI tiles
             await page.waitForSelector('[role="region"], [aria-label]', { timeout: 10_000 });

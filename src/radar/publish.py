@@ -62,6 +62,7 @@ def _cve_details(cves: list[str], items: list[Item], epss: dict[str, dict[str, f
     kev = {c: it for it in items if it.signals["kev"] for c in it.extra.get("cves") or []}
     return [{"cve": c, "kev": c in kev, "kev_date_added": kev[c].extra.get("kev_date_added") if c in kev else None,
              "ransomware": kev[c].extra.get("ransomware") if c in kev else None,
+             "cwes": list(kev[c].extra.get("cwes") or []) if c in kev else [],   # M3: weakness class → WAF cwe tier
              "epss": epss.get(c, {}).get("epss"), "epss_percentile": epss.get(c, {}).get("percentile")}
             for c in cves]
 
@@ -79,6 +80,7 @@ def event_doc(ev: Event, store: Store, now: datetime, epss: dict[str, dict[str, 
                                "impact": respond.impact(resp)}),
         "analysis": _public_analysis(ev),
         "response": resp,
+        "mitigation": _mitigation(store, ev.event_id),   # M3: WAF / DNS plans + their live state (mitigate station)
         # C4: model-judged "same incident" pairs (advisory, never merged); titles only for events still published
         "possible_duplicates": cluster_judge.possible_duplicates(
             ev.event_id, store.get_source_state("__cluster_judge__").get("pairs") or {}, titles or {ev.event_id: ev.title}),
@@ -186,9 +188,29 @@ def ops_doc(store: Store, now: datetime, srcs: dict[str, Any], evs: list[Event])
     """D/M3: what needs a human, from state the stations already keep (radar.ops RULES)."""
     items = ops.attention({"sources": srcs["sources"], "ledger": store.get_source_state("__continuum__"),
                            "events": [{"event_id": e.event_id, "tx": e.tx} for e in evs],
-                           "digest": store.get_source_state("__digest__")})
+                           "digest": store.get_source_state("__digest__"),
+                           "mitigate": store.get_source_state("__mitigate__")})
     return {"kind": "ops", "generated_at": timeutil.iso(now), "attention": items,
             "counts": {lv: sum(1 for i in items if i["level"] == lv) for lv in ops.LEVELS}}
+
+
+def mitigate_doc(store: Store, now: datetime) -> dict[str, Any]:
+    """M3: radar-owned web ACLs, per-target Inspector dependency baseline, and what the station could not check."""
+    from radar.mitigate import MITIGATION_NOTE
+    from radar.targets import NAMES
+    led = store.get_source_state("__mitigate__")
+    insp = led.get("inspector") or {}
+    return {"kind": "mitigate", "generated_at": timeutil.iso(now), "note": MITIGATION_NOTE, "run_at": led.get("run_at"),
+            "web_acls": led.get("web_acls") or [], "errors": led.get("errors") or [], "applied": led.get("applied") or [],
+            "dns": led.get("dns"),
+            "inspector": [{"target_id": t, "state": (insp.get(t) or {}).get("state", "never"),
+                           "components": (insp.get(t) or {}).get("components", 0),
+                           "scanned_on": (insp.get(t) or {}).get("scanned_on"),
+                           "findings": (insp.get(t) or {}).get("findings") or []} for t in NAMES]}
+
+
+def _mitigation(store: Store, event_id: str) -> dict[str, Any] | None:
+    return (store.get_source_state("__mitigate__").get("events") or {}).get(event_id)
 
 
 def build(store: Store, now: datetime, changed: set[str] | None = None,
@@ -197,7 +219,8 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
     listing, evs = events_doc(store, now)
     srcs = sources_doc(store, now)
     docs: dict[str, dict[str, Any]] = {"events.json": listing, "sources.json": srcs,
-                                       "continuum.json": continuum_doc(store, now, evs), "ops.json": ops_doc(store, now, srcs, evs)}
+                                       "continuum.json": continuum_doc(store, now, evs), "ops.json": ops_doc(store, now, srcs, evs),
+                                       "mitigate.json": mitigate_doc(store, now)}
     titles = {e.event_id: e.title for e in evs}
     for ev in evs:
         if changed is None or ev.event_id in changed:

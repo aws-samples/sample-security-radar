@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type {
-  EventSummary, ItemRef, TimelineEntry, AmountPoint, CveDetail, TxRef, Analysis, ProgressStage, PipelineStep, Response, PossibleDuplicate } from '@/types/site-data';
+  EventSummary, ItemRef, TimelineEntry, AmountPoint, CveDetail, TxRef, Analysis, ProgressStage, PipelineStep, Response, PossibleDuplicate, Mitigation } from '@/types/site-data';
 
 export interface EventDetailState {
   event: EventSummary | null;
@@ -21,6 +21,8 @@ export interface EventDetailState {
    * never `data.response ?? null` (that would merge "not wired" into "not triggered").
    */
   response: Response | null | undefined;
+  /** M3 mitigate station. undefined = key absent (older publisher); null = nothing for this event. Both ⇒ no block. */
+  mitigation: Mitigation | null | undefined;
   loading: boolean;
   /** 'not_found' for a missing event file; any other string = transport/parse error (shown verbatim). */
   error: string | null;
@@ -28,7 +30,7 @@ export interface EventDetailState {
 
 const EMPTY: Omit<EventDetailState, 'loading' | 'error'> = {
   event: null, items: [], timeline: [], amountHistory: [], cveDetails: [], tx: [], possibleDuplicates: [],
-  analysis: undefined, progress: undefined, pipelineSteps: undefined, response: undefined,
+  analysis: undefined, progress: undefined, pipelineSteps: undefined, response: undefined, mitigation: undefined,
 };
 
 export function useEventDetail(eventId: string): EventDetailState {
@@ -64,6 +66,7 @@ export function useEventDetail(eventId: string): EventDetailState {
           progress: data.progress,
           pipelineSteps: data.pipeline_steps,
           response: 'response' in data ? data.response : undefined,
+          mitigation: 'mitigation' in data ? data.mitigation : undefined,
           loading: false,
           error: null,
         });

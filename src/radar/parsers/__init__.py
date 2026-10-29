@@ -49,7 +49,7 @@ def kev(body: str, source_id: str) -> list[RawItem]:
             source_id=source_id, url=f"https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search_api_fulltext={cve}",
             title=title, text=v.get("shortDescription", ""), published_at=timeutil.parse(v.get("dateAdded")),
             guid=cve, extra={"cves": [cve], "kev": True, "kev_date_added": v.get("dateAdded"),
-                             "ransomware": v.get("knownRansomwareCampaignUse") == "Known",
+                             "ransomware": v.get("knownRansomwareCampaignUse") == "Known", "cwes": list(v.get("cwes") or []),
                              "entity": v.get("vendorProject"), "product": v.get("product")}))
     return out
 

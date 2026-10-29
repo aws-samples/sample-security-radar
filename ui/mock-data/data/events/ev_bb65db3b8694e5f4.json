@@ -987,5 +987,84 @@
    "title": "Arista patches new VeloCloud Orchestrator zero-day exploited in attacks",
    "why": "示例：同一产品、同一天、同一受影响版本"
   }
- ]
+ ],
+ "mitigation": {
+  "note": "缓解 ≠ 修复：边缘规则只在打补丁之前降低风险，升级到修复版本才是唯一完整的修复。",
+  "updated_at": "2026-10-23T18:00:00Z",
+  "plans": [
+   {
+    "channel": "waf",
+    "key": "waf:demo-shop:AWSManagedRulesPHPRuleSet",
+    "target_id": "demo-shop",
+    "tier": "cve",
+    "group": "AWSManagedRulesPHPRuleSet",
+    "group_label": "PHP application",
+    "rules": [
+     "PHP2Shell_BODY_Extended",
+     "PHP2Shell_BODY"
+    ],
+    "min_version": "Version_2.5",
+    "reason": "AWS 托管规则 changelog 写明 CVE-2026-109618、CVE-2026-109619 由 PHP application Version_2.5 起的 PHP2Shell_BODY_Extended、PHP2Shell_BODY 覆盖",
+    "cves": [
+     "CVE-2026-109618",
+     "CVE-2026-109619"
+    ],
+    "labels": [
+     "awswaf:managed:aws:php-app:PHP2Shell_Body_Extended",
+     "awswaf:managed:aws:php-app:PHP2Shell_Body"
+    ],
+    "appliable": true,
+    "web_acl": "security-radar-waf-demo",
+    "promoted": false,
+    "state": "staged",
+    "rule": "radar-AWSManagedRulesPHPRuleSet",
+    "version": "Version_2.5",
+    "counting": [
+     "PHP2Shell_BODY",
+     "PHP2Shell_BODY_Extended"
+    ],
+    "detail": "规则在 Count（观察期），等人确认后切 Block",
+    "rule_json": {
+     "Name": "radar-AWSManagedRulesPHPRuleSet",
+     "Priority": 0,
+     "Statement": {
+      "ManagedRuleGroupStatement": {
+       "VendorName": "AWS",
+       "Name": "AWSManagedRulesPHPRuleSet",
+       "RuleActionOverrides": [
+        {
+         "Name": "PHP2Shell_BODY_Extended",
+         "ActionToUse": {
+          "Count": {}
+         }
+        },
+        {
+         "Name": "PHP2Shell_BODY",
+         "ActionToUse": {
+          "Count": {}
+         }
+        }
+       ]
+      }
+     },
+     "OverrideAction": {
+      "None": {}
+     },
+     "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "radarAWSManagedRulesPHPRuleSet"
+     }
+    }
+   }
+  ],
+  "inspector": [],
+  "dns": {
+   "domains": [
+    "php2shell-loader.top"
+   ],
+   "state": "in_place",
+   "action": "ALERT"
+  }
+ }
 }

@@ -23,6 +23,9 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界（C
 2. **AWS Continuum**：雷达提交精确到行的 finding 并请求验证，Continuum 证实可利用后出补丁，**原生开 PR（GitHub）或 MR（GitLab）**
 3. **人**：审核并合并
 
+补丁要走评审和发布，而利用可能只要几分钟。所以雷达还会对它定位到的问题**先做缓解**：只改它自己建的资源，
+先用不拦截的模式，等人确认后才拦截（见下文「快路」）。
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/respond-loop-dark.svg">
   <img src="docs/diagrams/respond-loop.svg" alt="雷达 → AWS Security Agent + AWS Continuum">
@@ -39,6 +42,17 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界（C
 | **成本护栏** | 只为验证已提交成功的雷达 finding 才扫描；每个环境 24 小时最多一次；关闭定时扫描；日预算线在运维页标出 |
 | **值班视角** | 每日 08:00 HKT 简报（代码选事件与计数，LLM 写带引用的句子）、疑似重复提示、「需要人处理的事」运维页 |
 
+## 快路：补丁上线前先缓解
+
+| 渠道 | 计划从哪来（代码） | 雷达自动做什么 | 人做什么 |
+|---|---|---|---|
+| **AWS WAF** | 解析 AWS 托管规则 changelog：CVE → 规则组 / 规则 / 最低版本；其次按产品（PHP、WordPress）；再次按 CWE（仅建议） | 在雷达的 web ACL 上挂规则组，规则设为 **Count**，并核查（整组被 Count？版本太旧？） | `scripts/promote.py waf …` 切 **Block**；雷达从不自己降级 |
+| **Route 53 DNS Firewall** | 证据里**防篡改写法**的域名（`evil[.]com`）+ AWS 托管威胁列表；主流平台永不拦截 | 写入雷达的域名列表，规则 **ALERT** | 切 **BLOCK** |
+| **Amazon Inspector** | 目标 lockfile → SBOM → `ScanSbom`（无状态，不在账号里开通） | 每个目标的依赖基线，并与事件 CVE 求交 | 走 PR / MR 通道升级 |
+| **AWS Security Hub**（可选） | 每个「事件 × 受影响目标」一条 ASFF：修复版本 + 各渠道缓解状态 | 内容变化才导入，不再受影响就归档 | 与 GuardDuty / Inspector 一起处理 |
+
+缓解 ≠ 修复：升级到修复版本才是唯一完整的修复。
+
 ## 部署
 
 前置：**非生产** AWS 账号、账号已开通 AWS Continuum 代码扫描（预览）、`ap-northeast-1` 可用 AWS Security Agent、
@@ -46,12 +60,14 @@ Amazon Bedrock 可调用 Claude Sonnet / Haiku、`ap-northeast-1` 与 `us-east-1
 
 ```bash
 export AWS_PROFILE=<非生产 profile>
-./scripts/deploy-all.sh                # 构建 → 两个 CDK 栈 → 布防 UI 门 → 上传 UI → 跑一轮 → 验收
+./scripts/deploy-all.sh                # 构建 → 三个 CDK 栈 → 布防 UI 门 → 上传 UI → 跑一轮 → 验收
 STAGE=demo ./scripts/deploy-all.sh     # 完全独立的副本
 STAGE=demo ./scripts/destroy-stage.sh  # 删除副本
 ```
 
 费用：AWS Continuum 代码扫描按推理单位计费（见 AWS Continuum 定价页），扫描是主要成本，所以雷达只为验证自己的 finding 才扫描。
+快路缓解每月约增加 $10–15（web ACL $5 + 每条规则 $1、ScanSbom 每次 $0.03、DNS Firewall 每百万次查询 $0.60）。
+Security Hub 导出需 `-c security_hub=on` 才开通（账号级服务，本示例默认关闭，开通时不启用任何默认标准）。
 
 ## ⚠️ 故意含漏洞的演示代码
 

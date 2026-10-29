@@ -10,4 +10,8 @@ First public release as an AWS sample.
   three code hosts (S3 / GitHub / GitLab) with native PR / MR delivery; cost guardrails in code.
 - Operator view: Amazon Bedrock analysis cards and a daily digest, every sentence cited and checked by code;
   possible-duplicate hints; an ops page of what needs a human.
-- Infrastructure: two AWS CDK stacks, one-command deploy / verify / destroy, isolated stages.
+- Infrastructure: three AWS CDK stacks, one-command deploy / verify / destroy, isolated stages.
+- Fast path: a mitigate station after the respond step — AWS WAF virtual patches (Count until a human promotes them),
+  Route 53 Resolver DNS Firewall (defanged domain indicators + AWS-managed threat lists, ALERT until promoted),
+  Amazon Inspector ScanSbom as the dependency judge, optional AWS Security Hub export.
+- UI: mitigation section on the event page and a `#/mitigate` page.

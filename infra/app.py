@@ -2,6 +2,7 @@
 
 import aws_cdk as cdk
 from continuum_stack import ContinuumStack
+from mitigate_stack import MitigateDemoStack
 from stack import RadarStack
 
 app = cdk.App()
@@ -9,5 +10,6 @@ app = cdk.App()
 stage = app.node.try_get_context("stage") or ""
 suffix = stage.capitalize()
 ContinuumStack(app, f"SecurityRadarContinuum{suffix}", stage=stage, env=cdk.Environment(region="us-east-1"))
+MitigateDemoStack(app, f"SecurityRadarMitigateDemo{suffix}", stage=stage, env=cdk.Environment(region="us-east-1"))
 RadarStack(app, f"SecurityRadar{suffix}", stage=stage, env=cdk.Environment(region="ap-northeast-1"))
 app.synth()

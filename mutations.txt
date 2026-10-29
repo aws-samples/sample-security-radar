@@ -769,3 +769,123 @@ file = src/radar/ops.py
 find = out.append({"level": "info", "title": f"{c} 推送未配置"
 replace = out.append({"level": "error", "title": f"{c} 推送未配置"
 expect = tests/test_ops.py::test_an_unconfigured_channel_is_info_not_an_error
+
+[M129 the WAF catalog keeps the FIRST version that names a CVE (2.3 names CVE-2026-109618 but detects it from 2.4)]
+file = src/radar/mitigate.py
+find = if version_key(r.version) > version_key(a["version"]):
+replace = if not a["version"]:
+expect = tests/test_mitigate.py::test_b1_php2shell_maps_to_php_rule_set_at_least_2_4_with_both_rules
+
+[M130 a changelog row takes its group from any link (the 2.3 row's Core rule set link becomes a CRS mapping)]
+file = src/radar/mitigate.py
+find = m = re.search(r'href="[^"]*#([a-z0-9-]+)"', cells[0])
+replace = m = re.search(r'href="[^"]*#([a-z0-9-]+)"', cells[0] + cells[1]) if "Core rule set" not in cells[1] else re.search(r'href="[^"]*#(aws-managed-rule-groups-baseline-crs)"', cells[1])
+expect = tests/test_mitigate.py::test_changelog_rows_carry_group_from_the_first_cell_only
+
+[M131 the generic CWE tier is applied like a virtual patch]
+file = src/radar/mitigate.py
+find = APPLY_TIERS = ("cve", "product")   # cwe stays advisory (see module doc)
+replace = APPLY_TIERS = TIERS
+expect = tests/test_mitigate.py::test_cwe_tier_is_advisory_never_applied
+
+[M132 targets that are not affected get a WAF plan too]
+file = src/radar/mitigate.py
+find = if t.get("verdict") != "affected":
+replace = if False:
+expect = tests/test_mitigate.py::test_only_affected_targets_get_a_plan_and_the_specific_tier_wins
+
+[M133 a pinned version below the plan's minimum counts as protected]
+file = src/radar/mitigate.py
+find = if plan.min_version and version_key(version) < version_key(plan.min_version):
+replace = if False:
+expect = tests/test_mitigate.py::test_check_states
+
+[M134 a whole group overridden to Count is reported as blocking]
+file = src/radar/mitigate.py
+find = return {"state": "group_counted", "rule": rule["Name"], "version": version, "detail": "整组被设为 Count，不拦截"}
+replace = return {"state": "blocking", "rule": rule["Name"], "version": version, "detail": "x"}
+expect = tests/test_mitigate.py::test_check_states
+
+[M135 label matching is case-sensitive (PHP2Shell_BODY never finds PHP2Shell_Body)]
+file = src/radar/mitigate.py
+find = return tuple(lb for lb in avail if lb.rsplit(":", 1)[-1].lower() in want)
+replace = return tuple(lb for lb in avail if lb.rsplit(":", 1)[-1] in set(rules))
+expect = tests/test_mitigate.py::test_b1_php2shell_maps_to_php_rule_set_at_least_2_4_with_both_rules
+
+[M136 the mitigate station writes rules to web ACLs it does not own when a foreign rule runs the group]
+file = src/radar/mitigate_station.py
+find = if g not in foreign]   # someone else already runs this group here ⇒ report it, do not duplicate it
+replace = ]
+expect = tests/test_mitigate_station.py::test_a_group_someone_else_already_runs_on_the_acl_is_reported_not_duplicated
+
+[M137 a promotion is ignored (the station keeps rendering Count)]
+file = src/radar/mitigate_station.py
+find = pairs = [(p, mitigate.rule_name(g) in promoted.get(ref["name"], {})) for g, p in sorted(wanted.items())
+replace = pairs = [(p, False) for g, p in sorted(wanted.items())
+expect = tests/test_mitigate_station.py::test_promotion_by_a_human_makes_it_blocking_and_it_is_never_demoted
+
+[M138 a failed web ACL read is reported as checked]
+file = src/radar/mitigate_station.py
+find = chk = {"state": "unchecked", "detail": "web ACL 读取失败，本轮没查（见运维页）"}
+replace = chk = {"state": "absent", "detail": ""}
+expect = tests/test_mitigate_station.py::test_failures_are_recorded_not_silent
+
+[M139 a plain (not defanged) domain becomes a DNS block-list IOC]
+file = src/radar/patterns.py
+find = if not _DEFANGED.search(raw):
+replace = if False:
+expect = tests/test_mitigate.py::test_only_defanged_domains_become_iocs_and_critical_services_never_do
+
+[M140 critical services are blockable if an article defangs them]
+file = src/radar/patterns.py
+find = if "." not in d or any(d == n or d.endswith("." + n) for n in NEVER_BLOCK):
+replace = if "." not in d:
+expect = tests/test_mitigate.py::test_only_defanged_domains_become_iocs_and_critical_services_never_do
+
+[M141 DNS rules start in BLOCK instead of ALERT]
+file = src/radar/mitigate.py
+find = r["Action"] = "BLOCK" if r["Name"] in promoted else "ALERT"
+replace = r["Action"] = "BLOCK"
+expect = tests/test_mitigate.py::test_dns_rules_alert_until_promoted_and_skip_unknown_managed_lists
+
+[M142 DNS diff rewrites rules the radar did not create]
+file = src/radar/mitigate.py
+find = elif not str(h.get("Name", "")).startswith(RADAR_RULE_PREFIX):
+replace = elif False:
+expect = tests/test_mitigate.py::test_dns_diff_creates_updates_and_never_touches_foreign_rules
+
+[M143 a runtime-only target is ScanSbom-ed (paid call on nothing)]
+file = src/radar/mitigate_station.py
+find = if not comps:   # nothing Inspector can judge
+replace = if False:   # nothing Inspector can judge
+expect = tests/test_mitigate_station.py::test_inspector_scans_lockfile_targets_once_a_day_and_runtime_targets_never
+
+[M144 a failed ScanSbom keeps the target looking scanned]
+file = src/radar/mitigate_station.py
+find = row["state"] = "error"
+replace = row["state"] = "scanned"
+expect = tests/test_mitigate_station.py::test_a_failed_scan_is_recorded_and_not_reported_clean
+
+[M145 package.json is read next to its lockfile (ranges and duplicates leak in)]
+file = src/radar/inspector.py
+find = if not reader or "/node_modules/" in path or (base == "package.json" and path.rsplit("/", 1)[0] in dirs_with_lock):
+replace = if not reader or "/node_modules/" in path:
+expect = tests/test_inspector.py::test_the_lockfile_wins_over_an_exact_pin_in_the_manifest_next_to_it
+
+[M146 version ranges are sent to Inspector as versions]
+file = src/radar/inspector.py
+find = return [("npm", n, v) for n, v in sorted(deps.items()) if isinstance(v, str) and _EXACT.match(v)]
+replace = return [("npm", n, v.lstrip("^~")) for n, v in sorted(deps.items()) if isinstance(v, str)]
+expect = tests/test_inspector.py::test_exact_pins_in_a_bare_package_json_are_read_and_ranges_are_not
+
+[M147 Security Hub re-imports unchanged findings every cycle]
+file = src/radar/securityhub.py
+find = body = {k: v for k, v in f.items() if k not in ("UpdatedAt",)}
+replace = body = f
+expect = tests/test_securityhub.py::test_unchanged_findings_are_not_reimported_but_a_mitigation_change_is
+
+[M148 a finding no longer affected is never archived]
+file = src/radar/securityhub.py
+find = if row.get("state") == "ACTIVE":
+replace = if False:
+expect = tests/test_securityhub.py::test_a_pair_no_longer_affected_is_archived_once

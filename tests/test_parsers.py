@@ -69,6 +69,8 @@ def test_kev_snapshot():
     assert len(items) == 98
     assert all(i.extra["kev"] and i.extra["cves"][0].startswith("CVE-") for i in items)
     assert all(timeutil.iso(i.published_at) >= "2026-08-01" for i in items)
+    # M3: the weakness class rides along (WAF cwe tier); KEV lists it per CVE
+    assert sum(1 for i in items if "CWE-22" in i.extra["cwes"]) >= 4 and all(isinstance(i.extra["cwes"], list) for i in items)
 
 
 def test_twitterapi_fixture():

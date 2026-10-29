@@ -74,9 +74,28 @@ def _digest(f: Facts) -> list[Item]:
     return []
 
 
+def _mitigate(f: Facts) -> list[Item]:
+    led = f.get("mitigate") or {}
+    out = [{"level": "warn", "title": f"缓解站没查成：{e.get('what')}（下一轮重试）", "detail": str(e.get("error"))[:200],
+            "since": led.get("run_at"), "link": "/mitigate"} for e in led.get("errors") or []]
+    for tid, row in sorted((led.get("inspector") or {}).items()):
+        sev = [f["severity"] for f in row.get("findings") or []]
+        if "critical" in sev or "high" in sev:
+            out.append({"level": "warn", "title": f"{tid} 的依赖有 {sev.count('critical')} 个 critical / {sev.count('high')} 个 high 漏洞（Inspector）",
+                        "detail": "；".join(sorted({f"{f['purl']} → {f['fixed']}" for f in row["findings"]
+                                                    if f["severity"] in ("critical", "high") and f.get("fixed")}))[:200],
+                        "since": row.get("scanned_on"), "link": "/mitigate"})
+    staged = [(eid, p) for eid, m in (led.get("events") or {}).items() for p in m.get("plans") or [] if p.get("state") == "staged"]
+    if staged:
+        out.append({"level": "info", "title": f"{len(staged)} 条 WAF 规则在 Count 观察期，等人确认后切 Block",
+                    "detail": "确认没有误拦后运行 scripts/promote.py waf <web ACL> <rule>", "since": led.get("run_at"),
+                    "link": f"/events/{staged[0][0]}"})
+    return out
+
+
 RULES: dict[str, Callable[[Facts], list[Item]]] = {
     "source_unhealthy": _sources, "over_budget": _over_budget, "notify": _notify, "repo_channel_error": _repo_channels,
-    "cost_unavailable": _cost, "chain_rpc_error": _chain, "digest_not_ok": _digest,
+    "cost_unavailable": _cost, "chain_rpc_error": _chain, "digest_not_ok": _digest, "mitigate": _mitigate,
 }
 
 

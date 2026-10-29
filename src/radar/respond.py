@@ -101,7 +101,7 @@ def eligibility(ev: dict[str, Any], items: list[dict[str, Any]]) -> dict[str, An
     tx = texts(items)
     if ev["domain"] == "web3":
         classes = [c.class_id for c in patterns.classes_for([ev["title"], *tx])]
-        addrs = patterns.iocs([ev["title"], *tx])
+        addrs = patterns.indicators([ev["title"], *tx]).addresses
         if not classes and not addrs:
             return {"eligible": False, "reason": "攻击手法不在登记表、证据中也没有地址类 IOC，无法在代码中定位"}
         names = [patterns.BY_CLASS[c].name for c in classes]

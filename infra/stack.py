@@ -1,22 +1,27 @@
 """Security Radar M1 stack (DESIGN §4). Private by default: both buckets block public access, the site is
 reachable only through CloudFront (OAC) behind a fail-closed Basic-auth function."""
 
+import json
 from pathlib import Path
 
 import continuum_stack
+import mitigate_stack
 from aws_cdk import CfnOutput, CfnResource, Duration, RemovalPolicy, SecretValue, Stack
 from aws_cdk import aws_cloudfront as cf
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_cloudwatch as cw
 from aws_cdk import aws_dynamodb as ddb
+from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
+from aws_cdk import aws_route53resolver as r53r
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_deployment as s3deploy
 from aws_cdk import aws_secretsmanager as sm
+from aws_cdk import aws_securityhub as securityhub
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
@@ -28,6 +33,10 @@ CYCLE_MINUTES = 10
 SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "ListFindings", "BatchGetFindings"]
 SA_PACK_ACTIONS = ["ListSecurityRequirements", "BatchCreateSecurityRequirements", "BatchUpdateSecurityRequirements",
                    "BatchDeleteSecurityRequirements"]
+# mitigate station (M3): reads anywhere, writes only radar-prefixed web ACLs (B3; tests/test_iam_scope.py)
+WAF_READ_ACTIONS = ["DescribeManagedRuleGroup", "GetWebACL", "ListAvailableManagedRuleGroupVersions", "ListWebACLs"]
+WAF_WRITE_ACTIONS = ["UpdateWebACL"]
+DNS_READ_ACTIONS = ["ListFirewallDomainLists", "ListFirewallDomains", "ListFirewallRules"]
 CN_ACTIONS = ["CreateCodeFinding", "CreateCodeScan", "CreateEnvironment", "CreateIntegration", "GetCodeFinding",
               "GetCodeIssue", "GetCodeIssueArtifact", "GetCodeScan", "GetEnvironment", "ListCodeFindings",
               "ListCodeIssueArtifacts", "ListCodeScans", "ListEnvironments", "ListIntegrations", "UpdateEnvironment"]
@@ -163,6 +172,64 @@ class RadarStack(Stack):
                                   destination_bucket=sa_code, prune=False, memory_limit=512)
         site.grant_put(respond_fn, "data/continuum/*")
 
+        # mitigate station (M3): WAF virtual patches on radar-owned web ACLs (infra/mitigate_stack.py), staged in Count;
+        # a human promotes to Block (scripts/promote.py). Own role: the respond role never gets WAF write.
+        mitigate_fn = fn("MitigateFn", "mitigate_events", 300, memory=512, reserved_concurrent_executions=1)
+        demo_acl = mitigate_stack.demo_acl_name(stage)
+        mitigate_fn.add_environment("MITIGATE_WEB_ACLS", json.dumps(
+            {t: {"name": demo_acl, "scope": "CLOUDFRONT"} for t in ("demo-shop", "wp-storefront")}))
+        mitigate_fn.add_to_role_policy(iam.PolicyStatement(actions=[f"wafv2:{a}" for a in WAF_READ_ACTIONS], resources=["*"]))
+        mitigate_fn.add_to_role_policy(iam.PolicyStatement(
+            actions=[f"wafv2:{a}" for a in WAF_WRITE_ACTIONS],
+            resources=[f"arn:aws:wafv2:us-east-1:{self.account}:global/webacl/security-radar-*/*",
+                       f"arn:aws:wafv2:us-east-1:{self.account}:global/managedruleset/*/*"]))
+        # DNS Firewall (M3.4): an empty demo VPC (no NAT, no internet path) whose DNS goes through a radar-owned rule group.
+        # Domain list contents and rules are runtime state of the mitigate station (CFN never sets them ⇒ never wipes them).
+        dns_vpc = ec2.Vpc(self, "DnsDemoVpc", max_azs=1, nat_gateways=0, restrict_default_security_group=True,
+                          subnet_configuration=[ec2.SubnetConfiguration(name="isolated", cidr_mask=24,
+                                                                        subnet_type=ec2.SubnetType.PRIVATE_ISOLATED)])
+        ioc_list = r53r.CfnFirewallDomainList(self, "IocDomains", name=f"{name}-ioc-domains")
+        dns_rg = r53r.CfnFirewallRuleGroup(self, "DnsRuleGroup", name=f"{name}-dns")
+        r53r.CfnFirewallRuleGroupAssociation(self, "DnsRuleGroupVpc", firewall_rule_group_id=dns_rg.attr_id,
+                                             vpc_id=dns_vpc.vpc_id, priority=1000, name=f"{name}-dns-demo-vpc")
+        dns_logs = logs.LogGroup(self, "DnsQueryLogs", retention=logs.RetentionDays.ONE_WEEK, removal_policy=RemovalPolicy.DESTROY)
+        qlc = r53r.CfnResolverQueryLoggingConfig(self, "DnsQueryLogging", destination_arn=dns_logs.log_group_arn,
+                                                 name=f"{name}-dns-demo")
+        r53r.CfnResolverQueryLoggingConfigAssociation(self, "DnsQueryLoggingVpc", resolver_query_log_config_id=qlc.attr_id,
+                                                      resource_id=dns_vpc.vpc_id)
+        mitigate_fn.add_environment("DNS_RULE_GROUP_ID", dns_rg.attr_id)
+        mitigate_fn.add_environment("DNS_DOMAIN_LIST_ID", ioc_list.attr_id)
+        mitigate_fn.add_to_role_policy(iam.PolicyStatement(actions=[f"route53resolver:{a}" for a in DNS_READ_ACTIONS],
+                                                           resources=["*"]))
+        mitigate_fn.add_to_role_policy(iam.PolicyStatement(
+            actions=["route53resolver:CreateFirewallRule", "route53resolver:UpdateFirewallRule"],
+            resources=[dns_rg.attr_arn, f"arn:aws:route53resolver:{self.region}:*:firewall-domain-list/*"]))
+        mitigate_fn.add_to_role_policy(iam.PolicyStatement(actions=["route53resolver:UpdateFirewallDomains"],
+                                                           resources=[ioc_list.attr_arn]))
+        probe = lambda_.Function(self, "DnsProbeFn", runtime=lambda_.Runtime.PYTHON_3_12, architecture=lambda_.Architecture.ARM_64,
+                                 handler="radar.handlers.dns_probe", code=code, timeout=Duration.seconds(15), memory_size=128,
+                                 vpc=dns_vpc, vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+                                 log_group=logs.LogGroup(self, "DnsProbeFnLogs", retention=logs.RetentionDays.ONE_WEEK,
+                                                         removal_policy=RemovalPolicy.DESTROY))
+        CfnOutput(self, "DnsProbeFunction", value=probe.function_name)
+        CfnOutput(self, "DnsQueryLogGroup", value=dns_logs.log_group_name)
+        CfnOutput(self, "DnsRuleGroupId", value=dns_rg.attr_id)
+
+        # Security Hub CSPM (M3.5): the radar's findings next to GuardDuty / Inspector. One hub per account and Region ⇒
+        # only the default stage owns it; NO default standards (Neo 2026-10-29: receive radar findings only, no checks).
+        # Opt-in (`-c security_hub=on`, set in cdk.json here): enabling an account-wide service is the deployer's call.
+        if not stage and self.node.try_get_context("security_hub") == "on":
+            securityhub.CfnHub(self, "SecurityHub", enable_default_standards=False, auto_enable_controls=False)
+            mitigate_fn.add_environment("SECURITY_HUB", "on")
+            mitigate_fn.add_to_role_policy(iam.PolicyStatement(
+                actions=["securityhub:BatchImportFindings"],
+                resources=[f"arn:aws:securityhub:{self.region}:{self.account}:product/{self.account}/default"]))
+
+        # Inspector as the dependency judge (radar.inspector): stateless ScanSbom over the target zips respond reads
+        mitigate_fn.add_to_role_policy(iam.PolicyStatement(actions=["inspector-scan:ScanSbom"], resources=["*"]))
+        mitigate_fn.add_environment("SA_CODE_BUCKET", sa_code.bucket_name)
+        sa_code.grant_read(mitigate_fn)
+
         def invoke(name: str, f: lambda_.Function, **extra) -> tasks.LambdaInvoke:
             t = tasks.LambdaInvoke(self, name, lambda_function=f, payload_response_only=True, **extra)
             t.add_retry(errors=["Lambda.ServiceException", "Lambda.TooManyRequestsException", "Lambda.SdkClientException"],
@@ -180,17 +247,21 @@ class RadarStack(Stack):
         publish_task = invoke("Publish", publish_fn)
         analyze_step = invoke("Analyze", analyze_fn)
         respond_step = invoke("Respond", respond_fn)
+        mitigate_step = invoke("Mitigate", mitigate_fn)
         # neither station may block publishing: a failure is caught and publishing proceeds with prior state
         analyze_step.add_catch(sfn.Pass(self, "AnalyzeFailed").next(respond_step), errors=["States.ALL"],
                                result_path="$.analyze_error")
-        respond_step.add_catch(sfn.Pass(self, "RespondFailed").next(publish_task), errors=["States.ALL"],
+        respond_step.add_catch(sfn.Pass(self, "RespondFailed").next(mitigate_step), errors=["States.ALL"],
                                result_path="$.respond_error")
+        mitigate_step.add_catch(sfn.Pass(self, "MitigateFailed").next(publish_task), errors=["States.ALL"],
+                                result_path="$.mitigate_error")
         definition = (invoke("Plan", plan_fn)
                       .next(fan_out)
                       .next(invoke("Process", process_fn, payload=sfn.TaskInput.from_object(
                           {"results.$": "$.results", "full.$": "$.full"})))
                       .next(analyze_step)
                       .next(respond_step)
+                      .next(mitigate_step)
                       .next(publish_task))
         machine = sfn.StateMachine(self, "Cycle", definition_body=sfn.DefinitionBody.from_chainable(definition),
                                    timeout=Duration.minutes(25))
@@ -224,6 +295,7 @@ class RadarStack(Stack):
                                                               event_type=cf.FunctionEventType.VIEWER_REQUEST)]))
 
         respond_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")  # links in C3 messages
+        mitigate_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")  # Security Hub remediation links
         for k, v in {"SiteUrl": f"https://{dist.distribution_domain_name}", "DistributionId": dist.distribution_id,
                      "SiteBucketName": site.bucket_name, "RawBucketName": raw.bucket_name, "TableName": table.table_name,
                      "SecretArn": secret.secret_arn, "UiSecretArn": ui_secret.secret_arn, "DemoFleetRoSecretArn": fleet_ro.secret_arn, "NotifySecretArn": notify_cfg.secret_arn, "AuthStoreArn": auth_store.key_value_store_arn,

@@ -1,11 +1,11 @@
 {
   "kind": "architecture",
-  "title": "Security Radar · 架构（M2 · 探测器 + 触发器）",
-  "subtitle": "每 10 分钟一轮：采集 → 聚合判定 V0–V4 → 分析卡 → Respond（AWS Security Agent · AWS Continuum）→ 发布",
+  "title": "Security Radar · 架构（M3 · 探测器 + 触发器 + 快路缓解）",
+  "subtitle": "每 10 分钟一轮：采集 → 判定 V0–V4 → 分析卡 → Respond（Security Agent · Continuum）→ Mitigate（WAF · DNS · Inspector · Security Hub）→ 发布",
   "theme": "aws",
   "direction": "LR",
   "reveal": true,
-  "footer": "LLM 只写带引用的句子；等级/严重度/资格/定位全部由代码计算 · 可利用性与补丁由 AWS agent 判断 · 两个 CDK 栈一键复现",
+  "footer": "LLM 只写带引用的句子；等级/严重度/资格/定位/缓解计划全部由代码计算 · 可利用性与补丁由 AWS agent 判断 · 拦截（Block）由人确认",
   "groups": [
     {
       "id": "src",
@@ -25,6 +25,11 @@
     {
       "id": "aws",
       "label": "AWS 安全 agent",
+      "kind": "network"
+    },
+    {
+      "id": "fast",
+      "label": "快路缓解（雷达自建资源）",
       "kind": "network"
     }
   ],
@@ -100,6 +105,13 @@
       "group": "cycle"
     },
     {
+      "id": "mitigate",
+      "label": "Mitigate",
+      "sub": "计划 · 只读核查 · Count",
+      "icon": "aws:lambda",
+      "group": "cycle"
+    },
+    {
       "id": "publish",
       "label": "Publish",
       "sub": "site-data + EPSS",
@@ -170,6 +182,34 @@
       "sub": "us-east-1 · 验证 · 补丁",
       "icon": "glyph:agent",
       "group": "aws"
+    },
+    {
+      "id": "waf",
+      "label": "AWS WAF",
+      "sub": "托管规则 · Count→Block",
+      "icon": "aws:waf",
+      "group": "fast"
+    },
+    {
+      "id": "dnsfw",
+      "label": "DNS Firewall",
+      "sub": "IOC 域名 · ALERT→BLOCK",
+      "icon": "aws:route53",
+      "group": "fast"
+    },
+    {
+      "id": "insp",
+      "label": "Inspector",
+      "sub": "ScanSbom · 依赖判定",
+      "icon": "text:SBOM",
+      "group": "fast"
+    },
+    {
+      "id": "hub",
+      "label": "Security Hub",
+      "sub": "ASFF 汇总",
+      "icon": "glyph:shield",
+      "group": "fast"
     }
   ],
   "edges": [
@@ -293,6 +333,38 @@
     },
     {
       "from": "respond",
+      "to": "ddb",
+      "flow": "write",
+      "static": true
+    },
+    {
+      "from": "ddb",
+      "to": "mitigate",
+      "flow": "read"
+    },
+    {
+      "from": "mitigate",
+      "to": "waf",
+      "flow": "control",
+      "label": "虚拟补丁"
+    },
+    {
+      "from": "mitigate",
+      "to": "dnsfw",
+      "flow": "control"
+    },
+    {
+      "from": "mitigate",
+      "to": "insp",
+      "flow": "request"
+    },
+    {
+      "from": "mitigate",
+      "to": "hub",
+      "flow": "event"
+    },
+    {
+      "from": "mitigate",
       "to": "ddb",
       "flow": "write",
       "static": true

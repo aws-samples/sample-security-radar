@@ -49,4 +49,6 @@ class Limits:
     PR_SYNC_H = 1                    # demo-fleet PR list → event pages (C2c); the PR schedule is hourly too
     COST_WINDOW_DAYS = 14            # days of per-service spend shown on #/continuum
     REQUIREMENT_TTL_DAYS = 14        # R6: a radar-* rule not re-asserted for this long leaves the Security Agent pack
+    INSPECTOR_SCANS_PER_DAY = 5      # M3: ScanSbom calls per day ($0.03 each, first 25 free); one per target with lockfiles
+    MITIGATE_WINDOW_DAYS = 30        # M3: a mitigation stays planned/checked while the event is this fresh (patch windows run long)
     CONTINUUM_SCAN_MIN_INTERVAL_H = 24     # ≤ 1 paid environment scan per day per environment (≈ $450 each, measured 10-26)

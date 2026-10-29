@@ -6,7 +6,7 @@
  */
 
 /**
- * Root documents. events.json = {kind:'events'}, events/<id>.json = {kind:'event'}, sources.json = {kind:'sources'}.
+ * Root documents. events.json = {kind:'events'}, events/<id>.json = {kind:'event'}, sources.json = {kind:'sources'}, mitigate.json = {kind:'mitigate'}.
  */
 export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
   | {
@@ -38,6 +38,7 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
       pipeline_steps?: PipelineStep[];
       response?: Response | null;
       possible_duplicates?: PossibleDuplicate[];
+      mitigation?: Mitigation | null;
     }
   | {
       kind: "sources";
@@ -62,6 +63,23 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
         warn: number;
         info: number;
       };
+    }
+  | {
+      kind: "mitigate";
+      generated_at: Timestamp;
+      note: string;
+      run_at: string | null;
+      web_acls: {}[];
+      inspector: {
+        target_id: string;
+        state: "scanned" | "no_packages" | "deferred" | "error" | "never";
+        components: number;
+        scanned_on: string | null;
+        findings: InspectorFinding[];
+      }[];
+      errors: {}[];
+      applied: {}[];
+      dns: {} | null;
     };
 /**
  * ISO-8601 UTC, e.g. 2026-10-23T03:39:57Z
@@ -197,7 +215,14 @@ export interface ItemRef {
 export interface TimelineEntry {
   at: Timestamp;
   kind:
-    "created" | "item_added" | "merged" | "level_change" | "severity_change" | "exploitation_change" | "amount_change";
+    | "created"
+    | "item_added"
+    | "merged"
+    | "level_change"
+    | "severity_change"
+    | "exploitation_change"
+    | "amount_change"
+    | "repaired";
   from: string | null;
   to: string | null;
   item_id: string | null;
@@ -213,6 +238,7 @@ export interface CveDetail {
   kev_date_added: string | null;
   ransomware: boolean | null;
   epss: number | null;
+  cwes?: string[];
   epss_percentile: number | null;
 }
 export interface TxRef {
@@ -364,6 +390,51 @@ export interface PossibleDuplicate {
   event_id: string;
   title: string;
   why: string;
+}
+/**
+ * M3 mitigate station: the fast path next to the patch (never a fix — note says so).
+ */
+export interface Mitigation {
+  note: string;
+  updated_at: Timestamp;
+  plans: MitigationPlan[];
+  inspector?: InspectorFinding[];
+  dns?: null | {
+    domains: string[];
+    state: "in_place" | "unchecked" | "no_dns_firewall";
+    action: "ALERT" | "BLOCK" | null;
+  };
+}
+export interface MitigationPlan {
+  channel: "waf";
+  key: string;
+  target_id: string;
+  tier: "cve" | "product" | "cwe";
+  group: string;
+  group_label: string;
+  rules: string[];
+  min_version: string | null;
+  reason: string;
+  cves: string[];
+  labels: string[];
+  appliable: boolean;
+  web_acl: string | null;
+  promoted: boolean;
+  state: "absent" | "too_old" | "group_counted" | "staged" | "blocking" | "no_web_acl" | "unchecked";
+  detail: string;
+  rule?: string;
+  version?: string | null;
+  counting?: string[];
+  rule_json: {};
+}
+export interface InspectorFinding {
+  id: string;
+  severity: "critical" | "high" | "medium" | "low" | "none" | "unknown";
+  purl: string;
+  fixed: string | null;
+  cwes: string[];
+  file?: string | null;
+  target_id?: string;
 }
 export interface SourceHealth {
   source_id: string;

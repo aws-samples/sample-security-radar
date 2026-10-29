@@ -148,3 +148,15 @@ def test_notify_baselines_first_then_threads_new_facts_and_survives_a_channel_er
     h._notify(led, now)
     assert len(sent) == 1                                                    # at most once per fact
     assert h._store.get_source_state("__notify__")["ev_2"]["slack"]["thread"] == "T-slack"
+
+
+def test_dns_probe_only_resolves_the_canary_and_never_raises(env, monkeypatch):
+    import socket
+
+    from radar import handlers, mitigate
+    assert "error" in handlers.dns_probe({"name": "example.com"})
+    def busy(*_a, **_k):
+        raise OSError(16, "Device or resource busy")   # what Lambda's resolver raised live (2026-10-29)
+    monkeypatch.setattr(socket, "getaddrinfo", busy)
+    out = handlers.dns_probe({"name": mitigate.DNS_CANARY})
+    assert out["error"].startswith("OSError 16")
