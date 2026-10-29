@@ -7,7 +7,7 @@ source scripts/lib.sh
 [ -z "$STAGE" ] && { echo "refusing: STAGE is empty (that is the live deployment)" >&2; exit 1; }
 name="security-radar-$STAGE"
 pack=$(out RequirementPackId 2>/dev/null || true); space=$(out AgentSpaceId 2>/dev/null || true)
-uv run -q --with boto3 python -I - "$name" "$pack" "$space" <<'PY'
+uv run -q python -I -   # boto3 from the locked project environment "$name" "$pack" "$space" <<'PY'
 import sys, boto3
 name, pack, space = sys.argv[1], sys.argv[2], sys.argv[3]
 if space:  # code reviews created by the Lambda live inside the CFN agent space
@@ -33,5 +33,5 @@ for i in cn.list_integrations().get("items", []):
         except cn.exceptions.ClientError as ex:  # environment deletion may still be propagating
             print("integration not deleted yet:", ex)
 PY
-(cd infra && JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1 npx -y aws-cdk@latest destroy \
+(cd infra && JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1 npx -y aws-cdk@2.1146.1 destroy \
   "SecurityRadar$SUFFIX" "SecurityRadarMitigateDemo$SUFFIX" "SecurityRadarContinuum$SUFFIX" -c "stage=$STAGE" --force)

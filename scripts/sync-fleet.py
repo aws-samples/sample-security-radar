@@ -34,7 +34,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from radar import respond, targets  # src/ is not installed for scripts
+from radar import fetch, respond, targets  # src/ is not installed for scripts
 
 REPO = "security-radar-demo-fleet"
 TARGETS_DIR = ROOT / "integrations" / "continuum" / "targets"
@@ -78,14 +78,14 @@ def read_env() -> dict[str, str]:
 
 def run(*cmd: str, cwd: Path | None = None, env: dict[str, str] | None = None, check: bool = True) -> subprocess.CompletedProcess:
     # semgrep dangerous-subprocess-use-audit: argv list (no shell); every caller passes code constants or repo paths
-    return subprocess.run(cmd, cwd=cwd, env=env, check=check, capture_output=True, text=True)  # nosemgrep
+    return subprocess.run(cmd, cwd=cwd, env=env, check=check, capture_output=True, text=True)  # nosemgrep # nosec B603
 
 
 def gitlab(token: str, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
     req = urllib.request.Request(GITLAB_API + path, method=method, data=json.dumps(body).encode() if body else None,
                                  headers={"PRIVATE-TOKEN": token, "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with fetch.urlopen(req, timeout=30) as r:
             return r.status, json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as e:
         return e.code, json.loads(e.read() or b"{}")

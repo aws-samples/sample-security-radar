@@ -36,6 +36,17 @@ class Response:
     last_modified: str | None = None
 
 
+def urlopen(req: urllib.request.Request | str, timeout: float) -> Any:
+    """THE one place the radar opens a URL (bandit B310 / semgrep dynamic-urllib): http(s) only — a `file:` or custom
+    scheme reaching here (a feed URL, a registry typo) is refused as a network error, never opened. Every module and
+    script calls this instead of urllib.request.urlopen."""
+    url = req.full_url if isinstance(req, urllib.request.Request) else req
+    scheme = urllib.parse.urlsplit(url).scheme.lower()
+    if scheme not in ("https", "http"):
+        raise urllib.error.URLError(f"refusing {scheme or 'relative'!r} URL (http/https only)")
+    return urllib.request.urlopen(req, timeout=timeout)  # nosec B310 # nosemgrep — scheme checked on the line above
+
+
 def http_get(url: str, headers: dict[str, str] | None = None, etag: str | None = None,
              last_modified: str | None = None) -> Response:
     h = {"User-Agent": UA, "Accept-Encoding": "gzip", **(headers or {})}
@@ -45,7 +56,7 @@ def http_get(url: str, headers: dict[str, str] | None = None, etag: str | None =
         h["If-Modified-Since"] = last_modified
     req = urllib.request.Request(url, headers=h)
     try:
-        with urllib.request.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S) as r:
+        with urlopen(req, timeout=Limits.HTTP_TIMEOUT_S) as r:
             raw = r.read(Limits.HTTP_MAX_BYTES + 1)
             if len(raw) > Limits.HTTP_MAX_BYTES:
                 raise FetchError("too_large", f"body exceeds {Limits.HTTP_MAX_BYTES} bytes", r.status, url)
@@ -84,7 +95,7 @@ def firecrawl_raw(url: str) -> str:
         req = urllib.request.Request("https://api.firecrawl.dev/v2/scrape", data=body, method="POST",
                                      headers={"Authorization": f"Bearer {k}", "Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with urlopen(req, timeout=60) as r:
                 data = json.loads(r.read()).get("data") or {}
         except urllib.error.HTTPError as e:
             last = FetchError("firecrawl_error", e.reason or "error", e.code, url)

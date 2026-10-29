@@ -10,4 +10,4 @@ P=$(printf '%s' "$creds" | uv run -q python -I -c 'import json,sys;print(json.lo
 unset creds
 mkdir -p build/gallery docs/gallery
 (cd ui && U="$U" P="$P" BASE="$site/" OUT="$(pwd)/../build/gallery" node scripts/gallery-shots.mjs)
-uv run --with pillow python scripts/build_gallery.py build/gallery docs/gallery
+uv run python   # pillow from the locked dev group scripts/build_gallery.py build/gallery docs/gallery

@@ -1,6 +1,6 @@
 """Build the README gallery from full-page screenshots: vertical strips, each slowly scrolling through one page.
 
-  uv run --with pillow python scripts/build_gallery.py build/gallery docs/gallery
+  uv run python scripts/build_gallery.py build/gallery docs/gallery
 
 Outputs docs/gallery/gallery.svg (animated, self-contained — images inlined as data URIs, so it animates inside a
 GitHub README <img>; prefers-reduced-motion ⇒ static) and docs/gallery/gallery.png (static fallback, top of each page).

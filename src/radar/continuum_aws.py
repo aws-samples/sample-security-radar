@@ -13,14 +13,13 @@ import logging
 import os
 import re
 import time
-import urllib.request
 import zipfile
 from typing import Any
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
-from radar import respond
+from radar import fetch, respond
 from radar.limits import Limits
 
 log = logging.getLogger()
@@ -295,7 +294,7 @@ def _poll_review(op: respond.Op, ev: dict[str, Any], *_: Any) -> dict[str, Any]:
 def _capture_diff(url: str, rel: str) -> dict[str, Any] | None:
     if not url.startswith("https://") or ".amazonaws.com/" not in url:
         return None  # only AWS-hosted presigned links
-    with urllib.request.urlopen(url, timeout=20) as r:
+    with fetch.urlopen(url, timeout=20) as r:
         body = r.read(PATCH_MAX_BYTES + 1)[:PATCH_MAX_BYTES]
     files = sorted(set(re.findall(r"^\+\+\+ b/(.+)$", body.decode("utf-8", "ignore"), re.MULTILINE)))
     _c("s3").put_object(Bucket=os.environ["SITE_BUCKET"], Key=f"data/{rel}", Body=body,

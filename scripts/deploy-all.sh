@@ -22,7 +22,7 @@ step "cdk deploy (us-east-1 Continuum side, then ap-northeast-1 radar + Security
 ctx=(-c "schedule=${SCHEDULE:-on}")
 [ -n "$STAGE" ] && ctx+=(-c "stage=$STAGE")
 [ -n "${REVIEW_BUDGET:-}" ] && ctx+=(-c "review_budget=$REVIEW_BUDGET")   # paid Security Agent reviews per day
-(cd infra && JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1 npx -y aws-cdk@latest deploy \
+(cd infra && JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1 npx -y aws-cdk@2.1146.1 deploy \
   "SecurityRadarContinuum$SUFFIX" "SecurityRadarMitigateDemo$SUFFIX" "SecurityRadar$SUFFIX" "${ctx[@]}" \
   --require-approval never --outputs-file "../$OUTPUTS" > "../build/deploy${STAGE:+-$STAGE}.log" 2>&1) \
   || { tail -30 "build/deploy${STAGE:+-$STAGE}.log"; exit 1; }

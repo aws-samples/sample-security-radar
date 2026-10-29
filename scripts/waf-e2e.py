@@ -27,7 +27,7 @@ import boto3
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from radar import mitigate
+from radar import fetch, mitigate
 
 GROUP = "AWSManagedRulesPHPRuleSet"
 LABEL = "awswaf:managed:aws:php-app:PHP2Shell_Body"
@@ -35,7 +35,7 @@ LABEL = "awswaf:managed:aws:php-app:PHP2Shell_Body"
 
 def _status(req: urllib.request.Request) -> tuple[int, dict[str, str]]:
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:   # nosemgrep
+        with fetch.urlopen(req, timeout=20) as r:
             return r.status, dict(r.headers)
     except urllib.error.HTTPError as e:
         return e.code, dict(e.headers)

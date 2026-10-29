@@ -28,13 +28,16 @@ from collections.abc import Callable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+from radar import fetch
+
 REPO = os.environ.get("FLEET_REPO", "your-org/security-radar-demo-fleet")
 TARGETS = ROOT / "integrations" / "continuum" / "targets"
 
 
 def sh(*a: str, cwd: Path | None = None) -> str:
     # semgrep dangerous-subprocess-use-audit: argv list (no shell); every caller passes code constants or repo paths
-    return subprocess.run(a, cwd=cwd, capture_output=True, text=True, check=True).stdout  # nosemgrep
+    return subprocess.run(a, cwd=cwd, capture_output=True, text=True, check=True).stdout  # nosemgrep # nosec B603
 
 
 def site_reader(url: str, user: str, password: str) -> Callable[[str], bytes]:
@@ -42,7 +45,7 @@ def site_reader(url: str, user: str, password: str) -> Callable[[str], bytes]:
 
     def get(path: str) -> bytes:
         req = urllib.request.Request(f"{url.rstrip('/')}/data/{path}", headers={"Authorization": auth})
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with fetch.urlopen(req, timeout=30) as r:
             return r.read()
     return get
 

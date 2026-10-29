@@ -19,7 +19,7 @@ import urllib.request
 from datetime import datetime, timedelta
 from typing import Any
 
-from radar import timeutil
+from radar import fetch, timeutil
 from radar.fetch import UA
 from radar.limits import Limits
 
@@ -54,7 +54,7 @@ def rpc_call(url: str, method: str, params: list[Any]) -> Any:
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json", "User-Agent": UA})
     try:
-        with urllib.request.urlopen(req, timeout=Limits.CHAIN_RPC_TIMEOUT_S) as r:
+        with fetch.urlopen(req, timeout=Limits.CHAIN_RPC_TIMEOUT_S) as r:
             doc = json.loads(r.read(1_000_000))
     # OSError covers URLError, timeouts and RemoteDisconnected; HTTPException covers IncompleteRead & co. — a public node
     # misbehaving must degrade this one check, never the process station

@@ -13,6 +13,7 @@ import json
 import urllib.request
 from typing import Any
 
+from radar import fetch
 from radar.limits import Limits
 
 CHANNELS = ("slack", "lark")
@@ -49,7 +50,7 @@ def record(sent: dict[str, Any], key: str, thread: str | None) -> dict[str, Any]
 def _post(url: str, body: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
     req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json; charset=utf-8", **headers})
-    with urllib.request.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S) as r:
+    with fetch.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S) as r:
         return json.loads(r.read())
 
 

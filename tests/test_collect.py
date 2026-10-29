@@ -93,3 +93,14 @@ def test_twitterapi_429_backs_off_then_succeeds(monkeypatch):
     monkeypatch.setattr(fetch.time, "sleep", lambda s: None)
     assert fetch.twitterapi_search(("a",), 60) == '{"tweets": []}'
     assert len(calls) == 2
+
+
+def test_urlopen_refuses_every_scheme_but_http_and_https():
+    import urllib.error
+
+    import pytest
+
+    from radar import fetch
+    for bad in ("file:///etc/passwd", "ftp://x/y", "gopher://x", "jar:file:/x!/y", "/relative"):
+        with pytest.raises(urllib.error.URLError, match="http/https only"):
+            fetch.urlopen(bad, timeout=1)
