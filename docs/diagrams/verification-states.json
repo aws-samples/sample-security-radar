@@ -1,0 +1,72 @@
+{
+  "kind": "state",
+  "per_row": 4,
+  "title": "事件真实性等级 · 状态机",
+  "subtitle": "全部由代码按证据计算；LLM 不参与判定",
+  "theme": "light",
+  "footer": "T1=官方/厂商/可复现 PoC · T2=知名媒体/研究/聚合库 · T3=社区与快讯（永不单独证实）",
+  "nodes": [
+    {
+      "id": "v0",
+      "label": "V0 传闻"
+    },
+    {
+      "id": "v1",
+      "label": "V1 已报道"
+    },
+    {
+      "id": "v2",
+      "label": "V2 已证实"
+    },
+    {
+      "id": "v3",
+      "label": "V3 官方确认"
+    },
+    {
+      "id": "v4",
+      "label": "V4 定稿"
+    },
+    {
+      "id": "x",
+      "label": "X 争议/撤回/回滚"
+    }
+  ],
+  "edges": [
+    {
+      "from": "v0",
+      "to": "v1",
+      "flow": "control",
+      "label": "1 个 T1 或 T2"
+    },
+    {
+      "from": "v1",
+      "to": "v2",
+      "flow": "control",
+      "label": "≥2 独立来源"
+    },
+    {
+      "from": "v2",
+      "to": "v3",
+      "flow": "control",
+      "label": "KEV/厂商/官方"
+    },
+    {
+      "from": "v3",
+      "to": "v4",
+      "flow": "control",
+      "label": "静默期满"
+    },
+    {
+      "from": "v2",
+      "to": "x",
+      "flow": "error",
+      "label": "官方否认"
+    },
+    {
+      "from": "v1",
+      "to": "v1",
+      "flow": "aux",
+      "label": "转载不加分"
+    }
+  ]
+}

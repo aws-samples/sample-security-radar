@@ -1,0 +1,314 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T08:29:36Z",
+ "event": {
+  "velocity_6h": 0,
+  "lifecycle": "finalized",
+  "event_id": "ev_6b09abeb80728a10",
+  "domain": "web3",
+  "title": "UNCX Network V2 — Smart Contract Vulnerability",
+  "level": "V4",
+  "level_reason": "finalized: 2 incident databases agree, amount stable ≥7d",
+  "severity": "P1",
+  "exploitation": "confirmed",
+  "first_seen": "2026-10-14T00:00:00Z",
+  "last_updated": "2026-10-14T00:00:00Z",
+  "first_report_source": "DeFiLlama Hacks",
+  "independent_sources": 2,
+  "item_count": 2,
+  "cves": [],
+  "entities": [
+   "UNCX Network V2"
+  ],
+  "chains": [
+   "BSC",
+   "Base",
+   "Ethereum",
+   "Robinhood Chain"
+  ],
+  "amount_usd_latest": 1490000.0,
+  "amount_disputed": true,
+  "summary": null,
+  "analysis_status": "partial",
+  "impact": null
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T08:28:30Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "UNCX Network Vesting V2 合约因份额记账漏洞遭攻击,多链共享归属池被抽走代币,累计损失约149万美元。",
+    "cite": [
+     "it_6a481cdbb0f4cd48",
+     "it_f71f320a30ff77fd"
+    ],
+    "grounded": false,
+    "issues": [
+     "ungrounded_number"
+    ]
+   }
+  ],
+  "what": [
+   {
+    "text": "SlowMist 称 UNCX Vesting V2 合约存在份额记账逻辑漏洞,即 VestingManager.cancel 未确保保留的份额足以覆盖已释放的数额。",
+    "cite": [
+     "it_6a481cdbb0f4cd48"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "攻击者先直接转入代币以降低每代币份额比率,然后释放并取消归属计划,从共享归属池中抽走超额代币。",
+    "cite": [
+     "it_6a481cdbb0f4cd48"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "DeFiLlama 将该事件归类为 UNCX Network V2 的代币与份额记账错误(Incorrect Share Accounting)。",
+    "cite": [
+     "it_f71f320a30ff77fd"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "impact": [
+   {
+    "text": "受影响的链包括 Ethereum、Base、BSC 和 Robinhood Chain。",
+    "cite": [
+     "it_f71f320a30ff77fd"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "以太坊上的初始损失约为8.6万美元,后来升至跨多链约149万美元。",
+    "cite": [
+     "it_6a481cdbb0f4cd48"
+    ],
+    "grounded": false,
+    "issues": [
+     "ungrounded_number"
+    ]
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "SlowMist 描述了攻击者已实际利用该漏洞并抽走资金,DeFiLlama 同样将其列为已发生的黑客事件,两个来源在此方面没有分歧。",
+    "cite": [
+     "it_6a481cdbb0f4cd48",
+     "it_f71f320a30ff77fd"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "协议团队应审查 VestingManager.cancel 的逻辑,确保取消时保留的份额能覆盖已释放的数额。",
+    "cite": [
+     "it_6a481cdbb0f4cd48"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "防御方应排查 Ethereum、Base、BSC 和 Robinhood Chain 上的 UNCX Vesting V2 部署及共享归属池的敞口。",
+    "cite": [
+     "it_f71f320a30ff77fd",
+     "it_6a481cdbb0f4cd48"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "现有证据未说明各条链上的具体损失分布,也未提供攻击者地址或资金去向。",
+    "cite": [
+     "it_6a481cdbb0f4cd48",
+     "it_f71f320a30ff77fd"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "证据未说明漏洞是否已修复,也未说明项目方是否已暂停合约或采取其他缓解措施。",
+    "cite": [
+     "it_6a481cdbb0f4cd48",
+     "it_f71f320a30ff77fd"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "partial",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-14T00:00:00Z"
+  },
+  {
+   "stage": "second_source",
+   "at": "2026-10-14T00:00:00Z"
+  },
+  {
+   "stage": "corroborated",
+   "at": "2026-10-14T00:00:00Z"
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": "2026-10-14T00:00:00Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T08:28:30Z"
+  },
+  {
+   "stage": "finalized",
+   "at": "2026-10-21T00:00:00Z"
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "2 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "2 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V4 · finalized: 2 incident databases agree, amount stable ≥7d"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "2 句未通过校验（已灰显）"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_f71f320a30ff77fd",
+   "source_id": "defillama_hacks",
+   "source_name": "DeFiLlama Hacks",
+   "tier": "T2",
+   "url": "https://defillama.com/hacks#UNCX Network V2",
+   "title": "UNCX Network V2 — Incorrect Share Accounting",
+   "published_at": "2026-10-14T00:00:00Z",
+   "excerpt": "UNCX Network V2 Token & Share Accounting Incorrect Share Accounting on Ethereum, Base, BSC, Robinhood Chain",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": 86000.0
+   }
+  },
+  {
+   "item_id": "it_6a481cdbb0f4cd48",
+   "source_id": "slowmist_hacked",
+   "source_name": "SlowMist Hacked",
+   "tier": "T1",
+   "url": "https://hacked.slowmist.io/#2026-10-14-UNCX Network V2",
+   "title": "UNCX Network V2 — Smart Contract Vulnerability",
+   "published_at": "2026-10-14T00:00:00Z",
+   "excerpt": "UNCX Network’s Vesting V2 contracts had a share-accounting logic vulnerability (VestingManager.cancel failed to ensure retained shares covered already-released amounts). The attacker transferred tokens directly to lower the shares-per-token rate, released and canceled schedules, and drained excess tokens from the shared vesting pool. Initial loss on Ethereum was ~$86k, later escalating to ~$1.49M across multiple chains.",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": 1490000.0
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "created",
+   "from": null,
+   "to": "V1",
+   "item_id": "it_f71f320a30ff77fd"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_6a481cdbb0f4cd48"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "level_change",
+   "from": "V1",
+   "to": "V4",
+   "item_id": "it_6a481cdbb0f4cd48"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "severity_change",
+   "from": "P2",
+   "to": "P0",
+   "item_id": "it_6a481cdbb0f4cd48"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "exploitation_change",
+   "from": "reported",
+   "to": "confirmed",
+   "item_id": "it_6a481cdbb0f4cd48"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "amount_change",
+   "from": "86000.0",
+   "to": "1490000.0",
+   "item_id": "it_6a481cdbb0f4cd48"
+  },
+  {
+   "at": "2026-10-23T07:54:30Z",
+   "kind": "severity_change",
+   "from": "P0",
+   "to": "P1",
+   "item_id": null
+  }
+ ],
+ "amount_history": [
+  {
+   "value": 86000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-14T00:00:00Z"
+  },
+  {
+   "value": 1490000.0,
+   "source_id": "slowmist_hacked",
+   "observed_at": "2026-10-14T00:00:00Z"
+  }
+ ],
+ "cve_details": [],
+ "tx": [],
+ "response": null
+}

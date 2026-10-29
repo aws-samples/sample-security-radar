@@ -1,0 +1,301 @@
+{
+  "kind": "architecture",
+  "title": "Security Radar · 架构（M2 · 探测器 + 触发器）",
+  "subtitle": "每 10 分钟一轮：采集 → 聚合判定 V0–V4 → 分析卡 → Respond（AWS Security Agent · AWS Continuum）→ 发布",
+  "theme": "aws",
+  "direction": "LR",
+  "reveal": true,
+  "footer": "LLM 只写带引用的句子；等级/严重度/资格/定位全部由代码计算 · 可利用性与补丁由 AWS agent 判断 · 两个 CDK 栈一键复现",
+  "groups": [
+    {
+      "id": "src",
+      "label": "公网数据源",
+      "kind": "trust"
+    },
+    {
+      "id": "cycle",
+      "label": "Step Functions · Cycle",
+      "kind": "network"
+    },
+    {
+      "id": "data",
+      "label": "存储",
+      "kind": "network"
+    },
+    {
+      "id": "aws",
+      "label": "AWS 安全 agent",
+      "kind": "network"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "vuln",
+      "label": "KEV / 厂商 PSIRT",
+      "sub": "CISA · Chrome · Fortinet",
+      "icon": "glyph:shield",
+      "group": "src"
+    },
+    {
+      "id": "media",
+      "label": "安全媒体 RSS",
+      "sub": "BleepingComputer · THN · 安全客",
+      "icon": "glyph:doc",
+      "group": "src"
+    },
+    {
+      "id": "web3",
+      "label": "Web3 事件库",
+      "sub": "DeFiLlama · 慢雾 · DeFiHackLabs",
+      "icon": "glyph:db",
+      "group": "src"
+    },
+    {
+      "id": "x",
+      "label": "X 安全账号",
+      "sub": "the X data source",
+      "icon": "glyph:stream",
+      "group": "src"
+    },
+    {
+      "id": "sched",
+      "label": "EventBridge",
+      "sub": "每 10 分钟触发",
+      "icon": "aws:eventbridge"
+    },
+    {
+      "id": "plan",
+      "label": "Plan",
+      "sub": "按 cadence 选源",
+      "icon": "aws:lambda",
+      "group": "cycle"
+    },
+    {
+      "id": "collect",
+      "label": "Collect ×6",
+      "sub": "失败留痕 · 429 退避",
+      "icon": "aws:lambda",
+      "group": "cycle"
+    },
+    {
+      "id": "process",
+      "label": "Process",
+      "sub": "聚合 · 判定 V0–V4 · 单写者",
+      "icon": "aws:lambda",
+      "group": "cycle",
+      "pulse": true
+    },
+    {
+      "id": "analyze",
+      "label": "Analyze",
+      "sub": "P0/P1 分析卡 · 引用与数字校验",
+      "icon": "aws:lambda",
+      "group": "cycle"
+    },
+    {
+      "id": "respond",
+      "label": "Respond",
+      "sub": "资格 · 规则 · 精确到行",
+      "icon": "aws:lambda",
+      "group": "cycle"
+    },
+    {
+      "id": "publish",
+      "label": "Publish",
+      "sub": "site-data + EPSS",
+      "icon": "aws:lambda",
+      "group": "cycle"
+    },
+    {
+      "id": "raw",
+      "label": "S3 raw",
+      "sub": "JSONL 批次 · 可续跑",
+      "icon": "aws:s3",
+      "group": "data"
+    },
+    {
+      "id": "ddb",
+      "label": "DynamoDB",
+      "sub": "条目 · 事件 · 源状态",
+      "icon": "aws:dynamodb",
+      "group": "data"
+    },
+    {
+      "id": "site",
+      "label": "S3 site",
+      "sub": "UI + data/*.json",
+      "icon": "aws:s3",
+      "group": "data"
+    },
+    {
+      "id": "cf",
+      "label": "CloudFront",
+      "sub": "OAC 私有源站 · Basic Auth（KVS 哈希，fail closed）",
+      "icon": "aws:cloudfront"
+    },
+    {
+      "id": "user",
+      "label": "浏览器",
+      "sub": "雷达 UI",
+      "icon": "glyph:browser"
+    },
+    {
+      "id": "sm",
+      "label": "Secrets Manager",
+      "sub": "采集 key · UI 凭证",
+      "icon": "aws:secretsmanager"
+    },
+    {
+      "id": "cw",
+      "label": "CloudWatch",
+      "sub": "30 min 无成功即告警",
+      "icon": "aws:cloudwatch"
+    },
+    {
+      "id": "bedrock",
+      "label": "Bedrock Claude",
+      "sub": "Sonnet 5.5 · 东京区",
+      "icon": "aws:bedrock"
+    },
+    {
+      "id": "sa",
+      "label": "Security Agent",
+      "sub": "规则包 · 代码评审 · 自动修复",
+      "icon": "glyph:agent",
+      "group": "aws"
+    },
+    {
+      "id": "cn",
+      "label": "Continuum",
+      "sub": "us-east-1 · 验证 · 补丁",
+      "icon": "glyph:agent",
+      "group": "aws"
+    }
+  ],
+  "edges": [
+    {
+      "from": "sched",
+      "to": "plan",
+      "flow": "event"
+    },
+    {
+      "from": "plan",
+      "to": "collect",
+      "flow": "control",
+      "label": "Map"
+    },
+    {
+      "from": "vuln",
+      "to": "collect",
+      "flow": "read"
+    },
+    {
+      "from": "media",
+      "to": "collect",
+      "flow": "read"
+    },
+    {
+      "from": "web3",
+      "to": "collect",
+      "flow": "read"
+    },
+    {
+      "from": "x",
+      "to": "collect",
+      "flow": "read"
+    },
+    {
+      "from": "sm",
+      "to": "collect",
+      "flow": "aux",
+      "static": true
+    },
+    {
+      "from": "collect",
+      "to": "raw",
+      "flow": "write"
+    },
+    {
+      "from": "raw",
+      "to": "process",
+      "flow": "read",
+      "label": "未处理批次"
+    },
+    {
+      "from": "process",
+      "to": "ddb",
+      "flow": "write"
+    },
+    {
+      "from": "publish",
+      "to": "site",
+      "flow": "write"
+    },
+    {
+      "from": "site",
+      "to": "cf",
+      "flow": "read"
+    },
+    {
+      "from": "cf",
+      "to": "user",
+      "flow": "reply"
+    },
+    {
+      "from": "user",
+      "to": "cf",
+      "flow": "request",
+      "label": "账号密码"
+    },
+    {
+      "from": "process",
+      "to": "cw",
+      "flow": "aux",
+      "static": true
+    },
+    {
+      "from": "ddb",
+      "to": "analyze",
+      "flow": "read"
+    },
+    {
+      "from": "analyze",
+      "to": "bedrock",
+      "flow": "request"
+    },
+    {
+      "from": "analyze",
+      "to": "ddb",
+      "flow": "write",
+      "static": true
+    },
+    {
+      "from": "ddb",
+      "to": "publish",
+      "flow": "read"
+    },
+    {
+      "from": "ddb",
+      "to": "respond",
+      "flow": "read"
+    },
+    {
+      "from": "respond",
+      "to": "sa",
+      "flow": "request",
+      "label": "规则 + 评审"
+    },
+    {
+      "from": "respond",
+      "to": "cn",
+      "flow": "request",
+      "label": "finding + 扫描"
+    },
+    {
+      "from": "respond",
+      "to": "ddb",
+      "flow": "write",
+      "static": true
+    }
+  ]
+}

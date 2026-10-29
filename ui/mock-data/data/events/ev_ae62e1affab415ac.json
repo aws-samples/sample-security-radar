@@ -1,0 +1,242 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T08:19:48Z",
+ "event": {
+  "velocity_6h": 0,
+  "lifecycle": "escalating",
+  "event_id": "ev_ae62e1affab415ac",
+  "domain": "web3",
+  "title": "Kimchi Token — Rug Pull",
+  "level": "V1",
+  "level_reason": "reported: 1 T1 / 1 T1+T2 independent sources",
+  "severity": "P1",
+  "exploitation": "reported",
+  "first_seen": "2026-10-23T00:00:00Z",
+  "last_updated": "2026-10-23T00:00:00Z",
+  "first_report_source": "SlowMist Hacked",
+  "independent_sources": 1,
+  "item_count": 1,
+  "cves": [],
+  "entities": [
+   "Kimchi Token"
+  ],
+  "chains": [],
+  "amount_usd_latest": 385000.0,
+  "amount_disputed": false,
+  "summary": null,
+  "analysis_status": "partial",
+  "impact": null
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T08:18:59Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "Solana 代币 $kimchi 市值一度约 1400 万美元后暴跌超 95%,疑为 KOL 协同拉盘砸盘的 rug pull。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": false,
+    "issues": [
+     "ungrounded_number"
+    ]
+   }
+  ],
+  "what": [
+   {
+    "text": "基于 Solana 的 $kimchi 代币在 KOL @kimchi1x 获得 5 亿枚代币并发帖后,市值升至约 1400 万美元。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": false,
+    "issues": [
+     "ungrounded_number"
+    ]
+   },
+   {
+    "text": "@a1lon9 曾转发该帖,但该转发随后被撤销,原帖也被删除,价格随之暴跌超 95%。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "链上分析显示,相关方通过多个钱包低买高卖,获利超过 38.5 万美元。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": false,
+    "issues": [
+     "ungrounded_number"
+    ]
+   }
+  ],
+  "impact": [
+   {
+    "text": "价格暴跌超 95%,在高位买入的持有者可能遭受重大损失。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "该事件被 SlowMist 归类为疑似 KOL 协同的拉盘砸盘式 rug pull,说明 KOL 带单行为可能带来市场操纵风险。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "唯一来源 SlowMist 称链上分析发现多个钱包被用于低买高卖获利,但将其定性为“疑似”协同操纵,各来源之间不存在分歧。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "防御方和协议团队可对涉事多个钱包进行链上追踪,并核查这些钱包与 KOL 持有的 5 亿枚代币之间的资金关系。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "在评估 KOL 推广的新代币时,应关注其代币分配集中度以及帖文被删除或转发被撤销等异常信号。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "KOL 与获利钱包之间是否存在协同关系,目前仅为疑似,尚未得到确认。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "所涉钱包的具体地址、资金去向以及是否有追回措施,证据中均未说明。",
+    "cite": [
+     "it_a9550093edb3dce5"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "partial",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-23T00:00:00Z"
+  },
+  {
+   "stage": "second_source",
+   "at": null
+  },
+  {
+   "stage": "corroborated",
+   "at": null
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": "2026-10-23T00:00:00Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T08:18:59Z"
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "1 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "1 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V1 · reported: 1 T1 / 1 T1+T2 independent sources"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "3 句未通过校验（已灰显）"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_a9550093edb3dce5",
+   "source_id": "slowmist_hacked",
+   "source_name": "SlowMist Hacked",
+   "tier": "T1",
+   "url": "https://hacked.slowmist.io/#2026-10-23-Kimchi Token",
+   "title": "Kimchi Token — Rug Pull",
+   "published_at": "2026-10-23T00:00:00Z",
+   "excerpt": "The Solana-based $kimchi token surged to a ~$14 million market cap after KOL @kimchi1x received 500M tokens and posted about it (with a repost by @a1lon9). The repost was later undone, the original post deleted, and the price crashed over 95%. On-chain analysis showed scammers used multiple wallets to buy low and sell high for over $385K in profit — a suspected coordinated KOL pump-and-dump rug pull.",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": 385000.0
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T08:18:47Z",
+   "kind": "created",
+   "from": null,
+   "to": "V1",
+   "item_id": "it_a9550093edb3dce5"
+  }
+ ],
+ "amount_history": [
+  {
+   "value": 385000.0,
+   "source_id": "slowmist_hacked",
+   "observed_at": "2026-10-23T00:00:00Z"
+  }
+ ],
+ "cve_details": [],
+ "tx": [],
+ "response": null
+}

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+  <channel>
+    <title>Odaily</title>
+    <link>https://www.odaily.news/zh-CN/</link>
+    <description>Odaily</description>
+    <image>
+      <title>Odaily</title>
+      <url>https://oss.odaily.top/share-icon.png</url>
+      <link>https://www.odaily.news/zh-CN/</link>
+    </image>
+    <item>
+      <title>汇丰银行推出港元稳定币RedCoin，支持通过PayMe使用</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526907</link>
+      <description><![CDATA[Odaily星球日报讯 据市场消息，汇丰银行已推出港元稳定币 RedCoin，自今日起可通过 PayMe 使用。 [facts: 2]]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 04:35:47 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526907</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+    <item>
+      <title>Trade.xyz上线JIO Pre-IPO永续合约交易，IPO后将转换为标准XYZ永续合约</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526906</link>
+      <description><![CDATA[Odaily星球日报讯 Trade.xyz 发文表示，JIO IPO 前永续合约 IPOP 市场现已上线。 [facts: 1]]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 04:27:36 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526906</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+    <item>
+      <title>JIO上市前永续合约市场上线</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526904</link>
+      <description><![CDATA[Odaily星球日报讯 trade.xyz 在 X 平台发文表示，JIO 上市前永续合约市场现已上线。]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 04:21:24 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526904</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+    <item>
+      <title>以太坊现货ETF昨日总净流出1.11亿美元，贝莱德ETHA净流出7545.43万美元居首</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526901</link>
+      <description><![CDATA[Odaily星球日报讯 根据 SoSoValue 数据，昨日（美东时间 10 月 22 日）以太坊现货 ETF 总净流出 1.11 亿美元。 [facts: 10; 22; 1.11; 237.29; 23.57; 7545.43; 122.61; 145.71; 5.01; 127.15]]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 04:01:03 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526901</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+    <item>
+      <title>比特币现货ETF昨日总净流出6.35亿美元，贝莱德IBIT净流出2.54亿美元居首</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526900</link>
+      <description><![CDATA[Odaily星球日报讯 根据 SoSoValue 数据，昨日（美东时间 10 月 22 日）比特币现货 ETF 总净流出 6.35 亿美元。 [facts: 10; 22; 6.35; 233.00; 7.71; 2.54; 662.44; 1047.08; 6.41; 573.21]]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 04:00:44 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526900</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+    <item>
+      <title>OKX美股产品过去30日成交额超579亿美元</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526899</link>
+      <description><![CDATA[据 OKX 市场数据，截至 2026 年 10 月 22 日，过去 30 天 OKX 美股相关产品成交额达 579.38 亿 USDT。 [facts: 2026; 10; 22; 30; 579.38; 564.91; 14.47]]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 04:00:42 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526899</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+    <item>
+      <title>PHP两项高危漏洞CVSS评分均达9.2，慢雾建议Web3项目立即升级</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526898</link>
+      <description><![CDATA[Odaily星球日报讯 慢雾安全团队发布报告称，PHP 近期披露的 CVE-2026-109618 和 CVE-2026-109619 两个高危漏洞，正对 Web3 行业链下基础设施构成风险。两项漏洞的 CVSS v4.0 评分均为 9.2 分，攻击者无需账号密码或 API Key，仅向暴露在公网的 PHP 服务发送构造请求，即可能以 Web 服务进程权限执行任意代码。 [facts: CVE-2026-109618; CVE-2026-109619; 3; 4.0; 9.2; 5.4; 8.5.11; 4; 1488; 793; 53.3; 8.5.12; 8.4.27; 8.3.36; 8.2.35; 8.1]]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 03:44:53 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526898</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+    <item>
+      <title>Moderna个性化癌症疫苗三期数据提前泄露，股价一度跌超26%</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526897</link>
+      <description><![CDATA[Odaily星球日报讯 Moderna 与默沙东联合研发的个性化黑色素瘤疫苗三期数据提前泄露。尽管临床结果积极，Moderna 股价仍遭大幅抛售。 [facts: 180.80; 26.45; 10; 21; 254.48; 28.95; 202.63; 17.57; 42; 38; 500]]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 03:40:24 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526897</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+    <item>
+      <title>价值7.72亿美元，40个新建钱包自10月1日起从Wintermute提取9458枚BTC</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526894</link>
+      <description><![CDATA[Odaily星球日报讯 据 Lookonchain 监测，40 个新建钱包自 10 月 1 日起从 Wintermute 提取了 9458 枚 BTC，价值 7.72 亿美元。 [facts: 40; 10; 1; 9458; 7.72]]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 03:35:00 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526894</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+    <item>
+      <title>Bitget股票合约上线丹纳赫（DHR）、美国电话电报（TSTOCK）</title>
+      <link>https://www.odaily.news/zh-CN/newsflash/526893</link>
+      <description><![CDATA[Odaily星球日报讯 Bitget 上线 DHR（丹纳赫）及 TSTOCK（美国电话电报）2 支股票永续合约。上述合约以 USDT 结算，支持最高 20 倍杠杆及 7×24 小时交易。截至目前，Bitget 共支持 376 只股票合约标的。 [facts: 2; 20; 7; 24; 376]]]></description>
+      <category>Odaily</category>
+      <pubDate>Fri, 23 Oct 2026 03:22:34 GMT</pubDate>
+      <author>Odaily</author>
+      <guid>https://www.odaily.news/zh-CN/newsflash/526893</guid>
+      <dc:creator>Odaily</dc:creator>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,258 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T08:29:36Z",
+ "event": {
+  "velocity_6h": 1,
+  "lifecycle": "escalating",
+  "event_id": "ev_18021be5786d7984",
+  "domain": "vuln",
+  "title": "Researchers Demonstrate Node2Shell RCE Exploit on Node.js Build Using Crafted Brotli Data",
+  "level": "V1",
+  "level_reason": "reported: single T2 source",
+  "severity": "P1",
+  "exploitation": "poc",
+  "first_seen": "2026-10-23T07:50:01Z",
+  "last_updated": "2026-10-23T07:51:34Z",
+  "first_report_source": "The Hacker News",
+  "independent_sources": 1,
+  "item_count": 2,
+  "cves": [
+   "CVE-2026-111497"
+  ],
+  "entities": [],
+  "chains": [],
+  "amount_usd_latest": null,
+  "amount_disputed": false,
+  "summary": "Node2Shell概念验证显示恶意Brotli数据可在官方Node.js构建上执行代码。",
+  "analysis_status": "ok",
+  "impact": null
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T08:28:30Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "Node2Shell概念验证显示恶意Brotli数据可在官方Node.js构建上执行代码。",
+    "cite": [
+     "it_f9336dfbcc27c252"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "what": [
+   {
+    "text": "Imperva研究人员演示了名为Node2Shell的概念验证，向Node.js内置的Brotli解码器输入构造的数据，即可让应用运行攻击者提供的代码，对应漏洞编号为CVE-2026-111497。",
+    "cite": [
+     "it_f9336dfbcc27c252"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "该概念验证在官方Node.js 24.22.0 Linux arm64镜像上运行成功，无需调试器或自定义构建。",
+    "cite": [
+     "it_f9336dfbcc27c252"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "impact": [
+   {
+    "text": "构造的Brotli数据可通过存在漏洞的Node.js应用触发代码执行，且无需修改运行时。",
+    "cite": [
+     "it_bd8e2d3a2022b380",
+     "it_f9336dfbcc27c252"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "目前证据只显示研究人员公开演示了概念验证，两个来源对此说法一致，没有任何来源报告在野利用。",
+    "cite": [
+     "it_f9336dfbcc27c252",
+     "it_bd8e2d3a2022b380"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "防御方应排查是否在使用官方Node.js 24.22.0镜像（尤其是Linux arm64），以及应用是否会用内置Brotli解码器处理不可信数据。",
+    "cite": [
+     "it_f9336dfbcc27c252"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "防御方应跟进Node.js对CVE-2026-111497的披露信息，以确认官方给出的修复或缓解措施。",
+    "cite": [
+     "it_f9336dfbcc27c252"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "现有证据未说明是否已出现在野利用。",
+    "cite": [
+     "it_f9336dfbcc27c252",
+     "it_bd8e2d3a2022b380"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "除已演示的Node.js 24.22.0 Linux arm64镜像外，其他版本和平台是否受影响，证据中没有说明。",
+    "cite": [
+     "it_f9336dfbcc27c252"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "修复版本和官方缓解措施的具体内容，在现有证据中未得到确认。",
+    "cite": [
+     "it_f9336dfbcc27c252"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "ok",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-23T07:50:01Z"
+  },
+  {
+   "stage": "second_source",
+   "at": null
+  },
+  {
+   "stage": "corroborated",
+   "at": null
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": null
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T08:28:30Z"
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "2 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "1 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V1 · reported: single T2 source"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_f9336dfbcc27c252",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/researchers-demonstrate-node2shell-rce.html",
+   "title": "Researchers Demonstrate Node2Shell RCE Exploit on Node.js Build Using Crafted Brotli Data",
+   "published_at": "2026-10-23T07:50:01Z",
+   "excerpt": "Their \"Node2Shell\" proof of concept ran code on the official Node.js 24.22.0 image for Linux arm64, with no debugger or custom build, by feeding crafted data to the bundled Brotli decoder (CVE-2026-1… [facts: 2; 24.22.0; 64; CVE-2026-111497; proof of concept]",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": true,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_bd8e2d3a2022b380",
+   "source_id": "x_security",
+   "source_name": "X @TheHackersNews",
+   "tier": "T2",
+   "url": "https://x.com/TheHackersNews/status/2113538808126038500",
+   "title": "🛑 ALERT - Node2Shell RCE exploit works on an official Node.js build. Researchers demonstrated how crafted Brotli data can trigger code execu",
+   "published_at": "2026-10-23T07:51:34Z",
+   "excerpt": "🛑 ALERT - Node2Shell RCE exploit works on an official Node.js build.\n\nResearchers demonstrated how crafted Brotli data can trigger code execution through vulnerable Node.js applications, without modifying the runtime.\n\nHere's how the exploit works: https://t.co/ffJvHDqRXj https://t.co/sLH83S7p9r",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T08:08:21Z",
+   "kind": "created",
+   "from": null,
+   "to": "V1",
+   "item_id": "it_f9336dfbcc27c252"
+  },
+  {
+   "at": "2026-10-23T08:28:27Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_bd8e2d3a2022b380"
+  }
+ ],
+ "amount_history": [],
+ "cve_details": [
+  {
+   "cve": "CVE-2026-111497",
+   "kev": false,
+   "kev_date_added": null,
+   "ransomware": null,
+   "epss": null,
+   "epss_percentile": null
+  }
+ ],
+ "tx": [],
+ "response": null
+}

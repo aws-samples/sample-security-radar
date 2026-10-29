@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 844 422" width="844" height="422" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans CJK SC','Source Han Sans SC',Helvetica,Arial,sans-serif" role="img" aria-label="事件真实性等级 · 状态机">
+<title>事件真实性等级 · 状态机</title>
+<desc>全部由代码按证据计算；LLM 不参与判定</desc>
+<defs>
+<pattern id="af-grid" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0 H0 V34" fill="none" stroke="#161D29" stroke-width="1"/></pattern>
+<marker id="af-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="context-stroke" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<style>@media (prefers-reduced-motion: no-preference){.flow{stroke-dasharray:6 6;animation:af-dash 0.8s linear infinite}.flow-slow{stroke-dasharray:4 8;animation:af-dash 1.6s linear infinite}.rv0{opacity:0;animation:af-in .5s ease-out 0.00s forwards}.rv1{opacity:0;animation:af-in .5s ease-out 0.10s forwards}}@media (prefers-reduced-motion: reduce){  .rv0,.rv1{opacity:1}}@keyframes af-dash{to{stroke-dashoffset:-12}}@keyframes af-in{to{opacity:1}}</style>
+</defs>
+<rect width="844" height="422" fill="#0B0F17"/>
+<rect width="844" height="422" fill="url(#af-grid)"/>
+<text x="40" y="46" font-size="21" font-weight="800" fill="#E8EDF5">事件真实性等级 · 状态机</text>
+<text x="40" y="69" font-size="12" fill="#94A3B8">全部由代码按证据计算；LLM 不参与判定</text>
+<path class="flow" d="M 153.8 140.0 L 267.8 140.0" fill="none" stroke="#94A3B8" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 368.2 140.0 L 475.8 140.0" fill="none" stroke="#94A3B8" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 576.2 140.0 L 677.2 140.0" fill="none" stroke="#94A3B8" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 734.0 165.0 L 734.0 165.0 L 734.0 247.0 L 734.0 247.0" fill="none" stroke="#94A3B8" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 526.0 165.0 L 534.0 165.0 L 534.0 247.0 L 526.0 247.0" fill="none" stroke="#F87171" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0" fill="none" stroke="#64748B" stroke-width="2" marker-end="url(#af-ah)"/>
+<rect x="176.4" y="132.0" width="68.9" height="15" rx="4" fill="#0B0F17" opacity="0.95"/>
+<text x="210.8" y="143.4" text-anchor="middle" font-size="9.5" fill="#94A3B8">1 个 T1 或 T2</text>
+<rect x="391.3" y="132.0" width="61.5" height="15" rx="4" fill="#0B0F17" opacity="0.95"/>
+<text x="422.0" y="143.4" text-anchor="middle" font-size="9.5" fill="#94A3B8">≥2 独立来源</text>
+<rect x="589.2" y="132.0" width="75.0" height="15" rx="4" fill="#0B0F17" opacity="0.95"/>
+<text x="626.7" y="143.4" text-anchor="middle" font-size="9.5" fill="#94A3B8">KEV/厂商/官方</text>
+<rect x="710.0" y="198.0" width="48.0" height="15" rx="4" fill="#0B0F17" opacity="0.95"/>
+<text x="734.0" y="209.4" text-anchor="middle" font-size="9.5" fill="#94A3B8">静默期满</text>
+<rect x="510.0" y="198.0" width="48.0" height="15" rx="4" fill="#0B0F17" opacity="0.95"/>
+<text x="534.0" y="209.4" text-anchor="middle" font-size="9.5" fill="#94A3B8">官方否认</text>
+<rect x="289.2" y="74.0" width="57.5" height="15" rx="4" fill="#0B0F17" opacity="0.95"/>
+<text x="318.0" y="85.4" text-anchor="middle" font-size="9.5" fill="#94A3B8">转载不加分</text>
+<circle r="4.0" fill="#94A3B8" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.00s"/><animateMotion dur="3.0s" begin="0.00s" repeatCount="indefinite" path="M 153.8 140.0 L 267.8 140.0"/></circle>
+<circle r="4.0" fill="#94A3B8" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.75s"/><animateMotion dur="3.0s" begin="0.75s" repeatCount="indefinite" path="M 368.2 140.0 L 475.8 140.0"/></circle>
+<circle r="4.0" fill="#94A3B8" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="1.50s"/><animateMotion dur="3.0s" begin="1.50s" repeatCount="indefinite" path="M 576.2 140.0 L 677.2 140.0"/></circle>
+<circle r="4.0" fill="#94A3B8" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="2.25s"/><animateMotion dur="3.0s" begin="2.25s" repeatCount="indefinite" path="M 734.0 165.0 L 734.0 165.0 L 734.0 247.0 L 734.0 247.0"/></circle>
+<circle r="4.0" fill="#F87171" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.00s"/><animateMotion dur="1.8s" begin="0.00s" repeatCount="indefinite" path="M 526.0 165.0 L 534.0 165.0 L 534.0 247.0 L 526.0 247.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.00s"/><animateMotion dur="18.0s" begin="0.00s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.75s"/><animateMotion dur="18.0s" begin="0.75s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="1.50s"/><animateMotion dur="18.0s" begin="1.50s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="2.25s"/><animateMotion dur="18.0s" begin="2.25s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="3.00s"/><animateMotion dur="18.0s" begin="3.00s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="3.75s"/><animateMotion dur="18.0s" begin="3.75s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="4.50s"/><animateMotion dur="18.0s" begin="4.50s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="5.25s"/><animateMotion dur="18.0s" begin="5.25s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="6.00s"/><animateMotion dur="18.0s" begin="6.00s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="6.75s"/><animateMotion dur="18.0s" begin="6.75s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="7.50s"/><animateMotion dur="18.0s" begin="7.50s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="8.25s"/><animateMotion dur="18.0s" begin="8.25s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="9.00s"/><animateMotion dur="18.0s" begin="9.00s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="9.75s"/><animateMotion dur="18.0s" begin="9.75s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="10.50s"/><animateMotion dur="18.0s" begin="10.50s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="11.25s"/><animateMotion dur="18.0s" begin="11.25s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="12.00s"/><animateMotion dur="18.0s" begin="12.00s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="12.75s"/><animateMotion dur="18.0s" begin="12.75s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="13.50s"/><animateMotion dur="18.0s" begin="13.50s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="14.25s"/><animateMotion dur="18.0s" begin="14.25s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="15.00s"/><animateMotion dur="18.0s" begin="15.00s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="15.75s"/><animateMotion dur="18.0s" begin="15.75s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="16.50s"/><animateMotion dur="18.0s" begin="16.50s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<circle r="4.0" fill="#64748B" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="17.25s"/><animateMotion dur="18.0s" begin="17.25s" repeatCount="indefinite" path="M 302.0 118.0 C 292.0 82.0 344.0 82.0 334.0 118.0"/></circle>
+<g class="rv0"><rect x="70.2" y="119.0" width="79.5" height="42.0" rx="21.0" fill="#131A26" stroke="#252F3F" stroke-width="1.6"/><text x="110.0" y="144.6" text-anchor="middle" font-size="13" font-weight="700" fill="#E8EDF5">V0 传闻</text></g>
+<g class="rv0"><rect x="271.8" y="119.0" width="92.5" height="42.0" rx="21.0" fill="#131A26" stroke="#252F3F" stroke-width="1.6"/><text x="318.0" y="144.6" text-anchor="middle" font-size="13" font-weight="700" fill="#E8EDF5">V1 已报道</text></g>
+<g class="rv0"><rect x="479.8" y="119.0" width="92.5" height="42.0" rx="21.0" fill="#131A26" stroke="#252F3F" stroke-width="1.6"/><text x="526.0" y="144.6" text-anchor="middle" font-size="13" font-weight="700" fill="#E8EDF5">V2 已证实</text></g>
+<g class="rv0"><rect x="681.2" y="119.0" width="105.5" height="42.0" rx="21.0" fill="#131A26" stroke="#252F3F" stroke-width="1.6"/><text x="734.0" y="144.6" text-anchor="middle" font-size="13" font-weight="700" fill="#E8EDF5">V3 官方确认</text></g>
+<g class="rv1"><rect x="694.2" y="251.0" width="79.5" height="42.0" rx="21.0" fill="#131A26" stroke="#252F3F" stroke-width="1.6"/><text x="734.0" y="276.6" text-anchor="middle" font-size="13" font-weight="700" fill="#E8EDF5">V4 定稿</text></g>
+<g class="rv1"><rect x="457.4" y="251.0" width="137.2" height="42.0" rx="21.0" fill="#131A26" stroke="#252F3F" stroke-width="1.6"/><text x="526.0" y="276.6" text-anchor="middle" font-size="13" font-weight="700" fill="#E8EDF5">X 争议/撤回/回滚</text></g>
+<text x="40" y="364" font-size="11" font-weight="700" fill="#E8EDF5">图例</text>
+<circle cx="78" cy="360" r="5" fill="#94A3B8"/><text x="88" y="364" font-size="10.5" fill="#94A3B8">控制 control</text>
+<circle cx="160" cy="360" r="5" fill="#F87171"/><text x="170" y="364" font-size="10.5" fill="#94A3B8">失败 error</text>
+<circle cx="235" cy="360" r="5" fill="#64748B"/><text x="245" y="364" font-size="10.5" fill="#94A3B8">辅助 aux</text>
+<text x="40" y="390" font-size="10" fill="#94A3B8">T1=官方/厂商/可复现 PoC · T2=知名媒体/研究/聚合库 · T3=社区与快讯（永不单独证实）</text>
+</svg>

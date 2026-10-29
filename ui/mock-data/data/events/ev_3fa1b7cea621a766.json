@@ -1,0 +1,324 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T14:49:02Z",
+ "event": {
+  "velocity_6h": 1,
+  "lifecycle": "escalating",
+  "event_id": "ev_3fa1b7cea621a766",
+  "domain": "vuln",
+  "title": "Arista patches new VeloCloud Orchestrator zero-day exploited in attacks",
+  "level": "V2",
+  "level_reason": "corroborated: 3 independent T2 sources",
+  "severity": "P0",
+  "exploitation": "reported",
+  "first_seen": "2026-10-22T17:18:22Z",
+  "last_updated": "2026-10-23T14:48:40Z",
+  "first_report_source": "BleepingComputer",
+  "independent_sources": 3,
+  "item_count": 3,
+  "cves": [],
+  "entities": [],
+  "chains": [],
+  "amount_usd_latest": null,
+  "amount_disputed": false,
+  "summary": "Arista 已修补 VeloCloud Orchestrator 本地部署中一个被积极利用的 SQL 注入零日漏洞,攻击者可借此获得操作员权限。",
+  "analysis_status": "ok",
+  "impact": {
+   "status": "not_eligible",
+   "affected": 0,
+   "checked": 0
+  }
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T14:48:53Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "Arista 已修补 VeloCloud Orchestrator 本地部署中一个被积极利用的 SQL 注入零日漏洞,攻击者可借此获得操作员权限。",
+    "cite": [
+     "it_19a0e16db4f217ef",
+     "it_95112979e7a3426a",
+     "it_1ac5a7a22275da24"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "what": [
+   {
+    "text": "Arista 发布安全更新,修补影响 VeloCloud Orchestrator(VCO)本地部署版本的零日漏洞。",
+    "cite": [
+     "it_19a0e16db4f217ef"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "该漏洞是 VCO 中的 SQL 注入缺陷,Arista 在 10 月 22 日的公告中披露了此事。",
+    "cite": [
+     "it_95112979e7a3426a"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "VCO 是 VeloCloud SD-WAN 网络的中央管理系统。",
+    "cite": [
+     "it_95112979e7a3426a"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "SecurityWeek 称该漏洞为严重级别的 SQL 注入缺陷,并称这是四个月内被利用的第三个 Arista VCO 零日漏洞。",
+    "cite": [
+     "it_1ac5a7a22275da24"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "impact": [
+   {
+    "text": "任何能够登录编排器的用户,即使只有只读客户账户,也可获得操作员权限,即最高级别的控制权。",
+    "cite": [
+     "it_95112979e7a3426a"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "攻击者可借此访问特权内部功能并获得操作员权限。",
+    "cite": [
+     "it_1ac5a7a22275da24"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "BleepingComputer 报道该零日漏洞正被积极利用。",
+    "cite": [
+     "it_19a0e16db4f217ef"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "The Hacker News 同样报道攻击者正在利用该漏洞,并援引 Arista 的公告。",
+    "cite": [
+     "it_95112979e7a3426a"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "SecurityWeek 也称该漏洞已被攻击者利用,各来源在这一点上没有分歧。",
+    "cite": [
+     "it_1ac5a7a22275da24"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "使用 VCO 本地部署的团队应尽快应用 Arista 发布的安全更新。",
+    "cite": [
+     "it_19a0e16db4f217ef"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "防御方应排查哪些人拥有 VCO 登录权限,包括只读客户账户,因为这类账户也能触发提权。",
+    "cite": [
+     "it_95112979e7a3426a"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "现有证据未给出受影响的具体版本、修复版本号或漏洞编号。",
+    "cite": [
+     "it_19a0e16db4f217ef",
+     "it_95112979e7a3426a",
+     "it_1ac5a7a22275da24"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "现有证据未说明攻击规模、受害者数量或攻击者身份。",
+    "cite": [
+     "it_19a0e16db4f217ef",
+     "it_95112979e7a3426a",
+     "it_1ac5a7a22275da24"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "ok",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-22T17:18:22Z"
+  },
+  {
+   "stage": "second_source",
+   "at": "2026-10-22T19:05:17Z"
+  },
+  {
+   "stage": "corroborated",
+   "at": "2026-10-22T19:05:17Z"
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": "2026-10-22T17:18:22Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T14:48:53Z"
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "3 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "3 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V2 · corroborated: 3 independent T2 sources"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_19a0e16db4f217ef",
+   "source_id": "bleepingcomputer",
+   "source_name": "BleepingComputer",
+   "tier": "T2",
+   "url": "https://www.bleepingcomputer.com/news/security/arista-patches-new-velocloud-orchestrator-zero-day-exploited-in-attacks/",
+   "title": "Arista patches new VeloCloud Orchestrator zero-day exploited in attacks",
+   "published_at": "2026-10-22T17:18:22Z",
+   "excerpt": "Arista Networks released security updates to patch an actively exploited zero-day vulnerability affecting VeloCloud Orchestrator (VCO) On-Prem deployments. [facts: actively exploited]",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "yes",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_95112979e7a3426a",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/arista-warns-of-critical-velocloud-sql.html",
+   "title": "Arista Warns of Critical VeloCloud SQL Injection Zero-Day Exploited in Attacks",
+   "published_at": "2026-10-22T19:05:17Z",
+   "excerpt": "Attackers are exploiting a zero-day SQL injection flaw in Arista's VeloCloud Orchestrator (VCO), the central management system for VeloCloud SD-WAN networks, the company said in an advisory on Octobe… [facts: October 22; 22]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "yes",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_1ac5a7a22275da24",
+   "source_id": "securityweek",
+   "source_name": "SecurityWeek",
+   "tier": "T2",
+   "url": "https://www.securityweek.com/attackers-exploit-third-velocloud-orchestrator-zero-day-in-four-months/",
+   "title": "Attackers Exploit Third Arista VCO Zero-Day in Four Months",
+   "published_at": "2026-10-23T09:58:34Z",
+   "excerpt": "The post Attackers Exploit Third Arista VCO Zero-Day in Four Months appeared first on SecurityWeek .",
+   "independent_group": 2,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "created",
+   "from": null,
+   "to": "V1",
+   "item_id": "it_19a0e16db4f217ef"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_95112979e7a3426a"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "level_change",
+   "from": "V1",
+   "to": "V2",
+   "item_id": "it_95112979e7a3426a"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "severity_change",
+   "from": "P1",
+   "to": "P0",
+   "item_id": "it_95112979e7a3426a"
+  },
+  {
+   "at": "2026-10-23T10:08:21Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_1ac5a7a22275da24"
+  }
+ ],
+ "amount_history": [],
+ "cve_details": [],
+ "tx": [],
+ "response": null
+}

@@ -1,0 +1,331 @@
+# UI mutation registry (NEXT-STEPS B7) — each entry breaks one guard; its `expect` test file must go red.
+# Same INI shape as the repo-root mutations.txt (touchstone mutate.py), paths relative to ui/.
+# Run: node scripts/mutate.mjs            (all)    node scripts/mutate.mjs --only UM03   (one)
+# Rules: `find` must match exactly once; find != replace; never mutate a test file.
+
+[UM01 freshness: failing fetches never flagged]
+file = src/utils/staleness.ts
+find = sinceFetchSecs > FETCH_STALE_SECS
+replace = sinceFetchSecs > 1e9
+expect = src/test/staleness.test.ts
+
+[UM02 freshness: dead pipeline never flagged]
+file = src/utils/staleness.ts
+find = age > PUBLISH_STALE_SECS ?
+replace = age > 1e9 ?
+expect = src/test/staleness.test.ts
+
+[UM03 freshness: clock skew yields negative data age]
+file = src/utils/staleness.ts
+find = Math.max(0, Math.floor(
+replace = (0, Math.floor(
+expect = src/test/mutation-guards.test.ts
+
+[UM04 freshness: missing generated_at not reported as unknown]
+file = src/utils/staleness.ts
+find = if (!generatedAt) return { kind: 'unknown' };
+replace = if (generatedAt === undefined) return { kind: 'unknown' };
+expect = src/test/staleness.test.ts
+
+[UM05 health: loading claims a verdict]
+file = src/utils/health.ts
+find = if (loading) return
+replace = if (false) return
+expect = src/test/health.test.ts
+
+[UM06 health: disabled sources counted]
+file = src/utils/health.ts
+find = sources.filter(s => s.enabled)
+replace = sources.filter(s => true)
+expect = src/test/health.test.ts
+
+[UM07 health: no data shown as healthy]
+file = src/utils/health.ts
+find = if (enabled.length === 0)
+replace = if (false)
+expect = src/test/health.test.ts
+
+[UM08 health: never_run/degraded hidden]
+file = src/utils/health.ts
+find = s.status !== 'ok'
+replace = s.status === 'failing'
+expect = src/test/health.test.ts
+
+[UM09 radar: events older than 7d plotted]
+file = src/utils/radarLayout.ts
+find = if (ageMs > RADAR_MAX_AGE_MS) return null;
+replace = if (false) return null;
+expect = src/test/radarLayout.test.ts
+
+[UM10 radar: dot radius cap removed]
+file = src/utils/radarLayout.ts
+find = return Math.min(12, Math.max(3, r));
+replace = return Math.max(3, r);
+expect = src/test/radarLayout.test.ts
+
+[UM11 radar: V0 not hollow]
+file = src/utils/radarLayout.ts
+find = if (level === 'V0') return 'hollow-circle';
+replace = if (false) return 'hollow-circle';
+expect = src/test/radarLayout.test.ts
+
+[UM12 radar: jitter escapes the ring band]
+file = src/utils/radarLayout.ts
+find = Math.min(0.97, Math.max(0.01, radiusFrac + jitter))
+replace = (radiusFrac + jitter)
+expect = src/test/mutation-guards.test.ts
+
+[UM13 radar: clustering disabled]
+file = src/utils/radarLayout.ts
+find = if (members.length >= minCluster) {
+replace = if (members.length >= 1e9) {
+expect = src/test/radarLayout.test.ts
+
+[UM14 radar: hour bucket double-counts the previous hour]
+file = src/utils/radarLayout.ts
+find = return t >= slotStart && t < slotEnd;
+replace = return t >= slotStart - 3600000 && t < slotEnd;
+expect = src/test/radarLayout.test.ts
+
+[UM15 radar: P0 not sampled first]
+file = src/utils/radarLayout.ts
+find = Math.ceil(maxDots * 0.5)
+replace = Math.ceil(maxDots * 0)
+expect = src/test/mutation-guards.test.ts
+
+[UM16 radar: dots sit on sector boundaries]
+file = src/utils/radarLayout.ts
+find = sector.start + margin + h1
+replace = sector.start + h1
+expect = src/test/mutation-guards.test.ts
+
+[UM17 3d: z axis flipped (3D and SVG disagree)]
+file = src/utils/radar3dLayout.ts
+find = z: -R * radiusFrac
+replace = z: R * radiusFrac
+expect = src/test/radar3dLayout.test.ts
+
+[UM18 3d: P0 loses HDR bloom]
+file = src/utils/radar3dLayout.ts
+find = export const P0_HDR = 4.6;
+replace = export const P0_HDR = 1;
+expect = src/test/radar3dLayout.test.ts
+
+[UM19 3d: pillar height uncapped]
+file = src/utils/radar3dLayout.ts
+find = return Math.min(2.0, Math.max(0.25, h));
+replace = return Math.max(0.25, h);
+expect = src/test/radar3dLayout.test.ts
+
+[UM20 3d: every event treated as new]
+file = src/utils/radar3dLayout.ts
+find = filter(id => !prevIds.has(id))
+replace = filter(id => true)
+expect = src/test/radar3dLayout.test.ts
+
+[UM21 3d: chain orbit counts non-web3 events]
+file = src/utils/radar3dLayout.ts
+find = if (ev.domain === 'web3') {
+replace = if (true) {
+expect = src/test/mutation-guards.test.ts
+
+[UM22 filters: domain filter ignored]
+file = src/utils/filters.ts
+find = ev.domain !== filters.domain) return false;
+replace = false) return false;
+expect = src/test/filters.test.ts
+
+[UM23 filters: search case-sensitive]
+file = src/utils/filters.ts
+find = ].join(' ').toLowerCase();
+replace = ].join(' ');
+expect = src/test/filters.test.ts
+
+[UM24 filters: severity order inverted]
+file = src/utils/filters.ts
+find = { P0: 0, P1: 1, P2: 2 }
+replace = { P0: 2, P1: 1, P2: 0 }
+expect = src/test/filters.test.ts
+
+[UM25 filters: entities not searched]
+file = src/utils/filters.ts
+find = ...ev.entities,
+replace = ...[],
+expect = src/test/filters.test.ts
+
+[UM26 filters: 24h window widened]
+file = src/utils/filters.ts
+find = const dayAgo = nowMs - 24 * 60 * 60 * 1000;
+replace = const dayAgo = nowMs - 25 * 60 * 60 * 1000;
+expect = src/test/filters.test.ts
+
+[UC1 chunks: 3D budget loosened]
+file = scripts/chunk-budget.mjs
+find = export const LIMIT_KB = 150;
+replace = export const LIMIT_KB = 1500;
+expect = scripts/chunk-budget.test.mjs
+
+[UC2 chunks: budget comparison disabled]
+file = scripts/chunk-budget.mjs
+find = if (totalKb > limitKb)
+replace = if (totalKb > limitKb * 10)
+expect = scripts/chunk-budget.test.mjs
+
+[UC3 chunks: three.js leak into main not detected]
+file = scripts/chunk-budget.mjs
+find = f.text.includes('WebGLRenderer')
+replace = f.text.includes('__never__')
+expect = scripts/chunk-budget.test.mjs
+
+[UC4 chunks: missing 3D chunk passes]
+file = scripts/chunk-budget.mjs
+find = if (lazy.length === 0)
+replace = if (false)
+expect = scripts/chunk-budget.test.mjs
+
+[UP1 preview: crash leaves the preview server running]
+file = scripts/lib/preview.mjs
+find = if (stopped || child.exitCode !== null) return;
+replace = return;
+expect = scripts/lib/preview.test.mjs
+
+[UP2 preview: occupied port reused instead of failing fast]
+file = scripts/lib/preview.mjs
+find = s.once('error', err => reject(new Error(
+replace = s.once('error', err => resolve(new Error(
+expect = scripts/lib/preview.test.mjs
+
+# ── AWS Continuum / Security Agent view logic (融入度 + 在你的环境中) ─────────────────────────────
+[UK1 continuum: wired counted as integrated]
+file = src/utils/continuum.ts
+find = if (c.status === 'live') live++;
+replace = if (c.status === 'live' || c.status === 'wired') live++;
+expect = src/test/continuum.test.ts
+
+[UK2 continuum: 199/200 rounds up to 100%]
+file = src/utils/continuum.ts
+find = Math.floor((live / applicable) * 100)
+replace = Math.round((live / applicable) * 100)
+expect = src/test/continuum.test.ts
+
+[UK3 continuum: nothing applicable reads as complete]
+file = src/utils/continuum.ts
+find = complete: applicable > 0 && live === applicable
+replace = complete: live === applicable
+expect = src/test/continuum.test.ts
+
+[UK4 continuum: not_applicable enters the denominator]
+file = src/utils/continuum.ts
+find = const applicable = live + wired;
+replace = const applicable = live + wired + na;
+expect = src/test/continuum.test.ts
+
+[UK5 continuum: needs_user enters the denominator (diverges from src/radar/coverage.py)]
+file = src/utils/continuum.ts
+find = const applicable = live + wired;
+replace = const applicable = live + wired + needsUser;
+expect = src/test/continuum.test.ts
+
+[UR1 response: an affected target loses to a running check]
+file = src/utils/response.ts
+find = affected > 0 ? 'affected'
+replace = affected > 99 ? 'affected'
+expect = src/test/response.test.ts
+
+[UR2 response: stale list chip wins over the response detail]
+file = src/utils/response.ts
+find = if (response) {
+replace = if (false) {
+expect = src/test/response.test.ts
+
+[UR3 response: "backend has no response" reads like "not triggered"]
+file = src/utils/response.ts
+find = if (r === undefined) return
+replace = if (r === undefined && false) return
+expect = src/test/response.test.ts
+
+[UK10 continuum: hero ring counts every service, not Continuum]
+file = src/utils/continuum.ts
+find = return { service: HERO_SERVICE, score: own.score,
+replace = return { service: HERO_SERVICE, score: coverageScore(coverage),
+expect = src/test/continuum.test.ts
+
+[UK6 continuum: running check hides an affected target]
+file = src/utils/continuum.ts
+find = if (r.affected > 0 && r.status !== 'failed'
+replace = if (r.affected > 99 && r.status !== 'failed'
+expect = src/test/continuum.test.ts
+
+[UK7 continuum: 5xx HTML error page read as "unpublished"]
+file = src/utils/continuum.ts
+find = (ok && contentType.includes('text/html'))
+replace = contentType.includes('text/html')
+expect = src/test/continuum.test.ts
+
+[UK8 continuum: failed refresh still reads LIVE]
+file = src/utils/continuum.ts
+find = if (state === 'error') return { cls: 'is-error', label: '刷新失败' };
+replace = if (false) return { cls: 'is-error', label: '刷新失败' };
+expect = src/test/continuum.test.ts
+
+[UK9 continuum: unknown publish time reads LIVE]
+file = src/utils/continuum.ts
+find = if (fresh.kind === 'unknown') return { cls: 'is-unknown', label: '发布时间未知' };
+replace = if (fresh.kind === 'unknown') return { cls: 'is-fresh', label: 'LIVE' };
+expect = src/test/continuum.test.ts
+
+[UR4 response: a check of zero targets reads green 未命中 0/0]
+file = src/utils/response.ts
+find = { tone: 'muted', glyph: '○', label: '无可检查目标'
+replace = { tone: 'ok', glyph: '◇', label: '未命中 0/0'
+expect = src/test/response.test.ts
+
+[UR5 response: Continuum still validating, verdict reads finished]
+file = src/utils/response.ts
+find = return n > 0 ? { tone: 'info',
+replace = return n > 1e9 ? { tone: 'info',
+expect = src/test/response.test.ts
+
+# ── runner self-test: a mutation that breaks compilation must never certify a guard as live ───────────
+[UX1 runner: syntax-breaking replacement is NOT LANDED, not red]
+file = src/utils/health.ts
+find = if (loading) return
+replace = if (loading) return ))) (((
+expect = src/test/health.test.ts
+want = NOT LANDED
+
+[UK11 continuum cost: peak picks the first day, not the costliest (R4)]
+file = src/utils/continuum.ts
+find = return usd > 0 && (!p || usd > p.continuum_usd + p.security_agent_usd) ? d : p;
+replace = return usd > 0 && !p ? d : p;
+expect = src/test/continuum.test.ts
+
+[UK12 continuum cost: a failed Cost Explorer read is hidden (R4)]
+file = src/utils/continuum.ts
+find = error: cost.error ?? null,
+replace = error: null,
+expect = src/test/continuum.test.ts
+
+[UK13 continuum targets: a target without a channel gets a guessed chip instead of none]
+file = src/utils/continuum.ts
+find = t.channel ? `${CHANNEL_WORD[t.channel].env} · ${CHANNEL_WORD[t.channel].out}` : null;
+replace = `${CHANNEL_WORD[t.channel ?? 's3'].env} · ${CHANNEL_WORD[t.channel ?? 's3'].out}`;
+expect = src/test/continuum.test.ts
+
+[UK14 single-source P1s (level V1) count as corroborated — the triage number hides the events to look at first]
+file = src/utils/home.ts
+find = const CORROBORATED = new Set(['V2', 'V3', 'V4']);
+replace = const CORROBORATED = new Set(['V1', 'V2', 'V3', 'V4']);
+expect = src/test/home.test.ts
+
+[UK15 a digest sentence that failed validation renders like a grounded one (shown as fact)]
+file = src/components/home/DigestCard.tsx
+find = {!x.grounded && <em className="dg-issue">未通过校验：{x.issues.map(k => ISSUE_WORD[k] ?? k).join('、')}</em>}
+replace = {null}
+expect = src/test/digest.test.tsx
+
+[UK16 the possible-duplicate note drops "not merged" (a model judgement reads like a fact)]
+file = src/components/detail/DuplicateNote.tsx
+find = <span className="dt-muted">（模型判断，未合并；理由见悬停）</span>
+replace = <span className="dt-muted"></span>
+expect = src/test/duplicate.test.tsx

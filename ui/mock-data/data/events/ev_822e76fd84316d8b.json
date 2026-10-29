@@ -1,0 +1,320 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T07:54:34Z",
+ "event": {
+  "velocity_6h": 0,
+  "lifecycle": "active",
+  "event_id": "ev_822e76fd84316d8b",
+  "domain": "vuln",
+  "title": "CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability",
+  "level": "V3",
+  "level_reason": "confirmed: T1 source (cisa_kev)",
+  "severity": "P1",
+  "exploitation": "confirmed",
+  "first_seen": "2026-10-20T00:00:00Z",
+  "last_updated": "2026-10-22T12:00:00Z",
+  "first_report_source": "CISA KEV",
+  "independent_sources": 2,
+  "item_count": 3,
+  "cves": [
+   "CVE-2026-110936"
+  ],
+  "entities": [
+   "Siemens"
+  ],
+  "chains": [],
+  "amount_usd_latest": null,
+  "amount_disputed": false,
+  "summary": "西门子 Software Center 的 DLL 搜索路径漏洞 CVE-2026-110936 已被 ClickFix 攻击利用,需尽快更新。",
+  "analysis_status": "ok",
+  "impact": null
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T07:52:08Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "西门子 Software Center 的 DLL 搜索路径漏洞 CVE-2026-110936 已被 ClickFix 攻击利用,需尽快更新。",
+    "cite": [
+     "it_3582b5fc4a90b6c6",
+     "it_8ed7b96f450330c8"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "what": [
+   {
+    "text": "CVE-2026-110936 是 Siemens Software Center 中的不受控搜索路径漏洞,应用会从不受控的路径加载 DLL。",
+    "cite": [
+     "it_8ed7b96f450330c8",
+     "it_b9ebe18af790db07"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "经过身份验证的本地攻击者可在应用搜索的目录中放置特制 DLL,以受影响应用的权限执行任意代码。",
+    "cite": [
+     "it_8ed7b96f450330c8",
+     "it_b9ebe18af790db07"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "受影响版本为 Siemens Software Center 4.0.9.8 之前的版本。",
+    "cite": [
+     "it_b9ebe18af790db07"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "impact": [
+   {
+    "text": "成功利用可导致以受影响应用的权限执行任意代码。",
+    "cite": [
+     "it_8ed7b96f450330c8",
+     "it_b9ebe18af790db07"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "CISA 通告列出的相关关键基础设施行业包括关键制造、交通运输系统、能源、医疗卫生、金融服务以及政府服务和设施,部署范围为全球。",
+    "cite": [
+     "it_b9ebe18af790db07"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "CISA KEV 收录了该漏洞,The Hacker News 报道西门子称其已在 ClickFix 攻击中被利用,并用于投递远程访问木马。",
+    "cite": [
+     "it_8ed7b96f450330c8",
+     "it_3582b5fc4a90b6c6"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "CISA 通告也提到当前已知的主动利用情况,并指引读者参阅西门子博客了解检测方法。",
+    "cite": [
+     "it_b9ebe18af790db07"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "现有来源在 CVSS 评分上不一致:The Hacker News 引用 CVSS v4 评分 8.4,CISA 通告列出的是 CVSS v3 评分 6.7;各来源对利用事实的表述未见冲突。",
+    "cite": [
+     "it_3582b5fc4a90b6c6",
+     "it_b9ebe18af790db07"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "西门子已发布新版本,建议将 Siemens Software Center 更新至最新版本(即高于 4.0.9.8 的版本)。",
+    "cite": [
+     "it_b9ebe18af790db07",
+     "it_3582b5fc4a90b6c6"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "防御方应参阅西门子博客文章,了解当前已知的主动利用情况及检测方法。",
+    "cite": [
+     "it_b9ebe18af790db07"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "所给证据未说明 ClickFix 攻击的具体规模、受害者范围或攻击者身份。",
+    "cite": [
+     "it_3582b5fc4a90b6c6"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "所给证据未提供具体的检测指标或完整的攻击链细节,需参考西门子博客。",
+    "cite": [
+     "it_b9ebe18af790db07",
+     "it_3582b5fc4a90b6c6"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "ok",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-20T00:00:00Z"
+  },
+  {
+   "stage": "second_source",
+   "at": "2026-10-20T07:11:45Z"
+  },
+  {
+   "stage": "corroborated",
+   "at": "2026-10-20T00:00:00Z"
+  },
+  {
+   "stage": "confirmed",
+   "at": "2026-10-20T00:00:00Z"
+  },
+  {
+   "stage": "exploited",
+   "at": "2026-10-20T00:00:00Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T07:52:08Z"
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "3 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "2 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V3 · confirmed: T1 source (cisa_kev)"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_8ed7b96f450330c8",
+   "source_id": "cisa_kev",
+   "source_name": "CISA KEV",
+   "tier": "T1",
+   "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search_api_fulltext=CVE-2026-110936",
+   "title": "CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability",
+   "published_at": "2026-10-20T00:00:00Z",
+   "excerpt": "Siemens Software Center contains an uncontrolled search path element vulnerability that could allow an authenticated local attacker to place a specially crafted DLL in a directory that the application searches, leading to arbitrary code execution with the privileges of the affected application.",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "yes",
+    "kev": true,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_3582b5fc4a90b6c6",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/clickfix-attackers-exploit-siemens.html",
+   "title": "ClickFix Attackers Exploit Siemens Software Center Flaw to Deploy Remote Access Trojan",
+   "published_at": "2026-10-20T07:11:45Z",
+   "excerpt": "Siemens has addressed a DLL sideloading vulnerability impacting Siemens Software Center that it said has been exploited in ClickFix attacks. [facts: CVE-2026-110936; 4; 8.4]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_b9ebe18af790db07",
+   "source_id": "cisa_advisories",
+   "source_name": "CISA Advisories",
+   "tier": "T1",
+   "url": "https://www.cisa.gov/news-events/ics-advisories/icsa-26-295-03",
+   "title": "Siemens Software Center",
+   "published_at": "2026-10-22T12:00:00Z",
+   "excerpt": "View CSAF Summary The affected application loads dynamic-link libraries (DLLs) from an uncontrolled search path. This could allow an authenticated local attacker to place a specially crafted DLL in a directory that the application searches, leading to arbitrary code execution with the privileges of the affected application. Siemens has released a new version for Siemens Software Center and recommends to update to the latest version. Please refer to our blog post for additional information about current known active exploitation and how to detect it. The following versions of Siemens Software C",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "yes",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "created",
+   "from": null,
+   "to": "V3",
+   "item_id": "it_8ed7b96f450330c8"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_3582b5fc4a90b6c6"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_b9ebe18af790db07"
+  },
+  {
+   "at": "2026-10-23T07:54:30Z",
+   "kind": "severity_change",
+   "from": "P0",
+   "to": "P1",
+   "item_id": null
+  }
+ ],
+ "amount_history": [],
+ "cve_details": [
+  {
+   "cve": "CVE-2026-110936",
+   "kev": true,
+   "kev_date_added": "2026-10-20",
+   "ransomware": false,
+   "epss": null,
+   "epss_percentile": null
+  }
+ ],
+ "tx": [],
+ "response": null
+}

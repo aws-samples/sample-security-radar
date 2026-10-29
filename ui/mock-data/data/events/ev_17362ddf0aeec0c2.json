@@ -1,0 +1,818 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T17:19:10Z",
+ "event": {
+  "velocity_6h": 0,
+  "lifecycle": "active",
+  "event_id": "ev_17362ddf0aeec0c2",
+  "domain": "web3",
+  "title": "Merlin — Rounding Error",
+  "level": "V1",
+  "level_reason": "reported: single T2 source",
+  "severity": "P1",
+  "exploitation": "reported",
+  "first_seen": "2021-05-26T00:00:00Z",
+  "last_updated": "2026-10-23T17:18:46Z",
+  "first_report_source": "DeFiLlama Hacks",
+  "independent_sources": 1,
+  "item_count": 1,
+  "cves": [],
+  "entities": [
+   "Merlin"
+  ],
+  "chains": [
+   "BSC"
+  ],
+  "amount_usd_latest": 550000.0,
+  "amount_disputed": false,
+  "summary": "DeFiLlama 记录了 BSC 上 Merlin 因代币与份额记账舍入错误而发生的安全事件。",
+  "analysis_status": "ok",
+  "impact": null
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T07:58:21Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "DeFiLlama 记录了 BSC 上 Merlin 因代币与份额记账舍入错误而发生的安全事件。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "what": [
+   {
+    "text": "事件被归类为“舍入错误”,涉及 Merlin 的代币与份额记账逻辑。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "受影响的链为 BSC。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "impact": [
+   {
+    "text": "现有证据未提供损失金额、受影响资金池或用户范围,影响程度无法从该条目判断。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "记账层面的舍入错误意味着份额与代币的核算可能出现偏差。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "该条目被收录在 DeFiLlama 的攻击事件列表中,但未说明具体利用手法、攻击者或利用次数,也没有其他来源可对照。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "协议团队可对照事件类别,审查代币与份额之间换算和记账代码中的舍入处理。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "值班团队应先查阅 DeFiLlama 原始条目,补充缺失的技术细节后再决定后续处置。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "损失金额、攻击交易、受影响合约地址及攻击者信息在证据中均未给出。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "该问题是否已修复、资金是否追回,证据中没有说明。",
+    "cite": [
+     "it_7feb4a701e085507"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "ok",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2021-05-26T00:00:00Z"
+  },
+  {
+   "stage": "second_source",
+   "at": null
+  },
+  {
+   "stage": "corroborated",
+   "at": null
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": "2021-05-26T00:00:00Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T07:58:21Z"
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "1 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "1 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V1 · reported: single T2 source"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_7feb4a701e085507",
+   "source_id": "defillama_hacks",
+   "source_name": "DeFiLlama Hacks",
+   "tier": "T2",
+   "url": "https://defillama.com/hacks#Merlin",
+   "title": "Merlin — Rounding Error",
+   "published_at": "2021-05-26T00:00:00Z",
+   "excerpt": "Merlin Token & Share Accounting Rounding Error on BSC",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": 550000.0
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T05:11:33Z",
+   "kind": "created",
+   "from": null,
+   "to": "V1",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T05:11:33Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T05:48:48Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T05:48:48Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T06:18:47Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T06:18:47Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T06:48:53Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T06:48:53Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T07:18:46Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T07:18:46Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T07:48:48Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T07:48:48Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T08:18:47Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T08:18:47Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T08:48:53Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T08:48:53Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T09:18:53Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T09:18:53Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T09:48:48Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T09:48:48Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T10:18:52Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T10:18:52Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T10:48:53Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T10:48:53Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T11:18:54Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T11:18:54Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T12:18:50Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T12:18:50Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T12:48:52Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T12:48:52Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T13:18:47Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T13:18:47Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T13:48:48Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T13:48:48Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T14:18:46Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T14:18:46Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T14:48:40Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T14:48:40Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T15:18:40Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T15:18:40Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T15:48:48Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T15:48:48Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T16:18:40Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T16:18:40Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T16:48:48Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T16:48:48Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T17:18:46Z",
+   "kind": "amount_change",
+   "from": "550000.0",
+   "to": "680000.0",
+   "item_id": "it_7feb4a701e085507"
+  },
+  {
+   "at": "2026-10-23T17:18:46Z",
+   "kind": "amount_change",
+   "from": "680000.0",
+   "to": "550000.0",
+   "item_id": "it_7feb4a701e085507"
+  }
+ ],
+ "amount_history": [
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2021-05-26T00:00:00Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T05:11:33Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T05:14:53Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T05:14:53Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T05:48:48Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T05:48:48Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T06:18:47Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T06:18:47Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T06:48:53Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T06:48:53Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T07:18:46Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T07:18:46Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T07:48:48Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T07:48:48Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T08:18:47Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T08:18:47Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T08:48:53Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T08:48:53Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T09:18:53Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T09:18:53Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T09:48:48Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T09:48:48Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T10:18:52Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T10:18:52Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T10:48:53Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T10:48:53Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T11:18:54Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T11:18:54Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T12:18:50Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T12:18:50Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T12:48:52Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T12:48:52Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T13:18:47Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T13:18:47Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T13:48:48Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T13:48:48Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T14:18:46Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T14:18:46Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T14:48:40Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T14:48:40Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T15:18:40Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T15:18:40Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T15:48:48Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T15:48:48Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T16:18:40Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T16:18:40Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T16:48:48Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T16:48:48Z"
+  },
+  {
+   "value": 680000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T17:18:46Z"
+  },
+  {
+   "value": 550000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T17:18:46Z"
+  }
+ ],
+ "cve_details": [],
+ "tx": [],
+ "response": null
+}

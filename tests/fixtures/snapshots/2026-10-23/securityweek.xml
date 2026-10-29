@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>SecurityWeek</title>
+	<atom:link href="https://www.securityweek.com/feed/" rel="self" type="application/rss+xml" />
+	<link>https://www.securityweek.com/</link>
+	<description>Cybersecurity News, Insights &#38; Analysis</description>
+	<lastBuildDate>Thu, 22 Oct 2026 14:33:25 +0000</lastBuildDate>
+	<language>en-US</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+	<generator>https://wordpress.org/?v=7.1.3</generator>
+
+<image>
+	<url>https://www.securityweek.com/wp-content/uploads/2023/01/cropped-SecurityWeek-Icon-32x32.jpeg</url>
+	<title>SecurityWeek</title>
+	<link>https://www.securityweek.com/</link>
+	<width>32</width>
+	<height>32</height>
+</image> 
+	<item>
+		<title>Hacker Conversations: Corey Thuen and the Evil Bit</title>
+		<link>https://www.securityweek.com/hacker-conversations-corey-thuen-and-the-evil-bit/</link>
+		
+		<dc:creator><![CDATA[Kevin Townsend]]></dc:creator>
+		<pubDate>Thu, 22 Oct 2026 14:31:34 +0000</pubDate>
+				<category><![CDATA[Hacker Conversations]]></category>
+		<category><![CDATA[hacker]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50243</guid>
+
+					<description><![CDATA[Corey Thuen hires hackers for what he calls ‘the evil bit’ — an adversarial streak he believes is either there or it isn’t.]]></description>
+		
+		
+		
+			</item>
+		<item>
+		<title>Indurex Raises $8 Million to Expand Industrial Cybersecurity Platform</title>
+		<link>https://www.securityweek.com/indurex-raises-8-million-to-expand-industrial-cybersecurity-platform/</link>
+		
+		<dc:creator><![CDATA[Mike Lennon]]></dc:creator>
+		<pubDate>Thu, 22 Oct 2026 13:00:00 +0000</pubDate>
+				<category><![CDATA[Cybersecurity Funding]]></category>
+		<category><![CDATA[ICS/OT]]></category>
+		<category><![CDATA[ICS]]></category>
+		<category><![CDATA[OT]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50241</guid>
+
+					<description><![CDATA[The post Indurex Raises $8 Million to Expand Industrial Cybersecurity Platform appeared first on SecurityWeek . [facts: $8 M]]]></description>
+		
+		
+		
+			</item>
+		<item>
+		<title>Signal Vulnerability Lets Malicious Callers Block Hang-Ups</title>
+		<link>https://www.securityweek.com/signal-vulnerability-lets-malicious-callers-block-hang-ups/</link>
+		
+		<dc:creator><![CDATA[Ionut Arghire]]></dc:creator>
+		<pubDate>Thu, 22 Oct 2026 12:34:31 +0000</pubDate>
+				<category><![CDATA[Mobile & Wireless]]></category>
+		<category><![CDATA[Vulnerabilities]]></category>
+		<category><![CDATA[Signal]]></category>
+		<category><![CDATA[vulnerability]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50233</guid>
+
+					<description><![CDATA[Affecting the open source calling library RingRTC, the bug prevented calls from ending properly.]]></description>
+		
+		
+		
+			</item>
+		<item>
+		<title>Tech and Security Companies Respond to PHP2Shell Vulnerabilities</title>
+		<link>https://www.securityweek.com/tech-and-security-companies-respond-to-php2shell-vulnerabilities/</link>
+		
+		<dc:creator><![CDATA[Eduard Kovacs]]></dc:creator>
+		<pubDate>Thu, 22 Oct 2026 12:20:23 +0000</pubDate>
+				<category><![CDATA[Incident Response]]></category>
+		<category><![CDATA[Vulnerabilities]]></category>
+		<category><![CDATA[Incident response]]></category>
+		<category><![CDATA[PHP]]></category>
+		<category><![CDATA[PHP2Shell]]></category>
+		<category><![CDATA[security product vulnerability]]></category>
+		<category><![CDATA[security products]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50231</guid>
+
+					<description><![CDATA[Vendors are checking their products for PHP2Shell, security firms are shipping detections, and governments are urging immediate patching. [facts: 2]]]></description>
+		
+		
+		
+			</item>
+		<item>
+		<title>Splunk, SolarWinds Release Fresh Security Updates</title>
+		<link>https://www.securityweek.com/splunk-solarwinds-release-fresh-security-updates/</link>
+		
+		<dc:creator><![CDATA[Ionut Arghire]]></dc:creator>
+		<pubDate>Thu, 22 Oct 2026 10:45:24 +0000</pubDate>
+				<category><![CDATA[Vulnerabilities]]></category>
+		<category><![CDATA[patches]]></category>
+		<category><![CDATA[SolarWinds]]></category>
+		<category><![CDATA[Splunk]]></category>
+		<category><![CDATA[vulnerability]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50229</guid>
+
+					<description><![CDATA[Patched vulnerabilities could allow attackers to execute code, elevate privileges, and leak sensitive information.]]></description>
+		
+		
+		
+			</item>
+		<item>
+		<title>Cisco Patches 34 Vulnerabilities Across Multiple Products</title>
+		<link>https://www.securityweek.com/cisco-patches-34-vulnerabilities-across-multiple-products/</link>
+		
+		<dc:creator><![CDATA[Ionut Arghire]]></dc:creator>
+		<pubDate>Thu, 22 Oct 2026 10:05:21 +0000</pubDate>
+				<category><![CDATA[Vulnerabilities]]></category>
+		<category><![CDATA[Cisco]]></category>
+		<category><![CDATA[Patch]]></category>
+		<category><![CDATA[vulnerability]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50227</guid>
+
+					<description><![CDATA[Critical-severity security defects could lead to command execution, authentication bypass, and XSS attacks. [facts: 34]]]></description>
+		
+		
+		
+			</item>
+		<item>
+		<title>PHP2Shell Exploitation Started Days Before Patches</title>
+		<link>https://www.securityweek.com/php2shell-exploitation-started-days-before-patches/</link>
+		
+		<dc:creator><![CDATA[Ionut Arghire]]></dc:creator>
+		<pubDate>Thu, 22 Oct 2026 09:48:58 +0000</pubDate>
+				<category><![CDATA[Vulnerabilities]]></category>
+		<category><![CDATA[exploited]]></category>
+		<category><![CDATA[Featured]]></category>
+		<category><![CDATA[PHP]]></category>
+		<category><![CDATA[PHP2Shell]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50225</guid>
+
+					<description><![CDATA[The post PHP2Shell Exploitation Started Days Before Patches appeared first on SecurityWeek . [facts: October 17; 17; 2]]]></description>
+		
+		
+		
+			</item>
+		<item>
+		<title>Oracle Patches Over 1,200 Vulnerabilities With October 2026 CPU</title>
+		<link>https://www.securityweek.com/oracle-patches-over-1200-vulnerabilities-with-october-2026-cpu/</link>
+		
+		<dc:creator><![CDATA[Eduard Kovacs]]></dc:creator>
+		<pubDate>Thu, 22 Oct 2026 07:38:14 +0000</pubDate>
+				<category><![CDATA[Vulnerabilities]]></category>
+		<category><![CDATA[Featured]]></category>
+		<category><![CDATA[Oracle]]></category>
+		<category><![CDATA[Oracle CPU]]></category>
+		<category><![CDATA[patches]]></category>
+		<category><![CDATA[vulnerability]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50220</guid>
+
+					<description><![CDATA[Nearly 100 vulnerabilities have been assigned a critical severity rating and Fusion Middleware received the most patches. [facts: 100; 1,200; 2026]]]></description>
+		
+		
+		
+			</item>
+		<item>
+		<title>Meta Ordered to Pay New Mexico $25 Billion for Deceiving Users About Privacy on Facebook</title>
+		<link>https://www.securityweek.com/meta-ordered-to-pay-new-mexico-25-billion-for-deceiving-users-about-privacy-on-facebook/</link>
+		
+		<dc:creator><![CDATA[Associated Press]]></dc:creator>
+		<pubDate>Thu, 22 Oct 2026 07:26:54 +0000</pubDate>
+				<category><![CDATA[Data Protection]]></category>
+		<category><![CDATA[Privacy & Compliance]]></category>
+		<category><![CDATA[fine]]></category>
+		<category><![CDATA[Meta]]></category>
+		<category><![CDATA[New Mexico]]></category>
+		<category><![CDATA[privacy]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50218</guid>
+
+					<description><![CDATA[The $25 billion award far exceeds a $5 billion fine the Federal Trade Commission levied against Facebook in 2019. [facts: $25 billion; $5 billion; 2019; $25 B]]]></description>
+		
+		
+		
+			</item>
+		<item>
+		<title>Google Hardens Chrome Against ClickFix Attacks, Insecure HTTP Connections</title>
+		<link>https://www.securityweek.com/google-hardens-chrome-against-clickfix-attacks-insecure-http-connections/</link>
+		
+		<dc:creator><![CDATA[Eduard Kovacs]]></dc:creator>
+		<pubDate>Wed, 21 Oct 2026 17:00:00 +0000</pubDate>
+				<category><![CDATA[Data Protection]]></category>
+		<category><![CDATA[Risk Management]]></category>
+		<category><![CDATA[Chrome]]></category>
+		<category><![CDATA[ClickFix]]></category>
+		<category><![CDATA[HTTP]]></category>
+		<category><![CDATA[security feature]]></category>
+		<guid isPermaLink="false">https://www.securityweek.com/?p=50184</guid>
+
+					<description><![CDATA[The post Google Hardens Chrome Against ClickFix Attacks, Insecure HTTP Connections appeared first on SecurityWeek .]]></description>
+		
+		
+		
+			</item>
+	</channel>
+</rss>

@@ -1,0 +1,807 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T16:08:59Z",
+ "event": {
+  "velocity_6h": 1,
+  "lifecycle": "escalating",
+  "event_id": "ev_bb65db3b8694e5f4",
+  "domain": "vuln",
+  "title": "PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-2026-109619)",
+  "level": "V3",
+  "level_reason": "confirmed: T1 source (fortinet_psirt)",
+  "severity": "P0",
+  "exploitation": "reported",
+  "first_seen": "2026-10-21T07:00:00Z",
+  "last_updated": "2026-10-23T16:08:30Z",
+  "first_report_source": "Fortinet PSIRT",
+  "independent_sources": 8,
+  "item_count": 20,
+  "cves": [
+   "CVE-2026-109618",
+   "CVE-2026-109619",
+   "CVE-2026-115560"
+  ],
+  "entities": [],
+  "chains": [],
+  "amount_usd_latest": null,
+  "amount_disputed": false,
+  "summary": "PHP2Shell 涉及两个 PHP 严重远程代码执行漏洞，补丁发布前后均出现利用尝试，需立即升级到已修复版本。",
+  "analysis_status": "ok"
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T16:08:35Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "PHP2Shell 涉及两个 PHP 严重远程代码执行漏洞，补丁发布前后均出现利用尝试，需立即升级到已修复版本。",
+    "cite": [
+     "it_ab75cc0e4f28b9d1",
+     "it_093ee808007ce965"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "what": [
+   {
+    "text": "CVE-2026-109618 源于 PHP 在内存不足时用 longjmp() 退出，部分上下文会在分配前让请求内存处于未初始化状态，后续清理过程读取该内存即可能导致远程代码执行。",
+    "cite": [
+     "it_c98ed7fbadcc1ab3"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "CVE-2026-109619 源于部分全局状态未被正确重置或被重新填充，释放后仍指向请求内存，后续请求读取这一过期状态即可能导致远程代码执行。",
+    "cite": [
+     "it_c98ed7fbadcc1ab3"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "PHP 已发布 8.5.12、8.4.27、8.3.36 和 8.2.35 版本修复这两个漏洞。",
+    "cite": [
+     "it_2e61a5adf16b136e",
+     "it_ab75cc0e4f28b9d1"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "慢雾报告称受影响版本为 PHP 5.4 至 8.5.11，且漏洞细节在官方补丁发布前已泄露。",
+    "cite": [
+     "it_868ce1e80aaa27da"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "impact": [
+   {
+    "text": "CISA 称这些漏洞允许未经认证的远程代码执行，影响所有处理 Web 请求的 PHP 安装。",
+    "cite": [
+     "it_2e61a5adf16b136e"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "漏洞位于 PHP 运行时而非具体应用，因此即使网站自身代码没有问题也可能暴露。",
+    "cite": [
+     "it_ab75cc0e4f28b9d1"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "慢雾指出 Web3 项目的前端页面、API 接口、运营后台及托管钱包服务等链下设施面临风险，攻击者可能篡改前端并诱导用户签署恶意交易。",
+    "cite": [
+     "it_868ce1e80aaa27da",
+     "it_15d6f4162ebd81bd"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "慢雾扫描的 1488 个加密相关域名中，有 793 个带有直接 PHP 指纹，占比约 53.3%。",
+    "cite": [
+     "it_868ce1e80aaa27da"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "各来源对利用情况的说法不一致：CISA 在发布时称尚未观察到利用，而亚马逊威胁情报团队称早在 10 月 17 日就在其 MadPot 蜜罐上检测到利用尝试。",
+    "cite": [
+     "it_2e61a5adf16b136e",
+     "it_093ee808007ce965"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "报道称补丁发布后大规模利用活动随即开始，watchTowr 也表示利用尝试已在进行。",
+    "cite": [
+     "it_7053a5997029ddc7",
+     "it_af3aa36b8f38e12d"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "有攻击者试图利用这些漏洞把受感染系统纳入名为 Potassium 的 Mirai 变种僵尸网络，但尝试未成功，报道称武器化可能比预想的更难。",
+    "cite": [
+     "it_2de97842337a2adb"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "目前尚未确认有成功入侵的案例。",
+    "cite": [
+     "it_2b238c8718e04ba7"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "应立即将 PHP 升级到 8.5.12、8.4.27、8.3.36 或 8.2.35，并优先处理面向互联网的系统。",
+    "cite": [
+     "it_2e61a5adf16b136e"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "应盘点组织内所有运行 PHP 的系统，因为 PHP 常作为其他软件的组件存在，其普及程度可能无法直接观察到。",
+    "cite": [
+     "it_2e61a5adf16b136e"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "无法立即更新或仍在使用 PHP 8.1 及更早的不受支持版本时，CISA 建议将相关系统下线直到完成修补，Web 应用防火墙可提供一定保护。",
+    "cite": [
+     "it_2e61a5adf16b136e"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "慢雾建议 Web3 项目升级到对应的最新修复版本，并尽快迁移已停止上游常规支持的 PHP 8.1 及更早版本。",
+    "cite": [
+     "it_868ce1e80aaa27da"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "对于另一个独立漏洞 CVE-2026-115560，PHP 给出的缓解措施是设置 session.upload_progress.enabled=0。",
+    "cite": [
+     "it_7925d1d08982ba12",
+     "it_80beecce80a694a6"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "是否已有利用成功的真实入侵尚未确认，目前仅有尝试失败和暂无已确认成功案例的报道。",
+    "cite": [
+     "it_2b238c8718e04ba7",
+     "it_2de97842337a2adb"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "补丁发布前的临时缓解措施无法完全阻断这两个漏洞，单靠某个配置项也不足以防护。",
+    "cite": [
+     "it_bcf3336ac200ef0c"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "PHP 在两天后警告的 CVE-2026-115560 未被此次紧急更新修复，其严重程度评分和受影响版本列表尚未公布，修复计划在常规版本中发布。",
+    "cite": [
+     "it_30e7ef9f436b9637",
+     "it_7946bf863ca3eabb"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "PHP 认为 CVE-2026-115560 仅影响不常见的会话配置，实际风险不大，且目前没有已报告的攻击。",
+    "cite": [
+     "it_30e7ef9f436b9637"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "ok",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-21T07:00:00Z"
+  },
+  {
+   "stage": "second_source",
+   "at": "2026-10-21T09:05:17Z"
+  },
+  {
+   "stage": "corroborated",
+   "at": "2026-10-21T07:00:00Z"
+  },
+  {
+   "stage": "confirmed",
+   "at": "2026-10-21T07:00:00Z"
+  },
+  {
+   "stage": "exploited",
+   "at": "2026-10-22T06:34:10Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T16:08:35Z"
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "20 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "8 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V3 · confirmed: T1 source (fortinet_psirt)"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_c98ed7fbadcc1ab3",
+   "source_id": "fortinet_psirt",
+   "source_name": "Fortinet PSIRT",
+   "tier": "T1",
+   "url": "https://fortiguard.fortinet.com/psirt/FG-IR-26-186",
+   "title": "PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-2026-109619)",
+   "published_at": "2026-10-21T07:00:00Z",
+   "excerpt": "CVSSv3 Score: 9.8 CVE-2026-109618PHP uses longjmp() for out-of-memory (OOM) errors to exit the current context and abort handling of the request. Some contexts may not properly account for this scenario and leave request memory in an uninitialized state before performing an allocation. The subsequent request cleanup procedure may read or branch on this memory. Multiple OOM strategies can consistently trigger this condition and lead to remote code execution (RCE).CVE-2026-109619PHP has various global state that temporarily points into request memory. In some scenarios, global state may not be c",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_9c9a7707c7b2e5c2",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/php2shell-two-unpatched-critical-php.html",
+   "title": "PHP2Shell: Two Unpatched Critical PHP RCE Flaws (CVSS 9.2) Trigger Emergency Security Alert",
+   "published_at": "2026-10-21T09:05:17Z",
+   "excerpt": "This story is developing and was written before PHP's scheduled 14:00 UTC release on October 21. [facts: October 21; 14; 00; 21; 9.2; 4.0]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_bcf3336ac200ef0c",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/php2shell-what-actually-protects-you.html",
+   "title": "PHP2Shell: What Actually Protects You Before the 14:00 UTC PHP RCE Patch, and What Doesn't",
+   "published_at": "2026-10-21T10:36:53Z",
+   "excerpt": "You cannot fully block the two critical PHP flaws called PHP2Shell before today's fix, and the one setting being passed around as a workaround is not enough on its own, the security firm that suggest… [facts: October 21; 2; 14; 00; 21; 9.2; 10]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_2e61a5adf16b136e",
+   "source_id": "cisa_advisories",
+   "source_name": "CISA Advisories",
+   "tier": "T1",
+   "url": "https://www.cisa.gov/news-events/alerts/2026/10/21/critical-vulnerabilities-php-require-immediate-patching",
+   "title": "Critical Vulnerabilities in PHP Require Immediate Patching",
+   "published_at": "2026-10-21T12:00:00Z",
+   "excerpt": "CISA strongly urges organizations to immediately patch the recently disclosed critical vulnerabilities in PHP, CVE-2026-109618 and CVE-2026-109619 . These vulnerabilities, known as “php2shell,” allow for unauthenticated remote code execution in PHP and affect all PHP installations serving web requests. Organizations should immediately update to PHP 8.5.12, 8.4.27, 8.3.36, or 8.2.35 to fix these vulnerabilities. While CISA has not observed exploitation of these vulnerabilities as of the time of publication, they pose a risk to organizations if left unpatched. CISA urges organizations to take th",
+   "independent_group": 2,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_ab75cc0e4f28b9d1",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/php-issues-emergency-patches-for-two.html",
+   "title": "PHP Issues Emergency Patches for Two Critical PHP2Shell RCE Flaws as Exploit Attempts Emerge",
+   "published_at": "2026-10-21T14:00:00Z",
+   "excerpt": "The fixes are in PHP 8.5.12, 8.4.27, 8.3.36 and 8.2.35, and the PHP team says only updating fully protects a server. [facts: 8.5.12; 8.4.27; 8.3.36; 8.2.35; 2]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_da383b976318b066",
+   "source_id": "bleepingcomputer",
+   "source_name": "BleepingComputer",
+   "tier": "T2",
+   "url": "https://www.bleepingcomputer.com/news/security/php-ships-emergency-patches-for-critical-php2shell-flaws/",
+   "title": "PHP ships emergency patches for critical PHP2Shell flaws",
+   "published_at": "2026-10-21T14:07:05Z",
+   "excerpt": "The PHP security team released emergency security patches for two critical remote code execution (RCE) vulnerabilities (CVE-2026-109618 and CVE-2026-109619) tracked collectively as PHP2Shell. [facts: CVE-2026-109618; CVE-2026-109619; 2]",
+   "independent_group": 3,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_093ee808007ce965",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/someone-tried-to-exploit-php2shell-4.html",
+   "title": "Someone Tried to Exploit PHP2Shell 4 Days Before the Vulnerabilities Were Publicly Disclosed",
+   "published_at": "2026-10-22T06:34:10Z",
+   "excerpt": "Amazon's Threat Intelligence team on Wednesday said it detected an attempt to exploit the newly disclosed PHP2Shell vulnerabilities dating back to October 17, 2026, against its MadPot honeypot servic… [facts: October 17; 2; 17; 2026; exploitation in the wild]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "yes",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_7053a5997029ddc7",
+   "source_id": "securityweek",
+   "source_name": "SecurityWeek",
+   "tier": "T2",
+   "url": "https://www.securityweek.com/php2shell-exploitation-started-days-before-patches/",
+   "title": "PHP2Shell Exploitation Started Days Before Patches",
+   "published_at": "2026-10-22T09:48:58Z",
+   "excerpt": "The post PHP2Shell Exploitation Started Days Before Patches appeared first on SecurityWeek . [facts: October 17; 17; 2]",
+   "independent_group": 4,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_18d8831b33724cd3",
+   "source_id": "securityweek",
+   "source_name": "SecurityWeek",
+   "tier": "T2",
+   "url": "https://www.securityweek.com/tech-and-security-companies-respond-to-php2shell-vulnerabilities/",
+   "title": "Tech and Security Companies Respond to PHP2Shell Vulnerabilities",
+   "published_at": "2026-10-22T12:20:23Z",
+   "excerpt": "Vendors are checking their products for PHP2Shell, security firms are shipping detections, and governments are urging immediate patching. [facts: 2]",
+   "independent_group": 4,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_686d826838b02f8b",
+   "source_id": "bleepingcomputer",
+   "source_name": "BleepingComputer",
+   "tier": "T2",
+   "url": "https://www.bleepingcomputer.com/news/security/amazon-says-php2shell-exploitation-began-4-days-before-patches/",
+   "title": "Amazon says PHP2Shell exploitation began 4 days before patches",
+   "published_at": "2026-10-22T13:09:12Z",
+   "excerpt": "Security researchers at Amazon Threat Intelligence say attackers began targeting the PHP2Shell flaws four days before security patches were released on Wednesday. [facts: 2]",
+   "independent_group": 3,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_15d6f4162ebd81bd",
+   "source_id": "x_security",
+   "source_name": "X @SlowMist_Team",
+   "tier": "T1",
+   "url": "https://x.com/SlowMist_Team/status/2113475488643707290",
+   "title": "Following our earlier security alert regarding @php_net vulnerabilities, we've published a detailed analysis of the incident and its implica",
+   "published_at": "2026-10-23T03:39:57Z",
+   "excerpt": "Following our earlier security alert regarding @php_net  vulnerabilities, we've published a detailed analysis of the incident and its implications for #Web3security.\n\nThe article examines how exploitation of the vulnerabilities could put frontend interfaces, credentials, admin panels, and signing permissions at risk. It also outlines practical response measures for platforms and precautions for users.\n\nRead more👇\nhttps://t.co/AQljvvQQBr\n> 🚨 SlowMist TI Alert: Two Critical PHP Remote Code Execution (RCE) Vulnerabilities Disclosed 🚨\n\n🔴 Severity: Critical \n📌 CVEs: CVE-2026-109618, CVE-2026-109619",
+   "independent_group": 5,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_868ce1e80aaa27da",
+   "source_id": "odaily",
+   "source_name": "Odaily 快讯",
+   "tier": "T3",
+   "url": "https://www.odaily.news/zh-CN/newsflash/526898",
+   "title": "PHP两项高危漏洞CVSS评分均达9.2，慢雾建议Web3项目立即升级",
+   "published_at": "2026-10-23T03:44:53Z",
+   "excerpt": "Odaily星球日报讯 慢雾安全团队发布报告称，PHP 近期披露的 CVE-2026-109618 和 CVE-2026-109619 两个高危漏洞，正对 Web3 行业链下基础设施构成风险。两项漏洞的 CVSS v4.0 评分均为 9.2 分，攻击者无需账号密码或 API Key，仅向暴露在公网的 PHP 服务发送构造请求，即可能以 Web 服务进程权限执行任意代码。 [facts: CVE-2026-109618; CVE-2026-109619; 3; 4.0; 9.2; 5.4; 8.5.11; 4; 1488; 793; 53.3; 8.5.12; 8.4.27; 8.3.36; 8.2.35; 8.1]",
+   "independent_group": 6,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_2de97842337a2adb",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/php2shell-exploit-attempts-hit-millions.html",
+   "title": "PHP2Shell Exploit Attempts Hit Millions as Attackers Try to Deploy Mirai Malware",
+   "published_at": "2026-10-23T07:40:45Z",
+   "excerpt": "The attacks aim to exploit CVE-2026-109618 and CVE-2026-109619 (CVSS scores: 9.2), which can result in unauthenticated remote [facts: 2; CVE-2026-109618; CVE-2026-109619; 9.2]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_2b238c8718e04ba7",
+   "source_id": "x_security",
+   "source_name": "X @TheHackersNews",
+   "tier": "T2",
+   "url": "https://x.com/TheHackersNews/status/2113536423395766286",
+   "title": "‼️ PHP2Shell exploit attempts hit millions as attackers try to deploy Mirai malware. Exposed attacker servers reveal RCE tooling. No success",
+   "published_at": "2026-10-23T07:42:05Z",
+   "excerpt": "‼️ PHP2Shell exploit attempts hit millions as attackers try to deploy Mirai malware. Exposed attacker servers reveal RCE tooling.\n\nNo successful compromises confirmed so far.\n\nInside the payloads, exploit tools, and failed attempts → https://t.co/pxkF59xB3G",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_af3aa36b8f38e12d",
+   "source_id": "x_security",
+   "source_name": "X @watchtowrcyber",
+   "tier": "T2",
+   "url": "https://x.com/watchtowrcyber/status/2113585201880113451",
+   "title": "Watch now: PHP2Shell (CVE-2026-109618, CVE-2026-109619) exploitation attempts are already underway. Jake Knott, Head of Threat Intelligence ",
+   "published_at": "2026-10-23T10:55:55Z",
+   "excerpt": "Watch now: PHP2Shell (CVE-2026-109618, CVE-2026-109619) exploitation attempts are already underway.\n\nJake Knott, Head of Threat Intelligence at watchTowr, shares what we're seeing, what's being attempted, and what to do now in our latest Threat Briefing.\n\nhttps://t.co/mMuYBrwPnd",
+   "independent_group": 7,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_28dc36433eac3112",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/urgent-php-warns-of-another-unpatched.html",
+   "title": "PHP Warns of Another Unpatched RCE Risk Two Days After Emergency PHP2Shell Patches",
+   "published_at": "2026-10-23T11:25:43Z",
+   "excerpt": "PHP has warned of another way an attacker could run code on a web server, two days after it shipped emergency fixes for the critical PHP2Shell flaws. [facts: 2; CVE-2026-115560]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_7925d1d08982ba12",
+   "source_id": "x_security",
+   "source_name": "X @TheHackersNews",
+   "tier": "T2",
+   "url": "https://x.com/TheHackersNews/status/2113592819730546935",
+   "title": "‼️ BREAKING ‼️ PHP warns of another UNPATCHED REC vulnerability just 2 days after releasing emergency patches for critical PHP2Shell flaws. ",
+   "published_at": "2026-10-23T11:26:11Z",
+   "excerpt": "‼️ BREAKING ‼️ PHP warns of another UNPATCHED REC vulnerability just 2 days after releasing emergency patches for critical PHP2Shell flaws.\n\nNew \"CVE-2026-115560\" affects only unusual session configurations. PHP has issued urgent mitigation guidance.\n\nFull details → https://t.co/YQV0MCJqAp",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_30e7ef9f436b9637",
+   "source_id": "x_security",
+   "source_name": "X @TheHackersNews",
+   "tier": "T2",
+   "url": "https://x.com/TheHackersNews/status/2113602912530444768",
+   "title": "The new PHP flaw is separate from the two critical #PHP2Shell bugs patched on October 21. CVE-2026-115560 is NOT fixed by those emergency up",
+   "published_at": "2026-10-23T12:06:17Z",
+   "excerpt": "The new PHP flaw is separate from the two critical #PHP2Shell bugs patched on October 21.\n\nCVE-2026-115560 is NOT fixed by those emergency updates.\n\nPHP says exploitation requires an unusual session configuration and considers the risk unlikely in practice.\n\nNo attacks reported.",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_80beecce80a694a6",
+   "source_id": "x_security",
+   "source_name": "X @TheHackersNews",
+   "tier": "T2",
+   "url": "https://x.com/TheHackersNews/status/2113603143561093367",
+   "title": "PHP has a one-line mitigation for CVE-2026-115560: session.upload_progress.enabled=0 This disables session upload progress until the fix arr",
+   "published_at": "2026-10-23T12:07:12Z",
+   "excerpt": "PHP has a one-line mitigation for CVE-2026-115560:\n\nsession.upload_progress.enabled=0\n\nThis disables session upload progress until the fix arrives in a routine release.\n\nAlready applied this mitigation for CVE-2026-109619? No further action is needed.",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_7946bf863ca3eabb",
+   "source_id": "x_security",
+   "source_name": "X @TheHackersNews",
+   "tier": "T2",
+   "url": "https://x.com/TheHackersNews/status/2113603328945091038",
+   "title": "Why isn't PHP issuing another emergency patch? The project considers CVE-2026-115560 unlikely to affect real-world configurations. • No seve",
+   "published_at": "2026-10-23T12:07:57Z",
+   "excerpt": "Why isn't PHP issuing another emergency patch?\n\nThe project considers CVE-2026-115560 unlikely to affect real-world configurations.\n\n• No severity score announced\n• No affected version list yet\n• Fix planned for a routine release\n\nhttps://t.co/emO9cOJ5Uk",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "created",
+   "from": null,
+   "to": "V3",
+   "item_id": "it_c98ed7fbadcc1ab3"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_2e61a5adf16b136e"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_da383b976318b066"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "merged",
+   "from": "ev_9d36bf8dfb16f83c",
+   "to": "ev_bb65db3b8694e5f4",
+   "item_id": "it_da383b976318b066"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_093ee808007ce965"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "severity_change",
+   "from": "P2",
+   "to": "P0",
+   "item_id": "it_093ee808007ce965"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "exploitation_change",
+   "from": "none",
+   "to": "reported",
+   "item_id": "it_093ee808007ce965"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_7053a5997029ddc7"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_18d8831b33724cd3"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_686d826838b02f8b"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_868ce1e80aaa27da"
+  },
+  {
+   "at": "2026-10-23T05:22:39Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_15d6f4162ebd81bd"
+  },
+  {
+   "at": "2026-10-23T08:08:21Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_2de97842337a2adb"
+  },
+  {
+   "at": "2026-10-23T08:28:27Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_2b238c8718e04ba7"
+  },
+  {
+   "at": "2026-10-23T11:28:28Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_af3aa36b8f38e12d"
+  },
+  {
+   "at": "2026-10-23T11:28:28Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_28dc36433eac3112"
+  },
+  {
+   "at": "2026-10-23T11:28:28Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_7925d1d08982ba12"
+  },
+  {
+   "at": "2026-10-23T12:28:30Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_30e7ef9f436b9637"
+  },
+  {
+   "at": "2026-10-23T12:28:30Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_80beecce80a694a6"
+  },
+  {
+   "at": "2026-10-23T12:28:30Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_7946bf863ca3eabb"
+  }
+ ],
+ "amount_history": [],
+ "cve_details": [
+  {
+   "cve": "CVE-2026-109618",
+   "kev": false,
+   "kev_date_added": null,
+   "ransomware": null,
+   "epss": 0.1162,
+   "epss_percentile": 0.96047
+  },
+  {
+   "cve": "CVE-2026-109619",
+   "kev": false,
+   "kev_date_added": null,
+   "ransomware": null,
+   "epss": 0.05991,
+   "epss_percentile": 0.933
+  },
+  {
+   "cve": "CVE-2026-115560",
+   "kev": false,
+   "kev_date_added": null,
+   "ransomware": null,
+   "epss": null,
+   "epss_percentile": null
+  }
+ ],
+ "tx": []
+}

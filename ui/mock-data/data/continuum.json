@@ -1,0 +1,247 @@
+{
+  "kind": "continuum",
+  "generated_at": "2026-10-23T17:20:00Z",
+  "resources": [
+    {
+      "kind": "agent_space",
+      "id": "as-1d63c0c9",
+      "name": "sr-continuum-poc",
+      "region": "ap-northeast-1",
+      "status": "ACTIVE",
+      "console_url": null
+    },
+    {
+      "kind": "requirement_pack",
+      "id": "pack",
+      "name": "sr-continuum-poc",
+      "region": "ap-northeast-1",
+      "status": "ENABLED",
+      "console_url": null
+    },
+    {
+      "kind": "integration",
+      "id": "00007617e7e4e97d46c610fefc9f284a",
+      "name": "sr-continuum (S3)",
+      "region": "us-east-1",
+      "status": "ACTIVE",
+      "console_url": null
+    },
+    {
+      "kind": "environment",
+      "id": "00005f518a5d1514209f088f2ca6adf0",
+      "name": "sr-continuum",
+      "region": "us-east-1",
+      "status": "ACTIVE",
+      "console_url": null
+    },
+    {
+      "kind": "integration",
+      "id": "0000ba9c9d10f9815a04891073fa8d0e",
+      "name": "security-radar-github (GitHub)",
+      "region": "us-east-1",
+      "status": "ACTIVE",
+      "console_url": null
+    },
+    {
+      "kind": "environment",
+      "id": "000098033f61646f2541e8b53d961cf5",
+      "name": "security-radar-github",
+      "region": "us-east-1",
+      "status": "ACTIVE",
+      "console_url": "https://github.com/your-org/security-radar-demo-fleet"
+    },
+    {
+      "kind": "integration",
+      "id": "0000608a052c9e23181896204e7e3bce",
+      "name": "security-radar-gitlab (GitLab)",
+      "region": "us-east-1",
+      "status": "ACTIVE",
+      "console_url": null
+    },
+    {
+      "kind": "environment",
+      "id": "0000714955618b3e74441f8307816cef",
+      "name": "security-radar-gitlab",
+      "region": "us-east-1",
+      "status": "ACTIVE",
+      "console_url": "https://gitlab.com/your-org/security-radar-demo-fleet"
+    }
+  ],
+  "targets": [
+    {
+      "target_id": "demo-shop",
+      "name": "demo-shop",
+      "description": "演示商城（故意钉在受影响的 PHP 8.3.30）",
+      "prefix": "your-org/security-radar-demo-fleet/demo-shop/",
+      "uploaded_at": "2026-10-23T17:25:00Z",
+      "inventory": [
+        {
+          "product": "php",
+          "version": "8.3.30",
+          "file": "demo-shop/Dockerfile",
+          "line": 1
+        },
+        {
+          "product": "php",
+          "version": "8.3.30",
+          "file": "demo-shop/composer.json",
+          "line": 7
+        }
+      ],
+      "channel": "github",
+      "channel_url": "https://github.com/your-org/security-radar-demo-fleet/tree/main/demo-shop"
+    },
+    {
+      "target_id": "security-radar",
+      "name": "security-radar",
+      "description": "本雷达自身仓库（Python Lambda + React UI）",
+      "prefix": "code/security-radar.zip",
+      "uploaded_at": "2026-10-23T17:25:00Z",
+      "inventory": [
+        {
+          "product": "python",
+          "version": "3.12",
+          "file": "security-radar/infra/stack.py",
+          "line": 40
+        },
+        {
+          "product": "nodejs",
+          "version": "24",
+          "file": "security-radar/.gitlab-ci.yml",
+          "line": 60
+        }
+      ],
+      "channel": "none",
+      "channel_url": null
+    }
+  ],
+  "coverage": [
+    {
+      "capability": "安全规则生成（雷达 → requirement）",
+      "service": "radar",
+      "status": "live",
+      "detail": "从证据逐字抽 CVE 与修复版本",
+      "evidence": "radar-cve-2026-109618-…"
+    },
+    {
+      "capability": "Requirement pack 同步",
+      "service": "security_agent",
+      "status": "live",
+      "detail": "BatchCreateSecurityRequirements，按名称幂等",
+      "evidence": null
+    },
+    {
+      "capability": "代码评审 + 规则评估",
+      "service": "security_agent",
+      "status": "live",
+      "detail": "StartCodeReviewJob，结果按规则名匹配",
+      "evidence": "COMPLETED 27.1 min"
+    },
+    {
+      "capability": "自动修复 diff",
+      "service": "security_agent",
+      "status": "live",
+      "detail": "codeRemediationStrategy=AUTOMATIC，diff 当场落盘",
+      "evidence": "3 files"
+    },
+    {
+      "capability": "S3 集成 + 环境",
+      "service": "continuum",
+      "status": "live",
+      "detail": "us-east-1（东京无端点）",
+      "evidence": null
+    },
+    {
+      "capability": "威胁情报 → 知识文档",
+      "service": "continuum",
+      "status": "live",
+      "detail": "分析卡写入 context/",
+      "evidence": null
+    },
+    {
+      "capability": "雷达 finding → Continuum 验证",
+      "service": "continuum",
+      "status": "wired",
+      "detail": "CreateCodeFinding (OCSF 2002 + osint)",
+      "evidence": "SUBMITTED"
+    },
+    {
+      "capability": "雷达触发扫描",
+      "service": "continuum",
+      "status": "wired",
+      "detail": "CreateCodeScan，6h 去抖",
+      "evidence": null
+    },
+    {
+      "capability": "Issue / 验证证据 / 补丁回流",
+      "service": "continuum",
+      "status": "wired",
+      "detail": "ListCodeIssues + artifacts",
+      "evidence": null
+    },
+    {
+      "capability": "GitHub 集成（PR 交付）",
+      "service": "continuum",
+      "status": "needs_user",
+      "detail": "需一次浏览器 OAuth",
+      "evidence": null
+    },
+    {
+      "capability": "基础设施上下文 Collector",
+      "service": "continuum",
+      "status": "not_applicable",
+      "detail": "雷达运行在 ap-northeast-1，Collector 必须与环境同区",
+      "evidence": null
+    }
+  ],
+  "recent": [
+    {
+      "event_id": "ev_bb65db3b8694e5f4",
+      "title": "PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-2026-109619)",
+      "severity": "P0",
+      "status": "done",
+      "affected": 1,
+      "checked": 2,
+      "updated_at": "2026-10-23T17:20:00Z"
+    }
+  ],
+  "ledger": {
+    "code_reviews_total": 1,
+    "code_reviews_24h": 1,
+    "scans_total": 1,
+    "findings_submitted": 1,
+    "issues": 0,
+    "patches": 1,
+    "cost": {
+      "fetched_at": "2026-10-26T12:00:00Z",
+      "total_usd": 1324.49,
+      "error": null,
+      "days": [
+        {
+          "date": "2026-10-23",
+          "continuum_usd": 726.29,
+          "security_agent_usd": 0.0,
+          "continuum_inference_units": 72.63
+        },
+        {
+          "date": "2026-10-24",
+          "continuum_usd": 595.47,
+          "security_agent_usd": 0.0,
+          "continuum_inference_units": 59.55
+        },
+        {
+          "date": "2026-10-25",
+          "continuum_usd": 2.73,
+          "security_agent_usd": 0.0,
+          "continuum_inference_units": 0.0
+        },
+        {
+          "date": "2026-10-26",
+          "continuum_usd": 0.0,
+          "security_agent_usd": 0.0,
+          "continuum_inference_units": 0.0
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+Security Radar — sample code
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Licensed under MIT-0 (see LICENSE), except the third-party material listed below.
+
+Test fixtures (tests/fixtures/snapshots/2026-10-23/) — recorded once on 2026-10-23 so the tests never touch the network:
+
+- defihacklabs.md, AlpsCon_exp.sol — from DeFiHackLabs (https://github.com/SunWeb3Sec/DeFiHackLabs),
+  licensed under the Apache License, Version 2.0 (see tests/fixtures/snapshots/2026-10-23/DEFIHACKLABS-LICENSE.md).
+- kev.json, cisa_adv.xml — U.S. Cybersecurity and Infrastructure Security Agency (CISA) public data.
+- defillama.json, slowmist*.html — incident listings (facts: names, dates, amounts) from public incident databases.
+- chrome.xml, fortinet.xml, msrc_updates.json — public vendor security advisories (titles, identifiers, dates).
+- bleeping.xml, thn.xml, securityweek.xml, odaily.xml, panews.xml, anquanke.xml — commercial news feeds, reduced to
+  title, link, date and one sentence per item, followed by a machine-extracted list of facts (numbers, CVE ids,
+  dates); the original article text is not included. Rights in titles and the remaining sentences stay with
+  their publishers.
+- tests/fixtures/x_search/ — synthetic: short neutral rewrites shaped like an X search response; not original posts.

@@ -1,0 +1,123 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T14:28:35Z",
+ "event": {
+  "velocity_6h": 1,
+  "lifecycle": "escalating",
+  "event_id": "ev_11153dac103c4f8a",
+  "domain": "incident",
+  "title": "In Other News: Tor Exit Relays Hijacked, Banks Spot Rogue AI Agents, Self-Rebuilding macOS Ransomware",
+  "level": "V1",
+  "level_reason": "reported: single T2 source",
+  "severity": "P2",
+  "exploitation": "none",
+  "first_seen": "2026-10-23T14:23:37Z",
+  "last_updated": "2026-10-23T14:23:37Z",
+  "first_report_source": "SecurityWeek",
+  "independent_sources": 1,
+  "item_count": 1,
+  "cves": [],
+  "entities": [],
+  "chains": [],
+  "amount_usd_latest": null,
+  "amount_disputed": false,
+  "summary": null,
+  "analysis_status": "not_applicable",
+  "impact": null
+ },
+ "analysis": null,
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-23T14:23:37Z"
+  },
+  {
+   "stage": "second_source",
+   "at": null
+  },
+  {
+   "stage": "corroborated",
+   "at": null
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": null
+  },
+  {
+   "stage": "analyzed",
+   "at": null
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "1 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "1 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V1 · reported: single T2 source"
+  },
+  {
+   "step": "analyzed",
+   "status": "skipped",
+   "detail": "P2 不生成分析"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_749213231013b9f8",
+   "source_id": "securityweek",
+   "source_name": "SecurityWeek",
+   "tier": "T2",
+   "url": "https://www.securityweek.com/in-other-news-tor-exit-relays-hijacked-banks-spot-rogue-ai-agents-self-rebuilding-macos-ransomware/",
+   "title": "In Other News: Tor Exit Relays Hijacked, Banks Spot Rogue AI Agents, Self-Rebuilding macOS Ransomware",
+   "published_at": "2026-10-23T14:23:37Z",
+   "excerpt": "Noteworthy stories that might have slipped under the radar: Russia’s APT28 hit NATO defense firms, PingCAP source code stolen, ShinyHunters negotiator probe. [facts: 28]",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T14:28:29Z",
+   "kind": "created",
+   "from": null,
+   "to": "V1",
+   "item_id": "it_749213231013b9f8"
+  }
+ ],
+ "amount_history": [],
+ "cve_details": [],
+ "tx": [],
+ "response": null
+}

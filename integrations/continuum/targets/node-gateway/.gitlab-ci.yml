@@ -1,0 +1,5 @@
+test:
+  image: node:24.22.0
+  script:
+    - npm ci
+    - node --test

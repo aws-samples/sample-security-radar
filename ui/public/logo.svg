@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Security Radar">
+  <title>Security Radar</title>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="55%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0%" y1="100%" x2="40%" y2="0%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="shield"><path d="M256 104 L384 156 V266 Q384 370 256 416 Q128 370 128 266 V156 Z"/></clipPath>
+  </defs>
+  <style>
+    .sweep { transform-origin: 256px 268px; animation: spin 4s linear infinite; }
+    .blip  { animation: blip 4s ease-in-out infinite; }
+    .alert { animation: blip 4s ease-in-out 1.6s infinite; }
+    .ping  { transform-origin: 206px 226px; animation: ping 2s ease-out infinite; }
+    @keyframes spin  { to { transform: rotate(360deg); } }
+    @keyframes blip  { 0%, 100% { opacity: .35; } 45% { opacity: 1; } }
+    @keyframes ping  { from { transform: scale(1); opacity: .8; } to { transform: scale(3.2); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .sweep, .blip, .alert, .ping { animation: none; } }
+  </style>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <g clip-path="url(#shield)">
+    <circle cx="256" cy="268" r="112" fill="none" stroke="#fff" stroke-width="6" opacity="0.35"/>
+    <circle cx="256" cy="268" r="62" fill="none" stroke="#fff" stroke-width="6" opacity="0.45"/>
+    <path class="sweep" d="M256 268 L256 140 A128 128 0 0 1 346.5 177.5 Z" fill="url(#beam)"/>
+  </g>
+  <path d="M256 104 L384 156 V266 Q384 370 256 416 Q128 370 128 266 V156 Z" fill="none" stroke="#fff" stroke-width="10" stroke-linejoin="round" opacity="0.95"/>
+  <circle cx="256" cy="268" r="10" fill="#fff"/>
+  <polygon class="blip" points="314,282 330,291 330,309 314,318 298,309 298,291" fill="#fff"/>
+  <circle class="ping" cx="206" cy="226" r="9" fill="none" stroke="#fda4af" stroke-width="4"/>
+  <circle class="alert" cx="206" cy="226" r="9" fill="#fb7185"/>
+</svg>

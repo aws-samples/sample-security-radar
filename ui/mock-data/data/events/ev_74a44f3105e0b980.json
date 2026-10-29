@@ -1,0 +1,333 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T07:54:34Z",
+ "event": {
+  "velocity_6h": 0,
+  "lifecycle": "active",
+  "event_id": "ev_74a44f3105e0b980",
+  "domain": "vuln",
+  "title": "CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition: EG Secure Solutions SiteGuard Server Edition OS Command Injection Vulnerability",
+  "level": "V3",
+  "level_reason": "confirmed: T1 source (cisa_kev)",
+  "severity": "P1",
+  "exploitation": "confirmed",
+  "first_seen": "2026-10-20T00:00:00Z",
+  "last_updated": "2026-10-21T18:34:42Z",
+  "first_report_source": "CISA KEV",
+  "independent_sources": 3,
+  "item_count": 3,
+  "cves": [
+   "CVE-2026-106931",
+   "CVE-2026-96652"
+  ],
+  "entities": [
+   "EG Secure Solutions"
+  ],
+  "chains": [],
+  "amount_usd_latest": null,
+  "amount_disputed": false,
+  "summary": "CISA 将 SiteGuard 命令注入漏洞与 Plex2Shell 等漏洞列入 KEV,要求联邦机构修补。",
+  "analysis_status": "ok",
+  "impact": null
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T07:52:08Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "CISA 将 SiteGuard 命令注入漏洞与 Plex2Shell 等漏洞列入 KEV,要求联邦机构修补。",
+    "cite": [
+     "it_405045ec2939ef6c",
+     "it_7a40a3700ed15e8f"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "what": [
+   {
+    "text": "CISA KEV 收录了 CVE-2026-106931,这是 EG Secure Solutions SiteGuard Server Edition 中的操作系统命令注入漏洞。",
+    "cite": [
+     "it_405045ec2939ef6c"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "The Hacker News 报道称,CISA 周二向 KEV 目录新增漏洞,涉及 Plex2Shell、Siemens 和 SiteGuard。",
+    "cite": [
+     "it_7a40a3700ed15e8f"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "报道列出的 Plex Media Server 漏洞包括 CVE-2026-96652,这是一个服务器端请求伪造(SSRF)漏洞。",
+    "cite": [
+     "it_7a40a3700ed15e8f"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "impact": [
+   {
+    "text": "攻击者利用 SiteGuard 漏洞,可能以 root 或 SYSTEM 权限在运行该产品的系统上执行任意操作系统命令。",
+    "cite": [
+     "it_405045ec2939ef6c"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "Plex Media Server 的多个漏洞被合称为 Plex2Shell,据报道攻击者可串联利用它们入侵服务器。",
+    "cite": [
+     "it_7a40a3700ed15e8f",
+     "it_09da013ac41f64ac"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "BleepingComputer 引述 CISA 称,攻击者正在积极利用 Plex Media Server 的四个漏洞,并将其串联用于 Plex2Shell 攻击。",
+    "cite": [
+     "it_09da013ac41f64ac"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "The Hacker News 标题称 Plex2Shell、Siemens 和 SiteGuard 漏洞均已被利用,并说明 CISA 要求联邦机构修补;现有来源之间未见关于利用情况的相互矛盾。",
+    "cite": [
+     "it_7a40a3700ed15e8f"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "SiteGuard 的 KEV 条目只描述了漏洞的潜在影响,未提供具体的利用手法或攻击活动细节。",
+    "cite": [
+     "it_405045ec2939ef6c"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "防御方应排查环境中是否部署了 EG Secure Solutions SiteGuard Server Edition,并按 CISA KEV 的要求优先修补。",
+    "cite": [
+     "it_405045ec2939ef6c",
+     "it_7a40a3700ed15e8f"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "防御方应排查环境中是否运行 Plex Media Server,并按 CISA 的要求修补 Plex2Shell 相关漏洞。",
+    "cite": [
+     "it_7a40a3700ed15e8f",
+     "it_09da013ac41f64ac"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "现有证据未给出 SiteGuard 受影响的具体版本和修复版本。",
+    "cite": [
+     "it_405045ec2939ef6c"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "The Hacker News 摘录中只列出一个 Plex 漏洞编号,Plex2Shell 其余漏洞的编号以及本次新增漏洞的完整清单尚未确认。",
+    "cite": [
+     "it_7a40a3700ed15e8f"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "来源对新增漏洞数量的表述不够清晰,且未说明 Siemens 相关漏洞的细节。",
+    "cite": [
+     "it_7a40a3700ed15e8f"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "ok",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-20T00:00:00Z"
+  },
+  {
+   "stage": "second_source",
+   "at": "2026-10-21T07:26:49Z"
+  },
+  {
+   "stage": "corroborated",
+   "at": "2026-10-20T00:00:00Z"
+  },
+  {
+   "stage": "confirmed",
+   "at": "2026-10-20T00:00:00Z"
+  },
+  {
+   "stage": "exploited",
+   "at": "2026-10-20T00:00:00Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T07:52:08Z"
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "3 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "3 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V3 · confirmed: T1 source (cisa_kev)"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_405045ec2939ef6c",
+   "source_id": "cisa_kev",
+   "source_name": "CISA KEV",
+   "tier": "T1",
+   "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search_api_fulltext=CVE-2026-106931",
+   "title": "CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition: EG Secure Solutions SiteGuard Server Edition OS Command Injection Vulnerability",
+   "published_at": "2026-10-20T00:00:00Z",
+   "excerpt": "EG Secure Solutions SiteGuard Server Edition contains an OS command injection vulnerability which may allow an attacker to execute arbitrary OS commands with root or SYSTEM privileges on the system running the affected product.",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "yes",
+    "kev": true,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_7a40a3700ed15e8f",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/cisa-orders-federal-agencies-to-patch.html",
+   "title": "CISA Orders Federal Agencies to Patch Exploited Plex2Shell, Siemens, and SiteGuard Flaws",
+   "published_at": "2026-10-21T07:26:49Z",
+   "excerpt": "Cybersecurity and Infrastructure Security Agency (CISA) on Tuesday added four vulnerabilities to its Known Exploited Vulnerabilities (KEV) catalog, including four vulnerabilities impacting Plex Media… [facts: 2; CVE-2026-96652; 5.3; Known Exploited]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "yes",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_09da013ac41f64ac",
+   "source_id": "bleepingcomputer",
+   "source_name": "BleepingComputer",
+   "tier": "T2",
+   "url": "https://www.bleepingcomputer.com/news/security/cisa-hackers-chain-plex-flaws-in-plex2shell-attacks-to-breach-servers/",
+   "title": "CISA: Hackers chain Plex flaws in Plex2Shell attacks to breach servers",
+   "published_at": "2026-10-21T18:34:42Z",
+   "excerpt": "Cybersecurity and Infrastructure Security Agency (CISA) is warning that attackers are actively exploiting four vulnerabilities in Plex Media Server.",
+   "independent_group": 2,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "created",
+   "from": null,
+   "to": "V3",
+   "item_id": "it_405045ec2939ef6c"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_7a40a3700ed15e8f"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_09da013ac41f64ac"
+  },
+  {
+   "at": "2026-10-23T07:54:30Z",
+   "kind": "severity_change",
+   "from": "P0",
+   "to": "P1",
+   "item_id": null
+  }
+ ],
+ "amount_history": [],
+ "cve_details": [
+  {
+   "cve": "CVE-2026-106931",
+   "kev": true,
+   "kev_date_added": "2026-10-20",
+   "ransomware": false,
+   "epss": null,
+   "epss_percentile": null
+  },
+  {
+   "cve": "CVE-2026-96652",
+   "kev": false,
+   "kev_date_added": null,
+   "ransomware": null,
+   "epss": null,
+   "epss_percentile": null
+  }
+ ],
+ "tx": [],
+ "response": null
+}

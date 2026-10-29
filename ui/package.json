@@ -1,0 +1,47 @@
+{
+  "name": "security-radar-ui",
+  "version": "1.0.0",
+  "license": "MIT-0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && node scripts/check-chunks.mjs",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "gen:types": "json2ts -i ../schemas/site-data.schema.json -o src/types/site-data.ts --no-additionalProperties --no-unknownAny",
+    "a11y": "node scripts/a11y.mjs",
+    "screenshot": "node scripts/screenshot.mjs",
+    "mutate": "node scripts/mutate.mjs"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.0.0",
+    "@fontsource/noto-sans-sc": "^5.3.1",
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
+    "@fontsource/space-grotesk": "^5.3.0",
+    "@fontsource/syne": "^5.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "three": "^0.168.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@testing-library/jest-dom": "^6.4.0",
+    "@testing-library/react": "^16.0.0",
+    "@types/node": "^26.6.5",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.168.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "json-schema-to-typescript": "^15.0.3",
+    "playwright": "1.64.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.1",
+    "vitest": "^2.1.1"
+  }
+}

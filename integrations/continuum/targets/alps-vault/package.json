@@ -1,0 +1,8 @@
+{
+  "name": "alps-vault",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Staking reward vault (BNB Chain)",
+  "scripts": { "deploy:bsc": "hardhat run scripts/deploy.ts --network bsc" },
+  "devDependencies": { "hardhat": "2.26.3", "@nomicfoundation/hardhat-toolbox": "6.1.0" }
+}

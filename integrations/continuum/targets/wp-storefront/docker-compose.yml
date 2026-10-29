@@ -1,0 +1,11 @@
+services:
+  wordpress:
+    build: .
+    ports: ["127.0.0.1:8080:80"]
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:?set in .env}
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${WORDPRESS_DB_PASSWORD:?set in .env}

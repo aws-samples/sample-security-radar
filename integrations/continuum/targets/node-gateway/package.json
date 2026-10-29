@@ -1,0 +1,9 @@
+{
+  "name": "node-gateway",
+  "version": "1.4.2",
+  "private": true,
+  "description": "Partner telemetry ingest gateway",
+  "main": "src/server.js",
+  "engines": { "node": "24.22.0" },
+  "dependencies": { "express": "4.21.2" }
+}

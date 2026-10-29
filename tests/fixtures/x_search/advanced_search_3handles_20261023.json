@@ -1,0 +1,123 @@
+{
+ "query": "synthetic fixture — shaped like an advanced-search page; texts are short neutral rewrites, not the original posts",
+ "status": 200,
+ "body": {
+  "tweets": [
+   {
+    "type": "tweet",
+    "id": "2113475488643707290",
+    "url": "https://x.com/SlowMist_Team/status/2113475488643707290",
+    "text": "[synthetic sample] SlowMist follow-up on the @php_net vulnerabilities and what they mean for Web3 front ends. https://t.co/AQljvvQQBr",
+    "createdAt": "Fri Oct 23 03:39:57 +0000 2026",
+    "author": {
+     "userName": "SlowMist_Team"
+    },
+    "entities": {
+     "urls": [
+      {
+       "expanded_url": "https://slowmist.medium.com/php-unveils-critical-internet-wide-vulnerabilities-how-can-web3-patch-its-off-chain-weaknesses-511a97c26b0c"
+      }
+     ]
+    },
+    "retweeted_tweet": null,
+    "quoted_tweet": null
+   },
+   {
+    "type": "tweet",
+    "id": "2113290086808990182",
+    "url": "https://x.com/SlowMist_Team/status/2113290086808990182",
+    "text": "[synthetic sample] SlowMist TI Alert: @WAX_io Loss: ~$90.5K. Root cause: eth.token::withdraw did not enforce max_fee ≥ 0. Attacker (Ethereum): 0x01664E199991b2F3fe412c2DE5B9b7A0dcDc5070. Victim: WAX Multi-Chain Bridge, Ethereum: 0x24b22B031Ae1B5a6b09F9a0FD33613a40e0d70e6. Vulnerable Contract: eth.token on WAX",
+    "createdAt": "Thu Oct 22 15:23:14 +0000 2026",
+    "author": {
+     "userName": "SlowMist_Team"
+    },
+    "entities": {
+     "urls": [
+      {
+       "expanded_url": "http://fasdfas.al"
+      },
+      {
+       "expanded_url": "http://SlowMist.AI"
+      }
+     ]
+    },
+    "retweeted_tweet": null,
+    "quoted_tweet": null
+   },
+   {
+    "type": "tweet",
+    "id": "2113211110879117323",
+    "url": "https://x.com/CertiKAlert/status/2113211110879117323",
+    "text": "[synthetic sample] CertiK alert: a ~$820K exploit of $NEM ('pendingLpSellRecycle' left behind after tokens left the pool). https://t.co/rCZ2sLKMpE",
+    "createdAt": "Thu Oct 22 10:09:25 +0000 2026",
+    "author": {
+     "userName": "CertiKAlert"
+    },
+    "entities": {
+     "urls": [
+      {
+       "expanded_url": "https://bscscan.com/tx/0xfb093c96c0094cbcca10801f97ed2e5ed3d96550ce64b544df5a349545723f91"
+      },
+      {
+       "expanded_url": "https://www.certik.com/certik-report/dashboard"
+      }
+     ]
+    },
+    "retweeted_tweet": null,
+    "quoted_tweet": null
+   },
+   {
+    "type": "tweet",
+    "id": "2113206749524316486",
+    "url": "https://x.com/SlowMist_Team/status/2113206749524316486",
+    "text": "[synthetic sample] SlowMist TI Alert: $NEM Loss: ~$821,920. Root cause: NemTokenV2 counted transfers into the LP pair as sell volume. Attacker: 0xfd929b0f270dfea6c4827262b4e2bf6ea50fe9b6. Vulnerable Contract: 0x9cf0e3ad4efa7ab602d7b5a38c55795cfa777777 (NemTokenV2). Tx: https://t.co/d9PduL19wK",
+    "createdAt": "Thu Oct 22 09:52:05 +0000 2026",
+    "author": {
+     "userName": "SlowMist_Team"
+    },
+    "entities": {
+     "urls": [
+      {
+       "expanded_url": "http://SlowMist.AI"
+      },
+      {
+       "expanded_url": "https://bscscan.com/tx/0xfb093c96c0094cbcca10801f97ed2e5ed3d96550ce64b544df5a349545723f91"
+      }
+     ]
+    },
+    "retweeted_tweet": null,
+    "quoted_tweet": null
+   },
+   {
+    "type": "tweet",
+    "id": "2113187562336706815",
+    "url": "https://x.com/SlowMist_Team/status/2113187562336706815",
+    "text": "[synthetic sample] SlowMist TI Alert: the Fearless Wallet browser extension is malicious; affected versions 3.0.1 and 3.0.3–3.0.5 steal recovery phrases. Malicious Chrome Extension ID: nhlnehondigmgckngjomcpcefcdplmgc",
+    "createdAt": "Thu Oct 22 08:35:50 +0000 2026",
+    "author": {
+     "userName": "SlowMist_Team"
+    },
+    "entities": {
+     "urls": [
+      {
+       "expanded_url": "http://tonscanner.org"
+      },
+      {
+       "expanded_url": "https://www.misteye.io/"
+      },
+      {
+       "expanded_url": "https://hackmd.io/@gWEUMERvQZyR5MStsH26g/HyNOm782zg"
+      },
+      {
+       "expanded_url": "https://enterprise.misteye.io/threat-intelligence/SM-2026-502455"
+      }
+     ]
+    },
+    "retweeted_tweet": null,
+    "quoted_tweet": null
+   }
+  ],
+  "has_next_page": false,
+  "next_cursor": ""
+ }
+}

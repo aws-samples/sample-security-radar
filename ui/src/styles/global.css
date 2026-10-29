@@ -1,0 +1,576 @@
+/* ============================================================
+   FONTS — @fontsource (zero external requests, unicode-range subsets)
+   Space Grotesk: display / KPI headings (replaces Syne)
+   Inter: UI body text (replaces Plus Jakarta Sans)
+   JetBrains Mono: CVE IDs, amounts, timestamps
+   Noto Sans SC: Chinese labels (unicode-range ensures only needed
+                  subsets are downloaded, not the full CJK font)
+   ============================================================ */
+@import '@fontsource/space-grotesk/300.css';
+@import '@fontsource/space-grotesk/400.css';
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/noto-sans-sc/400.css';
+@import '@fontsource/noto-sans-sc/500.css';
+
+/* ============================================================
+   CSS CUSTOM PROPERTIES — Houdini registered (for conic-gradient animation)
+   ============================================================ */
+@property --scan-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ============================================================
+   RESET
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================
+   DESIGN TOKENS — Light / Day Ops (default)
+   ============================================================ */
+:root {
+  /* ── Surfaces ── */
+  --bg-0:   #F4F6FB;  /* canvas: neutral cool-grey */
+  --bg-1:   #FFFFFF;  /* panel */
+  --bg-2:   #EBEFF6;  /* hover / secondary block */
+
+  /* ── Borders ── */
+  --line:        #CBD3E1;  /* decorative 1px stroke */
+  --line-strong: #A8B7CF;  /* focus outline / divider */
+
+  /* ── Text ── */
+  --text-1: #0B1220;  /* primary   18.7:1 on bg-1 */
+  --text-2: #364152;  /* secondary  9.5:1 on bg-0 */
+  --text-3: #556274;  /* muted      5.7:1 on bg-0 */
+
+  /* ── Accent ── */
+  --accent:   #0B6B85;  /* brand cyan — 5.6:1 on bg-0 */
+  --accent-2: #6D28D9;  /* Web3 purple — 6.6:1 on bg-0 */
+
+  /* ── Severity (P level) ── */
+  --p0: #C1121F;  /* 5.8:1 on bg-1 */
+  --p1: #A35200;  /* 5.2:1 on bg-1 */
+  --p2: #0B63A5;  /* 5.8:1 on bg-1 */
+
+  /* ── Domain ── */
+  --dom-vuln:     #1D4ED8;  /* blue  6.2:1 */
+  --dom-incident: #9A4A06;  /* amber 5.8:1 */
+  --dom-web3:     #6D28D9;  /* purple 6.6:1 — NO LONGER GREEN */
+
+  /* ── Semantic ── */
+  --loss:      #BE123C;  /* red: loss/damage — 5.8:1 */
+  --recovered: #036B4E;  /* green: recovered/frozen — 6.0:1 */
+
+  /* ── V-level tones ── */
+  --v0: #5B6779;
+  --v1: #0369A1;
+  --v2: #0B6B85;
+  --v3: #0F766E;
+  --v4: #036B4E;
+
+  /* ── Status ── */
+  --status-ok:       #166534;
+  --status-degraded: #A35200;
+  --status-failing:  #C1121F;
+  --status-disabled: #5B6779;
+  --status-never:    #6D28D9;
+
+  /* ── Surface detail ── */
+  --hilite: 0 1px 2px rgb(15 23 42 / .06), 0 0 0 1px #CBD3E1;
+
+  /* ── Gradients ── */
+  --grad-brand: linear-gradient(135deg, #0B6B85 0%, #4F46E5 50%, #7E22CE 100%);
+  --grad-p0-glow: radial-gradient(closest-side, rgb(193 18 31 / .35), transparent);
+  --grad-scan-light: conic-gradient(from var(--scan-angle), rgb(11 107 133 / .20) 0deg, transparent 42deg);
+  --bg-dots: radial-gradient(circle, rgb(11 16 32 / .06) 1px, transparent 1px) 0 0 / 24px 24px;
+
+  /* ── Typography ── */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+
+  /* ── Radii ── */
+  --r-xs:   4px;
+  --r-sm:   8px;
+  --r-md:   12px;
+  --r-lg:   16px;
+  --r-full: 999px;
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 3px rgb(15 23 42 / .08), 0 1px 2px rgb(15 23 42 / .06);
+  --shadow-md: 0 4px 12px rgb(15 23 42 / .10), 0 2px 6px rgb(15 23 42 / .07);
+  --shadow-lg: 0 8px 24px rgb(15 23 42 / .12), 0 4px 12px rgb(15 23 42 / .08);
+  --shadow-panel: var(--hilite);
+
+  /* ── Glass (drawer / floating) ── */
+  --glass-bg: rgb(255 255 255 / .80);
+  --glass-blur: blur(14px) saturate(1.2);
+
+  /* ── Layout ── */
+  --sidebar-w: 210px;
+  --header-h:  52px;
+
+  /* ── Spacing (8px baseline) ── */
+  --sp-1: 4px; --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+
+  /* ────────────────────────────────────────────────────────
+     LEGACY ALIASES — old token names map to new values so
+     existing non-Phase-1 components keep working without edits.
+     ──────────────────────────────────────────────────────── */
+  --bg-base:      var(--bg-0);
+  --bg-surface:   var(--bg-1);
+  --bg-surface-2: var(--bg-2);
+  --bg-surface-3: #DFEAF6;
+  --bg-glass:     var(--glass-bg);
+  --border:       var(--line);
+  --border-soft:  #DDE5F0;
+  --border-glass: rgb(100 140 200 / .25);
+  --text-primary:   var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-muted:     var(--text-3);
+  --text-accent:    var(--accent);
+  --sev-p0:   var(--p0);
+  --sev-p1:   var(--p1);
+  --sev-p2:   var(--p2);
+  --level-v0: var(--v0);
+  --level-v1: var(--v1);
+  --level-v2: var(--v2);
+  --level-v3: var(--v3);
+  --level-v4: var(--v4);
+  --level-x:  var(--accent-2);
+  --domain-vuln:     var(--dom-vuln);
+  --domain-incident: var(--dom-incident);
+  --domain-web3:     var(--dom-web3);   /* NOW PURPLE — was green */
+  --grad-accent:        var(--grad-brand);
+  --grad-accent-subtle: linear-gradient(135deg, rgb(11 107 133 / .12), rgb(109 40 217 / .10));
+  --grad-hero:          var(--grad-brand);
+  --shadow-glow-accent: 0 0 20px rgb(11 107 133 / .25);
+}
+
+/* ============================================================
+   DESIGN TOKENS — Dark / Night Ops
+   ============================================================ */
+[data-theme="dark"] {
+  /* ── Surfaces ── */
+  --bg-0: #05070D;   /* near-black canvas */
+  --bg-1: #0B1020;   /* panel */
+  --bg-2: #121A2E;   /* hover / secondary */
+
+  /* ── Borders ── */
+  --line:        #26324D;
+  --line-strong: #34446A;
+
+  /* ── Text ── */
+  --text-1: #EAF0FA;  /* 17.6:1 on bg-0 */
+  --text-2: #A9B6CC;  /* 9.8:1 on bg-0 */
+  --text-3: #8291AB;  /* 6.3:1 on bg-0 */
+
+  /* ── Accent ── */
+  --accent:   #22D3EE;  /* brand cyan 11.1:1 on bg-0 */
+  --accent-2: #A78BFA;  /* Web3 purple 7.4:1 on bg-0 */
+
+  /* ── Severity ── */
+  --p0: #FF5C74;  /* 6.8:1 on bg-0 — ONLY color that may glow */
+  --p1: #FFB547;  /* 11.5:1 */
+  --p2: #5CC8F5;  /* 10.6:1 */
+
+  /* ── Domain ── */
+  --dom-vuln:     #60A5FA;
+  --dom-incident: #FB923C;
+  --dom-web3:     #A78BFA;  /* purple, NOT green */
+
+  /* ── Semantic ── */
+  --loss:      #FF7A8A;  /* red: losses */
+  --recovered: #34D399;  /* green: recovered (green = good) */
+
+  /* ── V-level ── */
+  --v0: #7C8AA5;
+  --v1: #7DD3FC;
+  --v2: #38BDF8;
+  --v3: #22D3EE;
+  --v4: #5EEAD4;
+
+  /* ── Status ── */
+  --status-ok:       #34D399;
+  --status-degraded: #FFB547;
+  --status-failing:  #FF5C74;
+  --status-disabled: #7C8AA5;
+  --status-never:    #A78BFA;
+
+  /* ── Surface detail ── */
+  --hilite: inset 0 1px 0 rgb(255 255 255 / .06);
+
+  /* ── Gradients ── */
+  --grad-brand: linear-gradient(135deg, #22D3EE 0%, #818CF8 50%, #C084FC 100%);
+  --grad-p0-glow: radial-gradient(closest-side, rgb(255 92 116 / .45), transparent);
+  --grad-scan-light: conic-gradient(from var(--scan-angle), rgb(34 211 238 / .35) 0deg, transparent 42deg);
+  --bg-dots: radial-gradient(circle, rgb(255 255 255 / .05) 1px, transparent 1px) 0 0 / 24px 24px;
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / .4), 0 1px 2px rgb(0 0 0 / .3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / .5), 0 2px 6px rgb(0 0 0 / .4);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / .6), 0 4px 12px rgb(0 0 0 / .4);
+  --shadow-panel: var(--hilite);
+
+  /* ── Glass ── */
+  --glass-bg: rgb(11 16 32 / .72);
+
+  /* ── P0 glow ── */
+  --p0-glow: 0 0 0 1px var(--p0), 0 0 16px rgb(255 92 116 / .45);
+
+  /* ── Legacy aliases ── */
+  --bg-base:      var(--bg-0);
+  --bg-surface:   var(--bg-1);
+  --bg-surface-2: var(--bg-2);
+  --bg-surface-3: #1A2540;
+  --bg-glass:     var(--glass-bg);
+  --border:       var(--line);
+  --border-soft:  #1E2B42;
+  --border-glass: rgb(99 153 220 / .18);
+  --text-primary:   var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-muted:     var(--text-3);
+  --text-accent:    var(--accent);
+  --sev-p0:   var(--p0);
+  --sev-p1:   var(--p1);
+  --sev-p2:   var(--p2);
+  --level-v0: var(--v0);
+  --level-v1: var(--v1);
+  --level-v2: var(--v2);
+  --level-v3: var(--v3);
+  --level-v4: var(--v4);
+  --level-x:  var(--accent-2);
+  --domain-vuln:     var(--dom-vuln);
+  --domain-incident: var(--dom-incident);
+  --domain-web3:     var(--dom-web3);
+  --grad-accent:        var(--grad-brand);
+  --grad-accent-subtle: linear-gradient(135deg, rgb(34 211 238 / .12), rgb(167 139 250 / .10));
+  --grad-hero:          var(--grad-brand);
+  --shadow-glow-accent: 0 0 20px rgb(34 211 238 / .35);
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+html, body {
+  height: 100%;
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* tabular nums & OpenType features for Inter */
+  font-feature-settings: 'cv11', 'ss01', 'tnum';
+}
+
+#root { height: 100%; }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+/* ============================================================
+   PANEL — HUD-style corner-bracket frame
+   4 L-shaped corner marks, right-bottom clip-path cut
+   ============================================================ */
+.hud-panel {
+  position: relative;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-panel);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+
+/* Corner bracket L-marks via outline pseudo-elements */
+.hud-panel::before,
+.hud-panel::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--accent);
+  border-style: solid;
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 1;
+}
+.hud-panel::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+.hud-panel::after {
+  bottom: -1px;
+  right: 11px; /* account for clip-path cut */
+  border-width: 0 2px 2px 0;
+}
+
+/* ============================================================
+   PANEL HEADING — "SECTION · SUBSECTION" small-caps label
+   ============================================================ */
+.panel-heading {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   GLASS CARD UTILITY (drawers / floating)
+   ============================================================ */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-card { background: var(--bg-1); }
+}
+
+/* ============================================================
+   SCROLLBARS
+   ============================================================ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-0); }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.85); }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes radar-sweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes scan-rotate {
+  from { --scan-angle: 0deg; }
+  to   { --scan-angle: 360deg; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: var(--p0-glow, 0 0 6px var(--p0)); }
+  50%       { box-shadow: 0 0 24px rgb(255 92 116 / .6); }
+}
+
+@keyframes scroll-up {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-50%); }
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes block-slide-in {
+  from { opacity: 0; transform: translateX(56px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Radar ripple ping */
+@keyframes radar-ping {
+  0%   { r: 0; opacity: 0.7; }
+  100% { r: 18; opacity: 0; }
+}
+
+/* P0 lockout crosshair convergence */
+@keyframes crosshair-lock {
+  0%   { transform: translate(var(--cx-dx), var(--cx-dy)); opacity: 0; }
+  60%  { transform: translate(0, 0); opacity: 1; }
+  80%  { transform: translate(calc(var(--cx-dx) * -0.05), calc(var(--cx-dy) * -0.05)); }
+  100% { transform: translate(0, 0); opacity: 1; }
+}
+
+/* Block-band isometric slide */
+@keyframes iso-slide-in {
+  from { transform: translateX(56px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+/* ============================================================
+   REDUCED MOTION — ALL animations collapse to opacity fade
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .radar-sweep-arm {
+    animation: none !important;
+  }
+  .radar-scan-ring {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   SKELETON LOADING
+   ============================================================ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-2) 25%,
+    var(--line) 50%,
+    var(--bg-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--r-sm);
+}
+
+/* ============================================================
+   GRID / DOT BACKGROUND TEXTURES (for wall / radar panels)
+   ============================================================ */
+.grid-bg {
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.5;
+}
+
+.dot-bg {
+  background: var(--bg-dots);
+}
+
+/* ============================================================
+   ACCENT STRIPE (top of layout)
+   ============================================================ */
+.accent-stripe {
+  height: 2px;
+  background: var(--grad-brand);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   TABULAR NUMBERS
+   ============================================================ */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   BADGE / CHIP utilities
+   ============================================================ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   NO-DATA placeholder (0 ≠ null — visually distinct)
+   ============================================================ */
+.no-data {
+  color: var(--text-3);
+  font-style: italic;
+  font-size: 11px;
+  /* Diagonal stripe — visually different from "0" */
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    var(--line) 3px,
+    var(--line) 4px
+  );
+  padding: 4px 8px;
+  border-radius: var(--r-xs);
+  display: inline-block;
+}
+
+/* D/M3 ops view */
+.ops-page { flex: 1; height: 100%; overflow-y: auto; padding: 14px 24px 48px; }
+.ops-h1 { margin: 0 0 4px; font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text-1); }
+.ops-en { font-family: var(--font-mono); font-size: 11px; font-weight: 400; color: var(--text-2); letter-spacing: .1em; }
+.ops-sub { margin: 0 0 12px; font-family: var(--font-mono); font-size: 12px; color: var(--text-2); }
+.ops-ok { font-size: 13px; color: var(--text-1); }
+.ops-error { color: var(--p0); font-family: var(--font-mono); font-size: 13px; }
+.ops-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ops-row { display: grid; grid-template-columns: 110px 1fr; gap: 2px 12px; padding: 10px 14px; border-radius: var(--r-sm); background: var(--bg-1); border: 1px solid var(--line); border-left-width: 4px; }
+.ops-row.is-error { border-left-color: var(--p0); } .ops-row.is-warn { border-left-color: var(--p1); } .ops-row.is-info { border-left-color: var(--text-3); }
+.ops-lv { grid-row: span 3; font-size: 12px; font-weight: 700; color: var(--text-1); }
+.ops-title { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.ops-title a { color: var(--text-1); text-decoration: underline; text-underline-offset: 2px; }
+.ops-detail { font-size: 12px; color: var(--text-2); word-break: break-word; }
+.ops-code { font-size: 11px; color: var(--text-2); }

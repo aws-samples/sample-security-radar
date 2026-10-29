@@ -1,0 +1,215 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T07:59:00Z",
+ "event": {
+  "velocity_6h": 0,
+  "lifecycle": "active",
+  "event_id": "ev_7c864d51b3550bec",
+  "domain": "vuln",
+  "title": "Critical FortiSIEM Flaw Gets Public Exploit PoC for Unauthenticated Remote Code Execution",
+  "level": "V1",
+  "level_reason": "reported: single T2 source",
+  "severity": "P1",
+  "exploitation": "poc",
+  "first_seen": "2026-10-20T15:38:52Z",
+  "last_updated": "2026-10-20T15:38:52Z",
+  "first_report_source": "The Hacker News",
+  "independent_sources": 1,
+  "item_count": 1,
+  "cves": [
+   "CVE-2026-106173"
+  ],
+  "entities": [],
+  "chains": [],
+  "amount_usd_latest": null,
+  "amount_disputed": false,
+  "summary": "Fortinet FortiSIEM 已修补的 CVE-2026-106173 现已出现公开 PoC,可能导致未授权代码执行。",
+  "analysis_status": "ok",
+  "impact": null
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T07:58:21Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "Fortinet FortiSIEM 已修补的 CVE-2026-106173 现已出现公开 PoC,可能导致未授权代码执行。",
+    "cite": [
+     "it_dec069c6e3ab1b6c"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "what": [
+   {
+    "text": "研究人员发布了针对 Fortinet FortiSIEM 近期已修补的严重漏洞的概念验证(PoC)利用代码。",
+    "cite": [
+     "it_dec069c6e3ab1b6c"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "该漏洞编号为 CVE-2026-106173(CVSS 9.4),属于路径遍历缺陷。",
+    "cite": [
+     "it_dec069c6e3ab1b6c"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "impact": [
+   {
+    "text": "未经身份验证的攻击者可能借此执行未授权的代码或命令,并可能造成任意代码执行。",
+    "cite": [
+     "it_dec069c6e3ab1b6c"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "来源仅确认已有公开 PoC 发布,所给内容未提及在野利用情况,也没有来源之间的分歧。",
+    "cite": [
+     "it_dec069c6e3ab1b6c"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "防御团队应核查 FortiSIEM 是否已应用 Fortinet 针对该漏洞发布的补丁,因为该漏洞已被修补且 PoC 已公开。",
+    "cite": [
+     "it_dec069c6e3ab1b6c"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "所给内容未说明受影响和已修复的具体版本,也未说明漏洞触发所需的具体请求细节(原文在此处被截断)。",
+    "cite": [
+     "it_dec069c6e3ab1b6c"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "目前尚不清楚该漏洞是否已在实际攻击中被利用。",
+    "cite": [
+     "it_dec069c6e3ab1b6c"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "ok",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-20T15:38:52Z"
+  },
+  {
+   "stage": "second_source",
+   "at": null
+  },
+  {
+   "stage": "corroborated",
+   "at": null
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": null
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T07:58:21Z"
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "1 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "1 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V1 · reported: single T2 source"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_dec069c6e3ab1b6c",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/critical-fortisiem-flaw-gets-public.html",
+   "title": "Critical FortiSIEM Flaw Gets Public Exploit PoC for Unauthenticated Remote Code Execution",
+   "published_at": "2026-10-20T15:38:52Z",
+   "excerpt": "The vulnerability, tracked as CVE-2026-106173 (CVSS score: 9.4), is a critical path traversal flaw that could allow an unauthenticated attacker to execute unauthorized code or commands via specially [facts: CVE-2026-106173; 9.4; proof-of-concept]",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": true,
+    "amount_usd": null
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "created",
+   "from": null,
+   "to": "V1",
+   "item_id": "it_dec069c6e3ab1b6c"
+  }
+ ],
+ "amount_history": [],
+ "cve_details": [
+  {
+   "cve": "CVE-2026-106173",
+   "kev": false,
+   "kev_date_added": null,
+   "ransomware": null,
+   "epss": 0.00459,
+   "epss_percentile": 0.38779
+  }
+ ],
+ "tx": [],
+ "response": null
+}

@@ -1,0 +1,35 @@
+{
+  "kind": "ops",
+  "generated_at": "2026-10-24T00:10:00Z",
+  "attention": [
+    {
+      "code": "source_unhealthy",
+      "level": "error",
+      "title": "源 X · security accounts failing",
+      "detail": "HTTP 429 Too Many Requests",
+      "since": "2026-10-23T22:00:00Z",
+      "link": "/sources"
+    },
+    {
+      "code": "chain_rpc_error",
+      "level": "warn",
+      "title": "链上核验 1 笔失败（6 h 后自动重试）",
+      "detail": "链：bsc",
+      "since": "2026-10-24T00:00:00Z",
+      "link": "/events/ev_bb65db3b8694e5f4"
+    },
+    {
+      "code": "notify",
+      "level": "info",
+      "title": "lark 推送未配置",
+      "detail": "凭证写入 ~/.env 后运行 scripts/set-notify.sh",
+      "since": null,
+      "link": null
+    }
+  ],
+  "counts": {
+    "error": 1,
+    "warn": 1,
+    "info": 1
+  }
+}

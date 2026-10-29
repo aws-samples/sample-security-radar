@@ -1,0 +1,1885 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://security-radar/site-data.schema.json",
+  "title": "Security Radar site-data (published to S3, read by the UI)",
+  "description": "Root documents. events.json = {kind:'events'}, events/<id>.json = {kind:'event'}, sources.json = {kind:'sources'}.",
+  "$defs": {
+    "Domain": {
+      "enum": [
+        "vuln",
+        "incident",
+        "web3"
+      ]
+    },
+    "Level": {
+      "description": "Verification level computed by code. V0 rumor, V1 reported, V2 corroborated, V3 confirmed, V4 finalized, X disputed/retracted/rolled_back.",
+      "enum": [
+        "V0",
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "X"
+      ]
+    },
+    "Severity": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2"
+      ]
+    },
+    "Exploitation": {
+      "description": "Exploitation status (sighting axis, independent of verification level).",
+      "enum": [
+        "none",
+        "poc",
+        "reported",
+        "confirmed"
+      ]
+    },
+    "Tier": {
+      "enum": [
+        "T1",
+        "T2",
+        "T3"
+      ]
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC, e.g. 2026-10-23T03:39:57Z"
+    },
+    "EventSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "domain",
+        "title",
+        "level",
+        "level_reason",
+        "severity",
+        "exploitation",
+        "first_seen",
+        "last_updated",
+        "first_report_source",
+        "independent_sources",
+        "item_count",
+        "cves",
+        "entities",
+        "chains",
+        "amount_usd_latest",
+        "amount_disputed",
+        "summary"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "pattern": "^ev_[0-9a-f]{16}$"
+        },
+        "domain": {
+          "$ref": "#/$defs/Domain"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "level": {
+          "$ref": "#/$defs/Level"
+        },
+        "level_reason": {
+          "type": "string",
+          "description": "Machine-generated explanation of why this level (which evidence satisfied which rule)."
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "exploitation": {
+          "$ref": "#/$defs/Exploitation"
+        },
+        "first_seen": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "last_updated": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "first_report_source": {
+          "type": "string"
+        },
+        "independent_sources": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "item_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cves": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CVE-\\d{4}-\\d{4,}$"
+          }
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Vendors / products / protocols / exchanges"
+        },
+        "chains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "amount_usd_latest": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "amount_disputed": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "LLM summary (M2). null when not generated or unavailable."
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/Lifecycle"
+        },
+        "velocity_6h": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Independent source groups whose first report is within the last 6h."
+        },
+        "analysis_status": {
+          "enum": [
+            "ok",
+            "partial",
+            "pending",
+            "failed",
+            "not_applicable"
+          ],
+          "description": "ok=all sentences grounded; partial=some sentences failed checks (shown greyed); pending=not generated yet; failed=LLM error (reason in analysis); not_applicable=below P1."
+        },
+        "impact": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ImpactSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ItemRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "source_id",
+        "source_name",
+        "tier",
+        "url",
+        "title",
+        "published_at",
+        "excerpt",
+        "independent_group",
+        "signals"
+      ],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "pattern": "^it_[0-9a-f]{16}$"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "source_name": {
+          "type": "string"
+        },
+        "tier": {
+          "$ref": "#/$defs/Tier"
+        },
+        "url": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "published_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "excerpt": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "independent_group": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Items sharing a group number are echoes of the same original source."
+        },
+        "signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "exploited",
+            "kev",
+            "poc",
+            "amount_usd"
+          ],
+          "properties": {
+            "exploited": {
+              "enum": [
+                "yes",
+                "no",
+                "unclear"
+              ]
+            },
+            "kev": {
+              "type": "boolean"
+            },
+            "poc": {
+              "type": "boolean"
+            },
+            "amount_usd": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "TimelineEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at",
+        "kind",
+        "from",
+        "to",
+        "item_id"
+      ],
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "kind": {
+          "enum": [
+            "created",
+            "item_added",
+            "merged",
+            "level_change",
+            "severity_change",
+            "exploitation_change",
+            "amount_change"
+          ]
+        },
+        "from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "to": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "item_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "AmountPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "source_id",
+        "observed_at"
+      ],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      }
+    },
+    "CveDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cve",
+        "kev",
+        "kev_date_added",
+        "ransomware",
+        "epss",
+        "epss_percentile"
+      ],
+      "properties": {
+        "cve": {
+          "type": "string"
+        },
+        "kev": {
+          "type": "boolean"
+        },
+        "kev_date_added": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ransomware": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "epss": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "epss_percentile": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "TxRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chain",
+        "hash",
+        "explorer_url",
+        "verified"
+      ],
+      "properties": {
+        "chain": {
+          "type": "string"
+        },
+        "hash": {
+          "type": "string"
+        },
+        "explorer_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verified": {
+          "description": "C6 on-chain verdict (radar.chain): receipt status 1 = confirmed, 0 = failed (reverted), none = not_found; unsupported = no EVM receipt endpoint for this chain",
+          "enum": [
+            "unchecked",
+            "confirmed",
+            "failed",
+            "not_found",
+            "unsupported"
+          ]
+        },
+        "block": {
+          "type": "integer"
+        },
+        "checked_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "SourceHealth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "name",
+        "tier",
+        "domain",
+        "cadence_min",
+        "enabled",
+        "status",
+        "last_success",
+        "last_error",
+        "last_error_at",
+        "items_24h"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tier": {
+          "$ref": "#/$defs/Tier"
+        },
+        "domain": {
+          "$ref": "#/$defs/Domain"
+        },
+        "cadence_min": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "degraded",
+            "failing",
+            "disabled",
+            "never_run"
+          ]
+        },
+        "last_success": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_error_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "items_24h": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Lifecycle": {
+      "description": "Code-computed lifecycle word: escalating=new evidence/upgrade in 24h, active=updated in 72h, cooling=3–14d quiet, finalized=V4, dormant=>14d.",
+      "enum": [
+        "escalating",
+        "active",
+        "cooling",
+        "finalized",
+        "dormant"
+      ]
+    },
+    "Sentence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "cite",
+        "grounded",
+        "issues"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "cite": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "grounded": {
+          "type": "boolean",
+          "description": "true only if every cite exists and every number appears in the cited text"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "no_citation",
+              "unknown_citation",
+              "ungrounded_number"
+            ]
+          }
+        }
+      }
+    },
+    "Analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "generated_at",
+        "model",
+        "reason",
+        "bluf",
+        "what",
+        "impact",
+        "exploitation",
+        "actions",
+        "unknowns"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ok",
+            "partial",
+            "failed"
+          ]
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "model": {
+          "type": "string"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "failure reason code when status=failed"
+        },
+        "bluf": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sentence"
+          }
+        },
+        "what": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sentence"
+          }
+        },
+        "impact": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sentence"
+          }
+        },
+        "exploitation": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sentence"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sentence"
+          }
+        },
+        "unknowns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sentence"
+          }
+        }
+      }
+    },
+    "NowItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "score",
+        "reasons"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Funnel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_hours",
+        "fetched",
+        "new_or_updated_items",
+        "events_touched",
+        "corroborated",
+        "p0"
+      ],
+      "properties": {
+        "window_hours": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fetched": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "new_or_updated_items": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "events_touched": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "corroborated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p0": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "ProgressStage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "at"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "first_report",
+            "second_source",
+            "corroborated",
+            "confirmed",
+            "exploited",
+            "analyzed",
+            "finalized"
+          ]
+        },
+        "at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "evidence publication time that made this stage true; null = not reached"
+        }
+      }
+    },
+    "PipelineStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step",
+        "status",
+        "detail"
+      ],
+      "properties": {
+        "step": {
+          "enum": [
+            "collected",
+            "clustered",
+            "verified",
+            "analyzed",
+            "impact_match",
+            "notified",
+            "remediated"
+          ]
+        },
+        "status": {
+          "enum": [
+            "done",
+            "pending",
+            "failed",
+            "skipped",
+            "not_configured",
+            "not_connected",
+            "running"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    },
+    "ImpactSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "affected",
+        "checked"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_eligible",
+            "queued",
+            "running",
+            "affected",
+            "not_affected",
+            "failed"
+          ]
+        },
+        "affected": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checked": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Compact 'does it hit us' chip for lists and the wall (from AWS Continuum / Security Agent results)."
+    },
+    "CodeLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "line",
+        "found_version"
+      ],
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "found_version": {
+          "type": "string"
+        },
+        "fixed_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "match": {
+          "enum": [
+            "exact",
+            "heuristic"
+          ],
+          "description": "exact = the line itself is the exposure; heuristic = candidate shape for the AWS agents to confirm."
+        }
+      },
+      "description": "Deterministic locator hit: an affected version pinned in target code."
+    },
+    "ResponseTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "name",
+        "relevant",
+        "verdict",
+        "detail",
+        "locations"
+      ],
+      "properties": {
+        "target_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "relevant": {
+          "type": "boolean"
+        },
+        "verdict": {
+          "enum": [
+            "affected",
+            "not_affected",
+            "pending",
+            "unknown",
+            "skipped"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "locations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CodeLocation"
+          }
+        }
+      }
+    },
+    "ResponseAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "service",
+        "status",
+        "detail",
+        "updated_at"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "requirement",
+            "context",
+            "code_finding",
+            "code_scan",
+            "code_review",
+            "remediation"
+          ]
+        },
+        "service": {
+          "enum": [
+            "security_agent",
+            "continuum"
+          ]
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "submitted",
+            "running",
+            "done",
+            "failed",
+            "skipped"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "external_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "console_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      }
+    },
+    "ResponseFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service",
+        "finding_id",
+        "title",
+        "severity",
+        "status"
+      ],
+      "properties": {
+        "service": {
+          "enum": [
+            "security_agent",
+            "continuum"
+          ]
+        },
+        "finding_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "Service-native status / validation verdict, verbatim."
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "line": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "requirement_hit": {
+          "type": "boolean",
+          "description": "Finding was raised against the radar-generated requirement."
+        }
+      }
+    },
+    "ResponseIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issue_id",
+        "name",
+        "severity",
+        "phase",
+        "status"
+      ],
+      "properties": {
+        "issue_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "exploitable": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "patch_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "patch_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "synopsis": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effect": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Continuum validation inferred/observed effect (DATA_LEAKED, …), verbatim."
+        },
+        "evidence_summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Continuum validation source-analysis walk (entry → sink → guards), truncated."
+        },
+        "pr_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Pull request opened by AWS Continuum in the GitHub repository (GitHub patch delivery)."
+        }
+      }
+    },
+    "ResponsePatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "path",
+        "files_changed",
+        "summary"
+      ],
+      "properties": {
+        "source": {
+          "enum": [
+            "security_agent",
+            "continuum"
+          ]
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "description": "Site-relative path of the captured diff (behind the same auth as the site)."
+        },
+        "files_changed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "pr_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Pull request opened by AWS Continuum in the GitHub repository (GitHub patch delivery)."
+        }
+      }
+    },
+    "Response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reason",
+        "updated_at",
+        "targets",
+        "actions",
+        "findings",
+        "issues",
+        "patches"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_eligible",
+            "queued",
+            "running",
+            "done",
+            "failed"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Code-templated explanation (eligibility, what is running, outcome)."
+        },
+        "product": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requirement_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResponseTarget"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResponseAction"
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResponseFinding"
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResponseIssue"
+          }
+        },
+        "patches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResponsePatch"
+          }
+        }
+      },
+      "description": "'In your environment': what AWS Continuum + AWS Security Agent did for this event."
+    },
+    "ContinuumResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "name",
+        "region",
+        "status"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "console_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "InventoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product",
+        "version",
+        "file",
+        "line"
+      ],
+      "properties": {
+        "product": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "file": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "ContinuumTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "name",
+        "description",
+        "prefix",
+        "inventory"
+      ],
+      "properties": {
+        "target_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "inventory": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InventoryEntry"
+          }
+        },
+        "uploaded_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "s3",
+            "github",
+            "gitlab",
+            "none"
+          ],
+          "description": "The ONE Continuum environment that validates this target (src/radar/targets.py CHANNEL); none = Security Agent only"
+        },
+        "channel_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Where the code lives for that channel (repository URL); null for s3 / none"
+        }
+      }
+    },
+    "Capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability",
+        "service",
+        "status",
+        "detail"
+      ],
+      "properties": {
+        "capability": {
+          "type": "string"
+        },
+        "service": {
+          "enum": [
+            "security_agent",
+            "continuum",
+            "radar"
+          ]
+        },
+        "status": {
+          "enum": [
+            "live",
+            "wired",
+            "not_applicable",
+            "needs_user"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ContinuumRecent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "title",
+        "severity",
+        "status",
+        "affected",
+        "checked",
+        "updated_at"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "status": {
+          "enum": [
+            "not_eligible",
+            "queued",
+            "running",
+            "done",
+            "failed"
+          ]
+        },
+        "affected": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      }
+    },
+    "Ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code_reviews_total",
+        "code_reviews_24h",
+        "scans_total",
+        "findings_submitted",
+        "issues",
+        "patches"
+      ],
+      "properties": {
+        "code_reviews_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "code_reviews_24h": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "scans_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "findings_submitted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "issues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "patches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cost": {
+          "description": "Per-day spend of the AWS services the radar drives (Cost Explorer, refreshed every few hours). null until the first read.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "fetched_at",
+                "days",
+                "total_usd"
+              ],
+              "properties": {
+                "fetched_at": {
+                  "$ref": "#/$defs/Timestamp"
+                },
+                "days": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/CostDay"
+                  }
+                },
+                "total_usd": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Last read failed (numbers are from fetched_at)."
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "CostDay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "date",
+        "continuum_usd",
+        "security_agent_usd",
+        "continuum_inference_units"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "continuum_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "security_agent_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "continuum_inference_units": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "Digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "C7 daily digest (radar.digest): header numbers by code, prose by the LLM with per-sentence citations to event ids",
+      "required": [
+        "day",
+        "generated_at",
+        "model",
+        "status",
+        "reason",
+        "header",
+        "summary",
+        "highlights",
+        "watch",
+        "event_ids"
+      ],
+      "properties": {
+        "day": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "model": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "partial",
+            "failed"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "header": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "events",
+            "p0",
+            "p1",
+            "new",
+            "escalated",
+            "web3"
+          ],
+          "properties": {
+            "events": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "p0": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "p1": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "new": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "escalated": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "web3": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "summary": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sentence"
+          }
+        },
+        "highlights": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sentence"
+          }
+        },
+        "watch": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sentence"
+          }
+        },
+        "event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "PossibleDuplicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "title",
+        "why"
+      ],
+      "description": "C4 cluster_judge: the model judged this published event to be the same incident (advisory; not merged)",
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        }
+      }
+    },
+    "AttentionItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "level",
+        "title",
+        "detail",
+        "since",
+        "link"
+      ],
+      "description": "D/M3 ops: one thing a human should look at (radar.ops RULES)",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "error",
+            "warn",
+            "info"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "since": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "link": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at",
+        "events"
+      ],
+      "properties": {
+        "kind": {
+          "const": "events"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EventSummary"
+          }
+        },
+        "now": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/NowItem"
+          }
+        },
+        "headline": {
+          "type": "string",
+          "description": "Code-templated one-line situation statement (no LLM)."
+        },
+        "funnel": {
+          "$ref": "#/$defs/Funnel"
+        },
+        "digest": {
+          "$ref": "#/$defs/Digest"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at",
+        "event",
+        "items",
+        "timeline",
+        "amount_history",
+        "cve_details",
+        "tx"
+      ],
+      "properties": {
+        "kind": {
+          "const": "event"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "event": {
+          "$ref": "#/$defs/EventSummary"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ItemRef"
+          }
+        },
+        "timeline": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TimelineEntry"
+          }
+        },
+        "amount_history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AmountPoint"
+          }
+        },
+        "cve_details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CveDetail"
+          }
+        },
+        "tx": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TxRef"
+          }
+        },
+        "analysis": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Analysis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "progress": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProgressStage"
+          }
+        },
+        "pipeline_steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PipelineStep"
+          }
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Response"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "possible_duplicates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PossibleDuplicate"
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at",
+        "sources"
+      ],
+      "properties": {
+        "kind": {
+          "const": "sources"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceHealth"
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at",
+        "resources",
+        "targets",
+        "coverage",
+        "recent",
+        "ledger"
+      ],
+      "properties": {
+        "kind": {
+          "const": "continuum"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContinuumResource"
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContinuumTarget"
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Capability"
+          }
+        },
+        "recent": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContinuumRecent"
+          }
+        },
+        "ledger": {
+          "$ref": "#/$defs/Ledger"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at",
+        "attention",
+        "counts"
+      ],
+      "properties": {
+        "kind": {
+          "const": "ops"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "attention": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttentionItem"
+          }
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "error",
+            "warn",
+            "info"
+          ],
+          "properties": {
+            "error": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "warn": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "info": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,194 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T16:49:03Z",
+ "event": {
+  "velocity_6h": 0,
+  "lifecycle": "escalating",
+  "event_id": "ev_66c6221470cababe",
+  "domain": "web3",
+  "title": "Cysic攻击者向Tornado Cash转入约74.37万美元的ETH和BNB",
+  "level": "V0",
+  "level_reason": "rumor: only T3 sources (1 independent)",
+  "severity": "P2",
+  "exploitation": "reported",
+  "first_seen": "2026-10-23T07:37:35Z",
+  "last_updated": "2026-10-23T16:48:48Z",
+  "first_report_source": "PANews",
+  "independent_sources": 1,
+  "item_count": 3,
+  "cves": [],
+  "entities": [],
+  "chains": [],
+  "amount_usd_latest": 2600000.0,
+  "amount_disputed": false,
+  "summary": null,
+  "analysis_status": "not_applicable",
+  "impact": null
+ },
+ "analysis": null,
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-23T07:37:35Z"
+  },
+  {
+   "stage": "second_source",
+   "at": null
+  },
+  {
+   "stage": "corroborated",
+   "at": null
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": "2026-10-23T07:37:35Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": null
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "3 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "1 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V0 · rumor: only T3 sources (1 independent)"
+  },
+  {
+   "step": "analyzed",
+   "status": "skipped",
+   "detail": "P2 不生成分析"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_11a5909217d6afea",
+   "source_id": "panews",
+   "source_name": "PANews",
+   "tier": "T3",
+   "url": "https://www.panewslab.com/zh/articles/01a167b1-9d36-7536-b7ae-cc27e2116b71",
+   "title": "Cysic攻击者向Tornado Cash转入约74.37万美元的ETH和BNB",
+   "published_at": "2026-10-23T07:37:35Z",
+   "excerpt": "PANews 10月23日消息，据 PeckShieldAlert 监测，被标记为 Cysic 攻击者的地址已将 300 枚 ETH（约 72.114 万美元）和 30.4 枚 BNB（约 2.259 万美元）存入 Tornado Cash。据 Cysic 基金会称，10 月 17 日，Cysic 跨链桥发生安全事件，导致 1000 万枚 CYS 在 BNB Chain 上被未经授权铸造。 [facts: 10; 23; 300; 72.114; 30.4; 2.259; 17; 1000]",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": 721140.0
+   }
+  },
+  {
+   "item_id": "it_df349c23d8c328a5",
+   "source_id": "panews",
+   "source_name": "PANews",
+   "tier": "T3",
+   "url": "https://www.panewslab.com/zh/articles/01a1696f-2bd1-7690-ba20-a0925cedc3ec",
+   "title": "Initia链疑似遭攻击，黑客已套现约260万美元，仍有资金在转移",
+   "published_at": "2026-10-23T15:44:15Z",
+   "excerpt": "PANews 10月23日消息，安全分析师Spreek发文表示，Initia链疑似遭到攻击，攻击者通过漏洞无限增发多种代币。截至目前，黑客已套现约260万美元，仍有更多资金处于转移过程中。攻击影响范围及最终损失暂未明确。 [facts: 10; 23; 260]",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": 2600000.0
+   }
+  },
+  {
+   "item_id": "it_0029d807e86226f4",
+   "source_id": "panews",
+   "source_name": "PANews",
+   "tier": "T3",
+   "url": "https://www.panewslab.com/zh/articles/01a16995-5a5b-710b-91cb-7398e31a1989",
+   "title": "Initia遭攻击后，Upbit与Bithumb暂停INIT充提并发布警示",
+   "published_at": "2026-10-23T16:25:58Z",
+   "excerpt": "PANews 10月24日消息，据官方公告，韩国加密交易所Upbit与Bithumb已暂停Initia（INIT）充提，并就INIT发布投资警示。Upbit公告称，10月24日已确认Initia链疑似发生安全问题，INIT价格波动可能加剧，提醒持有用户谨慎交易。此前，Initia官方宣布因安全事件暂停L1及其Rollup运行，安全研究员Spreek称攻击者通过漏洞增发代币，已套现约260万美元。 [facts: 10; 24; 1; 260]",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": 2600000.0
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T07:38:20Z",
+   "kind": "created",
+   "from": null,
+   "to": "V0",
+   "item_id": "it_11a5909217d6afea"
+  },
+  {
+   "at": "2026-10-23T15:48:48Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_df349c23d8c328a5"
+  },
+  {
+   "at": "2026-10-23T15:48:48Z",
+   "kind": "amount_change",
+   "from": "721140.0",
+   "to": "2600000.0",
+   "item_id": "it_df349c23d8c328a5"
+  },
+  {
+   "at": "2026-10-23T16:28:30Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_0029d807e86226f4"
+  }
+ ],
+ "amount_history": [
+  {
+   "value": 721140.0,
+   "source_id": "panews",
+   "observed_at": "2026-10-23T07:37:35Z"
+  },
+  {
+   "value": 2600000.0,
+   "source_id": "panews",
+   "observed_at": "2026-10-23T15:44:15Z"
+  },
+  {
+   "value": 2600000.0,
+   "source_id": "panews",
+   "observed_at": "2026-10-23T16:25:58Z"
+  }
+ ],
+ "cve_details": [],
+ "tx": [],
+ "response": null
+}

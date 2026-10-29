@@ -1,0 +1,283 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T07:54:34Z",
+ "event": {
+  "velocity_6h": 0,
+  "lifecycle": "finalized",
+  "event_id": "ev_a417729fd0d3871c",
+  "domain": "vuln",
+  "title": "CVE-2026-0257 Palo Alto Networks PAN-OS: Palo Alto Networks PAN-OS Authentication Bypass Vulnerability",
+  "level": "V4",
+  "level_reason": "finalized: T1 confirmed and 147d old",
+  "severity": "P1",
+  "exploitation": "confirmed",
+  "first_seen": "2026-05-29T00:00:00Z",
+  "last_updated": "2026-10-20T15:32:27Z",
+  "first_report_source": "CISA KEV",
+  "independent_sources": 2,
+  "item_count": 2,
+  "cves": [
+   "CVE-2026-0257"
+  ],
+  "entities": [
+   "Palo Alto Networks"
+  ],
+  "chains": [],
+  "amount_usd_latest": null,
+  "amount_disputed": false,
+  "summary": "CVE-2026-0257 是 PAN-OS 的认证绕过漏洞,已被列入 CISA KEV,且勒索软件组织仍在利用,需立即关注。",
+  "analysis_status": "ok",
+  "impact": null
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T07:52:08Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "CVE-2026-0257 是 PAN-OS 的认证绕过漏洞,已被列入 CISA KEV,且勒索软件组织仍在利用,需立即关注。",
+    "cite": [
+     "it_cbbd400738022687",
+     "it_79b069e44b748713"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "what": [
+   {
+    "text": "Palo Alto Networks PAN-OS 存在认证绕过漏洞 CVE-2026-0257,攻击者可绕过安全限制并建立未授权的 VPN 连接。",
+    "cite": [
+     "it_cbbd400738022687"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "该漏洞影响 PAN-OS 和 Prisma Access,CVSS 评分为 7.8,厂商已于 2026 年 5 月发布补丁。",
+    "cite": [
+     "it_79b069e44b748713"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "impact": [
+   {
+    "text": "攻击者可借此建立未授权 VPN 连接,从而绕过安全限制。",
+    "cite": [
+     "it_cbbd400738022687"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "The Hacker News 的报道标题称 Qilin 和 INC 勒索软件组织利用该漏洞绕过 MFA。",
+    "cite": [
+     "it_79b069e44b748713"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "CISA KEV 收录了该漏洞,表明其已被确认遭到利用。",
+    "cite": [
+     "it_cbbd400738022687"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "Palo Alto Networks 披露称,勒索软件行为者对这一已修补的漏洞仍在持续利用。",
+    "cite": [
+     "it_79b069e44b748713"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "两个来源在利用情况上未见相互矛盾。",
+    "cite": [
+     "it_cbbd400738022687",
+     "it_79b069e44b748713"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "防御方应确认 PAN-OS 和 Prisma Access 已应用厂商于 2026 年 5 月发布的针对 CVE-2026-0257 的补丁。",
+    "cite": [
+     "it_79b069e44b748713"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "防御方应排查是否存在未授权的 VPN 连接。",
+    "cite": [
+     "it_cbbd400738022687"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "现有证据未给出受影响的具体版本范围,也未给出补丁的版本号。",
+    "cite": [
+     "it_cbbd400738022687",
+     "it_79b069e44b748713"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "现有证据未说明利用活动的规模、受害组织数量以及具体攻击手法细节。",
+    "cite": [
+     "it_79b069e44b748713"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "ok",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-05-29T00:00:00Z"
+  },
+  {
+   "stage": "second_source",
+   "at": "2026-10-20T15:32:27Z"
+  },
+  {
+   "stage": "corroborated",
+   "at": "2026-05-29T00:00:00Z"
+  },
+  {
+   "stage": "confirmed",
+   "at": "2026-05-29T00:00:00Z"
+  },
+  {
+   "stage": "exploited",
+   "at": "2026-05-29T00:00:00Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T07:52:08Z"
+  },
+  {
+   "stage": "finalized",
+   "at": "2026-06-12T00:00:00Z"
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "2 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "2 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V4 · finalized: T1 confirmed and 147d old"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_cbbd400738022687",
+   "source_id": "cisa_kev",
+   "source_name": "CISA KEV",
+   "tier": "T1",
+   "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search_api_fulltext=CVE-2026-0257",
+   "title": "CVE-2026-0257 Palo Alto Networks PAN-OS: Palo Alto Networks PAN-OS Authentication Bypass Vulnerability",
+   "published_at": "2026-05-29T00:00:00Z",
+   "excerpt": "Palo Alto Networks PAN-OS contains an authentication bypass vulnerability that allows attackers to bypass security restrictions and establish an unauthorized VPN connection.",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "yes",
+    "kev": true,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_79b069e44b748713",
+   "source_id": "thehackernews",
+   "source_name": "The Hacker News",
+   "tier": "T2",
+   "url": "https://thehackernews.com/2026/10/qilin-and-inc-ransomware-groups-exploit.html",
+   "title": "Qilin and INC Ransomware Groups Exploit Palo Alto Networks Flaw to Bypass MFA",
+   "published_at": "2026-10-20T15:32:27Z",
+   "excerpt": "The activity relates to CVE-2026-0257 (CVSS score: 7.8), an authentication bypass flaw that could be exploited by bad actors to set up unauthorized VPN connections. [facts: CVE-2026-0257; 7.8; 2026]",
+   "independent_group": 1,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "created",
+   "from": null,
+   "to": "V4",
+   "item_id": "it_cbbd400738022687"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_79b069e44b748713"
+  },
+  {
+   "at": "2026-10-23T07:54:30Z",
+   "kind": "severity_change",
+   "from": "P0",
+   "to": "P1",
+   "item_id": null
+  }
+ ],
+ "amount_history": [],
+ "cve_details": [
+  {
+   "cve": "CVE-2026-0257",
+   "kev": true,
+   "kev_date_added": "2026-05-29",
+   "ransomware": true,
+   "epss": null,
+   "epss_percentile": null
+  }
+ ],
+ "tx": [],
+ "response": null
+}

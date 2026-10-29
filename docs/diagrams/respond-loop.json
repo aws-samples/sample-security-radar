@@ -1,0 +1,175 @@
+{
+  "kind": "architecture",
+  "title": "Security Radar · 探测器 + 触发器",
+  "subtitle": "外面刚发生的真实事件 → 几分钟内变成 AWS 能执行的规则、精确到行的 finding 与评审 → 在你的仓库里证实、补丁回流",
+  "theme": "aws",
+  "direction": "LR",
+  "reveal": true,
+  "footer": "每个仓库只进一个环境（S3 / GitHub / GitLab）· 代码决定何时、推什么、指向哪一行 · AWS agent 判断能否被利用、怎么修 · 人只在合并补丁时介入",
+  "groups": [
+    {
+      "id": "radar",
+      "label": "Security Radar（ap-northeast-1）",
+      "kind": "network"
+    },
+    {
+      "id": "sa",
+      "label": "AWS Security Agent（ap-northeast-1）",
+      "kind": "network"
+    },
+    {
+      "id": "cn",
+      "label": "AWS Continuum（us-east-1）",
+      "kind": "network"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "world",
+      "label": "公网情报",
+      "sub": "KEV · PSIRT · 媒体 · Web3 · X",
+      "icon": "glyph:stream"
+    },
+    {
+      "id": "verify",
+      "label": "交叉验证",
+      "sub": "V0–V4 · P0 = 72h 内要行动",
+      "icon": "glyph:shield",
+      "group": "radar"
+    },
+    {
+      "id": "respond",
+      "label": "Respond 工位",
+      "sub": "资格 · 规则 · 精确定位",
+      "icon": "aws:lambda",
+      "group": "radar",
+      "pulse": true
+    },
+    {
+      "id": "pack",
+      "label": "规则包",
+      "sub": "雷达规则逐字取证",
+      "icon": "glyph:doc",
+      "group": "sa"
+    },
+    {
+      "id": "review",
+      "label": "代码评审",
+      "sub": "读你的仓库 · 命中规则 · 自动修复",
+      "icon": "glyph:agent",
+      "group": "sa"
+    },
+    {
+      "id": "finding",
+      "label": "雷达 finding",
+      "sub": "OCSF 2002 · 文件:行",
+      "icon": "glyph:alert",
+      "group": "cn"
+    },
+    {
+      "id": "validate",
+      "label": "验证 · 优先级",
+      "sub": "读你的仓库 · EXPLOITABLE",
+      "icon": "glyph:agent",
+      "group": "cn"
+    },
+    {
+      "id": "p_s3",
+      "label": "补丁文件",
+      "sub": "S3 环境 · wp-storefront",
+      "icon": "glyph:doc",
+      "group": "cn"
+    },
+    {
+      "id": "p_gh",
+      "label": "Pull Request",
+      "sub": "GitHub 环境 · Continuum 原生开",
+      "icon": "glyph:git",
+      "group": "cn"
+    },
+    {
+      "id": "p_gl",
+      "label": "Merge Request",
+      "sub": "GitLab 环境 · Continuum 原生开",
+      "icon": "glyph:git",
+      "group": "cn"
+    },
+    {
+      "id": "ui",
+      "label": "事件页 · 在你的环境中",
+      "sub": "受影响 / 可利用性 / 补丁 · PR · MR 回链",
+      "icon": "aws:cloudfront"
+    }
+  ],
+  "edges": [
+    {
+      "from": "world",
+      "to": "verify",
+      "flow": "data",
+      "label": "每 10 分钟"
+    },
+    {
+      "from": "verify",
+      "to": "respond",
+      "flow": "event",
+      "label": "P0 / 在野利用"
+    },
+    {
+      "from": "respond",
+      "to": "pack",
+      "flow": "write",
+      "label": "安全规则"
+    },
+    {
+      "from": "respond",
+      "to": "finding",
+      "flow": "write"
+    },
+    {
+      "from": "pack",
+      "to": "review",
+      "flow": "control"
+    },
+    {
+      "from": "finding",
+      "to": "validate",
+      "flow": "control"
+    },
+    {
+      "from": "review",
+      "to": "ui",
+      "flow": "reply",
+      "label": "findings · diff"
+    },
+    {
+      "from": "validate",
+      "to": "p_s3",
+      "flow": "write"
+    },
+    {
+      "from": "validate",
+      "to": "p_gh",
+      "flow": "write"
+    },
+    {
+      "from": "validate",
+      "to": "p_gl",
+      "flow": "write"
+    },
+    {
+      "from": "p_gh",
+      "to": "ui",
+      "flow": "reply"
+    },
+    {
+      "from": "p_s3",
+      "to": "ui",
+      "flow": "reply"
+    },
+    {
+      "from": "p_gl",
+      "to": "ui",
+      "flow": "reply"
+    }
+  ]
+}

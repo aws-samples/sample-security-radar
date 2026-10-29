@@ -1,0 +1,788 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T17:19:10Z",
+ "event": {
+  "velocity_6h": 0,
+  "lifecycle": "active",
+  "event_id": "ev_a4e0d9d6494e4c7b",
+  "domain": "web3",
+  "title": "OcelotDex — Infinite Mint",
+  "level": "V1",
+  "level_reason": "reported: single T2 source",
+  "severity": "P1",
+  "exploitation": "reported",
+  "first_seen": "2024-09-20T00:00:00Z",
+  "last_updated": "2026-10-23T17:18:46Z",
+  "first_report_source": "DeFiLlama Hacks",
+  "independent_sources": 1,
+  "item_count": 1,
+  "cves": [],
+  "entities": [
+   "OcelotDex"
+  ],
+  "chains": [
+   "Ethereum"
+  ],
+  "amount_usd_latest": 4900000.0,
+  "amount_disputed": false,
+  "summary": "DeFiLlama Hacks 记录了以太坊上 OcelotDex 因代币与份额记账缺陷导致的无限铸造事件,需要尽快关注其后续影响。",
+  "analysis_status": "partial",
+  "impact": null
+ },
+ "analysis": {
+  "generated_at": "2026-10-23T07:58:21Z",
+  "model": "global.anthropic.claude-sonnet-5-5",
+  "bluf": [
+   {
+    "text": "DeFiLlama Hacks 记录了以太坊上 OcelotDex 因代币与份额记账缺陷导致的无限铸造事件,需要尽快关注其后续影响。",
+    "cite": [
+     "it_e484707a8f2cae77"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "what": [
+   {
+    "text": "该事件被归类为 OcelotDex 的“无限铸造(Infinite Mint)”,涉及代币与份额记账(Token & Share Accounting)问题。",
+    "cite": [
+     "it_e484707a8f2cae77"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "事件发生在以太坊链上,相关条目的发布日期为 2024-09-20。",
+    "cite": [
+     "it_e484707a8f2cae77"
+    ],
+    "grounded": false,
+    "issues": [
+     "ungrounded_number"
+    ]
+   }
+  ],
+  "impact": [
+   {
+    "text": "现有证据仅表明存在无限铸造类漏洞,未给出受影响资产、损失金额或受影响用户的具体信息。",
+    "cite": [
+     "it_e484707a8f2cae77"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "exploitation": [
+   {
+    "text": "该条目被收录于 DeFiLlama Hacks 的黑客事件列表,但证据中没有说明利用的具体过程、攻击者或是否仍在持续,也没有其他来源可供对照。",
+    "cite": [
+     "it_e484707a8f2cae77"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "actions": [
+   {
+    "text": "OcelotDex 协议团队可据此条目优先复查以太坊部署中代币与份额的记账及铸造逻辑。",
+    "cite": [
+     "it_e484707a8f2cae77"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "防守方可将 OcelotDex 相关敞口纳入监控,并等待更详细的事后分析后再确定进一步措施。",
+    "cite": [
+     "it_e484707a8f2cae77"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "unknowns": [
+   {
+    "text": "损失金额、受影响合约地址、攻击交易和根本原因的技术细节在现有证据中均未提供。",
+    "cite": [
+     "it_e484707a8f2cae77"
+    ],
+    "grounded": true,
+    "issues": []
+   },
+   {
+    "text": "协议方是否已确认事件、暂停合约或采取修复措施,目前尚不清楚。",
+    "cite": [
+     "it_e484707a8f2cae77"
+    ],
+    "grounded": true,
+    "issues": []
+   }
+  ],
+  "status": "partial",
+  "reason": null
+ },
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2024-09-20T00:00:00Z"
+  },
+  {
+   "stage": "second_source",
+   "at": null
+  },
+  {
+   "stage": "corroborated",
+   "at": null
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": "2024-09-20T00:00:00Z"
+  },
+  {
+   "stage": "analyzed",
+   "at": "2026-10-23T07:58:21Z"
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "1 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "1 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V1 · reported: single T2 source"
+  },
+  {
+   "step": "analyzed",
+   "status": "done",
+   "detail": "1 句未通过校验（已灰显）"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_e484707a8f2cae77",
+   "source_id": "defillama_hacks",
+   "source_name": "DeFiLlama Hacks",
+   "tier": "T2",
+   "url": "https://defillama.com/hacks#OcelotDex",
+   "title": "OcelotDex — Infinite Mint",
+   "published_at": "2024-09-20T00:00:00Z",
+   "excerpt": "OcelotDex Token & Share Accounting Infinite Mint on Ethereum",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": 4900000.0
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "created",
+   "from": null,
+   "to": "V1",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T05:14:53Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T05:48:48Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T05:48:48Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T06:18:47Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T06:18:47Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T06:48:53Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T06:48:53Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T07:18:46Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T07:18:46Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T07:48:48Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T07:48:48Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T08:18:47Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T08:18:47Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T08:48:53Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T08:48:53Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T09:18:53Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T09:18:53Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T09:48:48Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T09:48:48Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T10:18:52Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T10:18:52Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T10:48:53Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T10:48:53Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T11:18:54Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T11:18:54Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T12:18:50Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T12:18:50Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T12:48:52Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T12:48:52Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T13:18:47Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T13:18:47Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T13:48:48Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T13:48:48Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T14:18:46Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T14:18:46Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T14:48:40Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T14:48:40Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T15:18:40Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T15:18:40Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T15:48:48Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T15:48:48Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T16:18:40Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T16:18:40Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T16:48:48Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T16:48:48Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T17:18:46Z",
+   "kind": "amount_change",
+   "from": "4900000.0",
+   "to": "980000.0",
+   "item_id": "it_e484707a8f2cae77"
+  },
+  {
+   "at": "2026-10-23T17:18:46Z",
+   "kind": "amount_change",
+   "from": "980000.0",
+   "to": "4900000.0",
+   "item_id": "it_e484707a8f2cae77"
+  }
+ ],
+ "amount_history": [
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2024-09-20T00:00:00Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T05:14:53Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T05:48:48Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T05:48:48Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T06:18:47Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T06:18:47Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T06:48:53Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T06:48:53Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T07:18:46Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T07:18:46Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T07:48:48Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T07:48:48Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T08:18:47Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T08:18:47Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T08:48:53Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T08:48:53Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T09:18:53Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T09:18:53Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T09:48:48Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T09:48:48Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T10:18:52Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T10:18:52Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T10:48:53Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T10:48:53Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T11:18:54Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T11:18:54Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T12:18:50Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T12:18:50Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T12:48:52Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T12:48:52Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T13:18:47Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T13:18:47Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T13:48:48Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T13:48:48Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T14:18:46Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T14:18:46Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T14:48:40Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T14:48:40Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T15:18:40Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T15:18:40Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T15:48:48Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T15:48:48Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T16:18:40Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T16:18:40Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T16:48:48Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T16:48:48Z"
+  },
+  {
+   "value": 980000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T17:18:46Z"
+  },
+  {
+   "value": 4900000.0,
+   "source_id": "defillama_hacks",
+   "observed_at": "2026-10-23T17:18:46Z"
+  }
+ ],
+ "cve_details": [],
+ "tx": [],
+ "response": null
+}

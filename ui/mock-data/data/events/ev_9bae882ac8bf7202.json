@@ -1,0 +1,147 @@
+{
+ "kind": "event",
+ "generated_at": "2026-10-23T17:28:37Z",
+ "event": {
+  "velocity_6h": 1,
+  "lifecycle": "escalating",
+  "event_id": "ev_9bae882ac8bf7202",
+  "domain": "incident",
+  "title": "Quest Diagnostics confirms data breach exposed patient records",
+  "level": "X",
+  "level_reason": "已被原始来源撤回（mock 边界样例）",
+  "severity": "P2",
+  "exploitation": "none",
+  "first_seen": "2026-10-23T16:40:07Z",
+  "last_updated": "2026-10-23T16:40:24Z",
+  "first_report_source": "BleepingComputer",
+  "independent_sources": 1,
+  "item_count": 2,
+  "cves": [],
+  "entities": [],
+  "chains": [],
+  "amount_usd_latest": null,
+  "amount_disputed": false,
+  "summary": null,
+  "analysis_status": "not_applicable",
+  "impact": null
+ },
+ "analysis": null,
+ "progress": [
+  {
+   "stage": "first_report",
+   "at": "2026-10-23T16:40:07Z"
+  },
+  {
+   "stage": "second_source",
+   "at": null
+  },
+  {
+   "stage": "corroborated",
+   "at": null
+  },
+  {
+   "stage": "confirmed",
+   "at": null
+  },
+  {
+   "stage": "exploited",
+   "at": null
+  },
+  {
+   "stage": "analyzed",
+   "at": null
+  },
+  {
+   "stage": "finalized",
+   "at": null
+  }
+ ],
+ "pipeline_steps": [
+  {
+   "step": "collected",
+   "status": "done",
+   "detail": "2 条证据"
+  },
+  {
+   "step": "clustered",
+   "status": "done",
+   "detail": "1 个独立来源"
+  },
+  {
+   "step": "verified",
+   "status": "done",
+   "detail": "V1 · reported: single T2 source"
+  },
+  {
+   "step": "analyzed",
+   "status": "skipped",
+   "detail": "P2 不生成分析"
+  },
+  {
+   "step": "impact_match",
+   "status": "not_configured",
+   "detail": "关注清单未配置，未检查"
+  },
+  {
+   "step": "notified",
+   "status": "not_connected",
+   "detail": "推送未接入"
+  }
+ ],
+ "items": [
+  {
+   "item_id": "it_70282498b298a5e6",
+   "source_id": "bleepingcomputer",
+   "source_name": "BleepingComputer",
+   "tier": "T2",
+   "url": "https://www.bleepingcomputer.com/news/security/quest-diagnostics-confirms-data-breach-exposed-patient-records/",
+   "title": "Quest Diagnostics confirms data breach exposed patient records",
+   "published_at": "2026-10-23T16:40:07Z",
+   "excerpt": "American clinical laboratory company Quest Diagnostics disclosed that patient records have been exposed after a threat actor gained unauthorized access to its Quanum LSM system.",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  },
+  {
+   "item_id": "it_66a624d3aed4d418",
+   "source_id": "x_security",
+   "source_name": "X @BleepinComputer",
+   "tier": "T2",
+   "url": "https://x.com/BleepinComputer/status/2113671895321112986",
+   "title": "Quest Diagnostics confirms data breach exposed patient records https://t.co/231O5gSaY9 https://t.co/231O5gSaY9",
+   "published_at": "2026-10-23T16:40:24Z",
+   "excerpt": "Quest Diagnostics confirms data breach exposed patient records\nhttps://t.co/231O5gSaY9\n\nhttps://t.co/231O5gSaY9",
+   "independent_group": 0,
+   "signals": {
+    "exploited": "unclear",
+    "kev": false,
+    "poc": false,
+    "amount_usd": null
+   }
+  }
+ ],
+ "timeline": [
+  {
+   "at": "2026-10-23T16:48:48Z",
+   "kind": "created",
+   "from": null,
+   "to": "V1",
+   "item_id": "it_70282498b298a5e6"
+  },
+  {
+   "at": "2026-10-23T17:28:31Z",
+   "kind": "item_added",
+   "from": null,
+   "to": null,
+   "item_id": "it_66a624d3aed4d418"
+  }
+ ],
+ "amount_history": [],
+ "cve_details": [],
+ "tx": [],
+ "response": null
+}

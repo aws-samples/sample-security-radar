@@ -1,0 +1,771 @@
+# Mutation registry for touchstone tools/mutate.py — each entry removes one guard; its test must go red.
+# Run: uv run python ~/.claude/skills/touchstone/tools/mutate.py --cmd "uv run pytest -q -x" mutations.txt
+
+[M01 negation ignored: "no evidence of exploitation" becomes yes]
+file = src/radar/signals.py
+find = if _NEG.search(text):
+replace = if False:
+expect = tests/test_pipeline_replay.py::test_vendor_saying_no_exploitation_is_not_confirmed
+
+[M02 same organisation counted as independent sources]
+file = src/radar/pipeline.py
+find = dsu.union(i, by_org[it.org])
+replace = pass
+expect = tests/test_independence.py::test_same_org_is_one_source_even_without_links
+
+[M03 syndicated copies counted as independent]
+file = src/radar/pipeline.py
+find = .ratio() >= Limits.ECHO_TITLE_SIMILARITY:
+replace = .ratio() >= 2.0:
+expect = tests/test_pipeline_replay.py::test_syndicated_copies_count_once_but_independent_reports_corroborate
+
+[M04 CVE roundup glues unrelated CVEs]
+file = src/radar/pipeline.py
+find = if len(cve_list) <= 3:
+replace = if True:
+expect = tests/test_pipeline_replay.py::test_cve_roundup_does_not_glue_unrelated_cves
+
+[M05 synthetic shared URLs used as merge keys]
+file = src/radar/pipeline.py
+find = if source.url_is_identity:
+replace = if True:
+expect = tests/test_pipeline_replay.py::test_alpscon_three_sources_one_event_v2
+
+[M06 capitalised words used as weak keys outside web3]
+file = src/radar/pipeline.py
+find = if domain == "web3" and not raw.extra.get("entity"):
+replace = if not raw.extra.get("entity"):
+expect = tests/test_pipeline_replay.py::test_unrelated_stories_from_one_outlet_do_not_merge
+
+[M07 amount dispute never flagged]
+file = src/radar/pipeline.py
+find = > Limits.AMOUNT_DISPUTE_RATIO
+replace = > 1e12
+expect = tests/test_pipeline_replay.py::test_uncx_amount_dispute_is_flagged_not_merged
+
+[M08 KEV no longer confirms exploitation]
+file = src/radar/pipeline.py
+find = if any(i.signals["kev"] or (i.tier == "T1" and i.signals["exploited"] == "yes") for i in items):
+replace = if any(i.tier == "T1" and i.signals["exploited"] == "yes" and False for i in items):
+expect = tests/test_pipeline_replay.py::test_kev_entries_are_confirmed_and_only_fresh_ones_are_p0
+
+[M09 re-ingest treated as new content]
+file = src/radar/pipeline.py
+find = if prev and prev.content_hash == item.content_hash:
+replace = if False:
+expect = tests/test_pipeline_replay.py::test_replay_is_idempotent
+
+[M10 DeFiHackLabs same-day same-name incidents collide]
+file = src/radar/parsers/__init__.py
+find = guid=sol or f"{day}|{name}|{keys.short_hash(desc)}",
+replace = guid=f"{day}|{name}",
+expect = tests/test_pipeline_replay.py::test_replay_is_idempotent
+
+[M11 bridging item no longer merges clusters]
+file = src/radar/pipeline.py
+find = return ranked[0], [e for e in ranked[1:] if e in strong_hit]
+replace = return ranked[0], []
+expect = tests/test_pipeline_replay.py::test_php2shell_named_and_cve_clusters_merge_and_thn_counts_once
+
+[M12 collector failure not counted]
+file = src/radar/collect.py
+find = consecutive_failures=st.get("consecutive_failures", 0) + 1)
+replace = consecutive_failures=0)
+expect = tests/test_collect.py::test_failure_is_recorded_and_distinguishable_from_no_news
+
+[M13 never-run source reported as ok]
+file = src/radar/publish.py
+find = return "never_run"
+replace = return "ok"
+expect = tests/test_publish.py::test_never_run_sources_are_reported_as_such_not_ok
+
+[M14 citing a tweet no longer joins its author]
+file = src/radar/pipeline.py
+find = if sid in xs_owner:
+replace = if False:
+expect = tests/test_independence.py::test_citing_a_tweet_joins_its_author_group
+
+[M15 citing an article URL no longer joins it]
+file = src/radar/pipeline.py
+find = if link in canon:
+replace = if False:
+expect = tests/test_independence.py::test_citing_an_article_url_joins_its_group
+
+[M16 raw batches never marked ⇒ no resume bookkeeping]
+file = src/radar/handlers.py
+find = _store.mark_raw_processed(key, timeutil.iso(now))
+replace = pass
+expect = tests/test_handlers.py::test_process_picks_up_batches_left_by_a_failed_cycle
+
+[M17 eventually-consistent reads]
+file = src/radar/dynamo.py
+find = r = self.t.get_item(Key={"pk": pk, "sk": sk}, ConsistentRead=True).get("Item")
+replace = r = self.t.get_item(Key={"pk": pk, "sk": sk}).get("Item")
+expect = tests/test_store_contract.py::test_base_table_reads_are_strongly_consistent
+
+[M18 empty parse of a 200 reported as ok]
+file = src/radar/collect.py
+find = if resp.status == 200 and not raws and source.parser != "twitterapi":
+replace = if False:
+expect = tests/test_collect.py::test_empty_parse_of_a_200_is_a_failure_not_silence
+
+[M19 firecrawl upstream error page accepted]
+file = src/radar/fetch.py
+find = if upstream and upstream >= 400:
+replace = if False:
+expect = tests/test_collect.py::test_firecrawl_upstream_error_page_is_an_error
+
+[M20 no 429 retry]
+file = src/radar/fetch.py
+find = if e.status != 429 or attempt == Limits.TWITTERAPI_RETRIES:
+replace = if True:
+expect = tests/test_collect.py::test_twitterapi_429_backs_off_then_succeeds
+
+[M21 stale P0 not demoted]
+file = src/radar/pipeline.py
+find = return "P1" if sev == "P0" and not fresh else sev
+replace = return sev
+expect = tests/test_pipeline_replay.py::test_p0_means_act_now_on_live_snapshot
+
+[M22 escalation stamped with processing time ⇒ backfill looks fresh]
+file = src/radar/pipeline.py
+find = ev.escalated_at = max(i.published_at for i in items)
+replace = ev.escalated_at = timeutil.iso(now)
+expect = tests/test_pipeline_replay.py::test_bitget_2026_is_p0_and_separate_from_2025_bitget
+
+[M23 escalation ignored]
+file = src/radar/pipeline.py
+find = if rose and ev.item_ids:
+replace = if False:
+expect = tests/test_pipeline_replay.py::test_old_event_escalated_now_is_p0_again
+
+[M24 analysis number grounding disabled]
+file = src/radar/analyst.py
+find = if (len(plain) >= 2 or "." in plain) and plain not in src:
+replace = if False:
+expect = tests/test_analyst.py::test_fabricated_number_is_flagged_not_dropped
+
+[M25 month-name normalisation removed]
+file = src/radar/analyst.py
+find = t = re.sub(rf"\b{name}\b", f"{name} {num}", t)
+replace = pass
+expect = tests/test_analyst.py::test_month_name_date_is_grounded_regression
+
+[M26 analysis cache bypassed ⇒ re-call LLM every cycle]
+file = src/radar/handlers.py
+find = if (ev.analysis or {}).get("input_hash") != analyst.input_hash(ev_in):
+replace = if True:
+expect = tests/test_handlers.py::test_analyze_station_only_reanalyses_changed_p0_p1
+
+[M27 stale events on the NOW board]
+file = src/radar/insights.py
+find = if age > NOW_MAX_AGE_H:
+replace = if False:
+expect = tests/test_insights.py::test_now_board_never_shows_stale_or_p2
+
+[M28 echoes counted as velocity]
+file = src/radar/insights.py
+find = first.setdefault(g, it.published_at)
+replace = first[id(it)] = it.published_at
+expect = tests/test_insights.py::test_velocity_counts_only_new_independent_groups
+
+[M29 truncated LLM output treated as ok]
+file = src/radar/llm.py
+find = "max_tokens": "incomplete"
+replace = "max_tokens": "ok"
+expect = tests/test_llm.py::test_truncation_is_incomplete_not_ok
+
+[M30 progress stamped with processing time]
+file = src/radar/insights.py
+find = t = items[k - 1].published_at
+replace = t = timeutil.iso(now)
+expect = tests/test_insights.py::test_progress_stage_times_are_evidence_times_not_processing_time
+
+[M31 impact step claims done before the respond station ran]
+file = src/radar/insights.py
+find = return {"step": "impact_match", "status": "pending", "detail": "等待响应工位（AWS Security Agent / Continuum）"}
+replace = return {"step": "impact_match", "status": "done", "detail": "等待响应工位（AWS Security Agent / Continuum）"}
+expect = tests/test_insights.py::test_pipeline_steps_report_unconfigured_and_unconnected_explicitly
+
+[M32 fixed vs affected cue ignored: every version counted as fixed]
+file = src/radar/products.py
+find = if f > a:
+replace = if True:
+expect = tests/test_respond.py::test_node2shell_demonstrated_version_is_affected_not_fixed
+
+[M33 version compared across branches]
+file = src/radar/products.py
+find = if _parts(f)[:2] == v[:2]:
+replace = if True:
+expect = tests/test_respond.py::test_version_verdict_compares_within_branch_only
+
+[M34 partial pin treated as comparable]
+file = src/radar/products.py
+find = if len(v) < 3:
+replace = if len(v) < 1:
+expect = tests/test_respond.py::test_version_verdict_compares_within_branch_only
+
+[M35 PoC-only events get paid code reviews]
+file = src/radar/respond.py
+find = wants_review = ts["relevant"] and (ev["severity"] == "P0" or ev["exploitation"] == "confirmed")
+replace = wants_review = ts["relevant"]
+expect = tests/test_respond.py::test_p1_poc_with_partial_pins_checks_inventory_but_spends_nothing
+
+[M36 review budget ignored]
+file = src/radar/respond.py
+find = elif budget.reviews_left > 0:
+replace = elif True:
+expect = tests/test_respond.py::test_reviews_are_batched_per_target_and_budget_is_per_review
+
+[M47 one review per event instead of per target]
+file = src/radar/respond.py
+find = if tid in start:
+replace = if False:
+expect = tests/test_respond.py::test_reviews_are_batched_per_target_and_budget_is_per_review
+
+[M48 underscore kept in requirement names (rejected by Security Agent)]
+file = src/radar/respond.py
+find = return re.sub(r"[^a-z0-9-]", "-", f"{REQ_PREFIX}{base}")[:64].rstrip("-")
+replace = return re.sub(r"[^a-z0-9_-]", "-", f"{REQ_PREFIX}{base}")[:64]
+expect = tests/test_respond.py::test_requirement_name_is_api_safe
+
+[M37 review re-started while one is running]
+file = src/radar/respond.py
+find = and review.get("status") not in ("SUBMITTED", "RUNNING", "IN_PROGRESS"):
+replace = :
+expect = tests/test_respond.py::test_escalation_reruns_review_only_after_previous_finished
+
+[M38 finding resubmitted every cycle]
+file = src/radar/respond.py
+find = if uid not in (ts.get("cn_findings") or {}) and budget.channel(t.target_id) == "s3":
+replace = if budget.channel(t.target_id) == "s3":
+expect = tests/test_respond.py::test_second_cycle_scans_the_submitted_findings_once_then_only_polls
+
+[M39 failed operation recorded as success]
+file = src/radar/respond.py
+find = _act(acts, "requirement", SA, None, "failed" if err else "done",
+replace = _act(acts, "requirement", SA, None, "done",
+expect = tests/test_respond.py::test_failed_operation_is_recorded_and_retried_next_cycle
+
+[M40 ungrounded analyst sentence leaks into Continuum context]
+file = src/radar/respond.py
+find = sents = [s["text"] for s in (analysis or {}).get(key, []) if s.get("grounded")]
+replace = sents = [s["text"] for s in (analysis or {}).get(key, [])]
+expect = tests/test_respond.py::test_context_doc_contains_only_grounded_sentences
+
+[M41 not-applicable capabilities counted in the coverage denominator]
+file = src/radar/coverage.py
+find = applicable = [r for r in rs if r["status"] in ("live", "wired")]
+replace = applicable = rs
+expect = tests/test_respond.py::test_coverage_counts_only_applicable_capabilities
+
+[M42 requirement never re-asserted after a stack update]
+file = src/radar/respond.py
+find = or synced.get("synced_day") != budget.today:
+replace = :
+expect = tests/test_respond.py::test_requirement_is_reasserted_on_a_new_day
+
+[M43 IOC matching made case-sensitive (checksummed vs lower-case spelling misses the hit)]
+file = src/radar/patterns.py
+find = if a in low:
+replace = if orig in line.lower():
+expect = tests/test_respond.py::test_ioc_hit_ignores_address_checksum_casing
+
+[M44 every repo treated as a smart-contract code base]
+file = src/radar/patterns.py
+find = return any(p.endswith(".sol") or
+replace = return True or any(p.endswith(".sol") or
+expect = tests/test_respond.py::test_alpscon_reviews_only_the_contract_repo
+
+[M45 heuristic code shape reported as an exact exposure]
+file = src/radar/patterns.py
+find = "match": "exact" if s.exact else "heuristic",
+replace = "match": "exact",
+expect = tests/test_respond.py::test_alps_vault_exact_hits_are_the_whitelisted_dev_account_and_its_public_key
+
+[M46 evidence addresses not extracted]
+file = src/radar/patterns.py
+find = seen.setdefault(a.lower(), a)
+replace = pass
+expect = tests/test_respond.py::test_alpscon_iocs_and_attack_class_come_from_evidence
+
+[M49 OCSF vulnerability without cve/cwe (rejected by Continuum's validator)]
+file = src/radar/respond.py
+find = {"cwe": {"uid": (patterns.BY_CLASS[elig["classes"][0]].cwe if web3 and elig["classes"] else "1357")}}),
+replace = {}),
+expect = tests/test_respond.py::test_web3_ocsf_carries_a_cwe_since_there_is_no_cve
+
+[M50 decide shares nested state with the caller (changes never persisted)]
+file = src/radar/respond.py
+find = st = copy.deepcopy(state or {})
+replace = st = dict(state or {})
+expect = tests/test_respond.py::test_decide_never_mutates_the_previous_state
+
+[M51 pack-prefixed requirement titles not recognised as radar hits]
+file = src/radar/respond.py
+find = _REQ_HIT = re.compile(r"^\[Requirement:\s*(?:[^\]/]+/)?" + re.escape(REQ_PREFIX))
+replace = _REQ_HIT = re.compile(r"^\[Requirement:\s*" + re.escape(REQ_PREFIX))
+expect = tests/test_respond.py::test_requirement_hit_matches_live_security_agent_titles
+
+[M52 submitted findings never trigger a rescan]
+file = src/radar/respond.py
+find = return waiting and (not scan or scan.get("status") in TERMINAL_SCAN)
+replace = return False
+expect = tests/test_respond.py::test_submitted_findings_trigger_a_rescan_once_the_last_scan_finished
+
+[M53 cooled-down events render as not_eligible and hide their results]
+file = src/radar/respond.py
+find = history = not elig.get("eligible") and st.get("targets") and st.get("last_eligibility")
+replace = history = False
+expect = tests/test_respond.py::test_cooled_down_event_keeps_and_shows_its_results
+
+[M54 stuck findings rescan forever (cost)]
+file = src/radar/respond.py
+find = waiting = any(f.get("status") == "SUBMITTED" and f.get("submitted_at", "") > last_req
+replace = waiting = any(f.get("status") == "SUBMITTED"
+expect = tests/test_respond.py::test_a_finding_stuck_after_its_rescan_does_not_rescan_again
+
+[M55 for...of in the CloudFront function (503 for every visitor)]
+file = infra/basic_auth.js
+find = for (let k = 0; k < parts.length; k++) {  // every entry is compared: timing does not reveal which user matched
+replace = for (const pp of parts) { const k = parts.indexOf(pp);
+expect = tests/test_basic_auth_fn.py::test_no_syntax_cloudfront_js_rejects
+
+[M56 alias hashes ignored (only the first entry checked)]
+file = infra/basic_auth.js
+find = const parts = expected.split(',');
+replace = const parts = [expected.split(',')[0]];
+expect = tests/test_basic_auth_fn.py
+
+[M57 rescan token ignores the finding set (replays the event's first scan; nothing runs)]
+file = src/radar/respond.py
+find = h = hashlib.sha256("|".join(sorted(finding_uids)).encode()).hexdigest()[:10]
+replace = h = "0"
+expect = tests/test_respond.py::test_rescan_token_follows_the_finding_set
+
+[M58 scan already finished at request time left running forever]
+file = src/radar/respond.py
+find = return {"SUCCEEDED": "done", "FAILED": "failed"}.get(status, "running")
+replace = return "running"
+expect = tests/test_respond.py::test_a_scan_already_finished_when_requested_is_not_left_running
+
+[M59 Plan drops `full` (manual full republish becomes incremental)]
+file = src/radar/handlers.py
+find = "full": bool(event.get("full", False))}
+replace = "full": False}
+expect = tests/test_handlers.py::test_plan_forwards_full
+
+[M60 merge drops the absorbed event's response (R2 orphan)]
+file = src/radar/pipeline.py
+find = if (gone := store.get_response(m.event_id)) is not None:
+replace = if (gone := store.get_response(m.event_id)) is None:
+expect = tests/test_pipeline_replay.py::test_merge_carries_the_absorbed_events_response_state
+
+[M61 absorbed findings keep their old uid (decide drops + resubmits ⇒ paid scan)]
+file = src/radar/respond.py
+find = new_uid = finding_uid({"event_id": survivor_id}, loc) if loc else uid
+replace = new_uid = uid
+expect = tests/test_respond.py::test_merge_states_rekeys_findings_and_keeps_survivor_records
+
+[M62 delete_response deletes the event row]
+file = src/radar/dynamo.py
+find = self.t.delete_item(Key={"pk": f"EVENT#{event_id}", "sk": "RESPONSE"})
+replace = self.t.delete_item(Key={"pk": f"EVENT#{event_id}", "sk": "META"}); self.t.delete_item(Key={"pk": f"EVENT#{event_id}", "sk": "RESPONSE"})
+expect = tests/test_store_contract.py::test_dynamo_response_delete_keeps_the_event_row
+
+[M63 finding whose location disappeared is dropped silently (R3)]
+file = src/radar/respond.py
+find = store.setdefault("resolved_findings", {})[u] = {**store[key].pop(u), "resolved_on": today}
+replace = store[key].pop(u)
+expect = tests/test_respond.py::test_finding_whose_location_disappeared_is_kept_as_resolved
+
+[M64 PR target chosen by file name only (Node patch → demo-shop)]
+file = scripts/deliver_prs.py
+find = if all(ln in text[f] for f, lines in hunks.items() for ln in lines):
+replace = if True:
+expect = tests/test_deliver_prs.py::test_patch_goes_to_the_target_whose_content_it_fits_not_the_first_with_that_file
+
+[M65 ambiguous patch target picked anyway]
+file = scripts/deliver_prs.py
+find = return fits[0] if len(fits) == 1 else None
+replace = return fits[0] if fits else None
+expect = tests/test_deliver_prs.py::test_ambiguous_or_unmatched_patch_is_skipped
+
+[M66 IAM action list drifts from the calls in code (R1)]
+file = infra/stack.py
+find = SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "ListFindings", "BatchGetFindings"]
+replace = SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "BatchGetFindings"]
+expect = tests/test_iam_scope.py::test_iam_actions_equal_the_calls_in_code
+
+[M67 Continuum context rows counted as inference units (R4)]
+file = src/radar/cost.py
+find = if svc == "continuum" and g["Keys"][1].endswith("ContinuumInference"):
+replace = if svc == "continuum":
+expect = tests/test_cost.py::test_summarize_splits_services_and_counts_only_inference_units
+
+[M68 failed Cost Explorer read retried every cycle (R4)]
+file = src/radar/cost.py
+find = timeutil.parse((led.get("cost_error") or {}).get("at"))]
+replace = None]
+expect = tests/test_cost.py::test_refresh_is_throttled_and_a_failure_backs_off_too
+
+[M69 stored findings matched by key only (legacy keys look gone ⇒ resubmit ⇒ paid scan)]
+file = src/radar/respond.py
+find = _rekey_by_location(ev, ts)
+replace = pass
+expect = tests/test_respond.py::test_findings_keyed_by_continuum_id_are_rekeyed_not_resolved_or_resubmitted
+
+[M70 poll replaces the issue list (issues of resolved findings erased)]
+file = src/radar/respond.py
+find = st["issues"] = _merge_issues(st.get("issues"), result["issues"])
+replace = st["issues"] = result["issues"]
+expect = tests/test_respond.py::test_a_poll_without_issues_does_not_erase_known_issues
+
+[M71 PR sync ignores the Continuum issue id in the PR body (links never reach the event page)]
+file = src/radar/prsync.py
+find = if b and m:
+replace = if b and m and False:
+expect = tests/test_prsync.py::test_links_parse_what_deliver_prs_writes
+
+[M72 PR sync rewrites unchanged links every hour (needless state writes / republish)]
+file = src/radar/prsync.py
+find = new = {k: v for k, v in issue_urls.items() if have.get(k) != v}
+replace = new = dict(issue_urls)
+expect = tests/test_prsync.py::test_apply_reports_change_only_once
+
+[M73 enabling push replays the whole backlog (no baseline) (C3)]
+file = src/radar/handlers.py
+find = baseline = not (status.get(c) or {}).get("baselined")
+replace = baseline = False
+expect = tests/test_handlers.py::test_notify_baselines_first_then_threads_new_facts_and_survives_a_channel_error
+
+[M74 a sent fact is pushed again (C3)]
+file = src/radar/notify.py
+find = return [m for m in out if m["key"] not in done and not (m["key"] in seen or seen.add(m["key"]))]
+replace = return [m for m in out if not (m["key"] in seen or seen.add(m["key"]))]
+expect = tests/test_notify.py::test_plan_skips_sent_keys_and_a_new_fact_is_new
+
+[M75 a patch whose event/target already has a (native) PR is delivered again]
+file = scripts/deliver_prs.py
+find = if (r["event_id"], tgt) in has_pr:
+replace = if False:
+expect = tests/test_deliver_prs.py::test_an_event_target_that_already_has_a_pr_is_not_delivered_again
+
+[M76 an issued (not yet successful) submit triggers a paid scan (≈ $1.4k/day while CreateCodeFinding was disabled)]
+file = src/radar/respond.py
+find = if _scan_due(s3_findings, st.get("scan")) and budget.scan_allowed:
+replace = if (any(o.kind == "submit_finding" for o in ops) or _scan_due(s3_findings, st.get("scan"))) and budget.scan_allowed:
+expect = tests/test_respond.py::test_a_failing_submit_never_buys_a_scan
+
+[M77 a named token glues an event whose CVEs contradict the item (Node2Shell merged into PHP2Shell)]
+file = src/radar/pipeline.py
+find = if (strong or item.domain != "web3") and not contradicts:
+replace = if strong or item.domain != "web3":
+expect = tests/test_pipeline_replay.py::test_a_named_token_cannot_glue_an_event_whose_cves_contradict_the_item
+
+[M78 a KEV catalog announcement listing two CVEs merges their events]
+file = src/radar/pipeline.py
+find = if is_roundup(item):
+replace = if False:
+expect = tests/test_pipeline_replay.py::test_kev_catalog_announcement_listing_two_cves_does_not_merge_their_events
+
+[M79 a roundup indexes its CVEs on the event it attached to (the next ordinary item re-merges)]
+file = src/radar/pipeline.py
+find = return [k for k in item.keys if not (k.startswith("cve:") and is_roundup(item))]
+replace = return list(item.keys)
+expect = tests/test_pipeline_replay.py::test_a_roundup_attaches_without_indexing_its_cves_so_a_later_item_cannot_re_merge
+
+[M80 spend cap only looks at days with spend (an old expensive day keeps blocking scans)]
+file = src/radar/cost.py
+find = days = (led.get("cost") or {}).get("days") or []   # calendar days in the window, zero-spend days included
+replace = days = [d for d in (led.get("cost") or {}).get("days") or [] if d.get("continuum_usd")]
+expect = tests/test_cost.py::test_spend_cap_looks_at_the_last_two_billed_days
+
+[M81 spend cap never fires]
+file = src/radar/cost.py
+find = if d["continuum_usd"] > Limits.CONTINUUM_DAILY_USD_CAP:
+replace = if False:
+expect = tests/test_cost.py::test_spend_cap_looks_at_the_last_two_billed_days
+
+[M82 "P0 without a scan yet" buys a scan even with nothing located (≈ $450 each)]
+file = src/radar/respond.py
+find = if _scan_due(s3_findings, st.get("scan")) and budget.scan_allowed:
+replace = if ((ev["severity"] == "P0" and not st.get("scan")) or _scan_due(s3_findings, st.get("scan"))) and budget.scan_allowed:
+expect = tests/test_respond.py::test_a_p0_event_with_nothing_located_in_our_code_never_buys_a_scan
+
+[M83 a GitHub-mirrored repo is also submitted to the S3 environment (validated and scanned twice)]
+file = src/radar/respond.py
+find = for ch in REPO_CHANNELS:  # a repository channel wins over the S3 fallback
+replace = for ch in ("gitlab",):  # a repository channel wins over the S3 fallback
+expect = tests/test_respond.py::test_github_mirror_submits_located_findings_once_and_scans
+
+[M84 a target outside the S3 channel is still submitted to the S3 environment (scanned and paid for)]
+file = src/radar/respond.py
+find = return "s3" if self.s3_targets is None or target_id in self.s3_targets else None
+replace = return "s3"
+expect = tests/test_respond.py::test_only_s3_channel_targets_go_to_the_s3_environment
+
+[M85 the GitLab channel ignores its own 24 h scan debounce (a paid scan every cycle)]
+file = src/radar/respond.py
+find =                 and getattr(budget, f"{ch}_scan_allowed"):
+replace =                 and True:
+expect = tests/test_respond.py::test_gitlab_channel_runs_the_same_chain_as_github
+
+[M86 every repository capability reads the GitHub environment (GitLab shows wired with no GitLab environment)]
+file = src/radar/coverage.py
+find = ready = bool((ledger.get("env") or {}).get(f"{c.key}_environment_id"))
+replace = ready = bool((ledger.get("env") or {}).get("github_environment_id"))
+expect = tests/test_respond.py::test_gitlab_capability_moves_needs_user_to_wired_to_live
+
+[M87 a GitLab-channel target is also submitted to the S3 environment (validated and scanned twice)]
+file = src/radar/respond.py
+find = for ch in REPO_CHANNELS:  # a repository channel wins over the S3 fallback
+replace = for ch in ("github",):  # a repository channel wins over the S3 fallback
+expect = tests/test_respond.py::test_a_gitlab_target_is_never_also_submitted_to_the_s3_environment
+
+[M88 only the GitHub environment had its schedule reconciled (a GitLab env created with P7D keeps a weekly paid scan)]
+file = src/radar/continuum_aws.py
+find = if envs and (cn.get_environment(environmentId=env)["configuration"]["codeConfiguration"].get("environmentConfiguration")
+replace = if False and (cn.get_environment(environmentId=env)["configuration"]["codeConfiguration"].get("environmentConfiguration")
+expect = tests/test_channels.py::test_every_repository_environment_has_its_schedule_reconciled
+
+[M89 one repository channel failing takes the S3 environment and the other channel down]
+file = src/radar/continuum_aws.py
+find = log.warning(json.dumps({"station": "respond", "degraded": f"{ch}_environment_unavailable", "error": str(e)[:300]}))
+replace = raise
+expect = tests/test_channels.py::test_one_failing_repository_channel_does_not_take_the_others_down
+
+[M90 a target whose repository channel is not wired yet falls back to the S3 environment (scanned and paid there)]
+file = src/radar/respond.py
+find = return "s3" if self.s3_targets is None or target_id in self.s3_targets else None
+replace = return "s3" if self.s3_targets is None or target_id in self.s3_targets or target_id != "security-radar" else None
+expect = tests/test_channels.py::test_budget_channel_answers_exactly_one_environment_per_target
+
+[M91 the raw-body fallback is skipped: GitLab MR links vanish behind SDK_UNKNOWN_MEMBER]
+file = src/radar/continuum_aws.py
+find = if "SDK_UNKNOWN_MEMBER" not in tgt:
+replace = if True:
+expect = tests/test_channels.py::test_gitlab_mr_link_survives_an_sdk_that_does_not_know_the_gitlab_member
+
+[M92 the #/continuum resources list only the S3 environment while repository channels are live]
+file = src/radar/continuum_aws.py
+find = if not env.get(f"{ch}_environment_id"):
+replace = if True:
+expect = tests/test_channels.py::test_every_wired_channel_is_listed_as_a_resource
+
+[M93 a repository-channel target is shown at the S3 key it no longer has]
+file = src/radar/continuum_aws.py
+find = if not meta or not repo:
+replace = if True:
+expect = tests/test_channels.py::test_target_location_names_the_code_the_one_channel_actually_scans
+
+[M94 repository-channel findings never retire when their line is fixed (open forever, R12)]
+file = src/radar/respond.py
+find = if mine:  # R12: the same "removed from the code" bookkeeping as the S3 path, for this channel's targets only
+replace = if False:
+expect = tests/test_respond.py::test_a_repository_channel_finding_whose_line_is_gone_is_resolved_not_resubmitted
+
+[M95 a resolved finding whose line came back is resubmitted (new finding set ⇒ a paid scan)]
+file = src/radar/respond.py
+find = for bucket in (key, "resolved_findings"):
+replace = for bucket in (key,):
+expect = tests/test_respond.py::test_a_repository_channel_finding_whose_line_is_gone_is_resolved_not_resubmitted
+
+[M96 retire ignores ownership: a target that moved channel has its findings marked "removed from the code"]
+file = src/radar/respond.py
+find = _retire(gst, "findings", live, budget.today, only=lambda f, m=frozenset(mine): f.get("target_id") in m)
+replace = _retire(gst, "findings", live, budget.today)
+expect = tests/test_respond.py::test_a_target_that_moved_to_another_channel_keeps_its_old_findings_open
+
+[M97 the event page lists only S3 findings (GitHub / GitLab radar findings invisible, verdict ignores them)]
+file = src/radar/respond.py
+find = cn = list((ts.get("cn_findings") or {}).values()) + [f for _, f in repo_live]
+replace = cn = list((ts.get("cn_findings") or {}).values())
+expect = tests/test_respond.py::test_repository_channel_findings_reach_the_event_page_and_the_verdict
+
+[M98 a merge drops the absorbed event's repository-channel findings and MRs]
+file = src/radar/respond.py
+find = for ch in REPO_CHANNELS:  # was S3-only: a merge dropped the absorbed event's GitHub / GitLab findings and PRs
+replace = for ch in ():
+expect = tests/test_respond.py::test_a_merge_keeps_the_absorbed_events_repository_channel_findings_and_mrs
+
+
+[M99 repository-channel findings stored without a title show as blank rows on the event page]
+file = src/radar/respond.py
+find = return f.get("title") or (f"{f['file']}:{f['line']}" if f.get("file") else "")
+replace = return f.get("title", "")
+expect = tests/test_respond.py::test_repository_channel_findings_reach_the_event_page_and_the_verdict
+
+[M100 a mirror keeps targets that moved to another channel (scanned and paid for in two environments)]
+file = scripts/sync-fleet.py
+find = return Plan(tuple(sorted(d for d in existing_dirs - set(ids) - {".git"})), tuple(ids))
+replace = return Plan((), tuple(ids))
+expect = tests/test_sync_fleet.py::test_each_mirror_holds_exactly_its_channels_targets_and_drops_the_rest
+
+[M101 a self-managed GitLab's MR links point at gitlab.com (R14)]
+file = src/radar/continuum_aws.py
+find = return (os.environ.get(f"CN_{ch.upper()}_URL") or respond.REPO_CHANNELS[ch]["web"]).rstrip("/")
+replace = return respond.REPO_CHANNELS[ch]["web"].rstrip("/")
+expect = tests/test_channels.py::test_a_self_managed_gitlab_url_drives_every_gitlab_link
+
+[M102 a pin that only moved lines is retired and resubmitted (new finding set ⇒ a paid scan, R9)]
+file = src/radar/respond.py
+find = if len(fits) == 1:
+replace = if False:
+expect = tests/test_respond.py::test_a_pin_that_only_moved_lines_keeps_its_finding_and_buys_no_scan
+
+[M103 line drift is guessed even when two live lines fit (the finding is pinned to an arbitrary one)]
+file = src/radar/respond.py
+find = if len(fits) == 1:
+replace = if fits:
+expect = tests/test_respond.py::test_an_ambiguous_drift_is_not_guessed
+
+[M104 radar rules of merged-away events are never pruned from the Security Agent pack (R6)]
+file = src/radar/respond.py
+find = gone = [n for n in mine if (date.fromisoformat(today) - date.fromisoformat(out[n])).days > ttl_days]
+replace = gone = []
+expect = tests/test_respond.py::test_stale_radar_rules_leave_the_pack_after_the_ttl_and_nothing_else_does
+
+[M105 pruning has no grace for a rule it sees for the first time (the deploy that adds it would empty the pack)]
+file = src/radar/respond.py
+find = out = {n: seen.get(n, today) for n in mine}
+replace = out = {n: seen.get(n, "2000-01-01") for n in mine}
+expect = tests/test_respond.py::test_stale_radar_rules_leave_the_pack_after_the_ttl_and_nothing_else_does
+
+[M106 the station ignores the per-environment scan clock (a paid scan every cycle while findings wait)]
+file = src/radar/handlers.py
+find = return not last or last < timeutil.iso(now - timedelta(hours=publish.Limits.CONTINUUM_SCAN_MIN_INTERVAL_H))
+replace = return True
+expect = tests/test_respond_station.py::test_three_cycles_route_scan_once_per_day_and_prune_daily
+
+[M107 the station never runs the daily rule prune (R6 code present, never reached)]
+file = src/radar/handlers.py
+find = if led.get("requirements_pruned_on") != nowi[:10]:  # R6, once a day
+replace = if False:
+expect = tests/test_respond_station.py::test_three_cycles_route_scan_once_per_day_and_prune_daily
+
+[M108 the station routes a GitHub-channel target to the S3 environment (repository channels never wired)]
+file = src/radar/handlers.py
+find = setattr(budget, f"{ch}_targets", targets_mod.on(ch))
+replace = pass
+expect = tests/test_respond_station.py::test_three_cycles_route_scan_once_per_day_and_prune_daily
+
+[M109 a reverted (status 0x0) attack tx counts as confirmed (an attempt corroborates a theft)]
+file = src/radar/chain.py
+find = out = {"verified": "confirmed" if status == "0x1" else "failed" if status == "0x0" else "not_found"}
+replace = out = {"verified": "confirmed"}
+expect = tests/test_chain.py::test_a_reverted_tx_does_not_corroborate
+
+[M110 a confirmed on-chain tx does not raise the level (C6 verdict computed, never used)]
+file = src/radar/pipeline.py
+find = if onchain:   # C6: the attack transaction itself exists and succeeded (receipt status 0x1 on a public RPC)
+replace = if False:
+expect = tests/test_chain.py::test_a_confirmed_attack_tx_raises_a_single_source_web3_event_to_v2
+
+[M111 recompute resets every on-chain verdict to unchecked (re-checked forever, level falls back)]
+file = src/radar/pipeline.py
+find = "verified": (seen.get(t["hash"]) or {}).get("verified", "unchecked")})
+replace = "verified": "unchecked"})
+expect = tests/test_chain.py::test_the_verdict_survives_the_next_recompute
+
+[M112 the per-cycle RPC budget is ignored (one slow node stalls the process station)]
+file = src/radar/chain.py
+find = if used < budget and due(t, now):
+replace = if due(t, now):
+expect = tests/test_chain.py::test_the_budget_bounds_rpc_calls_per_cycle
+
+[M113 final verdicts are re-checked every few hours (needless public-RPC load)]
+file = src/radar/chain.py
+find = if t.get("verified") in FINAL or int(t.get("attempts", 0)) >= Limits.CHAIN_MAX_ATTEMPTS:
+replace = if int(t.get("attempts", 0)) >= Limits.CHAIN_MAX_ATTEMPTS:
+expect = tests/test_chain.py::test_rechecks_back_off_and_stop_and_final_verdicts_are_never_rechecked
+
+[M114 an RPC transport error escapes and takes the process station down]
+file = src/radar/chain.py
+find = except (OSError, http.client.HTTPException, ValueError) as e:
+replace = except ValueError as e:
+expect = tests/test_chain.py::test_a_real_rpc_error_class_does_not_escape
+
+[M115 the digest runs before 08:00 HKT (a half-day digest at midnight)]
+file = src/radar/digest.py
+find = if now.astimezone(HKT).hour < RUN_AFTER_HKT_HOUR:
+replace = if False:
+expect = tests/test_digest.py::test_runs_once_a_day_after_8_hkt_with_bounded_retries
+
+[M116 a failing digest retries every cycle all day (144 paid calls)]
+file = src/radar/digest.py
+find = return state.get("status") != "ok" and int(state.get("attempts", 0)) < MAX_ATTEMPTS
+replace = return state.get("status") != "ok"
+expect = tests/test_digest.py::test_runs_once_a_day_after_8_hkt_with_bounded_retries
+
+[M117 a quiet day still pays for an LLM call]
+file = src/radar/digest.py
+find = if not rows:   # a quiet day is a result, not a failure — and costs no LLM call
+replace = if False:
+expect = tests/test_digest.py::test_a_quiet_day_is_a_result_and_costs_no_llm_call
+
+[M118 ungrounded digest sentences are published as ok]
+file = src/radar/digest.py
+find = status = "ok" if sentences and all(s["grounded"] for s in sentences) else "partial"
+replace = status = "ok"
+expect = tests/test_digest.py::test_sentences_are_checked_like_the_analysts_and_ungrounded_ones_are_kept_and_flagged
+
+[M119 the digest's day is the UTC date (08:00 HKT digest dated yesterday)]
+file = src/radar/digest.py
+find = return now.astimezone(HKT).date().isoformat()
+replace = return now.date().isoformat()
+expect = tests/test_digest.py::test_the_published_digest_fits_the_site_data_contract
+
+[M120 a tx marked unsupported is never re-checked after its chain gains an endpoint]
+file = src/radar/chain.py
+find = return canon(t.get("chain", "")) in RPC        # supported since ⇒ check it (no back-off: it was never called)
+replace = return False
+expect = tests/test_chain.py::test_an_unmapped_explorer_host_resolves_and_a_newly_supported_chain_is_rechecked
+
+[M121 different CVE ids no longer rule a pair out (the model may call two Plex CVEs "same")]
+file = src/radar/cluster_judge.py
+find = if a.cves and b.cves and not set(a.cves) & set(b.cves):
+replace = if False:
+expect = tests/test_cluster_judge.py::test_contradicting_facts_are_decided_by_code_without_a_model_call
+
+[M122 a malformed verdict counts as "same" (a free-text answer becomes a duplicate link)]
+file = src/radar/cluster_judge.py
+find = verdict = d.get("verdict") if d.get("verdict") in VERDICTS else "unsure"   # anything else is not a 'same'
+replace = verdict = "same" if d.get("verdict") else "unsure"
+expect = tests/test_cluster_judge.py::test_anything_but_a_clear_same_is_not_shown
+
+[M123 every candidate pair is sent to the model every cycle (no per-cycle cap)]
+file = src/radar/cluster_judge.py
+find = if not guarded and calls >= MAX_PAIRS_PER_CYCLE:
+replace = if False:
+expect = tests/test_cluster_judge.py::test_model_calls_per_cycle_are_capped
+
+[M124 a judged pair is asked again every cycle (no cache)]
+file = src/radar/cluster_judge.py
+find = if k in state:
+replace = if False:
+expect = tests/test_cluster_judge.py::test_a_same_verdict_shows_on_both_pages_and_is_not_asked_again
+
+[M125 pairs sharing a blocking key are re-judged (the rules already decided them)]
+file = src/radar/cluster_judge.py
+find = if a.domain != b.domain or set(a.keys) & set(b.keys):
+replace = if a.domain != b.domain:
+expect = tests/test_cluster_judge.py::test_candidates_are_similar_unkeyed_same_domain_events_within_72_hours
+
+[M126 a failing source does not reach the ops list]
+file = src/radar/ops.py
+find = if s.get("status") in ("failing", "degraded"):
+replace = if False:
+expect = tests/test_ops.py::test_each_rule_fires_on_its_fact
+
+[M127 the ops list is not sorted errors-first (a broken channel hides under info rows)]
+file = src/radar/ops.py
+find = return sorted(out, key=lambda it: (LEVELS.index(it["level"]), it["code"], it["title"]))
+replace = return sorted(out, key=lambda it: (it["code"], it["title"]))
+expect = tests/test_ops.py::test_each_rule_fires_on_its_fact
+
+[M128 an unconfigured push channel is reported as an error]
+file = src/radar/ops.py
+find = out.append({"level": "info", "title": f"{c} 推送未配置"
+replace = out.append({"level": "error", "title": f"{c} 推送未配置"
+expect = tests/test_ops.py::test_an_unconfigured_channel_is_info_not_an_error
