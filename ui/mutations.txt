@@ -329,3 +329,9 @@ file = src/components/detail/DuplicateNote.tsx
 find = <span className="dt-muted">（模型判断，未合并；理由见悬停）</span>
 replace = <span className="dt-muted"></span>
 expect = src/test/duplicate.test.tsx
+
+[U55 external links accept any scheme (a javascript: URL in a feed becomes clickable)]
+file = src/utils/safeHref.ts
+find = return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : undefined;
+replace = return u.href;
+expect = src/test/safeHref.test.ts

@@ -6,12 +6,16 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# least privilege for the GITHUB_TOKEN (checkov CKV2_GHA_1); actions pinned to commit SHAs (supply chain)
+permissions:
+  contents: read
+
 jobs:
   python:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
         with: { version: "0.11.4" }
       - run: uv sync --frozen
       - run: uv run ruff check src tests infra scripts integrations
@@ -22,7 +26,7 @@ jobs:
     container: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults: { run: { working-directory: ui } }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: npm run build
@@ -31,10 +35,10 @@ jobs:
   infra:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
         with: { version: "0.11.4" }
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with: { node-version: "24" }
       - run: ./scripts/build-lambda.sh && ./scripts/build-targets.sh
       # every stack synthesized with cdk-nag AwsSolutions: an unexplained finding fails the job (infra/nag.py)

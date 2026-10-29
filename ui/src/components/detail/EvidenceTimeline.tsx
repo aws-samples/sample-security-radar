@@ -2,6 +2,7 @@ import type { ItemRef, TimelineEntry } from '@/types/site-data';
 import type { EvidenceGroup } from '@/utils/evidence';
 import { formatAmount } from '@/utils/formatters';
 import { utcShort } from '@/utils/timeZh';
+import { safeHref } from '@/utils/safeHref';
 
 const TIER: Record<ItemRef['tier'], { shape: string; word: string; tone: string }> = {
   T1: { shape: '◆', word: 'T1 一手/官方', tone: 'ok' },
@@ -29,7 +30,7 @@ function Item({ it, n, flash, echo }: { it: ItemRef; n: number; flash: boolean; 
           {it.signals.amount_usd !== null && <span className="chip" style={{ color: 'var(--loss)' }}>{formatAmount(it.signals.amount_usd)}</span>}
         </div>
       </div>
-      <a href={it.url} target="_blank" rel="noopener noreferrer" aria-label={`打开原文：${it.title}`} style={{ fontSize: 12 }}>原文 ↗</a>
+      <a href={safeHref(it.url)} target="_blank" rel="noopener noreferrer" aria-label={`打开原文：${it.title}`} style={{ fontSize: 12 }}>原文 ↗</a>
     </article>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from '@/utils/continuum';
 import '@/styles/detail.css';
 import '@/styles/continuum.css';
+import { safeHref } from '@/utils/safeHref';
 
 /**
  * #/continuum — "AWS Continuum 融入" (spec 01 §5). Reading order is the page order:
@@ -318,7 +319,7 @@ function Targets({ targets }: { targets: ContinuumTarget[] }) {
                   <h3 className="ct-target-name">{t.name}</h3>
                   {channelLine(t) && <span className="ct-chan" data-channel={t.channel}>{channelLine(t)}</span>}
                   {t.channel_url
-                    ? <a className="ct-target-prefix" href={t.channel_url} target="_blank" rel="noreferrer"><code>{t.prefix}</code></a>
+                    ? <a className="ct-target-prefix" href={safeHref(t.channel_url)} target="_blank" rel="noreferrer"><code>{t.prefix}</code></a>
                     : <code className="ct-target-prefix">{t.prefix}</code>}
                 </div>
                 <p className="ct-target-desc">{t.description}</p>
@@ -401,7 +402,7 @@ function Resources({ resources }: { resources: { kind: string; id: string; name:
                     <code className="ct-res-id" title={r.id}>{r.id.length > 14 ? `${r.id.slice(0, 12)}…` : r.id}</code>
                     <CopyButton value={r.id} label={`${kindWord(r.kind)} ID`} />
                     <span className={`ct-res-st${/^(ACTIVE|ENABLED)$/.test(r.status) ? ' is-ok' : ''}`}>{r.status}</span>
-                    {r.console_url && <a className="ct-res-link" href={r.console_url} target="_blank" rel="noreferrer noopener">控制台 ↗</a>}
+                    {r.console_url && <a className="ct-res-link" href={safeHref(r.console_url)} target="_blank" rel="noreferrer noopener">控制台 ↗</a>}
                   </li>
                 ))}
               </ul>

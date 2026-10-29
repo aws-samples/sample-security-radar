@@ -7,6 +7,7 @@ import {
   ACTION_KIND_LABEL, SERVICE_LABEL, type ResolvedImpact,
 } from '@/utils/response';
 import { durationZh, utcShort } from '@/utils/timeZh';
+import { safeHref } from '@/utils/safeHref';
 
 const VERDICT: Record<ResponseTarget['verdict'], { glyph: string; word: string; tone: string }> = {
   affected: { glyph: '◆', word: '命中', tone: 'loss' },
@@ -191,7 +192,7 @@ export function EnvSection({ response, steps, impact, deepLinked }: Props) {
                                 <span>开始 {utcShort(a.started_at)}</span>
                                 <span title={d === null && a.started_at ? '时间戳不一致（updated_at 早于 started_at），不显示时长' : undefined}>耗时 {durationZh(d) ?? '—'}</span>
                                 {a.external_id && <span className="dt-mono">{short(a.external_id)} <CopyButton value={a.external_id} label={`${ACTION_KIND_LABEL[a.kind]} ID`} /></span>}
-                                {a.console_url && <a href={a.console_url} target="_blank" rel="noopener noreferrer">控制台 ↗</a>}
+                                {a.console_url && <a href={safeHref(a.console_url)} target="_blank" rel="noopener noreferrer">控制台 ↗</a>}
                               </div>
                             </li>
                           );
@@ -246,7 +247,7 @@ export function EnvSection({ response, steps, impact, deepLinked }: Props) {
                     <td>{is.exploitable ?? '—'}</td>
                     <td>{is.patch_status ?? '—'}{is.patch_path && <div className="dt-small dt-mono dt-muted">{is.patch_path}</div>}
                       {is.pr_url && (/^https:\/\/github\.com\//.test(is.pr_url)
-                        ? <div className="dt-small"><a href={is.pr_url} target="_blank" rel="noopener noreferrer">GitHub PR #{is.pr_url.split('/').pop()}</a></div>
+                        ? <div className="dt-small"><a href={safeHref(is.pr_url)} target="_blank" rel="noopener noreferrer">GitHub PR #{is.pr_url.split('/').pop()}</a></div>
                         : null)}</td>
                   </tr>
                 ))}

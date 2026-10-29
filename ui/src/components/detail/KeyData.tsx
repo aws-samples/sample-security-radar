@@ -1,6 +1,7 @@
 import type { AmountPoint, CveDetail, EventSummary, TxRef } from '@/types/site-data';
 import { AmountSparkline } from '@/components/AmountSparkline';
 import { formatAmount, formatEpss, truncateHash } from '@/utils/formatters';
+import { safeHref } from '@/utils/safeHref';
 
 const TX_WORD: Record<TxRef['verified'], { text: string; tone: string }> = {
   confirmed: { text: '✓ 链上已证实', tone: 'ok' },
@@ -67,7 +68,7 @@ export function KeyData({ event, cves, amounts, tx }: { event: EventSummary; cve
                 <span className={`tone-${TX_WORD[t.verified].tone}`} style={{ color: 'var(--tone)' }}>{TX_WORD[t.verified].text}</span>
                 <span className="dt-mono dt-muted">{t.chain}</span>
                 <code className="dt-mono">{truncateHash(t.hash)}</code>
-                {t.explorer_url && <a href={t.explorer_url} target="_blank" rel="noopener noreferrer">浏览器 ↗</a>}
+                {t.explorer_url && <a href={safeHref(t.explorer_url)} target="_blank" rel="noopener noreferrer">浏览器 ↗</a>}
               </li>
             ))}
           </ul>
