@@ -63,7 +63,8 @@ def main() -> int:
             if m.get("query_name", "").rstrip(".") == mitigate.DNS_CANARY and m.get("firewall_rule_action"):
                 rec = m
         if not rec:
-            time.sleep(20)
+            # semgrep arbitrary-sleep: polling interval while Resolver query logs arrive (bounded by --wait-min)
+            time.sleep(20)  # nosemgrep
     act = (rec or {}).get("firewall_rule_action")
     hit = act == want
     print(f"{'PASS' if hit else 'FAIL'} 3 query log: action={act} (expected {want}) rcode={(rec or {}).get('rcode')}")

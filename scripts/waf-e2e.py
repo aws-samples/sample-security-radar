@@ -89,7 +89,8 @@ def main() -> int:
             if nonce in s["Request"].get("URI", ""):
                 seen = s
         if not seen:
-            time.sleep(30)
+            # semgrep arbitrary-sleep: polling interval while WAF sampled requests arrive (bounded by --wait-min)
+            time.sleep(30)  # nosemgrep
     # evidence that THE rule matched: the sample names the rule inside the group (COUNT samples carry no Labels),
     # or — when present — the rule's label
     labels = [lb["Name"] for lb in (seen or {}).get("Labels") or []]
