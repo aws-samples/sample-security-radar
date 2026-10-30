@@ -3,6 +3,7 @@ import "@nomicfoundation/hardhat-toolbox";
 
 // DELIBERATELY VULNERABLE DEMO TARGET for Security Radar: the key below is the PUBLIC Hardhat default
 // account #0 key (printed by every `npx hardhat node`). Shipping it in a production network config is the bug.
+// It is a PUBLIC TEST KEY: never use it on a real network and never send funds to its address — anyone can spend them.
 const config: HardhatUserConfig = {
   solidity: "0.8.24",
   networks: {
