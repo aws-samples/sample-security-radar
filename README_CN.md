@@ -31,6 +31,23 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界（C
   <img src="docs/diagrams/respond-loop.svg" alt="雷达 → AWS Security Agent + AWS Continuum">
 </picture>
 
+## 界面一览
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/live-wall-light.png">
+  <img src="docs/screenshots/live-wall-dark.png" alt="Security Radar 大屏：雷达扫描、实时事件流、Web3 损失" width="100%">
+</picture>
+
+> 大屏（`#/wall`）：近 24 小时雷达扫描、实时事件流、必须处理、Web3 损失排行与链分布。
+> 截自作者的部署（2026-10-28）；每个页面都有浅色主题。
+
+<table>
+<tr><th>首页 · 态势 / NOW / 生命周期</th><th>Web3 事件</th></tr>
+<tr><td width="50%"><img src="docs/screenshots/live-home-dark.png" alt="首页"></td><td width="50%"><img src="docs/screenshots/live-web3-dark.png" alt="Web3 事件页"></td></tr>
+<tr><th>事件详情 ·「在你的环境中」：定位到行，Security Agent + Continuum 动作时间线</th><th>信源 · 每个采集器的健康</th></tr>
+<tr><td width="50%"><img src="docs/screenshots/live-detail-dark.png" alt="事件详情"></td><td width="50%"><img src="docs/screenshots/live-sources-dark.png" alt="信源页"></td></tr>
+</table>
+
 ## 关键机制
 
 | 机制 | 说明 |

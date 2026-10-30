@@ -45,6 +45,23 @@ it located**, on resources it owns, in a non-blocking mode until a human promote
   <img src="docs/diagrams/respond-loop.svg" alt="Respond loop: radar → AWS Security Agent + AWS Continuum">
 </picture>
 
+## What it looks like
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/live-wall-light.png">
+  <img src="docs/screenshots/live-wall-dark.png" alt="Security Radar wall: radar sweep, live feed and Web3 losses" width="100%">
+</picture>
+
+> The wall (`#/wall`): radar sweep of the last 24 h, the live feed, what needs a human now, Web3 losses by protocol and chain.
+> Captured from the author's deployment on 2026-10-28 (UI text is Chinese; every page also has a light theme).
+
+<table>
+<tr><th>Home — posture, NOW, lifecycle</th><th>Web3 incidents</th></tr>
+<tr><td width="50%"><img src="docs/screenshots/live-home-dark.png" alt="Home page"></td><td width="50%"><img src="docs/screenshots/live-web3-dark.png" alt="Web3 incidents page"></td></tr>
+<tr><th>Event detail — <i>in your environment</i>: located to the line, Security Agent + Continuum timeline</th><th>Sources — health of every collector</th></tr>
+<tr><td width="50%"><img src="docs/screenshots/live-detail-dark.png" alt="Event detail, in your environment"></td><td width="50%"><img src="docs/screenshots/live-sources-dark.png" alt="Sources page"></td></tr>
+</table>
+
 ## Key mechanisms
 
 | Mechanism | What it means |
