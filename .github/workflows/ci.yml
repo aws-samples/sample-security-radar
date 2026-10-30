@@ -14,7 +14,7 @@ jobs:
   python:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
         with: { version: "0.11.4" }
       - run: uv sync --frozen
@@ -26,7 +26,7 @@ jobs:
     container: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults: { run: { working-directory: ui } }
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: npm run build
@@ -35,7 +35,7 @@ jobs:
   infra:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
         with: { version: "0.11.4" }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
