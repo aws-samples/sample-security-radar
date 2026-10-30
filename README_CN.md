@@ -59,6 +59,7 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界（C
 Amazon Bedrock 可调用 Claude Sonnet / Haiku、`ap-northeast-1` 与 `us-east-1` 均已 CDK bootstrap、`uv`、Node.js ≥ 22、AWS CLI v2。
 
 ```bash
+git clone https://github.com/aws-samples/sample-security-radar.git && cd sample-security-radar
 export AWS_PROFILE=<非生产 profile>
 ./scripts/deploy-all.sh                # 构建 → 三个 CDK 栈 → 布防 UI 门 → 上传 UI → 跑一轮 → 验收
 STAGE=demo ./scripts/deploy-all.sh     # 完全独立的副本

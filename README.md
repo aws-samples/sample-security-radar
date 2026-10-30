@@ -97,6 +97,7 @@ AWS Security Agent in `ap-northeast-1`; Amazon Bedrock access to Anthropic Claud
 `ap-northeast-1` and `us-east-1`; `uv`, Node.js ≥ 22, AWS CLI v2.
 
 ```bash
+git clone https://github.com/aws-samples/sample-security-radar.git && cd sample-security-radar
 export AWS_PROFILE=<non-production-profile>
 ./scripts/deploy-all.sh                          # build → three CDK stacks → arm the UI gate → upload UI → one cycle → verify
 STAGE=demo ./scripts/deploy-all.sh               # an isolated copy (every name carries the stage)
