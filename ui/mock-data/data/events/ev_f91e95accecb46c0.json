@@ -31,10 +31,10 @@
  },
  "analysis": {
   "generated_at": "2026-10-23T07:58:21Z",
-  "model": "global.anthropic.claude-sonnet-5-5",
+  "model": "example-placeholder (deterministic text, not model output)",
   "bluf": [
    {
-    "text": "DeFiLlama Hacks 收录了一起 2021-12-21 发布的 Gamma 重入(Reentrancy)攻击事件,发生在以太坊上。",
+    "text": "示例文本（bluf 1）：Gamma — Reentrancy（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_377a2d1910f83d55"
     ],
@@ -46,7 +46,7 @@
   ],
   "what": [
    {
-    "text": "该条目标题为“Gamma — Reentrancy”,将此事件归类为重入漏洞类型。",
+    "text": "示例文本（what 1）：Gamma — Reentrancy（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_377a2d1910f83d55"
     ],
@@ -54,7 +54,7 @@
     "issues": []
    },
    {
-    "text": "条目指出受影响的链为以太坊(Ethereum)。",
+    "text": "示例文本（what 2）：Gamma — Reentrancy（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_377a2d1910f83d55"
     ],
@@ -64,7 +64,7 @@
   ],
   "impact": [
    {
-    "text": "现有证据未提供损失金额、受影响合约或用户范围,无法据此评估具体影响。",
+    "text": "示例文本（impact 1）：Gamma — Reentrancy（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_377a2d1910f83d55"
     ],
@@ -74,7 +74,7 @@
   ],
   "exploitation": [
    {
-    "text": "DeFiLlama Hacks 将其列为已发生的黑客事件,但条目未说明利用细节,也没有其他来源可对照,因此不存在来源分歧。",
+    "text": "示例文本（exploitation 1）：Gamma — Reentrancy（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_377a2d1910f83d55"
     ],
@@ -84,7 +84,7 @@
   ],
   "actions": [
    {
-    "text": "防御方或协议团队可对照“重入”这一漏洞类型,审查自身以太坊合约中的外部调用与状态更新顺序,但具体修复措施需要更多证据支持。",
+    "text": "示例文本（actions 1）：Gamma — Reentrancy（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_377a2d1910f83d55"
     ],
@@ -94,7 +94,7 @@
   ],
   "unknowns": [
    {
-    "text": "损失金额、攻击者地址、交易哈希、受影响的具体合约和是否已修复,均未在该条目中说明。",
+    "text": "示例文本（unknowns 1）：Gamma — Reentrancy（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_377a2d1910f83d55"
     ],
@@ -102,7 +102,7 @@
     "issues": []
    },
    {
-    "text": "该条目仅有单一 T2 来源,事件细节尚未得到其他来源交叉确认。",
+    "text": "示例文本（unknowns 2）：Gamma — Reentrancy（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_377a2d1910f83d55"
     ],

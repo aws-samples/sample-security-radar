@@ -34,10 +34,10 @@
  },
  "analysis": {
   "generated_at": "2026-10-23T08:28:30Z",
-  "model": "global.anthropic.claude-sonnet-5-5",
+  "model": "example-placeholder (deterministic text, not model output)",
   "bluf": [
    {
-    "text": "UNCX Network Vesting V2 合约因份额记账漏洞遭攻击,多链共享归属池被抽走代币,累计损失约149万美元。",
+    "text": "示例文本（bluf 1）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_6a481cdbb0f4cd48",
      "it_f71f320a30ff77fd"
@@ -50,7 +50,7 @@
   ],
   "what": [
    {
-    "text": "SlowMist 称 UNCX Vesting V2 合约存在份额记账逻辑漏洞,即 VestingManager.cancel 未确保保留的份额足以覆盖已释放的数额。",
+    "text": "示例文本（what 1）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_6a481cdbb0f4cd48"
     ],
@@ -58,7 +58,7 @@
     "issues": []
    },
    {
-    "text": "攻击者先直接转入代币以降低每代币份额比率,然后释放并取消归属计划,从共享归属池中抽走超额代币。",
+    "text": "示例文本（what 2）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_6a481cdbb0f4cd48"
     ],
@@ -66,7 +66,7 @@
     "issues": []
    },
    {
-    "text": "DeFiLlama 将该事件归类为 UNCX Network V2 的代币与份额记账错误(Incorrect Share Accounting)。",
+    "text": "示例文本（what 3）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_f71f320a30ff77fd"
     ],
@@ -76,7 +76,7 @@
   ],
   "impact": [
    {
-    "text": "受影响的链包括 Ethereum、Base、BSC 和 Robinhood Chain。",
+    "text": "示例文本（impact 1）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_f71f320a30ff77fd"
     ],
@@ -84,7 +84,7 @@
     "issues": []
    },
    {
-    "text": "以太坊上的初始损失约为8.6万美元,后来升至跨多链约149万美元。",
+    "text": "示例文本（impact 2）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_6a481cdbb0f4cd48"
     ],
@@ -96,7 +96,7 @@
   ],
   "exploitation": [
    {
-    "text": "SlowMist 描述了攻击者已实际利用该漏洞并抽走资金,DeFiLlama 同样将其列为已发生的黑客事件,两个来源在此方面没有分歧。",
+    "text": "示例文本（exploitation 1）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_6a481cdbb0f4cd48",
      "it_f71f320a30ff77fd"
@@ -107,7 +107,7 @@
   ],
   "actions": [
    {
-    "text": "协议团队应审查 VestingManager.cancel 的逻辑,确保取消时保留的份额能覆盖已释放的数额。",
+    "text": "示例文本（actions 1）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_6a481cdbb0f4cd48"
     ],
@@ -115,7 +115,7 @@
     "issues": []
    },
    {
-    "text": "防御方应排查 Ethereum、Base、BSC 和 Robinhood Chain 上的 UNCX Vesting V2 部署及共享归属池的敞口。",
+    "text": "示例文本（actions 2）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_f71f320a30ff77fd",
      "it_6a481cdbb0f4cd48"
@@ -126,7 +126,7 @@
   ],
   "unknowns": [
    {
-    "text": "现有证据未说明各条链上的具体损失分布,也未提供攻击者地址或资金去向。",
+    "text": "示例文本（unknowns 1）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_6a481cdbb0f4cd48",
      "it_f71f320a30ff77fd"
@@ -135,7 +135,7 @@
     "issues": []
    },
    {
-    "text": "证据未说明漏洞是否已修复,也未说明项目方是否已暂停合约或采取其他缓解措施。",
+    "text": "示例文本（unknowns 2）：UNCX Network V2 — Smart Contract Vulnerability（P1 · V4 · 2 个独立来源）。",
     "cite": [
      "it_6a481cdbb0f4cd48",
      "it_f71f320a30ff77fd"

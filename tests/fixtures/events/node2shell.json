@@ -23,15 +23,15 @@
   "chains": [],
   "amount_usd_latest": null,
   "amount_disputed": false,
-  "summary": "Node2Shell概念验证显示恶意Brotli数据可在官方Node.js构建上执行代码。",
+  "summary": "示例摘要：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
   "analysis_status": "ok"
  },
  "analysis": {
   "generated_at": "2026-10-23T08:28:30Z",
-  "model": "global.anthropic.claude-sonnet-5-5",
+  "model": "example-placeholder (deterministic text, not model output)",
   "bluf": [
    {
-    "text": "Node2Shell概念验证显示恶意Brotli数据可在官方Node.js构建上执行代码。",
+    "text": "示例文本（bluf 1）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_f9336dfbcc27c252"
     ],
@@ -41,7 +41,7 @@
   ],
   "what": [
    {
-    "text": "Imperva研究人员演示了名为Node2Shell的概念验证，向Node.js内置的Brotli解码器输入构造的数据，即可让应用运行攻击者提供的代码，对应漏洞编号为CVE-2026-111497。",
+    "text": "示例文本（what 1）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_f9336dfbcc27c252"
     ],
@@ -49,7 +49,7 @@
     "issues": []
    },
    {
-    "text": "该概念验证在官方Node.js 24.22.0 Linux arm64镜像上运行成功，无需调试器或自定义构建。",
+    "text": "示例文本（what 2）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_f9336dfbcc27c252"
     ],
@@ -59,7 +59,7 @@
   ],
   "impact": [
    {
-    "text": "构造的Brotli数据可通过存在漏洞的Node.js应用触发代码执行，且无需修改运行时。",
+    "text": "示例文本（impact 1）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_bd8e2d3a2022b380",
      "it_f9336dfbcc27c252"
@@ -70,7 +70,7 @@
   ],
   "exploitation": [
    {
-    "text": "目前证据只显示研究人员公开演示了概念验证，两个来源对此说法一致，没有任何来源报告在野利用。",
+    "text": "示例文本（exploitation 1）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_f9336dfbcc27c252",
      "it_bd8e2d3a2022b380"
@@ -81,7 +81,7 @@
   ],
   "actions": [
    {
-    "text": "防御方应排查是否在使用官方Node.js 24.22.0镜像（尤其是Linux arm64），以及应用是否会用内置Brotli解码器处理不可信数据。",
+    "text": "示例文本（actions 1）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_f9336dfbcc27c252"
     ],
@@ -89,7 +89,7 @@
     "issues": []
    },
    {
-    "text": "防御方应跟进Node.js对CVE-2026-111497的披露信息，以确认官方给出的修复或缓解措施。",
+    "text": "示例文本（actions 2）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_f9336dfbcc27c252"
     ],
@@ -99,7 +99,7 @@
   ],
   "unknowns": [
    {
-    "text": "现有证据未说明是否已出现在野利用。",
+    "text": "示例文本（unknowns 1）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_f9336dfbcc27c252",
      "it_bd8e2d3a2022b380"
@@ -108,7 +108,7 @@
     "issues": []
    },
    {
-    "text": "除已演示的Node.js 24.22.0 Linux arm64镜像外，其他版本和平台是否受影响，证据中没有说明。",
+    "text": "示例文本（unknowns 2）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_f9336dfbcc27c252"
     ],
@@ -116,7 +116,7 @@
     "issues": []
    },
    {
-    "text": "修复版本和官方缓解措施的具体内容，在现有证据中未得到确认。",
+    "text": "示例文本（unknowns 3）：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_f9336dfbcc27c252"
     ],
@@ -176,7 +176,7 @@
   {
    "step": "analyzed",
    "status": "done",
-   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+   "detail": "example-placeholder · 全部句子通过校验"
   },
   {
    "step": "impact_match",

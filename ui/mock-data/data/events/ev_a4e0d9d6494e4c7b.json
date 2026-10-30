@@ -25,16 +25,16 @@
   ],
   "amount_usd_latest": 4900000.0,
   "amount_disputed": false,
-  "summary": "DeFiLlama Hacks 记录了以太坊上 OcelotDex 因代币与份额记账缺陷导致的无限铸造事件,需要尽快关注其后续影响。",
+  "summary": "示例摘要：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
   "analysis_status": "partial",
   "impact": null
  },
  "analysis": {
   "generated_at": "2026-10-23T07:58:21Z",
-  "model": "global.anthropic.claude-sonnet-5-5",
+  "model": "example-placeholder (deterministic text, not model output)",
   "bluf": [
    {
-    "text": "DeFiLlama Hacks 记录了以太坊上 OcelotDex 因代币与份额记账缺陷导致的无限铸造事件,需要尽快关注其后续影响。",
+    "text": "示例文本（bluf 1）：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_e484707a8f2cae77"
     ],
@@ -44,7 +44,7 @@
   ],
   "what": [
    {
-    "text": "该事件被归类为 OcelotDex 的“无限铸造(Infinite Mint)”,涉及代币与份额记账(Token & Share Accounting)问题。",
+    "text": "示例文本（what 1）：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_e484707a8f2cae77"
     ],
@@ -52,7 +52,7 @@
     "issues": []
    },
    {
-    "text": "事件发生在以太坊链上,相关条目的发布日期为 2024-09-20。",
+    "text": "示例文本（what 2）：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_e484707a8f2cae77"
     ],
@@ -64,7 +64,7 @@
   ],
   "impact": [
    {
-    "text": "现有证据仅表明存在无限铸造类漏洞,未给出受影响资产、损失金额或受影响用户的具体信息。",
+    "text": "示例文本（impact 1）：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_e484707a8f2cae77"
     ],
@@ -74,7 +74,7 @@
   ],
   "exploitation": [
    {
-    "text": "该条目被收录于 DeFiLlama Hacks 的黑客事件列表,但证据中没有说明利用的具体过程、攻击者或是否仍在持续,也没有其他来源可供对照。",
+    "text": "示例文本（exploitation 1）：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_e484707a8f2cae77"
     ],
@@ -84,7 +84,7 @@
   ],
   "actions": [
    {
-    "text": "OcelotDex 协议团队可据此条目优先复查以太坊部署中代币与份额的记账及铸造逻辑。",
+    "text": "示例文本（actions 1）：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_e484707a8f2cae77"
     ],
@@ -92,7 +92,7 @@
     "issues": []
    },
    {
-    "text": "防守方可将 OcelotDex 相关敞口纳入监控,并等待更详细的事后分析后再确定进一步措施。",
+    "text": "示例文本（actions 2）：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_e484707a8f2cae77"
     ],
@@ -102,7 +102,7 @@
   ],
   "unknowns": [
    {
-    "text": "损失金额、受影响合约地址、攻击交易和根本原因的技术细节在现有证据中均未提供。",
+    "text": "示例文本（unknowns 1）：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_e484707a8f2cae77"
     ],
@@ -110,7 +110,7 @@
     "issues": []
    },
    {
-    "text": "协议方是否已确认事件、暂停合约或采取修复措施,目前尚不清楚。",
+    "text": "示例文本（unknowns 2）：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_e484707a8f2cae77"
     ],

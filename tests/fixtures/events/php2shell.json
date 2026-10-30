@@ -25,15 +25,15 @@
   "chains": [],
   "amount_usd_latest": null,
   "amount_disputed": false,
-  "summary": "PHP2Shell 涉及两个 PHP 严重远程代码执行漏洞，补丁发布前后均出现利用尝试，需立即升级到已修复版本。",
+  "summary": "示例摘要：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
   "analysis_status": "ok"
  },
  "analysis": {
   "generated_at": "2026-10-23T16:08:35Z",
-  "model": "global.anthropic.claude-sonnet-5-5",
+  "model": "example-placeholder (deterministic text, not model output)",
   "bluf": [
    {
-    "text": "PHP2Shell 涉及两个 PHP 严重远程代码执行漏洞，补丁发布前后均出现利用尝试，需立即升级到已修复版本。",
+    "text": "示例文本（bluf 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_ab75cc0e4f28b9d1",
      "it_093ee808007ce965"
@@ -44,7 +44,7 @@
   ],
   "what": [
    {
-    "text": "CVE-2026-109618 源于 PHP 在内存不足时用 longjmp() 退出，部分上下文会在分配前让请求内存处于未初始化状态，后续清理过程读取该内存即可能导致远程代码执行。",
+    "text": "示例文本（what 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_c98ed7fbadcc1ab3"
     ],
@@ -52,7 +52,7 @@
     "issues": []
    },
    {
-    "text": "CVE-2026-109619 源于部分全局状态未被正确重置或被重新填充，释放后仍指向请求内存，后续请求读取这一过期状态即可能导致远程代码执行。",
+    "text": "示例文本（what 2）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_c98ed7fbadcc1ab3"
     ],
@@ -60,7 +60,7 @@
     "issues": []
    },
    {
-    "text": "PHP 已发布 8.5.12、8.4.27、8.3.36 和 8.2.35 版本修复这两个漏洞。",
+    "text": "示例文本（what 3）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_2e61a5adf16b136e",
      "it_ab75cc0e4f28b9d1"
@@ -69,7 +69,7 @@
     "issues": []
    },
    {
-    "text": "慢雾报告称受影响版本为 PHP 5.4 至 8.5.11，且漏洞细节在官方补丁发布前已泄露。",
+    "text": "示例文本（what 4）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_868ce1e80aaa27da"
     ],
@@ -79,7 +79,7 @@
   ],
   "impact": [
    {
-    "text": "CISA 称这些漏洞允许未经认证的远程代码执行，影响所有处理 Web 请求的 PHP 安装。",
+    "text": "示例文本（impact 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_2e61a5adf16b136e"
     ],
@@ -87,7 +87,7 @@
     "issues": []
    },
    {
-    "text": "漏洞位于 PHP 运行时而非具体应用，因此即使网站自身代码没有问题也可能暴露。",
+    "text": "示例文本（impact 2）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_ab75cc0e4f28b9d1"
     ],
@@ -95,7 +95,7 @@
     "issues": []
    },
    {
-    "text": "慢雾指出 Web3 项目的前端页面、API 接口、运营后台及托管钱包服务等链下设施面临风险，攻击者可能篡改前端并诱导用户签署恶意交易。",
+    "text": "示例文本（impact 3）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_868ce1e80aaa27da",
      "it_15d6f4162ebd81bd"
@@ -104,7 +104,7 @@
     "issues": []
    },
    {
-    "text": "慢雾扫描的 1488 个加密相关域名中，有 793 个带有直接 PHP 指纹，占比约 53.3%。",
+    "text": "示例文本（impact 4）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_868ce1e80aaa27da"
     ],
@@ -114,7 +114,7 @@
   ],
   "exploitation": [
    {
-    "text": "各来源对利用情况的说法不一致：CISA 在发布时称尚未观察到利用，而亚马逊威胁情报团队称早在 10 月 17 日就在其 MadPot 蜜罐上检测到利用尝试。",
+    "text": "示例文本（exploitation 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_2e61a5adf16b136e",
      "it_093ee808007ce965"
@@ -123,7 +123,7 @@
     "issues": []
    },
    {
-    "text": "报道称补丁发布后大规模利用活动随即开始，watchTowr 也表示利用尝试已在进行。",
+    "text": "示例文本（exploitation 2）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_7053a5997029ddc7",
      "it_af3aa36b8f38e12d"
@@ -132,7 +132,7 @@
     "issues": []
    },
    {
-    "text": "有攻击者试图利用这些漏洞把受感染系统纳入名为 Potassium 的 Mirai 变种僵尸网络，但尝试未成功，报道称武器化可能比预想的更难。",
+    "text": "示例文本（exploitation 3）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_2de97842337a2adb"
     ],
@@ -140,7 +140,7 @@
     "issues": []
    },
    {
-    "text": "目前尚未确认有成功入侵的案例。",
+    "text": "示例文本（exploitation 4）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_2b238c8718e04ba7"
     ],
@@ -150,7 +150,7 @@
   ],
   "actions": [
    {
-    "text": "应立即将 PHP 升级到 8.5.12、8.4.27、8.3.36 或 8.2.35，并优先处理面向互联网的系统。",
+    "text": "示例文本（actions 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_2e61a5adf16b136e"
     ],
@@ -158,7 +158,7 @@
     "issues": []
    },
    {
-    "text": "应盘点组织内所有运行 PHP 的系统，因为 PHP 常作为其他软件的组件存在，其普及程度可能无法直接观察到。",
+    "text": "示例文本（actions 2）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_2e61a5adf16b136e"
     ],
@@ -166,7 +166,7 @@
     "issues": []
    },
    {
-    "text": "无法立即更新或仍在使用 PHP 8.1 及更早的不受支持版本时，CISA 建议将相关系统下线直到完成修补，Web 应用防火墙可提供一定保护。",
+    "text": "示例文本（actions 3）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_2e61a5adf16b136e"
     ],
@@ -174,7 +174,7 @@
     "issues": []
    },
    {
-    "text": "慢雾建议 Web3 项目升级到对应的最新修复版本，并尽快迁移已停止上游常规支持的 PHP 8.1 及更早版本。",
+    "text": "示例文本（actions 4）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_868ce1e80aaa27da"
     ],
@@ -182,7 +182,7 @@
     "issues": []
    },
    {
-    "text": "对于另一个独立漏洞 CVE-2026-115560，PHP 给出的缓解措施是设置 session.upload_progress.enabled=0。",
+    "text": "示例文本（actions 5）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_7925d1d08982ba12",
      "it_80beecce80a694a6"
@@ -193,7 +193,7 @@
   ],
   "unknowns": [
    {
-    "text": "是否已有利用成功的真实入侵尚未确认，目前仅有尝试失败和暂无已确认成功案例的报道。",
+    "text": "示例文本（unknowns 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_2b238c8718e04ba7",
      "it_2de97842337a2adb"
@@ -202,7 +202,7 @@
     "issues": []
    },
    {
-    "text": "补丁发布前的临时缓解措施无法完全阻断这两个漏洞，单靠某个配置项也不足以防护。",
+    "text": "示例文本（unknowns 2）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_bcf3336ac200ef0c"
     ],
@@ -210,7 +210,7 @@
     "issues": []
    },
    {
-    "text": "PHP 在两天后警告的 CVE-2026-115560 未被此次紧急更新修复，其严重程度评分和受影响版本列表尚未公布，修复计划在常规版本中发布。",
+    "text": "示例文本（unknowns 3）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_30e7ef9f436b9637",
      "it_7946bf863ca3eabb"
@@ -219,7 +219,7 @@
     "issues": []
    },
    {
-    "text": "PHP 认为 CVE-2026-115560 仅影响不常见的会话配置，实际风险不大，且目前没有已报告的攻击。",
+    "text": "示例文本（unknowns 4）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
     "cite": [
      "it_30e7ef9f436b9637"
     ],
@@ -279,7 +279,7 @@
   {
    "step": "analyzed",
    "status": "done",
-   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+   "detail": "example-placeholder · 全部句子通过校验"
   },
   {
    "step": "impact_match",

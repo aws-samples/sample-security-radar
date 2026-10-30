@@ -26,7 +26,7 @@
       "chains": [],
       "amount_usd_latest": null,
       "amount_disputed": false,
-      "summary": "PHP2Shell 涉及两个 PHP 严重远程代码执行漏洞，补丁发布前后均出现利用尝试，需立即升级到已修复版本。",
+      "summary": "示例摘要：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-（P0 · V3 · 8 个独立来源）。",
       "analysis_status": "ok",
       "impact": {
         "status": "affected",
@@ -54,7 +54,7 @@
       "chains": [],
       "amount_usd_latest": null,
       "amount_disputed": false,
-      "summary": "Arista 已修补 VeloCloud Orchestrator 本地部署中一个被积极利用的 SQL 注入零日漏洞,攻击者可借此获得操作员权限。",
+      "summary": "示例摘要：Arista patches new VeloCloud Orchestrator zero-day exploited（P0 · V2 · 3 个独立来源）。",
       "analysis_status": "ok",
       "impact": {
         "status": "not_eligible",
@@ -86,7 +86,7 @@
       ],
       "amount_usd_latest": 550000.0,
       "amount_disputed": false,
-      "summary": "DeFiLlama 记录了 BSC 上 Merlin 因代币与份额记账舍入错误而发生的安全事件。",
+      "summary": "示例摘要：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
       "analysis_status": "ok",
       "impact": null
     },
@@ -142,7 +142,7 @@
       ],
       "amount_usd_latest": 4900000.0,
       "amount_disputed": false,
-      "summary": "DeFiLlama Hacks 记录了以太坊上 OcelotDex 因代币与份额记账缺陷导致的无限铸造事件,需要尽快关注其后续影响。",
+      "summary": "示例摘要：OcelotDex — Infinite Mint（P1 · V1 · 1 个独立来源）。",
       "analysis_status": "partial",
       "impact": null
     },
@@ -168,7 +168,7 @@
       "chains": [],
       "amount_usd_latest": null,
       "amount_disputed": false,
-      "summary": "Node2Shell概念验证显示恶意Brotli数据可在官方Node.js构建上执行代码。",
+      "summary": "示例摘要：Researchers Demonstrate Node2Shell RCE Exploit on Node.js Bu（P1 · V1 · 1 个独立来源）。",
       "analysis_status": "ok",
       "impact": null
     },
@@ -222,7 +222,7 @@
       "chains": [],
       "amount_usd_latest": null,
       "amount_disputed": false,
-      "summary": "西门子 Software Center 的 DLL 搜索路径漏洞 CVE-2026-110936 已被 ClickFix 攻击利用,需尽快更新。",
+      "summary": "示例摘要：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
       "analysis_status": "ok",
       "impact": null
     },
@@ -251,7 +251,7 @@
       "chains": [],
       "amount_usd_latest": null,
       "amount_disputed": false,
-      "summary": "CISA 将 SiteGuard 命令注入漏洞与 Plex2Shell 等漏洞列入 KEV,要求联邦机构修补。",
+      "summary": "示例摘要：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
       "analysis_status": "ok",
       "impact": null
     },
@@ -277,7 +277,7 @@
       "chains": [],
       "amount_usd_latest": null,
       "amount_disputed": false,
-      "summary": "Fortinet FortiSIEM 已修补的 CVE-2026-106173 现已出现公开 PoC,可能导致未授权代码执行。",
+      "summary": "示例摘要：Critical FortiSIEM Flaw Gets Public Exploit PoC for Unauthen（P1 · V1 · 1 个独立来源）。",
       "analysis_status": "ok",
       "impact": null
     },
@@ -305,7 +305,7 @@
       "chains": [],
       "amount_usd_latest": null,
       "amount_disputed": false,
-      "summary": "CVE-2026-0257 是 PAN-OS 的认证绕过漏洞,已被列入 CISA KEV,且勒索软件组织仍在利用,需立即关注。",
+      "summary": "示例摘要：CVE-2026-0257 Palo Alto Networks PAN-OS: Palo Alto Networks （P1 · V4 · 2 个独立来源）。",
       "analysis_status": "ok",
       "impact": null
     },
@@ -480,7 +480,7 @@
   "digest": {
     "day": "2026-10-24",
     "generated_at": "2026-10-24T00:10:00Z",
-    "model": "global.anthropic.claude-sonnet-5-5",
+    "model": "example-placeholder (deterministic text, not model output)",
     "status": "partial",
     "reason": null,
     "header": {
@@ -493,7 +493,7 @@
     },
     "summary": [
       {
-        "text": "PHP core RCE vulnerability patches (CVE- 是今天最需要处理的事件。",
+        "text": "示例日报（summary 1）：PHP core RCE vulnerability patches (CVE-。",
         "cite": [
           "ev_bb65db3b8694e5f4"
         ],
@@ -503,7 +503,7 @@
     ],
     "highlights": [
       {
-        "text": "PHP core RCE vulnerability patches (。",
+        "text": "示例日报（highlights 1）：PHP core RCE vulnerability patches (CVE-。",
         "cite": [
           "ev_bb65db3b8694e5f4"
         ],
@@ -511,7 +511,7 @@
         "issues": []
       },
       {
-        "text": "Arista patches new VeloCloud Orchest。",
+        "text": "示例日报（highlights 2）：Arista patches new VeloCloud Orchestrato。",
         "cite": [
           "ev_3fa1b7cea621a766"
         ],
@@ -519,7 +519,7 @@
         "issues": []
       },
       {
-        "text": "Merlin — Rounding Error。",
+        "text": "示例日报（highlights 3）：Merlin — Rounding Error。",
         "cite": [
           "ev_17362ddf0aeec0c2"
         ],
@@ -529,7 +529,7 @@
     ],
     "watch": [
       {
-        "text": "损失金额仍在变化，以链上数据为准 999 万。",
+        "text": "示例日报（watch 1）：Merlin — Rounding Error。",
         "cite": [
           "ev_17362ddf0aeec0c2"
         ],

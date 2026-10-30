@@ -26,16 +26,16 @@
   "chains": [],
   "amount_usd_latest": null,
   "amount_disputed": false,
-  "summary": "CISA 将 SiteGuard 命令注入漏洞与 Plex2Shell 等漏洞列入 KEV,要求联邦机构修补。",
+  "summary": "示例摘要：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
   "analysis_status": "ok",
   "impact": null
  },
  "analysis": {
   "generated_at": "2026-10-23T07:52:08Z",
-  "model": "global.anthropic.claude-sonnet-5-5",
+  "model": "example-placeholder (deterministic text, not model output)",
   "bluf": [
    {
-    "text": "CISA 将 SiteGuard 命令注入漏洞与 Plex2Shell 等漏洞列入 KEV,要求联邦机构修补。",
+    "text": "示例文本（bluf 1）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_405045ec2939ef6c",
      "it_7a40a3700ed15e8f"
@@ -46,7 +46,7 @@
   ],
   "what": [
    {
-    "text": "CISA KEV 收录了 CVE-2026-106931,这是 EG Secure Solutions SiteGuard Server Edition 中的操作系统命令注入漏洞。",
+    "text": "示例文本（what 1）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_405045ec2939ef6c"
     ],
@@ -54,7 +54,7 @@
     "issues": []
    },
    {
-    "text": "The Hacker News 报道称,CISA 周二向 KEV 目录新增漏洞,涉及 Plex2Shell、Siemens 和 SiteGuard。",
+    "text": "示例文本（what 2）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_7a40a3700ed15e8f"
     ],
@@ -62,7 +62,7 @@
     "issues": []
    },
    {
-    "text": "报道列出的 Plex Media Server 漏洞包括 CVE-2026-96652,这是一个服务器端请求伪造(SSRF)漏洞。",
+    "text": "示例文本（what 3）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_7a40a3700ed15e8f"
     ],
@@ -72,7 +72,7 @@
   ],
   "impact": [
    {
-    "text": "攻击者利用 SiteGuard 漏洞,可能以 root 或 SYSTEM 权限在运行该产品的系统上执行任意操作系统命令。",
+    "text": "示例文本（impact 1）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_405045ec2939ef6c"
     ],
@@ -80,7 +80,7 @@
     "issues": []
    },
    {
-    "text": "Plex Media Server 的多个漏洞被合称为 Plex2Shell,据报道攻击者可串联利用它们入侵服务器。",
+    "text": "示例文本（impact 2）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_7a40a3700ed15e8f",
      "it_09da013ac41f64ac"
@@ -91,7 +91,7 @@
   ],
   "exploitation": [
    {
-    "text": "BleepingComputer 引述 CISA 称,攻击者正在积极利用 Plex Media Server 的四个漏洞,并将其串联用于 Plex2Shell 攻击。",
+    "text": "示例文本（exploitation 1）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_09da013ac41f64ac"
     ],
@@ -99,7 +99,7 @@
     "issues": []
    },
    {
-    "text": "The Hacker News 标题称 Plex2Shell、Siemens 和 SiteGuard 漏洞均已被利用,并说明 CISA 要求联邦机构修补;现有来源之间未见关于利用情况的相互矛盾。",
+    "text": "示例文本（exploitation 2）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_7a40a3700ed15e8f"
     ],
@@ -107,7 +107,7 @@
     "issues": []
    },
    {
-    "text": "SiteGuard 的 KEV 条目只描述了漏洞的潜在影响,未提供具体的利用手法或攻击活动细节。",
+    "text": "示例文本（exploitation 3）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_405045ec2939ef6c"
     ],
@@ -117,7 +117,7 @@
   ],
   "actions": [
    {
-    "text": "防御方应排查环境中是否部署了 EG Secure Solutions SiteGuard Server Edition,并按 CISA KEV 的要求优先修补。",
+    "text": "示例文本（actions 1）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_405045ec2939ef6c",
      "it_7a40a3700ed15e8f"
@@ -126,7 +126,7 @@
     "issues": []
    },
    {
-    "text": "防御方应排查环境中是否运行 Plex Media Server,并按 CISA 的要求修补 Plex2Shell 相关漏洞。",
+    "text": "示例文本（actions 2）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_7a40a3700ed15e8f",
      "it_09da013ac41f64ac"
@@ -137,7 +137,7 @@
   ],
   "unknowns": [
    {
-    "text": "现有证据未给出 SiteGuard 受影响的具体版本和修复版本。",
+    "text": "示例文本（unknowns 1）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_405045ec2939ef6c"
     ],
@@ -145,7 +145,7 @@
     "issues": []
    },
    {
-    "text": "The Hacker News 摘录中只列出一个 Plex 漏洞编号,Plex2Shell 其余漏洞的编号以及本次新增漏洞的完整清单尚未确认。",
+    "text": "示例文本（unknowns 2）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_7a40a3700ed15e8f"
     ],
@@ -153,7 +153,7 @@
     "issues": []
    },
    {
-    "text": "来源对新增漏洞数量的表述不够清晰,且未说明 Siemens 相关漏洞的细节。",
+    "text": "示例文本（unknowns 3）：CVE-2026-106931 EG Secure Solutions SiteGuard Server Edition（P1 · V3 · 3 个独立来源）。",
     "cite": [
      "it_7a40a3700ed15e8f"
     ],
@@ -213,7 +213,7 @@
   {
    "step": "analyzed",
    "status": "done",
-   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+   "detail": "example-placeholder · 全部句子通过校验"
   },
   {
    "step": "impact_match",

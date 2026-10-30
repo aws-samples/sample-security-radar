@@ -25,16 +25,16 @@
   "chains": [],
   "amount_usd_latest": null,
   "amount_disputed": false,
-  "summary": "西门子 Software Center 的 DLL 搜索路径漏洞 CVE-2026-110936 已被 ClickFix 攻击利用,需尽快更新。",
+  "summary": "示例摘要：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
   "analysis_status": "ok",
   "impact": null
  },
  "analysis": {
   "generated_at": "2026-10-23T07:52:08Z",
-  "model": "global.anthropic.claude-sonnet-5-5",
+  "model": "example-placeholder (deterministic text, not model output)",
   "bluf": [
    {
-    "text": "西门子 Software Center 的 DLL 搜索路径漏洞 CVE-2026-110936 已被 ClickFix 攻击利用,需尽快更新。",
+    "text": "示例文本（bluf 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_3582b5fc4a90b6c6",
      "it_8ed7b96f450330c8"
@@ -45,7 +45,7 @@
   ],
   "what": [
    {
-    "text": "CVE-2026-110936 是 Siemens Software Center 中的不受控搜索路径漏洞,应用会从不受控的路径加载 DLL。",
+    "text": "示例文本（what 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_8ed7b96f450330c8",
      "it_b9ebe18af790db07"
@@ -54,7 +54,7 @@
     "issues": []
    },
    {
-    "text": "经过身份验证的本地攻击者可在应用搜索的目录中放置特制 DLL,以受影响应用的权限执行任意代码。",
+    "text": "示例文本（what 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_8ed7b96f450330c8",
      "it_b9ebe18af790db07"
@@ -63,7 +63,7 @@
     "issues": []
    },
    {
-    "text": "受影响版本为 Siemens Software Center 4.0.9.8 之前的版本。",
+    "text": "示例文本（what 3）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07"
     ],
@@ -73,7 +73,7 @@
   ],
   "impact": [
    {
-    "text": "成功利用可导致以受影响应用的权限执行任意代码。",
+    "text": "示例文本（impact 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_8ed7b96f450330c8",
      "it_b9ebe18af790db07"
@@ -82,7 +82,7 @@
     "issues": []
    },
    {
-    "text": "CISA 通告列出的相关关键基础设施行业包括关键制造、交通运输系统、能源、医疗卫生、金融服务以及政府服务和设施,部署范围为全球。",
+    "text": "示例文本（impact 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07"
     ],
@@ -92,7 +92,7 @@
   ],
   "exploitation": [
    {
-    "text": "CISA KEV 收录了该漏洞,The Hacker News 报道西门子称其已在 ClickFix 攻击中被利用,并用于投递远程访问木马。",
+    "text": "示例文本（exploitation 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_8ed7b96f450330c8",
      "it_3582b5fc4a90b6c6"
@@ -101,7 +101,7 @@
     "issues": []
    },
    {
-    "text": "CISA 通告也提到当前已知的主动利用情况,并指引读者参阅西门子博客了解检测方法。",
+    "text": "示例文本（exploitation 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07"
     ],
@@ -109,7 +109,7 @@
     "issues": []
    },
    {
-    "text": "现有来源在 CVSS 评分上不一致:The Hacker News 引用 CVSS v4 评分 8.4,CISA 通告列出的是 CVSS v3 评分 6.7;各来源对利用事实的表述未见冲突。",
+    "text": "示例文本（exploitation 3）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_3582b5fc4a90b6c6",
      "it_b9ebe18af790db07"
@@ -120,7 +120,7 @@
   ],
   "actions": [
    {
-    "text": "西门子已发布新版本,建议将 Siemens Software Center 更新至最新版本(即高于 4.0.9.8 的版本)。",
+    "text": "示例文本（actions 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07",
      "it_3582b5fc4a90b6c6"
@@ -129,7 +129,7 @@
     "issues": []
    },
    {
-    "text": "防御方应参阅西门子博客文章,了解当前已知的主动利用情况及检测方法。",
+    "text": "示例文本（actions 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07"
     ],
@@ -139,7 +139,7 @@
   ],
   "unknowns": [
    {
-    "text": "所给证据未说明 ClickFix 攻击的具体规模、受害者范围或攻击者身份。",
+    "text": "示例文本（unknowns 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_3582b5fc4a90b6c6"
     ],
@@ -147,7 +147,7 @@
     "issues": []
    },
    {
-    "text": "所给证据未提供具体的检测指标或完整的攻击链细节,需参考西门子博客。",
+    "text": "示例文本（unknowns 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07",
      "it_3582b5fc4a90b6c6"
@@ -208,7 +208,7 @@
   {
    "step": "analyzed",
    "status": "done",
-   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+   "detail": "example-placeholder · 全部句子通过校验"
   },
   {
    "step": "impact_match",

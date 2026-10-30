@@ -25,16 +25,16 @@
   ],
   "amount_usd_latest": 550000.0,
   "amount_disputed": false,
-  "summary": "DeFiLlama 记录了 BSC 上 Merlin 因代币与份额记账舍入错误而发生的安全事件。",
+  "summary": "示例摘要：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
   "analysis_status": "ok",
   "impact": null
  },
  "analysis": {
   "generated_at": "2026-10-23T07:58:21Z",
-  "model": "global.anthropic.claude-sonnet-5-5",
+  "model": "example-placeholder (deterministic text, not model output)",
   "bluf": [
    {
-    "text": "DeFiLlama 记录了 BSC 上 Merlin 因代币与份额记账舍入错误而发生的安全事件。",
+    "text": "示例文本（bluf 1）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -44,7 +44,7 @@
   ],
   "what": [
    {
-    "text": "事件被归类为“舍入错误”,涉及 Merlin 的代币与份额记账逻辑。",
+    "text": "示例文本（what 1）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -52,7 +52,7 @@
     "issues": []
    },
    {
-    "text": "受影响的链为 BSC。",
+    "text": "示例文本（what 2）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -62,7 +62,7 @@
   ],
   "impact": [
    {
-    "text": "现有证据未提供损失金额、受影响资金池或用户范围,影响程度无法从该条目判断。",
+    "text": "示例文本（impact 1）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -70,7 +70,7 @@
     "issues": []
    },
    {
-    "text": "记账层面的舍入错误意味着份额与代币的核算可能出现偏差。",
+    "text": "示例文本（impact 2）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -80,7 +80,7 @@
   ],
   "exploitation": [
    {
-    "text": "该条目被收录在 DeFiLlama 的攻击事件列表中,但未说明具体利用手法、攻击者或利用次数,也没有其他来源可对照。",
+    "text": "示例文本（exploitation 1）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -90,7 +90,7 @@
   ],
   "actions": [
    {
-    "text": "协议团队可对照事件类别,审查代币与份额之间换算和记账代码中的舍入处理。",
+    "text": "示例文本（actions 1）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -98,7 +98,7 @@
     "issues": []
    },
    {
-    "text": "值班团队应先查阅 DeFiLlama 原始条目,补充缺失的技术细节后再决定后续处置。",
+    "text": "示例文本（actions 2）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -108,7 +108,7 @@
   ],
   "unknowns": [
    {
-    "text": "损失金额、攻击交易、受影响合约地址及攻击者信息在证据中均未给出。",
+    "text": "示例文本（unknowns 1）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -116,7 +116,7 @@
     "issues": []
    },
    {
-    "text": "该问题是否已修复、资金是否追回,证据中没有说明。",
+    "text": "示例文本（unknowns 2）：Merlin — Rounding Error（P1 · V1 · 1 个独立来源）。",
     "cite": [
      "it_7feb4a701e085507"
     ],
@@ -176,7 +176,7 @@
   {
    "step": "analyzed",
    "status": "done",
-   "detail": "global.anthropic.claude-sonnet-5-5 · 全部句子通过校验"
+   "detail": "example-placeholder · 全部句子通过校验"
   },
   {
    "step": "impact_match",
