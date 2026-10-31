@@ -19,6 +19,9 @@ export interface ScreenPoint {
 /** Orbit radius and elevation: camera sits at (0, 11, 9) when the swing is centred. */
 export const CAM_DIST = Math.sqrt(9 * 9 + 11 * 11); // ≈ 14.2
 export const CAM_ELEV = Math.atan2(9, 11);
+/** Camera target, pulled toward the viewer so the near rim and the floating core both fit the stage (at the origin
+ * the near rim was cut off by the stage's bottom edge once the core went up to y = 1.5). */
+export const LOOK_AT = { x: 0, y: 0.35, z: 0.9 } as const;
 
 export function orbitPosition(azimuthDeg: number): { x: number; y: number; z: number } {
   const az = azimuthDeg * (Math.PI / 180);

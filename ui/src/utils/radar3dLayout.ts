@@ -83,6 +83,17 @@ export function pillarHeight(sourcesCount: number): number {
   return Math.min(2.0, Math.max(0.25, h));
 }
 
+/**
+ * Drawn height: severity sets the silhouette, corroboration only modulates it.
+ * Why: with height from sources alone, ~80 % of the wall was same-height P2 sticks — a field of noise in which the
+ * P0s did not stand out (user review 2026-10-30: 「简陋、没有锐度」). P2 ⇒ a ground blip, P0 ⇒ always the tallest.
+ */
+export function displayHeight(severity: string, height: number): number {
+  if (severity === 'P0') return Math.max(1.2, height * 1.1);
+  if (severity === 'P1') return Math.min(1.0, Math.max(0.35, height * 0.6));
+  return 0.08;
+}
+
 // ── Severity / colour mapping ─────────────────────────────────────────────────
 
 /**
@@ -137,7 +148,8 @@ export interface Dot3D {
   x:            number;  // three.js world X
   z:            number;  // three.js world Z
   y:            number;  // base of pillar (always 0)
-  height:       number;  // pillar height (world units)
+  height:       number;  // pillar height from corroboration (world units)
+  drawHeight:   number;  // what the engine draws and labels anchor on — displayHeight(severity, height)
   colorHDR:     [number, number, number];
   shape:        0 | 1 | 2;
   severity:     string;
@@ -161,6 +173,7 @@ export function radarDotsTo3D(dots: RadarDot[]): Dot3D[] {
       z,
       y:            0,
       height:       pillarHeight(dot.sourcesCount),
+      drawHeight:   displayHeight(dot.severity, pillarHeight(dot.sourcesCount)),
       colorHDR:     severityColorHDR(dot.severity),
       shape:        shapeBucket(dot.level),
       severity:     dot.severity,
@@ -231,4 +244,72 @@ export function bezierControl(
     cy: arcHeight,
     cz: (z0 + z1) / 2,
   };
+}
+
+// ── Threat links: event → your code (the holographic core) ───────────────────
+
+/** The core at the dome centre stands for the code targets the AWS agents check; threat links land on it. */
+export const CORE = { x: 0, y: 1.5, z: 0 } as const;
+
+export type LinkKind = 'affected' | 'checking';
+
+export interface ThreatLink {
+  eventId:  string;
+  kind:     LinkKind;
+  severity: string;
+  from:     { x: number; y: number; z: number };
+}
+
+/**
+ * Which link an event gets. Only verdicts the AWS agents produced draw a line: affected ⇒ solid red (the event
+ * reaches code we run), queued / running ⇒ cyan dashes (being checked). not_affected / failed / not_eligible draw
+ * nothing — a line must never imply a hit nobody confirmed.
+ */
+export function linkKind(impact: EventSummary['impact']): LinkKind | null {
+  if (!impact) return null;
+  if (impact.status === 'affected' && impact.affected > 0) return 'affected';
+  if (impact.status === 'queued' || impact.status === 'running') return 'checking';
+  return null;
+}
+
+const SEV_RANK: Record<string, number> = { P0: 0, P1: 1, P2: 2 };
+
+/** Links for the dots on screen, affected first then by severity. Uncapped by default: the HUD counts from this list,
+ * and the engine draws only the first MAX_LINKS (so the core never turns into a hairball, and counts stay exact). */
+export function threatLinks(
+  events: ReadonlyArray<EventSummary>,
+  dots: ReadonlyArray<Dot3D>,
+  max = Infinity,
+): ThreatLink[] {
+  const byId = new Map(dots.map(d => [d.eventId, d]));
+  const out: ThreatLink[] = [];
+  for (const ev of events) {
+    const kind = linkKind(ev.impact);
+    const d = byId.get(ev.event_id);
+    if (!kind || !d) continue;
+    out.push({ eventId: d.eventId, kind, severity: d.severity, from: { x: d.x, y: d.drawHeight, z: d.z } });
+  }
+  out.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'affected' ? -1 : 1)
+    || (SEV_RANK[a.severity] ?? 3) - (SEV_RANK[b.severity] ?? 3));
+  return out.slice(0, max);
+}
+
+/** Quadratic arc from a pillar top to the core, lifted so it reads as a flight path over the disk (n+1 points). */
+export function arcPoints(
+  from: { x: number; y: number; z: number },
+  to: { x: number; y: number; z: number } = CORE,
+  n = 40,
+  lift = 1.4,
+): { x: number; y: number; z: number }[] {
+  const c = { x: (from.x + to.x) / 2, y: Math.max(from.y, to.y) + lift, z: (from.z + to.z) / 2 };
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, u = 1 - t;
+    pts.push({
+      x: u * u * from.x + 2 * u * t * c.x + t * t * to.x,
+      y: u * u * from.y + 2 * u * t * c.y + t * t * to.y,
+      z: u * u * from.z + 2 * u * t * c.z + t * t * to.z,
+    });
+  }
+  return pts;
 }

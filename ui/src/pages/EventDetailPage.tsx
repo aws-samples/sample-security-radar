@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { attackFlow, showFlow } from '@/utils/attackFlow';
+import { TABS, detailTab, nextTab, type DetailTab } from '@/utils/detailTabs';
 import { useEventDetail } from '@/hooks/useEventDetail';
 import { DuplicateNote } from '@/components/detail/DuplicateNote';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -7,6 +9,9 @@ import { VerdictPanel } from '@/components/detail/VerdictPanel';
 import { ProgressPanel } from '@/components/detail/ProgressPanel';
 import { AnalysisCard } from '@/components/detail/AnalysisCard';
 import { KeyData } from '@/components/detail/KeyData';
+import { AttackFlow } from '@/components/detail/AttackFlow';
+import { OnchainPanel } from '@/components/detail/OnchainPanel';
+import { AttackTxPanel } from '@/components/detail/AttackTxPanel';
 import { EvidenceTimeline, ChangeLog } from '@/components/detail/EvidenceTimeline';
 import { EnvSection } from '@/components/env/EnvSection';
 import { MitigationPanel } from '@/components/detail/MitigationPanel';
@@ -19,14 +24,21 @@ import '@/styles/detail.css';
 const SECTIONS = ['env', 'evidence'] as const;
 
 /**
- * L2 event detail — reading order is a hard constraint (UI-IA §2, spec 01 §4.2):
- * verdict (BLUF) → progress + system steps → 在你的环境中 → 缓解（快路，M3）→ why this level → analysis → key data → evidence → change log.
- * Deep links: `?section=env|evidence` (the hash is owned by HashRouter).
+ * L2 event detail. The verdict (BLUF) stays on top; below it two tabs, each its own reading order:
+ *   事件跟踪 (default): analysis → attack flow + on-chain reconstruction (M4) → key data → progress → why this level →
+ *                       evidence → change log;
+ *   在你的环境中:       Security Agent + Continuum response → mitigation fast path (M3).
+ * (2026-10-30 Neo: the incident first, the radar's own scan as a tab.) Deep links: `?tab=env`, `?section=env|evidence`
+ * (the hash is owned by HashRouter).
  */
 export function EventDetailPage() {
   const { eventId = '' } = useParams<{ eventId: string }>();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const section = params.get('section');
+  const tab = detailTab(params);
+  const setTab = useCallback((t: DetailTab) => {
+    setParams(p => { const n = new URLSearchParams(p); n.delete('section'); if (t === 'env') n.set('tab', 'env'); else n.delete('tab'); return n; }, { replace: true });
+  }, [setParams]);
   const d = useEventDetail(eventId);
 
   const groups = useMemo(() => groupEvidence(d.items), [d.items]);
@@ -49,10 +61,11 @@ export function EventDetailPage() {
   const onCite = useCallback((itemId: string) => {
     const g = groupOf.get(itemId);
     if (!g) return;
+    setTab('track');                                        // the evidence lives in the incident tab
     if (g.echo) setExpanded(s => (s.has(g.group) ? s : new Set(s).add(g.group)));
     pendingFocus.current = itemId;
     setFlash(f => ({ id: itemId, n: (f?.n ?? 0) + 1 }));
-  }, [groupOf]);
+  }, [groupOf, setTab]);
 
   useEffect(() => {
     const id = pendingFocus.current;
@@ -69,7 +82,7 @@ export function EventDetailPage() {
   useEffect(() => {
     if (d.loading || !d.event || !section || !(SECTIONS as readonly string[]).includes(section)) return;
     // after first paint of the loaded page
-    const r = requestAnimationFrame(() => scrollTo(section));
+    const r = requestAnimationFrame(() => scrollTo(section === 'env' ? 'dt-tabs' : section));
     return () => cancelAnimationFrame(r);
   }, [d.loading, d.event, section, scrollTo]);
 
@@ -98,6 +111,12 @@ export function EventDetailPage() {
   const echoes = d.items.length - groups.length;
   const toggle = (g: number) => setExpanded(s => { const n = new Set(s); if (n.has(g)) n.delete(g); else n.add(g); return n; });
   const hasKeyData = d.cveDetails.length + d.amountHistory.length + d.tx.length > 0;
+  const hasFlow = showFlow(attackFlow(d.items), ev.domain === 'web3') || Boolean(ev.attribution) || Boolean(d.onchain) || Boolean(d.attackTxs);
+  // section numbers of the incident tab follow what is shown (no gaps)
+  const n = (() => {
+    const order = ['an', ...(hasFlow ? ['flow'] : []), ...(hasKeyData ? ['kd'] : []), 'progress', 'why', 'ev'];
+    return Object.fromEntries(order.map((k, i) => [k, String(i + 1).padStart(2, '0')])) as Record<string, string>;
+  })();
 
   return (
     <div className="dt-page">
@@ -106,65 +125,80 @@ export function EventDetailPage() {
 
         <DuplicateNote dups={d.possibleDuplicates} />
 
-        {/* 1 · verdict */}
+        {/* verdict (BLUF) — above both tabs */}
         <VerdictPanel
           event={ev} analysis={d.analysis} progress={d.progress} response={d.response} impact={impact}
-          cite={id => numbers.get(id)} onCite={onCite} onEnv={() => scrollTo('env')}
+          cite={id => numbers.get(id)} onCite={onCite} onEnv={() => { setTab('env'); requestAnimationFrame(() => scrollTo('dt-tabs')); }}
         />
 
-        {/* 2 · progress */}
-        <section className="dt-section" aria-labelledby="dt-h-progress">
-          <h2 className="dt-h2" id="dt-h-progress"><span className="dt-step">02</span>进展流程 <span className="dt-en">Progress</span>
-            <span className="dt-aside">代码计算 · 时间为证据发布时间（UTC）</span></h2>
-          <ProgressPanel progress={d.progress} steps={d.pipelineSteps} response={d.response} />
-        </section>
+        <div className="dt-tabs" id="dt-tabs" role="tablist" aria-label="事件详情视图">
+          {TABS.map(t => (
+            <button key={t.id} type="button" role="tab" id={`dt-tab-${t.id}`} aria-controls={`dt-panel-${t.id}`}
+              aria-selected={tab === t.id} tabIndex={tab === t.id ? 0 : -1} className={`dt-tab${tab === t.id ? ' is-on' : ''}`}
+              onClick={() => setTab(t.id)}
+              onKeyDown={e => { const n = nextTab(tab, e.key); if (n) { e.preventDefault(); setTab(n); document.getElementById(`dt-tab-${n}`)?.focus(); } }}>
+              {t.label} <span className="dt-en">{t.en}</span>
+            </button>
+          ))}
+        </div>
 
-        {/* 3 · in your environment */}
-        <section className="dt-section" id="env" aria-labelledby="dt-h-env">
-          <h2 className="dt-h2" id="dt-h-env"><span className="dt-step">03</span>在你的环境中 <span className="dt-en">In your environment</span>
-            <span className="dt-aside">AWS Security Agent + AWS Continuum{d.response ? ` · 更新 ${utcShort(d.response.updated_at)} UTC` : ''}</span></h2>
-          <EnvSection response={d.response} steps={d.pipelineSteps} impact={impact} deepLinked={section === 'env'} />
-        </section>
+        {tab === 'track' ? (
+          <div role="tabpanel" id="dt-panel-track" aria-labelledby="dt-tab-track">
+            <section className="dt-section" aria-labelledby="dt-h-an">
+              <h2 className="dt-h2" id="dt-h-an"><span className="dt-step">{n.an}</span>分析卡 <span className="dt-en">Analysis</span>
+                <span className="dt-aside">[n] = 证据编号，点击跳转</span></h2>
+              <AnalysisCard analysis={d.analysis} cite={id => numbers.get(id)} onCite={onCite} />
+            </section>
 
-        {/* 3b · mitigation fast path (M3) — absent / null ⇒ not rendered */}
-        <MitigationPanel mitigation={d.mitigation} />
+            {/* attack flow (M4) — rendered when the story has ≥ 2 phases, an attribution or an on-chain reconstruction */}
+            <AttackFlow event={ev} items={d.items} onCite={onCite} step={n.flow}>
+              {d.attackTxs && <AttackTxPanel data={d.attackTxs} />}
+              {d.onchain && <OnchainPanel onchain={d.onchain} />}
+            </AttackFlow>
 
-        {/* 4 · why this level */}
-        <section className="dt-section" aria-labelledby="dt-h-why">
-          <h2 className="dt-h2" id="dt-h-why"><span className="dt-step">04</span>为什么是这个等级 <span className="dt-en">Why this level</span></h2>
-          <p style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', fontSize: 13, margin: 0 }}>
-            <LevelBadge level={ev.level} />
-            <span className="dt-mono">{ev.level_reason}</span>
-            <span className="dt-muted">· {groups.length} 个独立来源组 · {echoes} 条转载（同源，不计入独立来源）</span>
-          </p>
-        </section>
+            {hasKeyData && (
+              <section className="dt-section" aria-labelledby="dt-h-kd">
+                <h2 className="dt-h2" id="dt-h-kd"><span className="dt-step">{n.kd}</span>关键数据 <span className="dt-en">Key data</span></h2>
+                <KeyData event={ev} cves={d.cveDetails} amounts={d.amountHistory} tx={d.tx} />
+              </section>
+            )}
 
-        {/* 5 · analysis */}
-        <section className="dt-section" aria-labelledby="dt-h-an">
-          <h2 className="dt-h2" id="dt-h-an"><span className="dt-step">05</span>分析卡 <span className="dt-en">Analysis</span>
-            <span className="dt-aside">[n] = 证据编号，点击跳转</span></h2>
-          <AnalysisCard analysis={d.analysis} cite={id => numbers.get(id)} onCite={onCite} />
-        </section>
+            <section className="dt-section" aria-labelledby="dt-h-progress">
+              <h2 className="dt-h2" id="dt-h-progress"><span className="dt-step">{n.progress}</span>进展流程 <span className="dt-en">Progress</span>
+                <span className="dt-aside">代码计算 · 时间为证据发布时间（UTC）</span></h2>
+              <ProgressPanel progress={d.progress} steps={d.pipelineSteps} response={d.response} />
+            </section>
 
-        {/* 6 · key data */}
-        {hasKeyData && (
-          <section className="dt-section" aria-labelledby="dt-h-kd">
-            <h2 className="dt-h2" id="dt-h-kd"><span className="dt-step">06</span>关键数据 <span className="dt-en">Key data</span></h2>
-            <KeyData event={ev} cves={d.cveDetails} amounts={d.amountHistory} tx={d.tx} />
-          </section>
+            <section className="dt-section" aria-labelledby="dt-h-why">
+              <h2 className="dt-h2" id="dt-h-why"><span className="dt-step">{n.why}</span>为什么是这个等级 <span className="dt-en">Why this level</span></h2>
+              <p style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', fontSize: 13, margin: 0 }}>
+                <LevelBadge level={ev.level} />
+                <span className="dt-mono">{ev.level_reason}</span>
+                <span className="dt-muted">· {groups.length} 个独立来源组 · {echoes} 条转载（同源，不计入独立来源）</span>
+              </p>
+            </section>
+
+            <section className="dt-section" id="evidence" aria-labelledby="dt-h-ev">
+              <h2 className="dt-h2" id="dt-h-ev"><span className="dt-step">{n.ev}</span>证据时间线 <span className="dt-en">Evidence</span>
+                <span className="dt-aside">{d.items.length} 条 · {groups.length} 个独立来源 · 转载已折叠</span></h2>
+              {d.items.length === 0
+                ? <p className="dt-small dt-muted">没有证据条目</p>
+                : <EvidenceTimeline groups={groups} numbers={numbers} expanded={expanded} onToggle={toggle} flashId={flashId} />}
+            </section>
+
+            <ChangeLog timeline={d.timeline} />
+          </div>
+        ) : (
+          <div role="tabpanel" id="dt-panel-env" aria-labelledby="dt-tab-env">
+            <section className="dt-section" id="env" aria-labelledby="dt-h-env">
+              <h2 className="dt-h2" id="dt-h-env"><span className="dt-step">01</span>在你的环境中 <span className="dt-en">In your environment</span>
+                <span className="dt-aside">AWS Security Agent + AWS Continuum{d.response ? ` · 更新 ${utcShort(d.response.updated_at)} UTC` : ''}</span></h2>
+              <EnvSection response={d.response} steps={d.pipelineSteps} impact={impact} deepLinked={section === 'env'} />
+            </section>
+            {/* mitigation fast path (M3) — absent / null ⇒ not rendered */}
+            <MitigationPanel mitigation={d.mitigation} step="02" />
+          </div>
         )}
-
-        {/* 7 · evidence (L3) */}
-        <section className="dt-section" id="evidence" aria-labelledby="dt-h-ev">
-          <h2 className="dt-h2" id="dt-h-ev"><span className="dt-step">07</span>证据时间线 <span className="dt-en">Evidence</span>
-            <span className="dt-aside">{d.items.length} 条 · {groups.length} 个独立来源 · 转载已折叠</span></h2>
-          {d.items.length === 0
-            ? <p className="dt-small dt-muted">没有证据条目</p>
-            : <EvidenceTimeline groups={groups} numbers={numbers} expanded={expanded} onToggle={toggle} flashId={flashId} />}
-        </section>
-
-        {/* 8 · change log */}
-        <ChangeLog timeline={d.timeline} />
       </div>
     </div>
   );

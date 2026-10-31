@@ -15,6 +15,7 @@ from __future__ import annotations
 import http.client
 import json
 import logging
+import time
 import urllib.request
 from datetime import datetime, timedelta
 from typing import Any
@@ -30,7 +31,13 @@ log = logging.getLogger(__name__)
 RPC = {"ethereum": "https://ethereum-rpc.publicnode.com", "bsc": "https://bsc-dataseed.bnbchain.org",
        "avalanche": "https://avalanche-c-chain-rpc.publicnode.com",
        "base": "https://base-rpc.publicnode.com", "polygon": "https://polygon-bor-rpc.publicnode.com",
-       "arbitrum": "https://arbitrum-one-rpc.publicnode.com"}
+       "arbitrum": "https://arb1.arbitrum.io/rpc"}   # publicnode refuses blocks older than ~12 h ("Archive requests require a personal token", 403; live 2026-10-30)
+# Tried in order when the primary refuses (403 / 429 / timeout / "archive" in the body). Probe 2026-10-31 (eth_getLogs
+# with an address filter, 5,000 blocks; the Binance 20:24:23 sweep read back): publicnode Ethereum refuses logs older
+# than ~1 day; Tenderly's public gateway serves 30 days with receipts and getCode; MEV Blocker serves logs (its
+# receipts timed out). One public node per chain was a single point of failure for the on-chain station.
+FALLBACK = {"ethereum": ("https://mainnet.gateway.tenderly.co", "https://rpc.mevblocker.io"),
+            "arbitrum": ("https://arbitrum-one-rpc.publicnode.com",)}
 FINAL = ("confirmed", "failed")   # unsupported is final only while the chain stays unsupported (see due)
 # names as sources write them (DeFiLlama "BSC", "Ethereum", "Arbitrum One" …) → registry key
 ALIAS = {"eth": "ethereum", "ethereum": "ethereum", "bsc": "bsc", "bnb": "bsc", "bnb chain": "bsc", "binance": "bsc",
@@ -50,7 +57,7 @@ def canon(chain: str) -> str:
     return ALIAS.get(c, c)
 
 
-def rpc_call(url: str, method: str, params: list[Any]) -> Any:
+def _one(url: str, method: str, params: list[Any]) -> Any:
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json", "User-Agent": UA})
     try:
@@ -63,6 +70,39 @@ def rpc_call(url: str, method: str, params: list[Any]) -> Any:
     if doc.get("error"):
         raise RpcError(f"rpc_error: {str(doc['error'])[:160]}")
     return doc.get("result")
+
+
+_REFUSED = ("rpc_unreachable", "archive", "limit", "range", "rate")
+# wall-clock RPC budget of one process-station run (start_cycle); None = unbounded (scripts, tests)
+_budget: dict[str, float | None] = {"left": None}
+
+
+def start_cycle(budget_s: float | None = Limits.RPC_WALL_S_PER_CYCLE) -> None:
+    """Called once per process-station run: every RPC call of the run (C6 verify, on-chain station, attack-tx station)
+    shares this wall-clock budget, so fallbacks × timeouts can never outlive the Lambda."""
+    _budget["left"] = budget_s
+
+
+def rpc_call(url: str, method: str, params: list[Any]) -> Any:
+    """One JSON-RPC call; when `url` is a registered primary and refuses (unreachable / HTTP error / archive or range
+    limit), the chain's FALLBACK nodes are tried in order. All failing ⇒ RpcError naming every node's reason."""
+    ch = next((c for c, u in RPC.items() if u == url), None)
+    errors = []
+    for u in (url, *FALLBACK.get(ch or "", ())):
+        if _budget["left"] is not None and _budget["left"] <= 0:
+            errors.append("rpc_budget_exhausted: this cycle's RPC time is spent — retried next cycle")
+            break
+        t0 = time.monotonic()
+        try:
+            return _one(u, method, params)
+        except RpcError as e:
+            errors.append(f"{u.split('//')[-1].split('/')[0]}: {e}")
+            if not any(k in str(e).lower() for k in _REFUSED):
+                break                     # a real answer (e.g. invalid params) is the same on every node
+        finally:
+            if _budget["left"] is not None:
+                _budget["left"] -= time.monotonic() - t0
+    raise RpcError(" | ".join(errors)[:480])
 
 
 def verdict(chain: str, tx_hash: str, call: Any = rpc_call) -> dict[str, Any]:

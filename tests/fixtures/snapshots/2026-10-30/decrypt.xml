@@ -1,0 +1,303 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<rss
+  version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+  xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:snf="http://www.smartnews.be/snf"
+>
+  <channel>
+    <title>Decrypt</title>
+    <description>What&amp;#039;s new in crypto and the advent of the decentralized web.</description>
+    <language>en</language>
+    
+    <atom:link
+      href="https://decrypt.co/feed"
+      rel="self"
+      type="application/rss+xml"
+    />
+    
+    
+      
+        <link>https://decrypt.co/feed</link>
+      
+    
+    
+      <copyright>Decrypt Media</copyright>
+    
+    
+    
+    
+      <lastBuildDate>Thu, 29 Oct 2026 23:00:45 +0000</lastBuildDate>
+    
+    
+      <sy:updatePeriod>hourly</sy:updatePeriod>
+    
+    
+      <sy:updateFrequency>1</sy:updateFrequency>
+    
+    
+    
+    
+    
+      <item>
+  <title>Binance Hacker Hunts for Exit Ramps as DeFi Exchanges Pause Markets</title>
+  <link>https://decrypt.co/382194/binance-hack-exit-ramps-defi-exchange-ethereum</link>
+  <pubDate>Thu, 29 Oct 2026 22:57:48 +0000</pubDate>
+  
+    <description><![CDATA[Etherscan records show wallets tied to the suspected Binance hack swapping freezable stablecoins for Ethereum on decentralized exchanges.]]></description>
+  
+  <dc:creator>Jose Antonio Lanz</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/?p=382194</guid>
+  
+  
+    <enclosure url="https://img.decrypt.co/insecure/rs:fill:1024:512:1:0/plain/https://cdn.decrypt.co/wp-content/uploads/2025/05/Hacker-decrypt-style-02-gID_7.png@png" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category></category>
+    
+      <category>DeFi</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://cdn.decrypt.co/wp-content/uploads/2025/05/Hacker-decrypt-style-02-gID_7.png" height="2000" width="3556"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+<item>
+  <title>Binance Drained of $5.5 Billion in Suspected Hack, Tether and Circle Freeze $1.8 Billion</title>
+  <link>https://decrypt.co/382191/binance-suspected-hack-5-billion-tether-circle-freeze-crypto</link>
+  <pubDate>Thu, 29 Oct 2026 21:36:24 +0000</pubDate>
+  
+    <description><![CDATA[An on-chain tally puts the suspected Binance drain at $5.57 billion across three blockchains, as Tether and Circle froze $1.8 billion. [facts: $5.57 billion; $1.8 billion]]]></description>
+  
+  <dc:creator>Jose Antonio Lanz</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/?p=382191</guid>
+  
+  
+    <enclosure url="https://img.decrypt.co/insecure/rs:fill:1024:512:1:0/plain/https://cdn.decrypt.co/wp-content/uploads/2025/08/binance-decrypt-syle-01-gID_7.png@png" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Coins</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://cdn.decrypt.co/wp-content/uploads/2025/08/binance-decrypt-syle-01-gID_7.png" height="1000" width="1778"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+<item>
+  <title>Coinbase Swings to $719 Million Q3 Profit on Crypto Gains</title>
+  <link>https://decrypt.co/382188/coinbase-beats-719-million-q3-profit-crypto-gains</link>
+  <pubDate>Thu, 29 Oct 2026 20:46:43 +0000</pubDate>
+  
+    <description><![CDATA[Coinbase reported third-quarter net income of $719 million, driven largely by gains on its crypto holdings, as revenue held flat at $1.22 billion. [facts: $719 million; $1.22 billion]]]></description>
+  
+  <dc:creator>Decrypt Staff</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/?p=382188</guid>
+  
+  
+    <enclosure url="https://img.decrypt.co/insecure/rs:fill:1024:512:1:0/plain/https://cdn.decrypt.co/wp-content/uploads/2025/05/brian-armstrong-coinbase-decrypt-style-2-gID_7.png@png" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://cdn.decrypt.co/wp-content/uploads/2025/05/brian-armstrong-coinbase-decrypt-style-2-gID_7.png" height="2000" width="3556"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+<item>
+  <title>Chrome Can Now Pull Details From Your Gmail to Fill Out Web Forms</title>
+  <link>https://decrypt.co/382183/chrome-pull-details-from-your-gmail-web-forms</link>
+  <pubDate>Thu, 29 Oct 2026 19:46:02 +0000</pubDate>
+  
+    <description><![CDATA[Chrome's new autofill uses Google's Gemini AI to search your Gmail for order numbers, tracking details, and flight bookings and fill them into web forms.]]></description>
+  
+  <dc:creator>Jose Antonio Lanz</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/?p=382183</guid>
+  
+  
+    <enclosure url="https://img.decrypt.co/insecure/rs:fill:1024:512:1:0/plain/https://cdn.decrypt.co/wp-content/uploads/2026/05/decrypt-style-google-3-gID_7.png@png" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Artificial Intelligence</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://cdn.decrypt.co/wp-content/uploads/2026/05/decrypt-style-google-3-gID_7.png" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+<item>
+  <title>Polymarket Pauses Trading as Prediction Market Investigates Security Incident</title>
+  <link>https://decrypt.co/382185/polymarket-pauses-trading-prediction-market-security-incident</link>
+  <pubDate>Thu, 29 Oct 2026 18:53:44 +0000</pubDate>
+  
+    <description><![CDATA[A suspected attacker wallet holds about $2.65 million in POL, per Arkham data. [facts: $2.65 million]]]></description>
+  
+  <dc:creator>Jose Antonio Lanz</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/?p=382185</guid>
+  
+  
+    <enclosure url="https://img.decrypt.co/insecure/rs:fill:1024:512:1:0/plain/https://cdn.decrypt.co/wp-content/uploads/2025/09/polymarket-decrypt-style-gID_7.jpg@png" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Technology</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://cdn.decrypt.co/wp-content/uploads/2025/09/polymarket-decrypt-style-gID_7.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+<item>
+  <title>Hackers Publish Work Details of 41,000 Homeland Security Employees</title>
+  <link>https://decrypt.co/382181/hackers-publish-work-details-homeland-security-employees</link>
+  <pubDate>Thu, 29 Oct 2026 18:46:02 +0000</pubDate>
+  
+    <description><![CDATA[A hacktivist group says it took names, titles, and phone numbers of 41,000-plus DHS staff from a login system. [facts: 41,000]]]></description>
+  
+  <dc:creator>Jose Antonio Lanz</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/?p=382181</guid>
+  
+  
+    <enclosure url="https://img.decrypt.co/insecure/rs:fill:1024:512:1:0/plain/https://cdn.decrypt.co/wp-content/uploads/2025/04/dhs-gID_4.jpg@png" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Technology</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://cdn.decrypt.co/wp-content/uploads/2025/04/dhs-gID_4.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+  </channel>
+</rss>

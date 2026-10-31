@@ -1,0 +1,10 @@
+# gitleaks configuration for the published sample. Default rules stay on; one allowlist entry:
+# EVM addresses (0x + 40 hex) are public on-chain identifiers — token contracts and attacker / victim wallets in the
+# on-chain reconstruction data (ui/mock-data, tests/fixtures/onchain, tests/fixtures/attacktx). The generic-api-key rule
+# fired on `"token": "0x…"` (an ERC-20 contract address) in mock data (Probe, 2026-11-01).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "public EVM addresses"
+regexes = ['''0x[0-9a-fA-F]{40}\b''']

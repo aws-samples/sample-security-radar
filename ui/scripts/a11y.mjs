@@ -14,7 +14,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { existsSync } from 'fs';
-import { CLOCK, DETAIL_ID, DETAIL_NO_ENV_ID } from './lib/mock-fixture.mjs';
+import { CLOCK, DETAIL_ID, DETAIL_NO_ENV_ID, DETAIL_ONCHAIN_ID } from './lib/mock-fixture.mjs';
 import { startVite } from './lib/preview.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -36,11 +36,13 @@ const PAGES = [
   { name: 'home-filtered', path: '/#/?tab=active&stage=corroborated', expect: '.row .impact-chip' },
   { name: 'detail',  path: `/#/events/${DETAIL_ID}`, expect: '[data-testid="verdict-panel"]' },
   // M3 缓解（快路） with the rule JSON fold open (copy button + pre under audit)
-  { name: 'detail-mitigation', path: `/#/events/${DETAIL_ID}`, expect: '[data-testid="mitigation-panel"] .mt-plan', open: '[data-testid="mitigation-panel"] details' },
+  { name: 'detail-mitigation', path: `/#/events/${DETAIL_ID}?tab=env`, expect: '[data-testid="mitigation-panel"] .mt-plan', open: '[data-testid="mitigation-panel"] details' },
   // deep link into 在你的环境中 with the patch viewer open (diff lines, copy buttons, lanes all under audit)
   { name: 'detail-env', path: `/#/events/${DETAIL_ID}?section=env`, expect: '.diff-pre' },
   // response: null ⇒ the 未触发 explanation state
   { name: 'detail-noenv', path: `/#/events/${DETAIL_NO_ENV_ID}`, expect: '[data-testid="verdict-panel"]' },
+  { name: 'detail-onchain', path: `/#/events/${DETAIL_ONCHAIN_ID}`, expect: '.oc-table' },
+  { name: 'detail-attacktx', path: `/#/events/${DETAIL_ONCHAIN_ID}`, expect: '.atx-card .oc-table' },
   { name: 'web3',    path: '/#/web3'         },
   { name: 'vuln',    path: '/#/vuln'         },
   { name: 'sources', path: '/#/sources'      },

@@ -7,6 +7,7 @@ import type { ResolvedImpact } from '@/utils/response';
 import { responseBluf } from '@/utils/response';
 import { corroborationMs } from '@/utils/evidence';
 import { agoZh, durationZh, utcShort } from '@/utils/timeZh';
+import { triageLine } from '@/utils/triageView';
 
 export const EXPLOITATION_WORD: Record<EventSummary['exploitation'], { text: string; tone: string }> = {
   none: { text: '无利用迹象', tone: 'muted' },
@@ -79,6 +80,7 @@ export function VerdictPanel({ event, analysis, progress, response, impact, cite
         <span>证实用时 <b>{durationZh(corr) ?? '未证实'}</b>{t1Instant ? '（T1 首报即证实）' : ''}</span>
         <span>最后更新 <b>{agoZh(event.last_updated)}</b></span>
         <span><b>{event.independent_sources}</b> 个独立来源 · <b>{event.item_count}</b> 条证据</span>
+        <span title="scripts/triage.py（IAM 凭证）写入，页面只读">处置 <b>{triageLine(event.triage, iso => `${utcShort(iso)} UTC`)}</b></span>
       </div>
       <button type="button" className={`dt-envline tone-${env.tone}`} onClick={onEnv} aria-describedby="dt-envline-hint">
         <span className="dt-envlabel">在你的环境中</span>

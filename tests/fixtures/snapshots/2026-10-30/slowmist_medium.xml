@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:cc="http://cyber.law.harvard.edu/rss/creativeCommonsRssModule.html">
+    <channel>
+        <title><![CDATA[Stories by SlowMist on Medium]]></title>
+        <description><![CDATA[Stories by SlowMist on Medium]]></description>
+        <link>https://medium.com/@slowmist?source=rss-4ceeedda40e8------2</link>
+        <image>
+            <url>https://cdn-images-1.medium.com/fit/c/150/150/1*4XGrkBr5c54rFezOTk4SBw.png</url>
+            <title>Stories by SlowMist on Medium</title>
+            <link>https://medium.com/@slowmist?source=rss-4ceeedda40e8------2</link>
+        </image>
+        <generator>Medium</generator>
+        <lastBuildDate>Fri, 30 Oct 2026 06:00:37 GMT</lastBuildDate>
+        <atom:link href="https://medium.com/@slowmist/feed" rel="self" type="application/rss+xml"/>
+        <webMaster><![CDATA[yourfriends@medium.com]]></webMaster>
+        <atom:link href="http://medium.superfeedr.com" rel="hub"/>
+        <item>
+            <title><![CDATA[MistTrack Quarterly Update: KYA Batch Screening and Tracing Canvas Now Available]]></title>
+            <link>https://slowmist.medium.com/misttrack-quarterly-update-kya-batch-screening-and-tracing-canvas-now-available-b62fbba03a6b?source=rss-4ceeedda40e8------2</link>
+            <guid isPermaLink="false">https://medium.com/p/b62fbba03a6b</guid>
+            <category><![CDATA[blockchain]]></category>
+            <dc:creator><![CDATA[SlowMist]]></dc:creator>
+            <pubDate>Fri, 30 Oct 2026 02:43:33 GMT</pubDate>
+            <atom:updated>2026-10-30T02:49:27.280Z</atom:updated>
+            
+        </item>
+<item>
+            <title><![CDATA[Threat Intelligence | Udesk Loads Malicious JS to Steal Data and Alter Transfer Addresses]]></title>
+            <link>https://slowmist.medium.com/threat-intelligence-udesk-loads-malicious-js-to-steal-data-and-alter-transfer-addresses-157f331a5b8b?source=rss-4ceeedda40e8------2</link>
+            <guid isPermaLink="false">https://medium.com/p/157f331a5b8b</guid>
+            <category><![CDATA[blockchain]]></category>
+            <dc:creator><![CDATA[SlowMist]]></dc:creator>
+            <pubDate>Tue, 27 Oct 2026 10:06:23 GMT</pubDate>
+            <atom:updated>2026-10-27T10:06:23.469Z</atom:updated>
+            
+        </item>
+<item>
+            <title><![CDATA[Threat Intelligence | Beware: Web3 Interview Questions Conceal a Data-Stealing Backdoor]]></title>
+            <link>https://slowmist.medium.com/threat-intelligence-beware-web3-interview-questions-conceal-a-data-stealing-backdoor-615cebdcb21c?source=rss-4ceeedda40e8------2</link>
+            <guid isPermaLink="false">https://medium.com/p/615cebdcb21c</guid>
+            <category><![CDATA[blockchain]]></category>
+            <dc:creator><![CDATA[SlowMist]]></dc:creator>
+            <pubDate>Fri, 23 Oct 2026 10:39:30 GMT</pubDate>
+            <atom:updated>2026-10-23T10:39:30.215Z</atom:updated>
+            
+        </item>
+<item>
+            <title><![CDATA[PHP Unveils Critical “Internet-Wide” Vulnerabilities: How Can Web3 Patch Its “Off-Chain Weaknesses”?]]></title>
+            <link>https://slowmist.medium.com/php-unveils-critical-internet-wide-vulnerabilities-how-can-web3-patch-its-off-chain-weaknesses-511a97c26b0c?source=rss-4ceeedda40e8------2</link>
+            <guid isPermaLink="false">https://medium.com/p/511a97c26b0c</guid>
+            <category><![CDATA[blockchain]]></category>
+            <dc:creator><![CDATA[SlowMist]]></dc:creator>
+            <pubDate>Fri, 23 Oct 2026 02:51:32 GMT</pubDate>
+            <atom:updated>2026-10-23T02:51:32.581Z</atom:updated>
+            
+        </item>
+<item>
+            <title><![CDATA[Recovering Private Keys from 6 Observations: Qubic Wallet Vulnerability Analysis]]></title>
+            <link>https://slowmist.medium.com/recovering-private-keys-in-just-6-connections-qubic-wallet-may-have-leaked-most-of-its-private-d87b520dccf6?source=rss-4ceeedda40e8------2</link>
+            <guid isPermaLink="false">https://medium.com/p/d87b520dccf6</guid>
+            <category><![CDATA[blockchain]]></category>
+            <dc:creator><![CDATA[SlowMist]]></dc:creator>
+            <pubDate>Tue, 20 Oct 2026 07:48:11 GMT</pubDate>
+            <atom:updated>2026-10-20T08:31:07.078Z</atom:updated>
+            
+        </item>
+<item>
+            <title><![CDATA[Threat Intelligence | Analysis of the DarkSword Trojan Backend and iOS Attack Chain]]></title>
+            <link>https://slowmist.medium.com/threat-intelligence-analysis-of-the-darksword-trojan-backend-and-ios-attack-chain-397ecf499fa8?source=rss-4ceeedda40e8------2</link>
+            <guid isPermaLink="false">https://medium.com/p/397ecf499fa8</guid>
+            <category><![CDATA[blockchain]]></category>
+            <dc:creator><![CDATA[SlowMist]]></dc:creator>
+            <pubDate>Mon, 19 Oct 2026 10:33:54 GMT</pubDate>
+            <atom:updated>2026-10-19T10:33:54.940Z</atom:updated>
+            
+        </item>
+    </channel>
+</rss>

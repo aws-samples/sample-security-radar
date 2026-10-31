@@ -127,6 +127,9 @@ class RadarStack(Stack):
             respond_fn.add_environment(k, v)
         if self.node.try_get_context("github_repo"):  # Continuum GitHub integration target (PR delivery), cdk.json
             respond_fn.add_environment("CN_GITHUB_REPO", self.node.try_get_context("github_repo"))
+        for ctx, var in (("sa_gitlab_integration_id", "SA_GITLAB_INTEGRATION_ID"), ("sa_gitlab_repo_id", "SA_GITLAB_REPO_ID")):
+            if self.node.try_get_context(ctx):   # C2d: Security Agent reviews the gitlab target on the integrated repo
+                respond_fn.add_environment(var, self.node.try_get_context(ctx))
         if self.node.try_get_context("gitlab_project"):  # Continuum GitLab integration target (MR delivery), cdk.json
             respond_fn.add_environment("CN_GITLAB_PROJECT", self.node.try_get_context("gitlab_project"))
         if self.node.try_get_context("gitlab_url"):      # self-managed GitLab; absent ⇒ gitlab.com (radar.respond)

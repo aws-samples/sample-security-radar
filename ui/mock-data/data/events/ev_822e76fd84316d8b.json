@@ -25,7 +25,7 @@
   "chains": [],
   "amount_usd_latest": null,
   "amount_disputed": false,
-  "summary": "示例摘要：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+  "summary": "示例摘要：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
   "analysis_status": "ok",
   "impact": null
  },
@@ -34,7 +34,7 @@
   "model": "example-placeholder (deterministic text, not model output)",
   "bluf": [
    {
-    "text": "示例文本（bluf 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（bluf 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_3582b5fc4a90b6c6",
      "it_8ed7b96f450330c8"
@@ -45,7 +45,7 @@
   ],
   "what": [
    {
-    "text": "示例文本（what 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（what 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_8ed7b96f450330c8",
      "it_b9ebe18af790db07"
@@ -54,7 +54,7 @@
     "issues": []
    },
    {
-    "text": "示例文本（what 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（what 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_8ed7b96f450330c8",
      "it_b9ebe18af790db07"
@@ -63,7 +63,7 @@
     "issues": []
    },
    {
-    "text": "示例文本（what 3）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（what 3）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07"
     ],
@@ -73,7 +73,7 @@
   ],
   "impact": [
    {
-    "text": "示例文本（impact 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（impact 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_8ed7b96f450330c8",
      "it_b9ebe18af790db07"
@@ -82,7 +82,7 @@
     "issues": []
    },
    {
-    "text": "示例文本（impact 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（impact 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07"
     ],
@@ -92,7 +92,7 @@
   ],
   "exploitation": [
    {
-    "text": "示例文本（exploitation 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（exploitation 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_8ed7b96f450330c8",
      "it_3582b5fc4a90b6c6"
@@ -101,7 +101,7 @@
     "issues": []
    },
    {
-    "text": "示例文本（exploitation 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（exploitation 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07"
     ],
@@ -109,7 +109,7 @@
     "issues": []
    },
    {
-    "text": "示例文本（exploitation 3）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（exploitation 3）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_3582b5fc4a90b6c6",
      "it_b9ebe18af790db07"
@@ -120,7 +120,7 @@
   ],
   "actions": [
    {
-    "text": "示例文本（actions 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（actions 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07",
      "it_3582b5fc4a90b6c6"
@@ -129,7 +129,7 @@
     "issues": []
    },
    {
-    "text": "示例文本（actions 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（actions 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07"
     ],
@@ -139,7 +139,7 @@
   ],
   "unknowns": [
    {
-    "text": "示例文本（unknowns 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（unknowns 1）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_3582b5fc4a90b6c6"
     ],
@@ -147,7 +147,7 @@
     "issues": []
    },
    {
-    "text": "示例文本（unknowns 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Ce（P1 · V3 · 2 个独立来源）。",
+    "text": "示例文本（unknowns 2）：CVE-2026-110936 Siemens Software Center: Siemens Software Center Uncontrolled Search Path Element Vulnerability（P1 · V3 · 2 个独立来源）。",
     "cite": [
      "it_b9ebe18af790db07",
      "it_3582b5fc4a90b6c6"

@@ -2,6 +2,7 @@ import type { AmountPoint, CveDetail, EventSummary, TxRef } from '@/types/site-d
 import { AmountSparkline } from '@/components/AmountSparkline';
 import { formatAmount, formatEpss, truncateHash } from '@/utils/formatters';
 import { safeHref } from '@/utils/safeHref';
+import { lossPoints, measureCounts } from '@/utils/amounts';
 
 const TX_WORD: Record<TxRef['verified'], { text: string; tone: string }> = {
   confirmed: { text: '✓ 链上已证实', tone: 'ok' },
@@ -50,11 +51,23 @@ export function KeyData({ event, cves, amounts, tx }: { event: EventSummary; cve
       {amounts.length > 0 && (
         <div style={{ marginTop: cves.length ? 14 : 0 }}>
           <h3 className="dt-h3">金额历史</h3>
-          <AmountSparkline data={amounts} disputed={event.amount_disputed} width={280} height={60} />
+          {lossPoints(amounts).length > 0 && (
+            <AmountSparkline data={lossPoints(amounts)} disputed={event.amount_disputed} width={280} height={60} />
+          )}
           {event.amount_usd_latest !== null && (
             <p className="dt-small" style={{ marginTop: 6 }}>
-              最新估计 <b className="dt-mono" style={{ color: 'var(--loss)' }}>{formatAmount(event.amount_usd_latest)}</b>
+              损失估计 <b className="dt-mono" style={{ color: 'var(--loss)' }}>{formatAmount(event.amount_usd_latest)}</b>
               {event.amount_disputed && <span style={{ color: 'var(--p1)', marginLeft: 6 }}>⚠ 各来源相差 3 倍以上，存在争议</span>}
+            </p>
+          )}
+          {event.amount_frozen_latest != null && (
+            <p className="dt-small" style={{ marginTop: 4 }}>
+              已冻结（报道中的最大值） <b className="dt-mono">{formatAmount(event.amount_frozen_latest)}</b>
+            </p>
+          )}
+          {measureCounts(amounts).context > 0 && (
+            <p className="dt-small dt-muted" style={{ marginTop: 4 }}>
+              另有 {measureCounts(amounts).context} 个子金额（借出 / 抛售 / 爆仓 / 资产规模等）未计入损失
             </p>
           )}
         </div>

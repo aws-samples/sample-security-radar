@@ -37,13 +37,13 @@ function PlanRow({ p }: { p: MitigationPlan }) {
  * M3 "缓解（快路）" block on the event page. mitigation null / absent ⇒ nothing (older data, or the station had nothing
  * for this event) — never an "all clear". The note (缓解 ≠ 修复) is always the first thing shown.
  */
-export function MitigationPanel({ mitigation }: { mitigation: Mitigation | null | undefined }) {
+export function MitigationPanel({ mitigation, step = '02' }: { mitigation: Mitigation | null | undefined; step?: string }) {
   if (!mitigation) return null;
   const { plans, dns } = mitigation;
   const inspector = mitigation.inspector ?? [];
   return (
     <section className="dt-section" id="mitigation" aria-labelledby="dt-h-mit" data-testid="mitigation-panel">
-      <h2 className="dt-h2" id="dt-h-mit"><span className="dt-step">03b</span>缓解（快路） <span className="dt-en">Mitigation</span>
+      <h2 className="dt-h2" id="dt-h-mit"><span className="dt-step">{step}</span>缓解（快路） <span className="dt-en">Mitigation</span>
         <span className="dt-aside">更新 {utcShort(mitigation.updated_at)} UTC</span></h2>
       <p className="mt-note" role="note">{mitigation.note}</p>
 

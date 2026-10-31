@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+Incident follow-up: the radar follows a web3 incident the way an on-chain analyst does.
+- Amount measures: every amount is a loss, a freeze or context; the headline uses losses only; frozen amount separate.
+- Attack phases per report, a named attribution (stated by T1/T2 sources), an attack flow on the event page.
+- On-chain station (`radar/onchain.py`): minute-level reconstruction of young web3 incidents from public JSON-RPC —
+  ERC-20 outflows, issuer freezes, current EIP-7702 delegation; the sender of a verified attack transaction is followed
+  too; per-chain fallback nodes inside one wall-clock RPC budget per run.
+- Attack-transaction breakdown (`radar/attacktx.py`): each verified attack tx's ERC-20 transfers, per token the largest
+  net gainer / loser, plus the native coin the transaction sends.
+- Event page: two tabs (incident / your environment); dispositions set from `scripts/triage.py` with IAM credentials
+  (no web write surface), shown read-only; the ops page lists P0 events nobody has dispositioned.
+- AWS Security Agent ⇄ GitLab: a gitlab-channel target can be reviewed on the integrated repository
+  (`scripts/sa-gitlab-integration.py`), so Security Agent's automatic fix opens a merge request.
+- Sources: crypto media, forensic research blogs and an exchange's announcement API.
+
 ## [1.0.0] - 2026-10-29
 
 First public release as an AWS sample.

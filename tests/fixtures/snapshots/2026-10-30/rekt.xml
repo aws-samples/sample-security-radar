@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+    <channel>
+        <title>Rekt</title>
+        <link>https://www.rekt.news</link>
+        <description>Investigative journalism &amp; creative commentary</description>
+        <lastBuildDate>Wed, 28 Oct 2026 15:09:04 GMT</lastBuildDate>
+        <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
+        <generator>Feed for Node.js</generator>
+        <language>en</language>
+        <image>
+            <title>Rekt</title>
+            <url>https://raw.githubusercontent.com/RektHQ/Assets/main/images/logo.png</url>
+            <link>https://www.rekt.news</link>
+        </image>
+        <copyright>All content copyright rekt © 2026 • All rights reserved</copyright>
+        <item>
+            <title><![CDATA[Transparent When You Want It, Private When You Need It]]></title>
+            <link>https://www.rekt.news/transparent-when-you-want-it</link>
+            <guid>https://www.rekt.news/transparent-when-you-want-it</guid>
+            <pubDate>Thu, 09 Apr 2026 00:00:00 GMT</pubDate>
+            <description><![CDATA[Public blockchains solved settlement.]]></description>
+            
+            <enclosure url="https://raw.githubusercontent.com/RektHQ/Assets/main/images/2023/01/stellar-long-research-header.png" length="0" type="image/png"/>
+        </item>
+<item>
+            <title><![CDATA[Why Privacy Matters More Than Ever in 2026]]></title>
+            <link>https://www.rekt.news/why-privacy-matters-2026</link>
+            <guid>https://www.rekt.news/why-privacy-matters-2026</guid>
+            <pubDate>Mon, 23 Feb 2026 00:00:00 GMT</pubDate>
+            <description><![CDATA[Privacy is no longer a cypherpunk slogan - it’s turning into core blockchain infrastructure.]]></description>
+            
+            <enclosure url="https://raw.githubusercontent.com/RektHQ/Assets/main/images/2023/01/why-privacy-matter-2026-header.png" length="0" type="image/png"/>
+        </item>
+<item>
+            <title><![CDATA[Social Recovery Wallets are Broken by Design]]></title>
+            <link>https://www.rekt.news/Social-Recovery-Wallets-are-Broken-by-Design</link>
+            <guid>https://www.rekt.news/Social-Recovery-Wallets-are-Broken-by-Design</guid>
+            <pubDate>Mon, 09 Jun 2025 00:00:00 GMT</pubDate>
+            <description><![CDATA[A UX-driven mirage of safety masks the vulnerabilities of guardianship, turning recovery into the ultimate attack vector.]]></description>
+            
+            <enclosure url="https://raw.githubusercontent.com/RektHQ/Assets/main/images/research/SocialRecovery_3.png" length="0" type="image/png"/>
+        </item>
+<item>
+            <title><![CDATA[The Inflation Game - Why Emissions-Heavy Protocols Die Before They Grow]]></title>
+            <link>https://www.rekt.news/inflation-game</link>
+            <guid>https://www.rekt.news/inflation-game</guid>
+            <pubDate>Tue, 06 May 2025 00:00:00 GMT</pubDate>
+            <description><![CDATA[It’s the usual story, wild yields, mooning TVL, nonstop hype — until the emissions stop and it all unravels.]]></description>
+            
+            <enclosure url="https://raw.githubusercontent.com/RektHQ/Assets/main/images/2023/01/mantra-misfortune.png" length="0" type="image/png"/>
+        </item>
+<item>
+            <title><![CDATA[The Fake Treasury Playbook - How Protocols Inflate Their War Chests]]></title>
+            <link>https://www.rekt.news/fake-treasury-playbook</link>
+            <guid>https://www.rekt.news/fake-treasury-playbook</guid>
+            <pubDate>Mon, 28 Apr 2025 00:00:00 GMT</pubDate>
+            <description><![CDATA[Behind flashy treasury dashboards lie recycled tokens, illiquid assets, and deceptive accounting — in Web3, war chests are often just smoke and mirrors crafted to inspire trust, not to fund survival. [facts: 3]]]></description>
+            
+            <enclosure url="https://raw.githubusercontent.com/RektHQ/Assets/main/images/research/The%20Fake%20Treasury%20Playbook.png" length="0" type="image/png"/>
+        </item>
+<item>
+            <title><![CDATA[MEV for Hire - The Rise of Dark Pool Validators]]></title>
+            <link>https://www.rekt.news/mev-for-hire</link>
+            <guid>https://www.rekt.news/mev-for-hire</guid>
+            <pubDate>Mon, 21 Apr 2025 00:00:00 GMT</pubDate>
+            <description><![CDATA[What began as opportunistic bots has become a full-blown MEV cartel — private auctions, hidden relays, and validator collusion now rule blockspace, turning decentralization into a pay-to-play game you never signed up fo…]]></description>
+            
+            <enclosure url="https://raw.githubusercontent.com/RektHQ/Assets/main/images/research/MEV%20for%20Hire_The%20Rise%20of%20Dark%20Pool%20Validators.png" length="0" type="image/png"/>
+        </item>
+    </channel>
+</rss>

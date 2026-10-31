@@ -104,7 +104,8 @@
     "kev": false,
     "poc": false,
     "amount_usd": 721140.0
-   }
+   },
+   "phase": "laundering"
   },
   {
    "item_id": "it_df349c23d8c328a5",
@@ -121,7 +122,8 @@
     "kev": false,
     "poc": false,
     "amount_usd": 2600000.0
-   }
+   },
+   "phase": "drain"
   },
   {
    "item_id": "it_0029d807e86226f4",
@@ -138,7 +140,8 @@
     "kev": false,
     "poc": false,
     "amount_usd": 2600000.0
-   }
+   },
+   "phase": "drain"
   }
  ],
  "timeline": [
@@ -190,5 +193,460 @@
  ],
  "cve_details": [],
  "tx": [],
- "response": null
+ "response": null,
+ "onchain": {
+  "window": [
+   "2026-10-29T17:51:50Z",
+   "2026-10-30T20:51:50Z"
+  ],
+  "rows": [
+   {
+    "id": "0x53bd38b816c23e74134786c29a8c18d792777998a3b9326047b583100e88e2f3:519",
+    "t": "2026-10-29T20:24:23Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0x53bd38b816c23e74134786c29a8c18d792777998a3b9326047b583100e88e2f3",
+    "token": "USDT",
+    "amount": 1615409498.97,
+    "from": "0x28c6c06298d514db089934071355e5743bf21d60",
+    "to": "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c",
+    "from_label": "Binance 14",
+    "to_label": "接收方 0x5227…2f8c",
+    "from_evidence": "0x28c6…1d60",
+    "to_evidence": "0x5227…cb2f8c"
+   },
+   {
+    "id": "0xd4e08d3ef0cb02a75922913c61984fbf7fe4bbc4b95324735ef27f908fd6c49c:37",
+    "t": "2026-10-29T20:24:47Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0xd4e08d3ef0cb02a75922913c61984fbf7fe4bbc4b95324735ef27f908fd6c49c",
+    "token": "USDT",
+    "amount": 55739800.5,
+    "from": "0xdfd5293d8e347dfe59e90efd55b2956a1343963d",
+    "to": "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c",
+    "from_label": "Binance 16",
+    "to_label": "接收方 0x5227…2f8c",
+    "to_evidence": "0x5227…cb2f8c"
+   },
+   {
+    "id": "0x68d7d69deaeb9750c38020b4f8d3728146ca8d2267eba1e38cf9b56722ad659a:700",
+    "t": "2026-10-29T20:30:11Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0x68d7d69deaeb9750c38020b4f8d3728146ca8d2267eba1e38cf9b56722ad659a",
+    "token": "USDT",
+    "amount": 500000000.0,
+    "from": "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c",
+    "to": "0x9749292d74fd460982d0912ea9515ea24736c762",
+    "from_label": "接收方 0x5227…2f8c",
+    "to_label": "接收方 0x9749…c762",
+    "from_evidence": "0x5227…cb2f8c"
+   },
+   {
+    "id": "0x1fc0ef33a767132edad434834a5555b30fcb5a171206c03b86175ef6dafac81c:916",
+    "t": "2026-10-29T20:33:23Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0x1fc0ef33a767132edad434834a5555b30fcb5a171206c03b86175ef6dafac81c",
+    "token": "USDT",
+    "amount": 200000000.0,
+    "from": "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c",
+    "to": "0x0ddf0480016e6bcb2c1f5d190d221fba1320697e",
+    "from_label": "接收方 0x5227…2f8c",
+    "to_label": "接收方 0x0ddf…697e",
+    "from_evidence": "0x5227…cb2f8c"
+   },
+   {
+    "id": "0x290e94a9d14294b1c22bbc5d167343fd91fe91233e89434f20532fe5fe7e8668:25",
+    "t": "2026-10-29T20:34:23Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0x290e94a9d14294b1c22bbc5d167343fd91fe91233e89434f20532fe5fe7e8668",
+    "token": "USDT",
+    "amount": 50000000.0,
+    "from": "0x9749292d74fd460982d0912ea9515ea24736c762",
+    "to": "0x74edc79fea13bdf1f7841570227127cec493bdd9",
+    "from_label": "接收方 0x9749…c762",
+    "to_label": "0x74ed…bdd9"
+   },
+   {
+    "id": "0x4fa182626c85ca0cdc18ba736930bdbdfbcf5d201d373913317df6ec58d23d61:0",
+    "t": "2026-10-29T20:36:11Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0x4fa182626c85ca0cdc18ba736930bdbdfbcf5d201d373913317df6ec58d23d61",
+    "token": "USDT",
+    "amount": 100000000.0,
+    "from": "0x9749292d74fd460982d0912ea9515ea24736c762",
+    "to": "0x0000000000be226afde21672a5e4adc45692e69d",
+    "from_label": "接收方 0x9749…c762",
+    "to_label": "0x0000…e69d"
+   },
+   {
+    "id": "0xfa949551eeec164133714f7658e232bf7eb8140a67d8f5edb95ea41b31b93a72:338",
+    "t": "2026-10-29T20:37:59Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0xfa949551eeec164133714f7658e232bf7eb8140a67d8f5edb95ea41b31b93a72",
+    "token": "USDT",
+    "amount": 50000000.0,
+    "from": "0x9749292d74fd460982d0912ea9515ea24736c762",
+    "to": "0xbeef02961503351625926ea9a11ae13b29f5c555",
+    "from_label": "接收方 0x9749…c762",
+    "to_label": "0xbeef…c555"
+   },
+   {
+    "id": "0xdc102dd89dded5a83f1008906883ffb7c81ff3b7d7965d8c7277d170b5e17481:685",
+    "t": "2026-10-29T20:41:23Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0xdc102dd89dded5a83f1008906883ffb7c81ff3b7d7965d8c7277d170b5e17481",
+    "token": "USDC",
+    "amount": 780000000.0,
+    "from": "0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055",
+    "to": "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c",
+    "from_label": "Binance Hot Wallet 34",
+    "to_label": "接收方 0x5227…2f8c",
+    "to_evidence": "0x5227…cb2f8c"
+   },
+   {
+    "id": "0xa861a556b73df4e084aca07663d63b26eec33136ed7328712a7418361d856f36:0",
+    "t": "2026-10-29T20:45:11Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0xa861a556b73df4e084aca07663d63b26eec33136ed7328712a7418361d856f36",
+    "token": "USDT",
+    "amount": 75000000.0,
+    "from": "0x9749292d74fd460982d0912ea9515ea24736c762",
+    "to": "0xbeef02961503351625926ea9a11ae13b29f5c555",
+    "from_label": "接收方 0x9749…c762",
+    "to_label": "0xbeef…c555"
+   },
+   {
+    "id": "0xe5ccc3a8b32f7c52683390fa75f57cec53394421bd05132400806533e661843a:0",
+    "t": "2026-10-29T20:49:23Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0xe5ccc3a8b32f7c52683390fa75f57cec53394421bd05132400806533e661843a",
+    "token": "USDT",
+    "amount": 15000000.0,
+    "from": "0x9749292d74fd460982d0912ea9515ea24736c762",
+    "to": "0xbeef02961503351625926ea9a11ae13b29f5c555",
+    "from_label": "接收方 0x9749…c762",
+    "to_label": "0xbeef…c555"
+   },
+   {
+    "id": "0x3fd5ec345eaf60faca94c652f5ac5c0dca77b4ef3c355fb12cb8f5108464a0b6:70",
+    "t": "2026-10-29T20:49:35Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0x3fd5ec345eaf60faca94c652f5ac5c0dca77b4ef3c355fb12cb8f5108464a0b6",
+    "token": "USDT",
+    "amount": 28600454.37,
+    "from": "0x9749292d74fd460982d0912ea9515ea24736c762",
+    "to": "0x9b1303ebf09bc51b7fac376c9e421e8daae63b82",
+    "from_label": "接收方 0x9749…c762",
+    "to_label": "0x9b13…3b82"
+   },
+   {
+    "id": "0xc0fab33d0ec562d3feef6b23946402b1af80dade21ab4f5fbea7384cc4615183:435",
+    "t": "2026-10-29T20:52:59Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0xc0fab33d0ec562d3feef6b23946402b1af80dade21ab4f5fbea7384cc4615183",
+    "token": "USDT",
+    "amount": 190000000.0,
+    "from": "0x0ddf0480016e6bcb2c1f5d190d221fba1320697e",
+    "to": "0x8d53903625b8e839b9df4bd28b0efb1cd6b8639a",
+    "from_label": "接收方 0x0ddf…697e",
+    "to_label": "0x8d53…639a"
+   },
+   {
+    "id": "0x1fb992f92a45afec23d7d5740c7958a644fb90ef0cba19ca39bd2c6534fb670b:389",
+    "t": "2026-10-29T20:59:11Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0x1fb992f92a45afec23d7d5740c7958a644fb90ef0cba19ca39bd2c6534fb670b",
+    "token": "USDT",
+    "amount": 175000000.0,
+    "from": "0x9749292d74fd460982d0912ea9515ea24736c762",
+    "to": "0x811f15855476156ebf86ba3b84fafb8ceaa4e84c",
+    "from_label": "接收方 0x9749…c762",
+    "to_label": "0x811f…e84c"
+   },
+   {
+    "id": "0x3b9625b33788daeba68420459ae15bf05c5b3639ccfb8e92067e84b560479ca7:954",
+    "t": "2026-10-29T20:59:47Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0x3b9625b33788daeba68420459ae15bf05c5b3639ccfb8e92067e84b560479ca7",
+    "token": "USDC",
+    "amount": 43000000.0,
+    "from": "0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055",
+    "to": "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c",
+    "from_label": "Binance Hot Wallet 34",
+    "to_label": "接收方 0x5227…2f8c",
+    "to_evidence": "0x5227…cb2f8c"
+   },
+   {
+    "id": "0x64a3f49742f4daf1d33b5440cb90bbc13de93bf53f00f5532d6e67967cb1b7de:305",
+    "t": "2026-10-29T21:01:35Z",
+    "kind": "freeze",
+    "chain": "ethereum",
+    "tx": "0x64a3f49742f4daf1d33b5440cb90bbc13de93bf53f00f5532d6e67967cb1b7de",
+    "token": "USDT",
+    "issuer": "Tether",
+    "address": "0x9749292d74fd460982d0912ea9515ea24736c762",
+    "label": "接收方 0x9749…c762"
+   },
+   {
+    "id": "0x7baba482077843514d9c72bac0110ba0916b0814288a72917e2c3bb27a9d8659:302",
+    "t": "2026-10-29T21:01:35Z",
+    "kind": "freeze",
+    "chain": "ethereum",
+    "tx": "0x7baba482077843514d9c72bac0110ba0916b0814288a72917e2c3bb27a9d8659",
+    "token": "USDT",
+    "issuer": "Tether",
+    "address": "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c",
+    "label": "接收方 0x5227…2f8c",
+    "address_evidence": "0x5227…cb2f8c"
+   },
+   {
+    "id": "0xdb6b11fe4bad377b6945379d8fb0d0b642d3ca1ea366e1e8628e79e77ee0b0f3:257",
+    "t": "2026-10-29T21:01:47Z",
+    "kind": "freeze",
+    "chain": "ethereum",
+    "tx": "0xdb6b11fe4bad377b6945379d8fb0d0b642d3ca1ea366e1e8628e79e77ee0b0f3",
+    "token": "USDT",
+    "issuer": "Tether",
+    "address": "0x0ddf0480016e6bcb2c1f5d190d221fba1320697e",
+    "label": "接收方 0x0ddf…697e"
+   },
+   {
+    "id": "0xc954c86f118e8e410e6a3eb9e3b38ff4a95fbdae9d2d58e13166afb7a1f4fc5f:316",
+    "t": "2026-10-29T21:04:59Z",
+    "kind": "freeze",
+    "chain": "ethereum",
+    "tx": "0xc954c86f118e8e410e6a3eb9e3b38ff4a95fbdae9d2d58e13166afb7a1f4fc5f",
+    "token": "USDC",
+    "issuer": "Circle",
+    "address": "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c",
+    "label": "接收方 0x5227…2f8c",
+    "address_evidence": "0x5227…cb2f8c"
+   },
+   {
+    "id": "0x55ba4dabc41b468e580751373ad31acdee6f5ba398682df2c93e5a8340870556:809",
+    "t": "2026-10-29T21:44:11Z",
+    "kind": "outflow",
+    "chain": "ethereum",
+    "tx": "0x55ba4dabc41b468e580751373ad31acdee6f5ba398682df2c93e5a8340870556",
+    "token": "USDT",
+    "amount": 200397771.82,
+    "from": "0x28c6c06298d514db089934071355e5743bf21d60",
+    "to": "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c",
+    "from_label": "Binance 14",
+    "to_label": "接收方 0x5227…2f8c",
+    "from_evidence": "0x28c6…1d60",
+    "to_evidence": "0x5227…cb2f8c"
+   },
+   {
+    "id": "0x312e166cb9e602582f426288f755a4b08e1eddb456b7e4bd614adae11080d305:44",
+    "t": "2026-10-29T22:06:23Z",
+    "kind": "freeze",
+    "chain": "ethereum",
+    "tx": "0x312e166cb9e602582f426288f755a4b08e1eddb456b7e4bd614adae11080d305",
+    "token": "USDT",
+    "issuer": "Tether",
+    "address": "0x28c6c06298d514db089934071355e5743bf21d60",
+    "label": "Binance 14",
+    "address_evidence": "0x28c6…1d60"
+   },
+   {
+    "id": "0xb57c2143508019ac592a9dadb988b39003589f6f54c1924d4163f60520a784f5:119",
+    "t": "2026-10-29T23:53:35Z",
+    "kind": "freeze",
+    "chain": "ethereum",
+    "tx": "0xb57c2143508019ac592a9dadb988b39003589f6f54c1924d4163f60520a784f5",
+    "token": "USDC",
+    "issuer": "Circle",
+    "address": "0x28c6c06298d514db089934071355e5743bf21d60",
+    "label": "Binance 14",
+    "address_evidence": "0x28c6…1d60"
+   },
+   {
+    "id": "0xf2faba0e8ab74e84dde0c7ded90effe20a4cedbde1653f0c98220d2f774eeebb:296",
+    "t": "2026-10-29T23:54:59Z",
+    "kind": "freeze",
+    "chain": "ethereum",
+    "tx": "0xf2faba0e8ab74e84dde0c7ded90effe20a4cedbde1653f0c98220d2f774eeebb",
+    "token": "USDC",
+    "issuer": "Circle",
+    "address": "0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055",
+    "label": "Binance Hot Wallet 34"
+   }
+  ],
+  "totals": {
+   "victim_outflow_by_token": {
+    "USDT": 1871547071.29,
+    "USDC": 823000000.0
+   },
+   "freezes_by_issuer": {
+    "Tether": 4,
+    "Circle": 3
+   },
+   "receivers": 3
+  },
+  "delegation": [
+   {
+    "address": "0x28c6c06298d514db089934071355e5743bf21d60",
+    "label": "Binance 14",
+    "chain": "ethereum",
+    "checked_at": "2026-10-30T06:35:43Z",
+    "delegate": null
+   },
+   {
+    "address": "0xdfd5293d8e347dfe59e90efd55b2956a1343963d",
+    "label": "Binance 16",
+    "chain": "ethereum",
+    "checked_at": "2026-10-30T06:35:43Z",
+    "delegate": null
+   },
+   {
+    "address": "0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055",
+    "label": "Binance Hot Wallet 34",
+    "chain": "ethereum",
+    "checked_at": "2026-10-30T06:35:43Z",
+    "delegate": null
+   }
+  ],
+  "coverage": {
+   "chains_checked": [
+    "arbitrum",
+    "avalanche",
+    "base",
+    "ethereum"
+   ],
+   "tokens": {
+    "ethereum": [
+     "USDT",
+     "USDC"
+    ],
+    "arbitrum": [
+     "USDT",
+     "USDC"
+    ],
+    "avalanche": [
+     "USDT",
+     "USDC"
+    ],
+    "base": [
+     "USDC"
+    ]
+   }
+  },
+  "not_queried": [
+   "原生币（ETH / AVAX 等）的合约内部转出：公共节点不提供 trace",
+   "历史时刻的 EIP-7702 委托状态：公共节点不提供归档状态（只查当前）",
+   "非 EVM 链（Bitcoin / Tron / XRP Ledger / Solana）",
+   "Ethereum 以外的发行方冻结事件（USDT0、Avalanche USDt 等新合约）"
+  ],
+  "errors": [
+   {
+    "at": "2026-10-30T06:35:43Z",
+    "query": "out|arbitrum|USDC|0x3e2bf1ac6bf0934bbba6456c341c2ecbced632d5",
+    "error": "not in tape: eth_getLogs"
+   },
+   {
+    "at": "2026-10-30T06:35:43Z",
+    "query": "out|arbitrum|USDT|0xc4342a5abb4872a698d0c304874928e7efd5e593",
+    "error": "not in tape: eth_getLogs"
+   },
+   {
+    "at": "2026-10-30T06:35:43Z",
+    "query": "out|arbitrum|USDC|0xc4342a5abb4872a698d0c304874928e7efd5e593",
+    "error": "not in tape: eth_getLogs"
+   },
+   {
+    "at": "2026-10-30T06:35:43Z",
+    "query": "out|arbitrum|USDT|0xcd684d22e8c3600e6ee93b5a57923c3b517f3396",
+    "error": "not in tape: eth_getLogs"
+   },
+   {
+    "at": "2026-10-30T06:35:43Z",
+    "query": "out|arbitrum|USDC|0xcd684d22e8c3600e6ee93b5a57923c3b517f3396",
+    "error": "not in tape: eth_getLogs"
+   }
+  ],
+  "complete": false
+ },
+ "attack_txs": {
+  "txs": [
+   {
+    "tx": "0x19ab145e7f771549ca2f1da4b1768d7f728834015b2480ddb5be19c9769899fd",
+    "chain": "avalanche",
+    "block": 98731443,
+    "t": "2026-10-27T23:56:41Z",
+    "status": "success",
+    "sender": "0x6ff1c3ffa622e1062168f3497a275be9cc2b1246",
+    "target": "0xf09dcf4ede2a88bd316ff355dfc333a281a57805",
+    "transfers": 4,
+    "tokens": [
+     {
+      "token": "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+      "symbol": "USDC",
+      "transfers": 4,
+      "gainer": {
+       "address": "0x625e7708f30ca75bfd92586e17077590c60eb4cd",
+       "role": null,
+       "amount": 506.676806,
+       "raw": "506676806"
+      },
+      "loser": {
+       "address": "0xf09dcf4ede2a88bd316ff355dfc333a281a57805",
+       "role": "被调用合约",
+       "amount": 506.676806,
+       "raw": "506676806"
+      }
+     }
+    ],
+    "tokens_total": 1
+   },
+   {
+    "tx": "0x3f6b23292a2e9c2956c7ac56d0b1f79b0271b49edec2156d2675ddf1de058c77",
+    "chain": "avalanche",
+    "block": 98731606,
+    "t": "2026-10-28T00:00:03Z",
+    "status": "success",
+    "sender": "0x6ff1c3ffa622e1062168f3497a275be9cc2b1246",
+    "target": "0xf09dcf4ede2a88bd316ff355dfc333a281a57805",
+    "transfers": 2,
+    "tokens": [
+     {
+      "token": "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+      "symbol": "USDC",
+      "transfers": 2,
+      "gainer": {
+       "address": "0x6ff1c3ffa622e1062168f3497a275be9cc2b1246",
+       "role": "发起地址",
+       "amount": 1013353.611687,
+       "raw": "1013353611687"
+      },
+      "loser": {
+       "address": "0xe25cb545bdd47a8ec2d08001cb5661b00d47621a",
+       "role": null,
+       "amount": 1013353.611686,
+       "raw": "1013353611686"
+      }
+     }
+    ],
+    "tokens_total": 1
+   }
+  ],
+  "not_decoded": [
+   "原生币（ETH / BNB / AVAX）在合约内部的转移：公共节点不提供 trace",
+   "NFT（ERC-721）转移"
+  ],
+  "errors": []
+ }
 }

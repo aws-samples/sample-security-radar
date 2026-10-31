@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wfw="http://wellformedweb.org/CommentAPI/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:sy="http://purl.org/rss/1.0/modules/syndication/" xmlns:slash="http://purl.org/rss/1.0/modules/slash/" xmlns:media="http://search.yahoo.com/mrss/" version="2.0">
+  <channel>
+    <title>CoinDesk: Bitcoin, Ethereum, Crypto News and Price Data</title>
+    <link>https://www.coindesk.com/</link>
+    <atom:link rel="self" type="application/rss+xml" href="https://www.coindesk.com/arc/outboundfeeds/rss"/>
+    <atom:link rel="hub" href="true"/>
+    <description>Leader in cryptocurrency, Bitcoin, Ethereum, XRP, blockchain, DeFi, digital finance and Web 3.0 news with analysis, video and live price updates.</description>
+    <lastBuildDate>Fri, 30 Oct 2026 05:58:04 +0000</lastBuildDate>
+    <language>en-US</language>
+    <copyright>© 2026 CoinDesk, Inc.</copyright>
+    <generator>CoinDesk</generator>
+    <ttl>5</ttl>
+    <sy:updatePeriod>hourly</sy:updatePeriod>
+    <sy:updateFrequency>1</sy:updateFrequency>
+    <image>
+      <url>https://downloads.coindesk.com/arc/failsafe/feeds/coindesk-feed-logo.png</url>
+      <title>CoinDesk: Bitcoin, Ethereum, Crypto News and Price Data</title>
+      <link>https://www.coindesk.com/</link>
+    </image>
+    <item>
+      <title><![CDATA[Binance hack bites India's largest crypto exchange as it curbs futures trading]]></title>
+      <link>https://www.coindesk.com/markets/2026/10/30/coindcx-halts-new-crypto-futures-bets-as-binance-incident-disrupts-liquidity</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/7f7ef13317cdfd77bf7ecbfc1b784d3d087b9720-1500x915.jpg?fm=jpg&amp;w=800&amp;h=450&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">c70fc199-d44a-48b2-9139-d7e9b95e2b2a</guid>
+      <pubDate>Fri, 30 Oct 2026 05:43:07 +0000</pubDate>
+      <description><![CDATA[CoinDCX has restricted new futures positions after Binance’s security incident disrupted a key liquidity provider.]]></description>
+      <dc:creator>Omkar Godbole</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/markets"><![CDATA[Markets]]></category>
+      <category domain="tag"><![CDATA[Binance]]></category>
+      <category domain="tag"><![CDATA[Hack]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+<item>
+      <title><![CDATA[Binance hacker splits $1.4 billion of bitcoin into 19 wallets that no one can freeze]]></title>
+      <link>https://www.coindesk.com/markets/2026/10/30/binance-hacker-splits-usd1-4-billion-of-bitcoin-into-19-wallets-that-no-one-can-freeze</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/6afa7aee3dd3e7c1e37e3929a4ac24b7cebaccdd-6000x4000.jpg?fm=jpg&amp;w=800&amp;h=450&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">0bf7fd4e-f110-4984-a75a-532a319e0f61</guid>
+      <pubDate>Fri, 30 Oct 2026 04:50:42 +0000</pubDate>
+      <description><![CDATA[All 18,270 coins sit in 19 wallets, 17 of them holding exactly 1,000 BTC each, and none has moved since Thursday night, a CoinDesk trace of the blockchain shows. [facts: 18,270; 19; 17; 1,000]]]></description>
+      <dc:creator>Shaurya Malwa</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/markets"><![CDATA[Markets]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+<item>
+      <title><![CDATA[$6 billion Binance hack sends bitcoin, ether tumbling; Standard Chartered expects more pain]]></title>
+      <link>https://www.coindesk.com/markets/2026/10/30/usd6-billion-binance-hack-sends-bitcoin-ether-tumbling-standard-chartered-sees-more-losses-ahead</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/620842f6b69f8d4379c9ef8109bf2fef3539f530-2173x1080.png?fm=jpg&amp;w=800&amp;h=450&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">745dd8f6-dd7a-4054-99ec-139ff0006d22</guid>
+      <pubDate>Fri, 30 Oct 2026 04:00:43 +0000</pubDate>
+      <description><![CDATA[Bitcoin and ether slid after a suspected $6.3 billion Binance security breach and a Polymarket exploit. [facts: $6.3 billion]]]></description>
+      <dc:creator>Omkar Godbole</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/markets"><![CDATA[Markets]]></category>
+      <category domain="tag"><![CDATA[Bitcoin News]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+<item>
+      <title><![CDATA[Institutional crypto investors rush to pull funds from exchanges after Binance hack]]></title>
+      <link>https://www.coindesk.com/markets/2026/10/30/institutional-crypto-investors-rush-to-pull-funds-from-exchanges-after-binance-hack</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/df75194a14ee0137a319a24c95c7971dfac737a2-4896x3268.jpg?fm=jpg&amp;w=800&amp;h=450&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">170a662d-f703-4152-97a5-358eccd785d9</guid>
+      <pubDate>Fri, 30 Oct 2026 03:56:40 +0000</pubDate>
+      <description><![CDATA[The withdrawals suggest the fallout from the multibillion-dollar breach is spreading beyond Binance.]]></description>
+      <dc:creator>Will Canny</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/markets"><![CDATA[Markets]]></category>
+      <category domain="tag"><![CDATA[Binance]]></category>
+      <category domain="tag"><![CDATA[Hack]]></category>
+      <category domain="tag"><![CDATA[Exclusive]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+<item>
+      <title><![CDATA[XRP Ledger developers tighten the rules for who can hold 'restricted' tokens]]></title>
+      <link>https://www.coindesk.com/tech/2026/10/30/xrp-ledger-developers-tighten-the-rules-for-who-can-hold-restricted-tokens</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/af945cfdd3152f9ebc96d44f89ccafea550ccb57-5760x3840.jpg?fm=jpg&amp;w=800&amp;h=450&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">74a8b8f2-29ff-43ab-86d1-372884b0ff1f</guid>
+      <pubDate>Fri, 30 Oct 2026 05:45:27 +0000</pubDate>
+      <description><![CDATA[A set of fixes would tighten who can hold permissioned tokens on the network.]]></description>
+      <dc:creator>Shaurya Malwa</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/tech"><![CDATA[Tech]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+<item>
+      <title><![CDATA[Crypto's longtime foe, North Korea's Lazarus Group, likely behind Binance hack: blockchain sleuths]]></title>
+      <link>https://www.coindesk.com/policy/2026/10/29/crypto-s-longtime-foe-north-korea-s-lazarus-group-likely-behind-binance-hack-blockchain-sleuths</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/e2a355ad6263f621c2c80597c2656c906b2bd252-7358x5127.jpg?fm=jpg&amp;w=800&amp;h=450&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">dace21c5-660b-4ef7-8f00-25bc4a3d4a6e</guid>
+      <pubDate>Fri, 30 Oct 2026 03:36:11 +0000</pubDate>
+      <description><![CDATA[Security researchers suggested that the hermit kingdom's Lazarus Group was behind Thursday's nearly $6 billion hack of the world's largest crypto exchange. [facts: $6 billion]]]></description>
+      <dc:creator>Nikhilesh De</dc:creator>
+      <dc:creator>Cheyenne Ligon</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/policy"><![CDATA[Policy]]></category>
+      <category domain="tag"><![CDATA[Binance]]></category>
+      <category domain="tag"><![CDATA[North Korea]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+  </channel>
+</rss>

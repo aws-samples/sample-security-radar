@@ -24,3 +24,16 @@ Test fixtures recorded on 2026-10-29 (tests/fixtures/snapshots/2026-10-29/, test
   descriptions in it come from the public advisory databases Inspector cites (e.g. NVD, GitHub Advisory Database).
 - sbom-radar-2026-10-29.json, ui-package-lock-2026-10-29.json, uv-2026-10-29.lock — this repository's own SBOM and
   lockfiles at that date (package names and versions of open-source dependencies).
+
+Test fixtures recorded on 2026-10-30 / 2026-10-31 (tests/fixtures/snapshots/2026-10-30/, tests/fixtures/onchain/,
+tests/fixtures/attacktx/):
+
+- theblock.xml, coindesk.xml, decrypt.xml, cointelegraph.xml, defiant.xml, rekt.xml, trm.xml, chainalysis.xml,
+  slowmist_medium.xml — crypto media and research blogs, reduced to title, link, date and one sentence per item,
+  followed by a machine-extracted list of facts; the original article text is not included. Rights in titles and the
+  remaining sentences stay with their publishers.
+- binance_cms.json — titles, codes and release dates of an exchange's public announcement list.
+- onchain/binance_20261029.json, attacktx/tranche_zklink.json — public blockchain data (block numbers, transaction
+  hashes, ERC-20 transfer logs, token symbols / decimals) read from public JSON-RPC endpoints; the evidence texts in the
+  first file are reduced to one sentence each.
+

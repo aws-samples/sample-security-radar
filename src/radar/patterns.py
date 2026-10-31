@@ -43,7 +43,10 @@ HARDHAT_KEY0 = "0x" + "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf
 
 CLASSES: tuple[AttackClass, ...] = (
     AttackClass("public-dev-key", "Publicly known dev/test key trusted in production",
-                r"Hardhat default|default (?:test )?account|publicly known private key|Private Key Leak|Key Compromise",
+                # only keys that are public by construction (framework defaults). A *stolen* production key ("Hot Wallet Key
+                # Compromised", "Private Key Leakage") is not this class: it has no code shape in your repo, and matching it
+                # sent the Binance hot-wallet theft (live 2026-10-30) to paid reviews and two patch MRs on alps-vault.
+                r"Hardhat default|Anvil default|default (?:test )?account|publicly known private key|well-known (?:dev|test) key",
                 "Fail if any contract, whitelist, role grant, deploy script or network config references a well-known "
                 "development account or embeds a private key (Hardhat/Anvil defaults, keys committed to the repo).",
                 "Remove the account from every allowlist/role, rotate any key that was ever committed, load deployer keys "

@@ -95,6 +95,8 @@ class Event:
     amount_history: list[dict[str, Any]] = field(default_factory=list)
     amount_usd_latest: float | None = None
     amount_disputed: bool = False
+    amount_frozen_latest: float | None = None   # the largest freeze reported (pipeline._amounts)
+    attribution: dict[str, Any] | None = None   # named threat actor (pipeline._attribution)
     timeline: list[dict[str, Any]] = field(default_factory=list)
     entities: list[str] = field(default_factory=list)
     chains: list[str] = field(default_factory=list)

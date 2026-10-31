@@ -78,7 +78,10 @@ def entity_key(name: str | None) -> str | None:
     if not name:
         return None
     s = re.sub(r"\(.*?\)", " ", name)                 # 'Ledger (Supply Chain)' → 'Ledger'
-    s = re.sub(r"(?<=[a-z])_?(io|xyz|fi|hq|app|official)\b", "", s, flags=re.IGNORECASE)
+    # handle suffixes: '_io' in any case, or a capitalised camel suffix ('BeefyFi'). Case-sensitive on purpose: with
+    # IGNORECASE a plain word ending in one ('Hifi' → 'Hi') lost its name and the victim got no key at all (live
+    # 2026-10-29: DeFiLlama's and SlowMist's "Hifi Finance" stayed two events)
+    s = re.sub(r"(?<=[A-Za-z0-9])(?:_(?i:io|xyz|fi|hq|app|official)|(?:IO|Io|XYZ|Xyz|FI|Fi|HQ|Hq|APP|App|Official))\b", "", s)
     for tok in re.findall(r"[A-Za-z0-9]+", s):
         t = tok.lower()
         if len(t) >= 3 and t not in _ENTITY_STOP and not t.isdigit():
@@ -86,19 +89,60 @@ def entity_key(name: str | None) -> str | None:
     return None
 
 
+# Free-text web3 tokens that name no victim (live 2026-10-29 wrong merges): one shared word of this kind proved nothing,
+# yet it attached — "682 ETH … Tornado Cash" (10-27) absorbed CertiK/X100/zkLink reports and then the Binance hot-wallet
+# theft through tok:eth / cash / tornado / certik / report; a Tranche Vault event absorbed zkLink, Polymarket and Circle's
+# USDC freeze through tok:usdc / slowmist / cause. Kinds: assets and tickers, chains, mixers, the security firms and news
+# desks that *report* hacks, tweet boilerplate. Matching only — they never were victim names.
+MATCH_STOP = frozenset(
+    # assets / tickers
+    ["eth", "weth", "steth", "btc", "wbtc", "usdt", "usdc", "usde", "usd1", "usd", "dai", "bnb", "sol", "trx", "xrp",
+     "uni", "link", "arb", "op", "ena", "pepe", "pol", "matic", "avax", "xaut", "rlusd", "erc20", "nft", "nfts",
+     "stablecoin", "stablecoins", "cryptocurrency", "bitcoin", "ether",
+     # chains
+     "ethereum", "base", "arbitrum", "avalanche", "optimism", "polygon", "solana", "tron", "bsc", "sui", "aptos",
+     "ton", "linea", "blast", "scroll", "sonic", "gnosis", "mainnet",
+     # mixers / generic laundering words
+     "tornado", "cash", "mixer", "railgun", "exploiter", "drainer", "hot", "cold", "whale", "address", "addresses",
+     "fund", "funds", "eip", "eip7702",
+     # reporters: security firms, trackers, news desks (they report many hacks; they are not the victim)
+     "certik", "certikalert", "certikinsight", "slowmist", "peckshield", "peckshieldalert", "misttrack", "lookonchain",
+     "bubblemaps", "zachxbt", "cyvers", "hacken", "blocksec", "phalcon", "phylax", "chainalysis", "elliptic",
+     "arkham", "nansen", "panews", "odaily", "bwenews", "tree", "treenews", "watcherguru", "wublockchain",
+     "theblock", "coindesk", "cointelegraph", "decrypt", "bleepingcomputer",
+     # boilerplate
+     "report", "dashboard", "read", "stay", "cause", "root", "powered", "confirmed", "attention", "watch", "more",
+     "over", "our", "your", "that", "this", "another", "same", "someone", "data", "ceo", "founder", "news", "market",
+     "digital", "oct", "today", "loss", "total", "approximately", "approx", "appreci", "appreciate", "thanks", "please",
+     "beware", "warning", "suspected", "potential", "possible"])
+
+# Chinese names of exchanges ⇒ the token their English reports carry (Chinese titles otherwise yield no token at all,
+# so 「Tether在疑似币安黑客攻击中冻结…」 could only attach through tok:usdt).
+CEX_ZH: dict[str, str] = {"币安": "binance", "欧易": "okx", "火币": "htx", "抹茶": "mexc", "库币": "kucoin",
+                          "芝麻开门": "gate", "派网": "pionex"}
+
+_URL_RE = re.compile(r"https?://\S+")
+# Capitalised words and lowercase-led camel names (zkLink, dYdX). ASCII lookarounds instead of \b: in a Chinese headline
+# 「Polymarket疑似…」 the CJK neighbour is a word character, so \b never fired and the name was lost.
+_CAP_WORD = re.compile(r"(?<![A-Za-z0-9])(?:[A-Z][A-Za-z0-9]{2,}|[a-z]{1,3}[A-Z][A-Za-z0-9]+)(?![A-Za-z0-9])")
+
+
 def entity_tokens(text: str) -> set[str]:
-    """Candidate entity tokens in free text (handles, $TICKERS, capitalised words) for matching against
-    entity keys of existing events. Matching, not discovery: a token only matters if an event has it."""
+    """Candidate entity tokens in free text (handles, $TICKERS, capitalised words, Chinese exchange names) for matching
+    against existing events. Matching, not discovery: a token only matters if an event has it. URLs are dropped first
+    (t.co path ids looked like capitalised words)."""
+    text = _URL_RE.sub(" ", text or "")
     toks: set[str] = set()
-    for m in re.findall(r"[@$]([A-Za-z0-9_]{2,30})", text or ""):
+    for m in re.findall(r"[@$]([A-Za-z0-9_]{2,30})", text):
         k = entity_key(m)
         if k:
             toks.add(k)
-    for m in re.findall(r"\b[A-Z][A-Za-z0-9]{2,}\b", text or ""):
+    for m in _CAP_WORD.findall(text):
         t = m.lower()
         if t not in _ENTITY_STOP:
             toks.add(t)
-    return toks
+    toks |= {v for zh, v in CEX_ZH.items() if zh in text}
+    return toks - MATCH_STOP
 
 
 _NAMED = re.compile(r"\b(?:[A-Za-z]+\d[A-Za-z0-9]*|[A-Z][a-z]+[A-Z][A-Za-z]+|[A-Z]{2,}[a-z]{2,}[A-Za-z]*)\b")

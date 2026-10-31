@@ -19,4 +19,7 @@ ui/node_modules/
 docs/deck/shots/
 docs/deck/v3/shots/
 ui/tsconfig.app.tsbuildinfo
+
+# wrangler (Cloudflare Pages deploys from docs/deck)
+.wrangler/
 /.sample-bundle

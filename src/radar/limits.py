@@ -15,6 +15,7 @@ class Limits:
     FINALIZE_QUIET_DAYS_VULN = 14
     AMOUNT_STABLE_RATIO = 0.10      # |latest - value 7d ago| / latest below this ⇒ stable
     AMOUNT_DISPUTE_RATIO = 3.0      # max/min across sources above this ⇒ amount_disputed
+    AMOUNT_DISPUTE_FLOOR = 0.01     # a source's figure below this share of the largest one is a sub-amount or a price, not a rival loss estimate
 
     # --- severity ---
     P0_FRESH_HOURS = 72             # P0 = "act now": first seen or escalated within this window, else P1
@@ -31,8 +32,23 @@ class Limits:
     HTTP_TIMEOUT_S = 25
     CHAIN_RPC_TIMEOUT_S = 6          # C6: one eth_getTransactionReceipt; worst case 8 × 6 s = 48 s of a 600 s process station
     CHAIN_CHECKS_PER_CYCLE = 8       # C6: RPC calls per 10-min cycle (process station stays well inside its timeout)
+    RPC_WALL_S_PER_CYCLE = 240       # all public-RPC calls of one process run (verify + on-chain + attack-tx, fallbacks included) ≤ 240 s of 600 s
     CHAIN_RECHECK_H = 6              # C6: not_found / RPC error ⇒ re-check after this long …
     CHAIN_MAX_ATTEMPTS = 3           # … at most this many times (then the verdict stays not_found)
+    # M4 D6 on-chain reconstruction (radar.onchain): P0 web3 incidents only
+    ONCHAIN_ACTIVE_DAYS = 3          # reconstruct while the event is this young (laundering moves for days; issuers freeze for hours)
+    ONCHAIN_WINDOW_BEFORE_H = 3      # window starts before first_seen (the drain precedes the first report: Binance 20:24 vs 20:51)
+    ONCHAIN_WINDOW_AFTER_H = 24      # … and ends after it
+    ONCHAIN_MIN_USD = 1_000_000      # floor of the row / receiver threshold (onchain.min_usd) …
+    ONCHAIN_MAX_MIN_USD = 10_000_000 # … its ceiling: routine CEX withdrawals run to a few $M (Binance 18:21–19:55: $1–3M)
+    ONCHAIN_LOSS_SHARE = 0.005       # … and its scale: 0.5 % of the incident's loss
+    ONCHAIN_CODE_RECHECK_MIN = 60    # eth_getCode of a victim wallet at most this often
+    ONCHAIN_MAX_ROWS = 300           # rows kept per case (one ledger entry each, ≤ 400 KB)
+    ONCHAIN_MAX_DOWNSTREAM = 8       # receivers followed (≤ 2 hops) — the case must not explode into a chain-wide crawl
+    ONCHAIN_CALLS_PER_CYCLE = 40     # all events together; typical 0.5 s/call ⇒ 20 s; worst case 40 × 6 s = 240 s of the 600 s process station
+    ATTACKTX_CALLS_PER_CYCLE = 20   # attack-tx breakdown: receipts + block time + token symbol/decimals (receipts never change)
+    ATTACKTX_MAX_TOKENS = 12        # tokens shown per attack tx (most transfers first); tokens_total states the rest
+    ATTACKTX_TOKEN_LEDGER_MAX = 3000  # shared token symbol/decimals ledger, newest kept (~100 B each; one DynamoDB item ≤ 400 KB)
     HTTP_MAX_BYTES = 20_000_000
     SOURCE_FAILING_AFTER = 3        # consecutive failures ⇒ status "failing"
     TWITTERAPI_MIN_INTERVAL_S = 5.5  # never-topped-up key: 1 request / 5 s

@@ -6,7 +6,18 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from radar import cluster_judge, coverage, insights, ops, respond, timeutil
+from radar import (
+    attacktx,
+    cluster_judge,
+    coverage,
+    insights,
+    onchain,
+    ops,
+    respond,
+    signals,
+    timeutil,
+    triage,
+)
 from radar.limits import Limits
 from radar.model import SEVERITY_ORDER, Event, Item
 from radar.registry import BY_ID, SOURCES
@@ -35,6 +46,7 @@ def _summary(ev: Event, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         "first_report_source": ev.first_report_source, "independent_sources": ev.independent_sources,
         "item_count": len(ev.item_ids), "cves": ev.cves, "entities": ev.entities, "chains": ev.chains,
         "amount_usd_latest": ev.amount_usd_latest, "amount_disputed": ev.amount_disputed,
+        "amount_frozen_latest": ev.amount_frozen_latest, "attribution": ev.attribution,
         "summary": next((x["text"] for x in (ev.analysis or {}).get("bluf", []) if x.get("grounded")), ev.summary),
         "analysis_status": _analysis_status(ev),
     }
@@ -44,15 +56,30 @@ def _response(ev: Event, store: Store, now: datetime) -> dict[str, Any] | None:
     return respond.to_response(store.get_response(ev.event_id), TARGET_NAMES, timeutil.iso(now))
 
 
-def _item_ref(it: Item, group: int) -> dict[str, Any]:
+def _attack_txs(ev: Event, store: Store) -> dict[str, Any] | None:
+    """M4.1 E3 attack-tx breakdown; the shared token ledger is read only for events that have a decoded tx."""
+    if ev.domain != "web3":
+        return None
+    case = store.get_source_state(attacktx.case_key(ev.event_id))
+    return attacktx.doc(case, store.get_source_state(attacktx.TOKEN_KEY)) if case.get("txs") else None
+
+
+def _phase(it: Item, src: Any) -> str:
+    """Attack phase of one report (signals.phase); a web3 hack-database record that names no phase is the record of the
+    theft itself — the drain (live 2026-10-30: 105 of 141 web3 events had no phase at all, so no attack flow)."""
+    p = signals.phase(it.title)
+    return "drain" if p == "other" and src is not None and src.always_eventful and src.domain == "web3" else p
+
+
+def _item_ref(it: Item, group: int, at: str) -> dict[str, Any]:
     src = BY_ID.get(it.source_id)
     name = src.name if src else it.source_id
     if it.source_id.startswith("x_") and it.extra.get("x_status"):
         name = f"X @{it.url.split('/')[3]}" if it.url.count("/") >= 4 else name
     return {
         "item_id": it.item_id, "source_id": it.source_id, "source_name": name, "tier": it.tier, "url": it.url,
-        "title": it.title, "published_at": it.published_at, "excerpt": it.text[: Limits.EXCERPT_MAX_CHARS],
-        "independent_group": group,
+        "title": it.title, "published_at": it.published_at, "evidence_at": at, "excerpt": it.text[: Limits.EXCERPT_MAX_CHARS],
+        "independent_group": group, "phase": _phase(it, src),
         "signals": {"exploited": it.signals["exploited"], "kev": it.signals["kev"], "poc": it.signals["poc"],
                     "amount_usd": it.signals["amount_usd"]},
     }
@@ -69,14 +96,19 @@ def _cve_details(cves: list[str], items: list[Item], epss: dict[str, dict[str, f
 
 def event_doc(ev: Event, store: Store, now: datetime, epss: dict[str, dict[str, float]] | None = None,
               titles: dict[str, str] | None = None) -> dict[str, Any]:
-    from radar.pipeline import independent_groups  # local import: pipeline imports publish-free modules only
+    from radar.pipeline import (  # local import: pipeline imports publish-free modules only
+        evidence_at,
+        first_report,
+        independent_groups,
+    )
     items = sorted(store.get_items(ev.item_ids), key=lambda i: (i.published_at, i.source_id, i.item_id))
     groups = independent_groups(items)
     vel = insights.velocity(ev, items, now)
     resp = _response(ev, store, now)
     return {
         "kind": "event", "generated_at": timeutil.iso(now),
-        "event": _summary(ev, {"velocity_6h": vel, "lifecycle": insights.lifecycle(ev, vel, now),
+        "event": _summary(ev, {"triage": triage.public(store.get_source_state(triage.KEY).get(ev.event_id)),
+                               "velocity_6h": vel, "lifecycle": insights.lifecycle(ev, vel, now),
                                "impact": respond.impact(resp)}),
         "analysis": _public_analysis(ev),
         "response": resp,
@@ -86,17 +118,23 @@ def event_doc(ev: Event, store: Store, now: datetime, epss: dict[str, dict[str, 
             ev.event_id, store.get_source_state("__cluster_judge__").get("pairs") or {}, titles or {ev.event_id: ev.title}),
         "progress": insights.progress(ev, items, now),
         "pipeline_steps": insights.pipeline_steps(ev, items, resp),
-        "items": [_item_ref(it, g) for it, g in zip(items, groups)],
+        # evidence_at: where an item sits on a timeline (a date-only entry never before the first report) — the UI
+        # draws with it and never re-decides that ambiguity
+        "items": [_item_ref(it, g, evidence_at(it, first_report(items))) for it, g in zip(items, groups)],
         "timeline": ev.timeline, "amount_history": ev.amount_history,
         "cve_details": _cve_details(ev.cves, items, epss or {}),
         "tx": [{"chain": t["chain"], "hash": t["hash"], "explorer_url": t.get("explorer_url"),
                 "verified": t.get("verified", "unchecked"),
                 **({"block": t["block"]} if t.get("block") is not None else {}),
                 **({"checked_at": t["checked_at"]} if t.get("checked_at") else {})} for t in ev.tx],
+        # M4 D6: minute-level on-chain reconstruction (web3 only — one ledger read per web3 event doc)
+        "onchain": onchain.doc(store.get_source_state(onchain.case_key(ev.event_id))) if ev.domain == "web3" else None,
+        "attack_txs": _attack_txs(ev, store),
     }
 
 
 def events_doc(store: Store, now: datetime) -> tuple[dict[str, Any], list[Event]]:
+    tri = store.get_source_state(triage.KEY)
     since = timeutil.iso(now - timedelta(days=Limits.PUBLISH_WINDOW_DAYS))
     evs = store.events_updated_since(since)
     evs.sort(key=lambda e: e.last_updated, reverse=True)   # newest first …
@@ -105,7 +143,8 @@ def events_doc(store: Store, now: datetime) -> tuple[dict[str, Any], list[Event]
     rows = []
     for e in evs:
         vel = insights.velocity(e, store.get_items(e.item_ids), now)
-        rows.append(_summary(e, {"velocity_6h": vel, "lifecycle": insights.lifecycle(e, vel, now),
+        rows.append(_summary(e, {"triage": triage.public(tri.get(e.event_id)),
+                                 "velocity_6h": vel, "lifecycle": insights.lifecycle(e, vel, now),
                                  "impact": respond.impact(_response(e, store, now))}))
     board = insights.now_board(evs, store, now)
     ok = sum(1 for s in SOURCES if s.enabled and store.get_source_state(s.source_id).get("consecutive_failures", 0) == 0
@@ -186,8 +225,10 @@ def continuum_doc(store: Store, now: datetime, evs: list[Event]) -> dict[str, An
 
 def ops_doc(store: Store, now: datetime, srcs: dict[str, Any], evs: list[Event]) -> dict[str, Any]:
     """D/M3: what needs a human, from state the stations already keep (radar.ops RULES)."""
+    tri = store.get_source_state(triage.KEY)
     items = ops.attention({"sources": srcs["sources"], "ledger": store.get_source_state("__continuum__"),
-                           "events": [{"event_id": e.event_id, "tx": e.tx} for e in evs],
+                           "events": [{"event_id": e.event_id, "tx": e.tx, "severity": e.severity, "title": e.title,
+                                       "triage": tri.get(e.event_id)} for e in evs],
                            "digest": store.get_source_state("__digest__"),
                            "mitigate": store.get_source_state("__mitigate__")})
     return {"kind": "ops", "generated_at": timeutil.iso(now), "attention": items,

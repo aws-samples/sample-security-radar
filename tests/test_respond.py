@@ -9,7 +9,7 @@ from pathlib import Path
 import jsonschema
 import pytest
 
-from radar import coverage, products, respond
+from radar import coverage, patterns, products, respond
 
 ROOT = Path(__file__).resolve().parents[1]
 FX = ROOT / "tests" / "fixtures" / "events"
@@ -753,3 +753,16 @@ def test_stale_radar_rules_leave_the_pack_after_the_ttl_and_nothing_else_does():
     assert after["radar-ev-new"] == "2026-10-28"                            # first observed ⇒ full grace, not deleted
     assert "team-rule" not in after and "radar-gone-from-pack" not in after  # not ours / no longer in the pack
     assert respond.prune_plan(pack, {}, "2026-10-28", 14)[0] == []           # the deploy that adds pruning deletes nothing
+
+
+@pytest.mark.parametrize("title", ["Binance CEX — Hot Wallet Key Compromised", "Fluid Lending — Private Key Compromised",
+                                   "Qubic — Private Key Leakage", "Bitget — Hot Wallet Key Compromised"])
+def test_a_stolen_production_key_is_not_the_public_dev_key_class(title):
+    """Live 2026-10-30: 'Hot Wallet Key Compromised' matched public-dev-key ⇒ the Binance theft was judged to hit alps-vault
+    (it embeds the public Hardhat key on purpose) and triggered paid reviews + two Continuum MRs."""
+    assert "public-dev-key" not in [c.class_id for c in patterns.classes_for([title])]
+
+
+def test_the_hardhat_default_account_story_still_is_the_public_dev_key_class():
+    title = "AlpsCon — AlpsCon AI Trade Hub still trusts the canonical Hardhat default account"
+    assert "public-dev-key" in [c.class_id for c in patterns.classes_for([title])]

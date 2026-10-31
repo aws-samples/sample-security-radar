@@ -39,6 +39,8 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
       response?: Response | null;
       possible_duplicates?: PossibleDuplicate[];
       mitigation?: Mitigation | null;
+      onchain?: null | Onchain;
+      attack_txs?: null | AttackTxs;
     }
   | {
       kind: "sources";
@@ -139,6 +141,32 @@ export interface EventSummary {
    */
   analysis_status?: "ok" | "partial" | "pending" | "failed" | "not_applicable";
   impact?: ImpactSummary | null;
+  /**
+   * Largest freeze reported for the event (USD), null when none.
+   */
+  amount_frozen_latest?: number | null;
+  /**
+   * Named threat actor (pipeline._attribution).
+   */
+  attribution?: null | {
+    actor: string;
+    /**
+     * stated = a T1/T2 report names the actor; suspected = only community / flash news
+     */
+    confidence: "stated" | "suspected";
+    sources: number;
+    first_at: Timestamp;
+  };
+  /**
+   * Operator disposition (radar.triage, set by scripts/triage.py with IAM credentials); null = not dispositioned
+   */
+  triage?: null | {
+    status: "triage" | "tracking" | "closed" | "false_positive";
+    label: string;
+    note: string;
+    by: string;
+    at: Timestamp;
+  };
 }
 /**
  * Compact 'does it hit us' chip for lists and the wall (from AWS Continuum / Security Agent results).
@@ -200,6 +228,10 @@ export interface ItemRef {
   url: string;
   title: string;
   published_at: Timestamp;
+  /**
+   * Timeline position: published_at, but a date-only entry is never earlier than the event's first report (pipeline.evidence_at)
+   */
+  evidence_at?: string;
   excerpt: string;
   /**
    * Items sharing a group number are echoes of the same original source.
@@ -211,6 +243,10 @@ export interface ItemRef {
     poc: boolean;
     amount_usd: number | null;
   };
+  /**
+   * Attack phase of the report, from its title (signals.phase).
+   */
+  phase?: "prep" | "drain" | "laundering" | "freeze" | "statement" | "attribution" | "recovery" | "impact" | "other";
 }
 export interface TimelineEntry {
   at: Timestamp;
@@ -231,6 +267,10 @@ export interface AmountPoint {
   value: number;
   source_id: string;
   observed_at: Timestamp;
+  /**
+   * Which measure the amount is (pipeline._amounts): only loss feeds the headline and the dispute flag; frozen feeds amount_frozen_latest.
+   */
+  kind?: "loss" | "frozen" | "context";
 }
 export interface CveDetail {
   cve: string;
@@ -435,6 +475,123 @@ export interface InspectorFinding {
   cwes: string[];
   file?: string | null;
   target_id?: string;
+}
+/**
+ * Minute-level on-chain reconstruction of a P0 web3 incident (radar.onchain). Every row carries its tx; what was not queried is listed.
+ */
+export interface Onchain {
+  /**
+   * @minItems 2
+   * @maxItems 2
+   */
+  window: [Timestamp, Timestamp];
+  rows: OnchainRow[];
+  totals: {
+    victim_outflow_by_token: {
+      [k: string]: number;
+    };
+    freezes_by_issuer: {
+      [k: string]: number;
+    };
+    receivers: number;
+  };
+  delegation: {
+    address: string;
+    label: string;
+    chain: string;
+    checked_at: Timestamp;
+    delegate: string | null;
+  }[];
+  coverage: {
+    chains_checked: string[];
+    tokens: {
+      [k: string]: string[];
+    };
+  };
+  not_queried: string[];
+  errors: {
+    at: Timestamp;
+    query: string;
+    error: string;
+  }[];
+  complete: boolean;
+}
+export interface OnchainRow {
+  id: string;
+  t: Timestamp;
+  kind: "outflow" | "freeze";
+  chain: string;
+  tx: string;
+  token: string;
+  amount?: number;
+  from?: string;
+  to?: string;
+  from_label?: string;
+  to_label?: string;
+  issuer?: string | null;
+  address?: string;
+  label?: string;
+  from_evidence?: string;
+  to_evidence?: string;
+  address_evidence?: string;
+}
+/**
+ * Attack-transaction breakdown (radar.attacktx): ERC-20 transfers of each verified attack tx, per token the largest net gainer / loser.
+ */
+export interface AttackTxs {
+  txs: {
+    tx: string;
+    chain: string;
+    block: number;
+    t: Timestamp;
+    status: "success" | "reverted";
+    sender: string;
+    target: string;
+    transfers: number;
+    tokens_total: number;
+    tokens: {
+      token: string;
+      symbol: string | null;
+      transfers: number;
+      gainer: null | {
+        address: string;
+        /**
+         * 发起地址 (tx sender) / 被调用合约 (tx target) / null
+         */
+        role: string | null;
+        /**
+         * token units; null when decimals() is unknown
+         */
+        amount: number | null;
+        raw: string;
+      };
+      loser: null | {
+        address: string;
+        /**
+         * 发起地址 (tx sender) / 被调用合约 (tx target) / null
+         */
+        role: string | null;
+        /**
+         * token units; null when decimals() is unknown
+         */
+        amount: number | null;
+        raw: string;
+      };
+    }[];
+    /**
+     * Native coin the transaction itself sends (eth_getTransactionByHash value); null when none or not read yet
+     */
+    native?: null | {
+      symbol: string;
+      amount: number;
+    };
+  }[];
+  not_decoded: string[];
+  errors: {
+    at: Timestamp;
+    tx: string;
+    error: string;
+  }[];
 }
 export interface SourceHealth {
   source_id: string;

@@ -93,9 +93,17 @@ def _mitigate(f: Facts) -> list[Item]:
     return out
 
 
+def _untriaged(f: Facts) -> list[Item]:
+    """P0 events no operator has dispositioned yet (scripts/triage.py) — info: it is a queue, not a fault."""
+    return [{"level": "info", "title": f"P0 未处置：{e.get('title', '')[:60]}", "detail": "scripts/triage.py <事件> triage|tracking|closed|false_positive",
+             "since": None, "link": f"/events/{e['event_id']}"}
+            for e in f.get("events") or [] if e.get("severity") == "P0" and not e.get("triage")]
+
+
 RULES: dict[str, Callable[[Facts], list[Item]]] = {
     "source_unhealthy": _sources, "over_budget": _over_budget, "notify": _notify, "repo_channel_error": _repo_channels,
     "cost_unavailable": _cost, "chain_rpc_error": _chain, "digest_not_ok": _digest, "mitigate": _mitigate,
+    "p0_untriaged": _untriaged,
 }
 
 

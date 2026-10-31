@@ -160,7 +160,22 @@ def twitterapi(body: str, source_id: str) -> list[RawItem]:
     return out
 
 
+def binance_cms(body: str, source_id: str) -> list[RawItem]:
+    """Binance announcement CMS (bapi …/cms/article/list/query): an exchange's own notices — the first-hand loss, freeze
+    and withdrawal statements (M4 D5). Title only: the list endpoint carries no body; the page URL is the identity."""
+    out = []
+    for cat in (json.loads(body).get("data") or {}).get("catalogs") or []:
+        for a in cat.get("articles") or []:
+            code, title = a.get("code"), (a.get("title") or "").strip()
+            if not code or not title:
+                continue
+            out.append(RawItem(source_id=source_id, url=f"https://www.binance.com/en/support/announcement/detail/{code}",
+                               title=title, text=title, published_at=timeutil.parse((a.get("releaseDate") or 0) / 1000),
+                               guid=code))
+    return out
+
+
 PARSERS: dict[str, Parser] = {
     "feed": feed, "kev": kev, "defillama": defillama, "slowmist": slowmist,
-    "defihacklabs": defihacklabs, "twitterapi": twitterapi,
+    "defihacklabs": defihacklabs, "twitterapi": twitterapi, "binance_cms": binance_cms,
 }

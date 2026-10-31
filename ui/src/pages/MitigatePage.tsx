@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { MitigateDoc } from '@/types/mitigate';
-import { BASELINE_STATE, DNS_STATE, SEVERITY, purlName } from '@/utils/mitigate';
+import { BASELINE_STATE, DNS_STATE, SEVERITY, fetchMitigateDoc, purlName } from '@/utils/mitigate';
 import { formatDateTime } from '@/utils/formatters';
 import '@/styles/detail.css';
 
@@ -132,19 +132,10 @@ export function MitigatePage() {
   const [load, setLoad] = useState<Load>({ st: 'loading' });
   useEffect(() => {
     let cancelled = false;
-    fetch('./data/mitigate.json')
-      .then(async r => {
-        // a missing file falls through to index.html (dev/preview server, CloudFront SPA error page) — same rule as useEventDetail
-        const ct = r.headers.get('content-type') ?? '';
-        if (r.status === 404 || r.status === 403 || ct.includes('text/html')) return null;
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return (await r.json()) as MitigateDoc;
-      })
+    fetchMitigateDoc()
       .then(d => {
         if (cancelled) return;
-        if (d === null) { setLoad({ st: 'absent' }); return; }
-        if (d.kind !== 'mitigate') throw new Error('unexpected data kind');
-        setLoad({ st: 'ok', doc: d });
+        setLoad(d === null ? { st: 'absent' } : { st: 'ok', doc: d });
       })
       .catch((e: unknown) => { if (!cancelled) setLoad({ st: 'error', error: String(e) }); });
     return () => { cancelled = true; };

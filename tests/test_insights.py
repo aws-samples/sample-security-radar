@@ -118,3 +118,43 @@ def test_pipeline_steps_report_unconfigured_and_unconnected_explicitly():
     assert steps["analyzed"]["status"] == "pending"          # P0 without analysis yet
     assert steps["impact_match"]["status"] == "pending"      # P0 vuln, respond station has not run yet
     assert steps["notified"]["status"] == "not_connected"
+
+
+def test_progress_starts_at_the_first_report_not_at_a_date_only_midnight():
+    """Live 2026-10-30: the Binance page read 首见 10-29 00:00 UTC · PANews and every early stage at 00:00 — progress
+    replayed DeFiLlama's / SlowMist's date-only "2026-10-29" as midnight, while the event's first_seen (one rule:
+    pipeline.first_report) was PANews 20:51. No stage is earlier than the first report."""
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 3, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安热钱包疑似遭攻击，约25亿美元资产被转出", "币安热钱包疑似遭攻击，约25亿美元资产被盗",
+                          when="2026-10-29T20:51:50Z")], store, t)
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 5_780_000_000})], store, t)
+    pipeline.ingest([_raw("slowmist_hacked", "Binance — DevOps Engineer’s Laptop Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://hacked.slowmist.io/#binance", extra={"entity": "Binance", "amount_usd": 6_300_000_000})], store, t)
+    [d] = store.events.values()
+    ev = Event.from_dict(d)
+    at = {p["stage"]: p["at"] for p in insights.progress(ev, store.get_items(ev.item_ids), t)}
+    assert at["first_report"] == ev.first_seen == "2026-10-29T20:51:50Z"
+    assert all(v >= ev.first_seen for v in at.values() if v)
+
+
+def test_a_date_only_entry_does_not_make_the_second_source_earlier_than_any_timed_one():
+    """Live 2026-10-30: the Binance page read 第二独立来源 20:51:50 — the same second as the first report — because
+    DeFiLlama's "2026-10-29" was placed at the first report. Its real time is unknown inside [first report, end of
+    its day / first capture]; for corroboration the radar takes the latest possible moment (no claimed speed it did
+    not see). The timed second source (Odaily 20:53) is then the second source."""
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 3, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安热钱包疑似遭攻击，约25亿美元资产被转出", "币安热钱包疑似遭攻击，约25亿美元资产被盗",
+                          when="2026-10-29T20:51:50Z")], store, datetime(2026, 10, 29, 20, 52, tzinfo=UTC))
+    pipeline.ingest([_raw("odaily", "币安疑似遭黑客攻击，热钱包约25亿美元被转出", "币安疑似遭黑客攻击，热钱包约25亿美元被盗",
+                          when="2026-10-29T20:53:33Z")], store, datetime(2026, 10, 29, 20, 54, tzinfo=UTC))
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 5_780_000_000})],
+                    store, datetime(2026, 10, 30, 0, 18, tzinfo=UTC))
+    [d] = store.events.values()
+    ev = Event.from_dict(d)
+    at = {p["stage"]: p["at"] for p in insights.progress(ev, store.get_items(ev.item_ids), t)}
+    assert at["first_report"] == "2026-10-29T20:51:50Z"
+    assert at["second_source"] == "2026-10-29T20:53:33Z"

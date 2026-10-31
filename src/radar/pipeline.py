@@ -17,10 +17,12 @@ from radar.registry import BY_ID, Source, handle_info
 from radar.store import Store
 
 _TIER_RANK = {"T1": 1, "T2": 2, "T3": 3}
+# ASCII lookarounds, not \b: next to Chinese text (「1.98万枚ETH」) a CJK character is a word character and \b never fires;
+# Chinese exchange names count too (「江卓尔：币安潜在损失…」 was classified incident and missed the Binance event).
 _CRYPTO = re.compile(
-    r"\b(crypto|defi|web3|blockchain|token|stablecoin|bitcoin|btc|ethereum|eth|solana|bnb|bsc|tron|"
+    r"(?<![A-Za-z0-9])(crypto|defi|web3|blockchain|token|stablecoin|bitcoin|btc|ethereum|eth|solana|bnb|bsc|tron|"
     r"exchange hack\w*|drained|cex|dex|bridge|wallet|smart contract|on-?chain|airdrop|nft|usdt|usdc|"
-    r"binance|coinbase|okx|bybit|bitget|kraken)\b|加密|区块链|交易所|钱包|代币|链上|跨链|稳定币",
+    r"binance|coinbase|okx|bybit|bitget|kraken)(?![A-Za-z0-9])|加密|区块链|交易所|钱包|代币|链上|跨链|稳定币|币安|欧易|火币",
     re.IGNORECASE,
 )
 _VULN = re.compile(r"\b(CVE-\d{4}|vulnerabilit(?:y|ies)|zero-?day|0-?day|patch(?:es|ed)?|security update|RCE)\b|漏洞|补丁",
@@ -28,7 +30,8 @@ _VULN = re.compile(r"\b(CVE-\d{4}|vulnerabilit(?:y|ies)|zero-?day|0-?day|patch(?
 _STRONG = ("cve:", "tx:", "attacker:", "xs:", "url:")
 # CISA's two phrasings: "Adds Two Known Exploited Vulnerabilities to Catalog" (advisories) and "We added … CVE-… &
 # … CVE-… to our KEV Catalog" (X); both list unrelated bugs side by side
-KEV_ROUNDUP_RE = re.compile(r"\badd(?:s|ed)?\b.{0,160}?\b(?:known exploited vulnerabilit(?:y|ies)|KEV catalog)\b", re.IGNORECASE | re.DOTALL)
+# window: CISA's own tweets name vendor + product for each CVE before "to our KEV Catalog" (190 chars live 2026-10-29)
+KEV_ROUNDUP_RE = re.compile(r"\badd(?:s|ed)?\b.{0,320}?\b(?:known exploited vulnerabilit(?:y|ies)|KEV catalog)\b", re.IGNORECASE | re.DOTALL)
 _WEAK = ("ent:", "tok:")
 
 
@@ -60,6 +63,14 @@ def _classify(base: Domain | None, text: str, has_cve: bool) -> Domain:
     return "vuln" if has_cve or _VULN.search(text) else "incident"
 
 
+def web3_text_keys(title: str, blob: str) -> list[str]:
+    """Free-text keys of a web3 item without a structured victim name (also used to re-key stored items in a repair).
+    The headline's names come twice, as tok: and tt:: an event sharing one scores it twice, so when a report matches
+    several events the one its headline is about outranks one that shares a body word (live 2026-10-29:
+    「数据：Polymarket疑似攻击者…」 ranked a Tranche Vault event above the Polymarket one)."""
+    return sorted(f"tok:{t}" for t in keys.entity_tokens(blob)) + sorted(f"tt:{t}" for t in keys.entity_tokens(title))
+
+
 def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
     if source.parser == "twitterapi":
         h = handle_info(raw.author or "")
@@ -86,7 +97,7 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
     if ent and domain != "vuln":
         reg.append(f"ent:{ent}")
     if domain == "web3" and not raw.extra.get("entity"):
-        reg += sorted(f"tok:{t}" for t in keys.entity_tokens(blob))
+        reg += web3_text_keys(raw.title, blob)
     elif domain != "web3":
         reg += sorted(f"tok:{t}" for t in keys.named_tokens(raw.title))
     # citing a tweet is a hard link: register it so whichever arrives first, the other finds it
@@ -313,39 +324,117 @@ def _impact_severity(ev_domain: Domain, level: str, exploitation: str, amount: f
     return "P2"
 
 
-def _amounts(items: list[Item]) -> tuple[list[dict[str, Any]], float | None, bool, bool]:
+def _amounts(items: list[Item]) -> tuple[list[dict[str, Any]], float | None, bool, bool, float | None]:
+    """(history, headline loss, disputed, stable, frozen). Every point carries its measure (signals.amount_kind of the
+    report's title; a hack database's structured amount is always the loss): the headline and the dispute flag use loss
+    points only, freezes are their own measure (the largest reported — freeze totals only grow, and a single-issuer
+    freeze such as Arbitrum's $30.5M must not replace the running total), context amounts feed neither."""
+    structured = {it.source_id for it in items if it.extra.get("amount_usd") is not None}
     hist: list[dict[str, Any]] = []
     for it in items:
-        for p in it.extra.get("amount_history") or []:
-            hist.append({"value": p["value"], "source_id": it.source_id, "observed_at": p["observed_at"]})
+        pts = it.extra.get("amount_history") or []
+        if it.extra.get("amount_usd") is not None:
+            hist += [{"value": p["value"], "source_id": it.source_id, "observed_at": p["observed_at"], "kind": "loss"} for p in pts]
+            continue
+        # prose: each number takes the measure of its own clause (a title can state the loss and the freeze); the
+        # stored point is the title's largest number, a freeze stated beside it becomes its own point
+        # the stored value is parsed from the body (normalize), the headline claims are in the title: a value takes the
+        # measure of whichever clause states it (Decrypt: body "$5.57 billion" stolen, title "$5.5 Billion")
+        text = it.title or it.text[:200]
+        mentions = signals.amount_mentions(text)
+        stated = mentions + signals.amount_mentions(it.text)
+        whole = signals.amount_kind(text)
+        same = lambda a, b: abs(a - b) <= 1e-6 * max(abs(a), abs(b), 1.0)
+        for p in pts:
+            kind = next((k for v, k in stated if same(v, p["value"])), whole)
+            hist.append({"value": p["value"], "source_id": it.source_id, "observed_at": p["observed_at"], "kind": kind})
+        if pts:
+            hist += [{"value": v, "source_id": it.source_id, "observed_at": pts[-1]["observed_at"], "kind": "frozen"}
+                     for v, k in mentions if k == "frozen" and not any(same(v, p["value"]) for p in pts)]
     hist.sort(key=lambda p: (p["observed_at"], p["source_id"]))
-    if not hist:
-        return [], None, False, True
+    frozen_pts = [p["value"] for p in hist if p["kind"] == "frozen" and p["value"] > 0]
+    frozen = max(frozen_pts) if frozen_pts else None
+    loss = [p for p in hist if p["kind"] == "loss"]
+    if not loss:
+        return hist, None, False, True, frozen
     tier_of = {it.source_id: it.tier for it in items}
-    best_rank = min(_TIER_RANK[tier_of[p["source_id"]]] for p in hist)
-    trusted = [p for p in hist if _TIER_RANK[tier_of[p["source_id"]]] == best_rank]
+    # A hack database's structured loss field (DeFiLlama / SlowMist amount) beats any number parsed from prose: prose
+    # amounts are often a freeze, a borrow or a sale inside the story (live 2026-10-30: a T1 tweet "Arbitrum Security
+    # Council froze $30.5M" displaced DeFiLlama's $5.78B Binance loss as the headline figure).
+    pool = [p for p in loss if p["source_id"] in structured] or loss
+    best_rank = min(_TIER_RANK[tier_of[p["source_id"]]] for p in pool)
+    trusted = [p for p in pool if _TIER_RANK[tier_of[p["source_id"]]] == best_rank]
     latest = trusted[-1]["value"]
     per_source: dict[str, float] = {}
-    for p in hist:
-        per_source[p["source_id"]] = p["value"]
-    vals = [v for v in per_source.values() if v > 0]
+    for p in loss:
+        # a source's largest stated loss is its estimate of the total: flash-news sources report sub-stories after it
+        # (live 2026-10-30: odaily's latest Binance "loss" was a $100M side story vs DeFiLlama's $6.36B ⇒ disputed)
+        per_source[p["source_id"]] = max(p["value"], per_source.get(p["source_id"], 0))
+    # live 2026-10-30: a $100 UNI price target in a side story flagged the $6.3B Binance loss as disputed
+    top = max(per_source.values(), default=0)
+    vals = [v for v in per_source.values() if v > 0 and v >= top * Limits.AMOUNT_DISPUTE_FLOOR]
     disputed = len(vals) >= 2 and max(vals) / min(vals) > Limits.AMOUNT_DISPUTE_RATIO
     stable = all(abs(p["value"] - latest) / latest <= Limits.AMOUNT_STABLE_RATIO for p in trusted[-2:]) if latest else True
-    return hist, latest, disputed, stable
+    return hist, latest, disputed, stable, frozen
 
 
 def _title(items: list[Item]) -> str:
-    def rank(it: Item) -> tuple[int, int, str]:
-        structured = 0 if BY_ID.get(it.source_id) and BY_ID[it.source_id].always_eventful else 1
-        return (structured, _TIER_RANK[it.tier], it.published_at)
+    """A structured record names the event — the first one captured: a later database entry may carry a root-cause
+    hypothesis in its technique field (live 2026-10-30: SlowMist's "DevOps Engineer's Laptop Compromised", from Binance's
+    "may involve", replaced DeFiLlama's "Hot Wallet Key Compromised" because SlowMist is T1). Without one, the best tier."""
+    def rank(it: Item) -> tuple[int, str, int, str]:
+        structured = bool(BY_ID.get(it.source_id) and BY_ID[it.source_id].always_eventful)
+        first = it.extra.get("first_fetched_at") or it.fetched_at
+        return (0 if structured else 1, first if structured else "", _TIER_RANK[it.tier], it.published_at)
     return min(items, key=rank).title
+
+
+def _attribution(items: list[Item]) -> dict[str, Any] | None:
+    """Named threat actor: "stated" once a T1/T2 report names it, "suspected" while only community / flash news does."""
+    named = [(it, signals.attribution_actor(f"{it.title}\n{it.text[:600]}")) for it in items]
+    named = [(it, a) for it, a in named if a]
+    if not named:
+        return None
+    actor = named[0][1]
+    hits = [it for it, a in named if a == actor]
+    return {"actor": actor, "confidence": "stated" if any(it.tier in ("T1", "T2") for it in hits) else "suspected",
+            "sources": len({it.source_id for it in hits}), "first_at": min(it.published_at for it in hits)}
+
+
+def day_precision(item: Item) -> bool:
+    """A structured source (KEV, DeFiLlama, SlowMist, DeFiHackLabs) that only gives a date: 00:00:00Z means "that day",
+    not midnight. The single place this ambiguity is decided."""
+    src = BY_ID.get(item.source_id)
+    return bool(src and src.always_eventful) and item.published_at.endswith("T00:00:00Z")
+
+
+def first_report(items: list[Item]) -> Item:
+    """Earliest report (items sorted by published_at). A date-only entry is first only when its day is earlier than
+    every timed report; otherwise the earliest timed report is (live 2026-10-30: DeFiLlama's "2026-10-29" put the
+    Binance theft at 00:00, 21 h before the first report at 20:51 — out of the wall's 24h loss, 首报 DeFiLlama)."""
+    timed = next((i for i in items if not day_precision(i)), None)
+    if timed is None or timed.published_at[:10] <= items[0].published_at[:10]:
+        return timed or items[0]
+    return items[0]
+
+
+def evidence_at(item: Item, first: Item) -> str:
+    """When an item counts as evidence on a timeline: its publication time — except a date-only entry that is not the
+    first report. Its true time is unknown inside [first report, end of its day or first capture]; the radar takes the
+    latest possible moment, so no stage (second source, corroboration) claims a speed nobody saw (live 2026-10-30:
+    DeFiLlama's "2026-10-29" at the first report's second made 第二独立来源 = 首报 on the Binance page)."""
+    if not day_precision(item) or item.item_id == first.item_id:
+        return item.published_at
+    day_end = item.published_at[:10] + "T23:59:59Z"
+    seen = item.extra.get("first_fetched_at") or item.fetched_at or day_end
+    return max(first.published_at, min(day_end, seen))
 
 
 def recompute(ev: Event, items: list[Item], now: datetime) -> Event:
     items = sorted(items, key=lambda i: (i.published_at, i.source_id, i.item_id))
     groups = independent_groups(items)
     tiers = _group_tiers(items, groups)
-    hist, latest, disputed, stable = _amounts(items)
+    hist, latest, disputed, stable, frozen = _amounts(items)
     # on-chain verdicts live on the event (items only carry the hash): carry them over, then let them count
     seen = {t["hash"]: t for t in ev.tx}
     tx: dict[str, dict[str, Any]] = {}
@@ -363,16 +452,21 @@ def recompute(ev: Event, items: list[Item], now: datetime) -> Event:
         ev.escalated_at = max(i.published_at for i in items)
     ev.item_ids = [i.item_id for i in items]
     ev.title = _title(items)
-    ev.first_seen = items[0].published_at
+    first = first_report(items)
+    ev.first_seen = first.published_at
     ev.last_updated = max(max(i.published_at for i in items), max((i.extra.get("revised_at") or "") for i in items))
     ev.level, ev.level_reason, ev.exploitation = level, reason, exploitation
     ev.independent_sources = len(tiers)
-    src = BY_ID.get(items[0].source_id)
-    ev.first_report_source = src.name if src else items[0].source_id
+    src = BY_ID.get(first.source_id)
+    ev.first_report_source = src.name if src else first.source_id
     ev.amount_history, ev.amount_usd_latest, ev.amount_disputed = hist, latest, disputed
+    ev.amount_frozen_latest = frozen
+    ev.attribution = _attribution(items)
     fresh_since = timeutil.iso(now - timedelta(hours=Limits.P0_FRESH_HOURS))
     ev.severity = _severity(ev.domain, level, exploitation, latest,
-                            fresh=max(ev.first_seen, ev.escalated_at) >= fresh_since)
+                            # freshness keeps the earliest timestamp, date-only included: conservative on purpose
+                            # (a KEV entry "added 10-20" may be 3 days old) — first_seen moved to the first report
+                            fresh=max(items[0].published_at, ev.escalated_at) >= fresh_since)
     ev.cves = sorted({k[4:] for i in items for k in indexed_keys(i) if k.startswith("cve:")})
     ev.entities = sorted({i.entity for i in items if i.entity})
     ev.tx = list(tx.values())
@@ -417,48 +511,55 @@ def ingest(raws: list[RawItem], store: Store, fetched_at: datetime, now: datetim
         if amt is not None and (not hist or hist[-1]["value"] != amt):
             hist.append({"value": amt, "observed_at": item.published_at if not prev else at})
         item.extra["amount_history"] = hist
+        # a revision refreshes fetched_at; "first captured" (_title) must survive it
+        item.extra["first_fetched_at"] = (prev.extra.get("first_fetched_at") or prev.fetched_at) if prev else item.fetched_at
         if prev:
             item.extra["revised_at"] = at
             res.updated_items += 1
         else:
             res.new_items += 1
         store.put_item(item)
-
-        eid, merge_ids = find_events(item, store)
-        if eid is None and not item.eventful:
-            continue
-        before = store.get_event(eid) if eid else None
-        if before is None:
-            seed = next((k for k in item.keys if k.startswith(_STRONG[:4])), item.item_id)
-            eid = keys.event_id(seed)
-            ev = Event(event_id=eid, domain=item.domain, title=item.title, first_seen=item.published_at,
-                       last_updated=item.published_at, item_ids=[], keys=[])
-        else:
-            ev = Event.from_dict(before.to_dict())
-        merged = [m for m in (store.get_event(x) for x in merge_ids) if m]
-        ids = list(dict.fromkeys(ev.item_ids + [i for m in merged for i in m.item_ids] + [item.item_id]))
-        ev = recompute(ev, store.get_items(ids), now)
-        ev.keys = sorted(set(ev.keys) | set(indexed_keys(item)) | {k for m in merged for k in m.keys})
-        ev.timeline = (before.timeline if before else []) + _timeline_diff(before, ev, at, item.item_id)
-        for m in merged:
-            ev.timeline.append({"at": at, "kind": "merged", "from": m.event_id, "to": ev.event_id, "item_id": item.item_id})
-            store.add_keys(ev.event_id, m.keys)
-            # R2: the absorbed event's AWS job records / findings / patches follow the story to the survivor.
-            # Safe here: Respond runs after Process in the same cycle, so nothing writes response state concurrently.
-            if (gone := store.get_response(m.event_id)) is not None:
-                store.put_response(ev.event_id, respond.merge_states(ev.event_id, store.get_response(ev.event_id),
-                                                                     m.event_id, gone))
-                store.delete_response(m.event_id)
-            store.delete_event(m.event_id)
-            res.changes.pop(m.event_id, None)
-        ev.timeline.sort(key=lambda t: t["at"])
-        store.put_event(ev)
-        store.add_keys(ev.event_id, indexed_keys(item))
-        ch = res.changes.setdefault(ev.event_id, Change(ev.event_id, created=before is None))
-        if before is not None:
-            ch.level_changed |= LEVEL_ORDER[before.level] != LEVEL_ORDER[ev.level]
-            ch.severity_changed |= SEVERITY_ORDER[before.severity] != SEVERITY_ORDER[ev.severity]
+        attach(item, store, at, now, res)
     return res
+
+
+def attach(item: Item, store: Store, at: str, now: datetime, res: IngestResult) -> None:
+    """Cluster one stored item: find its event (or found one), merge events it proves are one story, recompute.
+    Shared by ingest and scripts/recluster_web3.py (a repair replays stored items through exactly this)."""
+    eid, merge_ids = find_events(item, store)
+    if eid is None and not item.eventful:
+        return
+    before = store.get_event(eid) if eid else None
+    if before is None:
+        seed = next((k for k in item.keys if k.startswith(_STRONG[:4])), item.item_id)
+        eid = keys.event_id(seed)
+        ev = Event(event_id=eid, domain=item.domain, title=item.title, first_seen=item.published_at,
+                   last_updated=item.published_at, item_ids=[], keys=[])
+    else:
+        ev = Event.from_dict(before.to_dict())
+    merged = [m for m in (store.get_event(x) for x in merge_ids) if m]
+    ids = list(dict.fromkeys(ev.item_ids + [i for m in merged for i in m.item_ids] + [item.item_id]))
+    ev = recompute(ev, store.get_items(ids), now)
+    ev.keys = sorted(set(ev.keys) | set(indexed_keys(item)) | {k for m in merged for k in m.keys})
+    ev.timeline = (before.timeline if before else []) + _timeline_diff(before, ev, at, item.item_id)
+    for m in merged:
+        ev.timeline.append({"at": at, "kind": "merged", "from": m.event_id, "to": ev.event_id, "item_id": item.item_id})
+        store.add_keys(ev.event_id, m.keys)
+        # R2: the absorbed event's AWS job records / findings / patches follow the story to the survivor.
+        # Safe here: Respond runs after Process in the same cycle, so nothing writes response state concurrently.
+        if (gone := store.get_response(m.event_id)) is not None:
+            store.put_response(ev.event_id, respond.merge_states(ev.event_id, store.get_response(ev.event_id),
+                                                                 m.event_id, gone))
+            store.delete_response(m.event_id)
+        store.delete_event(m.event_id)
+        res.changes.pop(m.event_id, None)
+    ev.timeline.sort(key=lambda t: t["at"])
+    store.put_event(ev)
+    store.add_keys(ev.event_id, indexed_keys(item))
+    ch = res.changes.setdefault(ev.event_id, Change(ev.event_id, created=before is None))
+    if before is not None:
+        ch.level_changed |= LEVEL_ORDER[before.level] != LEVEL_ORDER[ev.level]
+        ch.severity_changed |= SEVERITY_ORDER[before.severity] != SEVERITY_ORDER[ev.severity]
 
 
 def verify_onchain(store: Store, now: datetime, call: Any = chain.rpc_call,
@@ -493,8 +594,16 @@ def refresh(store: Store, now: datetime, since_days: int = Limits.PUBLISH_WINDOW
         before = Event.from_dict(ev.to_dict())
         after = recompute(ev, store.get_items(ev.item_ids), now)
         diff = [d for d in _timeline_diff(before, after, timeutil.iso(now), None) if d["kind"] != "item_added"]
-        if diff:
+        # any derived field counts, not only the timeline's: a corrected rule (title, frozen, dispute, attribution) must
+        # reach an event that is already open (live 2026-10-30: the fixed Binance figures waited for the next new item)
+        if diff or _derived(before) != _derived(after):
             after.timeline = before.timeline + diff
             store.put_event(after)
             changed.append(after.event_id)
     return changed
+
+
+def _derived(ev: Event) -> dict[str, Any]:
+    d = ev.to_dict()
+    d.pop("timeline", None)
+    return d

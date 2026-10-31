@@ -178,6 +178,90 @@
               "type": "null"
             }
           ]
+        },
+        "amount_frozen_latest": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Largest freeze reported for the event (USD), null when none."
+        },
+        "attribution": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "actor",
+                "confidence",
+                "sources",
+                "first_at"
+              ],
+              "properties": {
+                "actor": {
+                  "type": "string"
+                },
+                "confidence": {
+                  "enum": [
+                    "stated",
+                    "suspected"
+                  ],
+                  "description": "stated = a T1/T2 report names the actor; suspected = only community / flash news"
+                },
+                "sources": {
+                  "type": "integer"
+                },
+                "first_at": {
+                  "$ref": "#/$defs/Timestamp"
+                }
+              }
+            }
+          ],
+          "description": "Named threat actor (pipeline._attribution)."
+        },
+        "triage": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "label",
+                "note",
+                "by",
+                "at"
+              ],
+              "properties": {
+                "status": {
+                  "enum": [
+                    "triage",
+                    "tracking",
+                    "closed",
+                    "false_positive"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "by": {
+                  "type": "string"
+                },
+                "at": {
+                  "$ref": "#/$defs/Timestamp"
+                }
+              }
+            }
+          ],
+          "description": "Operator disposition (radar.triage, set by scripts/triage.py with IAM credentials); null = not dispositioned"
         }
       }
     },
@@ -219,6 +303,10 @@
         "published_at": {
           "$ref": "#/$defs/Timestamp"
         },
+        "evidence_at": {
+          "type": "string",
+          "description": "Timeline position: published_at, but a date-only entry is never earlier than the event's first report (pipeline.evidence_at)"
+        },
         "excerpt": {
           "type": "string",
           "maxLength": 600
@@ -258,6 +346,20 @@
               ]
             }
           }
+        },
+        "phase": {
+          "enum": [
+            "prep",
+            "drain",
+            "laundering",
+            "freeze",
+            "statement",
+            "attribution",
+            "recovery",
+            "impact",
+            "other"
+          ],
+          "description": "Attack phase of the report, from its title (signals.phase)."
         }
       }
     },
@@ -324,6 +426,14 @@
         },
         "observed_at": {
           "$ref": "#/$defs/Timestamp"
+        },
+        "kind": {
+          "enum": [
+            "loss",
+            "frozen",
+            "context"
+          ],
+          "description": "Which measure the amount is (pipeline._amounts): only loss feeds the headline and the dispute flag; frozen feeds amount_frozen_latest."
         }
       }
     },
@@ -1872,6 +1982,449 @@
           "type": "string"
         }
       }
+    },
+    "OnchainRow": {
+      "type": "object",
+      "required": [
+        "id",
+        "t",
+        "kind",
+        "chain",
+        "tx",
+        "token"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "t": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "kind": {
+          "enum": [
+            "outflow",
+            "freeze"
+          ]
+        },
+        "chain": {
+          "type": "string"
+        },
+        "tx": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "from_label": {
+          "type": "string"
+        },
+        "to_label": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "address": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "from_evidence": {
+          "type": "string"
+        },
+        "to_evidence": {
+          "type": "string"
+        },
+        "address_evidence": {
+          "type": "string"
+        }
+      }
+    },
+    "Onchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window",
+        "rows",
+        "totals",
+        "delegation",
+        "coverage",
+        "not_queried",
+        "errors",
+        "complete"
+      ],
+      "description": "Minute-level on-chain reconstruction of a P0 web3 incident (radar.onchain). Every row carries its tx; what was not queried is listed.",
+      "properties": {
+        "window": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Timestamp"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OnchainRow"
+          }
+        },
+        "totals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "victim_outflow_by_token",
+            "freezes_by_issuer",
+            "receivers"
+          ],
+          "properties": {
+            "victim_outflow_by_token": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "freezes_by_issuer": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              }
+            },
+            "receivers": {
+              "type": "integer"
+            }
+          }
+        },
+        "delegation": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "address",
+              "label",
+              "chain",
+              "checked_at",
+              "delegate"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "chain": {
+                "type": "string"
+              },
+              "checked_at": {
+                "$ref": "#/$defs/Timestamp"
+              },
+              "delegate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "chains_checked",
+            "tokens"
+          ],
+          "properties": {
+            "chains_checked": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tokens": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "not_queried": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "at",
+              "query",
+              "error"
+            ],
+            "properties": {
+              "at": {
+                "$ref": "#/$defs/Timestamp"
+              },
+              "query": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AttackTxs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "txs",
+        "not_decoded",
+        "errors"
+      ],
+      "description": "Attack-transaction breakdown (radar.attacktx): ERC-20 transfers of each verified attack tx, per token the largest net gainer / loser.",
+      "properties": {
+        "txs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tx",
+              "chain",
+              "block",
+              "t",
+              "status",
+              "sender",
+              "target",
+              "transfers",
+              "tokens",
+              "tokens_total"
+            ],
+            "properties": {
+              "tx": {
+                "type": "string"
+              },
+              "chain": {
+                "type": "string"
+              },
+              "block": {
+                "type": "integer"
+              },
+              "t": {
+                "$ref": "#/$defs/Timestamp"
+              },
+              "status": {
+                "enum": [
+                  "success",
+                  "reverted"
+                ]
+              },
+              "sender": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "transfers": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "tokens_total": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "tokens": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "token",
+                    "symbol",
+                    "transfers",
+                    "gainer",
+                    "loser"
+                  ],
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    },
+                    "symbol": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "transfers": {
+                      "type": "integer"
+                    },
+                    "gainer": {
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "address",
+                            "role",
+                            "amount",
+                            "raw"
+                          ],
+                          "properties": {
+                            "address": {
+                              "type": "string"
+                            },
+                            "role": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "description": "发起地址 (tx sender) / 被调用合约 (tx target) / null"
+                            },
+                            "amount": {
+                              "type": [
+                                "number",
+                                "null"
+                              ],
+                              "description": "token units; null when decimals() is unknown"
+                            },
+                            "raw": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "loser": {
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "address",
+                            "role",
+                            "amount",
+                            "raw"
+                          ],
+                          "properties": {
+                            "address": {
+                              "type": "string"
+                            },
+                            "role": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "description": "发起地址 (tx sender) / 被调用合约 (tx target) / null"
+                            },
+                            "amount": {
+                              "type": [
+                                "number",
+                                "null"
+                              ],
+                              "description": "token units; null when decimals() is unknown"
+                            },
+                            "raw": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "native": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "symbol",
+                      "amount"
+                    ],
+                    "properties": {
+                      "symbol": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                ],
+                "description": "Native coin the transaction itself sends (eth_getTransactionByHash value); null when none or not read yet"
+              }
+            }
+          }
+        },
+        "not_decoded": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "at",
+              "tx",
+              "error"
+            ],
+            "properties": {
+              "at": {
+                "$ref": "#/$defs/Timestamp"
+              },
+              "tx": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "type": "object",
@@ -2014,6 +2567,26 @@
             },
             {
               "type": "null"
+            }
+          ]
+        },
+        "onchain": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Onchain"
+            }
+          ]
+        },
+        "attack_txs": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/AttackTxs"
             }
           ]
         }

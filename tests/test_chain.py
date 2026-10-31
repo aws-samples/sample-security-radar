@@ -129,3 +129,81 @@ def test_an_unmapped_explorer_host_resolves_and_a_newly_supported_chain_is_reche
     t = {"chain": "snowscan.xyz", "hash": TX, "verified": "unsupported", "attempts": 1, "checked_at": NOW.isoformat()}
     assert chain.canon("snowscan.xyz") == "avalanche" and chain.due(t, NOW)
     assert not chain.due({**t, "chain": "solana"}, NOW)                           # still unsupported ⇒ left alone
+
+
+def _fake_nodes(monkeypatch, behaviour):
+    """behaviour: url → "403" | "archive" | result value; records the urls tried in order."""
+    import io
+    import json as _json
+    import urllib.error
+    tried = []
+
+    def urlopen(req, *_a, **_k):
+        url = req.full_url
+        tried.append(url)
+        b = behaviour[url]
+        if b == "403":
+            raise urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+        doc = {"jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": "Archive requests require a personal token"}} \
+            if b == "archive" else {"jsonrpc": "2.0", "id": 1, "result": b}
+        return io.BytesIO(_json.dumps(doc).encode())
+    monkeypatch.setattr(chain.urllib.request, "urlopen", urlopen)
+    return tried
+
+
+def test_a_refused_ethereum_read_falls_back_to_the_next_public_node(monkeypatch):
+    """Live 2026-10-31: publicnode refuses Ethereum logs older than ~1 day (403); Tenderly's public gateway serves
+    them 30 days back (probe: the Binance 20:24:23 sweep read back in a 5,000-block span)."""
+    primary, *rest = [chain.RPC["ethereum"], *chain.FALLBACK["ethereum"]]
+    tried = _fake_nodes(monkeypatch, {primary: "403", rest[0]: ["log"], **{u: "403" for u in rest[1:]}})
+    assert chain.rpc_call(primary, "eth_getLogs", [{}]) == ["log"]
+    assert tried == [primary, rest[0]]
+
+
+def test_an_archive_refusal_in_the_rpc_body_also_falls_back(monkeypatch):
+    primary, nxt = chain.RPC["arbitrum"], chain.FALLBACK["arbitrum"][0]
+    tried = _fake_nodes(monkeypatch, {primary: "archive", nxt: "0x10"})
+    assert chain.rpc_call(primary, "eth_blockNumber", []) == "0x10" and tried == [primary, nxt]
+
+
+def test_every_node_failing_raises_with_each_reason(monkeypatch):
+    urls = [chain.RPC["ethereum"], *chain.FALLBACK["ethereum"]]
+    _fake_nodes(monkeypatch, {u: "403" for u in urls})
+    with pytest.raises(chain.RpcError) as e:
+        chain.rpc_call(urls[0], "eth_getLogs", [{}])
+    assert str(e.value).count("Forbidden") == len(urls)
+
+
+def test_a_url_outside_the_registry_has_no_fallback(monkeypatch):
+    tried = _fake_nodes(monkeypatch, {"https://example.invalid": "403"})
+    with pytest.raises(chain.RpcError):
+        chain.rpc_call("https://example.invalid", "eth_blockNumber", [])
+    assert tried == ["https://example.invalid"]
+
+
+def test_a_real_answer_is_not_retried_elsewhere(monkeypatch):
+    import io
+    import json as _json
+    tried = []
+
+    def urlopen(req, *_a, **_k):
+        tried.append(req.full_url)
+        return io.BytesIO(_json.dumps({"jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": "invalid argument 0: hex string"}}).encode())
+    monkeypatch.setattr(chain.urllib.request, "urlopen", urlopen)
+    with pytest.raises(chain.RpcError):
+        chain.rpc_call(chain.RPC["ethereum"], "eth_getLogs", [{"fromBlock": "x"}])
+    assert tried == [chain.RPC["ethereum"]]
+
+
+def test_the_cycle_rpc_wall_clock_is_bounded(monkeypatch):
+    """With fallback nodes a refused call can cost 3 × CHAIN_RPC_TIMEOUT_S; 68 calls a cycle × 3 × 6 s = 1,224 s would
+    outlive the 600 s process station. Once the cycle's RPC time is spent, calls fail at once (recorded, retried)."""
+    tried = _fake_nodes(monkeypatch, {chain.RPC["ethereum"]: "0x1"})
+    clock = iter([0.0, 1000.0])                     # start, end of the first call
+    monkeypatch.setattr(chain.time, "monotonic", lambda: next(clock))
+    chain.start_cycle(budget_s=200)
+    assert chain.rpc_call(chain.RPC["ethereum"], "eth_blockNumber", []) == "0x1"       # took "1,000 s"
+    with pytest.raises(chain.RpcError, match="rpc_budget_exhausted"):
+        chain.rpc_call(chain.RPC["ethereum"], "eth_blockNumber", [])
+    assert len(tried) == 1
+    chain.start_cycle(budget_s=None)                                                    # tests elsewhere: unbounded

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import type {
-  EventSummary, ItemRef, TimelineEntry, AmountPoint, CveDetail, TxRef, Analysis, ProgressStage, PipelineStep, Response, PossibleDuplicate, Mitigation } from '@/types/site-data';
+import type { AmountPoint, Analysis, CveDetail, EventSummary, ItemRef, Mitigation, AttackTxs, Onchain, PipelineStep, PossibleDuplicate, ProgressStage, Response, TimelineEntry, TxRef } from '@/types/site-data';
 
 export interface EventDetailState {
   event: EventSummary | null;
@@ -9,6 +8,9 @@ export interface EventDetailState {
   amountHistory: AmountPoint[];
   cveDetails: CveDetail[];
   tx: TxRef[];
+  /** M4 D6 on-chain reconstruction (web3 P0); null when not traced / not web3 / older backend. */
+  onchain: Onchain | null;
+  attackTxs: AttackTxs | null;
   /** C4: events the model judged to be the same incident (advisory, not merged). */
   possibleDuplicates: PossibleDuplicate[];
   /** undefined = key absent (older publisher); null = not generated for this event. */
@@ -29,7 +31,7 @@ export interface EventDetailState {
 }
 
 const EMPTY: Omit<EventDetailState, 'loading' | 'error'> = {
-  event: null, items: [], timeline: [], amountHistory: [], cveDetails: [], tx: [], possibleDuplicates: [],
+  event: null, items: [], timeline: [], amountHistory: [], cveDetails: [], tx: [], onchain: null, attackTxs: null, possibleDuplicates: [],
   analysis: undefined, progress: undefined, pipelineSteps: undefined, response: undefined, mitigation: undefined,
 };
 
@@ -61,6 +63,8 @@ export function useEventDetail(eventId: string): EventDetailState {
           amountHistory: data.amount_history ?? [],
           cveDetails: data.cve_details ?? [],
           tx: data.tx ?? [],
+          onchain: data.onchain ?? null,
+          attackTxs: data.attack_txs ?? null,
           possibleDuplicates: data.possible_duplicates ?? [],
           analysis: 'analysis' in data ? data.analysis : undefined,
           progress: data.progress,

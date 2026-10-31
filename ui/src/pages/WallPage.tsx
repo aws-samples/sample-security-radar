@@ -17,13 +17,16 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEvents } from '@/hooks/useEvents';
+import { useMarquee, CLONE_PROPS } from '@/hooks/useMarquee';
 import { useSources } from '@/hooks/useSources';
 import { useTheme } from '@/contexts/ThemeContext';
 import { freshness } from '@/utils/staleness';
 import { formatAmount, formatRelative } from '@/utils/formatters';
 import { sortEvents } from '@/utils/filters';
 import { computeHourBuckets, computeRadarLayout, clusterDots } from '@/utils/radarLayout';
-import { radarDotsTo3D } from '@/utils/radar3dLayout';
+import { radarDotsTo3D, threatLinks } from '@/utils/radar3dLayout';
+import { fetchMitigateDoc, shieldChannels } from '@/utils/mitigate';
+import type { MitigateDoc } from '@/types/mitigate';
 import type { RadarDot } from '@/utils/radarLayout';
 import { RadarScope } from '@/components/radar/RadarScope';
 import { ScopeWithLabels } from '@/components/radar/ScopeWithLabels';
@@ -551,81 +554,62 @@ function BlockBand({ events }: { events: EventSummary[] }) {
 
 // ── Ticker (5-row auto-scroll) ────────────────────────────────────────────────
 function Ticker({ events }: { events: EventSummary[] }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || isPaused) return;
-    const maxScroll = el.scrollHeight - el.clientHeight;
-    if (maxScroll <= 0) return;
-    let raf: number;
-    function tick() {
-      if (!el) return;
-      el.scrollTop += 0.5;
-      if (el.scrollTop >= maxScroll) el.scrollTop = 0;
-      raf = requestAnimationFrame(tick);
-    }
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [isPaused, events.length]);
-
   const recent = events.slice(0, 20);
+  const { viewport, first, second, loop } = useMarquee(isPaused, 18, recent.map(e => e.event_id).join());
 
   return (
     <div
-      ref={containerRef}
-      style={{
-        overflowY: 'hidden',
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-      }}
+      ref={viewport}
+      style={{ overflowY: 'hidden', flex: 1, minHeight: 0 }}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       aria-label="Event ticker"
       role="marquee"
     >
-      {recent.map(ev => {
-        const color = {
-          vuln: 'var(--dom-vuln)', incident: 'var(--dom-incident)', web3: 'var(--dom-web3)',
-        }[ev.domain] ?? 'var(--text-3)';
-        return (
-          <Link
-            key={ev.event_id}
-            to={drawerHref(ev.event_id)}
-            style={{
-              display: 'flex', gap: 8, alignItems: 'center',
-              padding: '3px 8px',
-              fontSize: 10, fontFamily: 'var(--font-mono)',
-              color: 'var(--text-2)', textDecoration: 'none',
-              borderLeft: `2px solid ${color}`,
-              flexShrink: 0,
-              transition: 'background 100ms',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-1)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-          >
-            <span style={{ color: 'var(--text-3)', flexShrink: 0, width: 28 }}>
-              {formatRelative(ev.first_seen)}
-            </span>
-            <SeverityBadge severity={ev.severity} />
-            <span style={{
-              flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              color: 'var(--text-1)', fontFamily: 'var(--font-body)',
-            }}>
-              {ev.title}
-            </span>
-            {ev.amount_usd_latest !== null && (
-              <span className="tabular" style={{ color: 'var(--loss)', flexShrink: 0 }}>
-                {formatAmount(ev.amount_usd_latest)}
-              </span>
-            )}
-          </Link>
-        );
-      })}
+      <div ref={first} style={TICKER_COPY}>{recent.map(ev => <TickerRow key={ev.event_id} ev={ev} />)}</div>
+      {loop && <div ref={second} style={TICKER_COPY} {...CLONE_PROPS}>{recent.map(ev => <TickerRow key={ev.event_id} ev={ev} />)}</div>}
     </div>
+  );
+}
+
+const TICKER_COPY: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 1, paddingBottom: 1 };
+
+function TickerRow({ ev }: { ev: EventSummary }) {
+  const color = {
+    vuln: 'var(--dom-vuln)', incident: 'var(--dom-incident)', web3: 'var(--dom-web3)',
+  }[ev.domain] ?? 'var(--text-3)';
+  return (
+    <Link
+      to={drawerHref(ev.event_id)}
+      style={{
+        display: 'flex', gap: 8, alignItems: 'center',
+        padding: '3px 8px',
+        fontSize: 10, fontFamily: 'var(--font-mono)',
+        color: 'var(--text-2)', textDecoration: 'none',
+        borderLeft: `2px solid ${color}`,
+        flexShrink: 0,
+        transition: 'background 100ms',
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-1)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+    >
+      <span style={{ color: 'var(--text-3)', flexShrink: 0, width: 42, whiteSpace: 'nowrap' }}>
+        {formatRelative(ev.first_seen)}
+      </span>
+      <SeverityBadge severity={ev.severity} />
+      <span style={{
+        flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        color: 'var(--text-1)', fontFamily: 'var(--font-body)',
+      }}>
+        {ev.title}
+      </span>
+      {ev.amount_usd_latest !== null && (
+        <span className="tabular" style={{ color: 'var(--loss)', flexShrink: 0 }}>
+          {formatAmount(ev.amount_usd_latest)}
+        </span>
+      )}
+    </Link>
   );
 }
 
@@ -667,7 +651,6 @@ export function WallPage() {
   const { theme, toggle: toggleTheme } = useTheme();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const streamRef    = useRef<HTMLDivElement>(null);
   const radarContainerRef = useRef<HTMLDivElement>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -707,22 +690,6 @@ export function WallPage() {
     if (staleSecs !== null) setCountdown(Math.max(0, 60 - staleSecs));
   }, [staleSecs]);
 
-  // Auto-scroll stream (paused while the L2 drawer is open — the reader is reading)
-  useEffect(() => {
-    const el = streamRef.current;
-    if (!el || isPaused || drawerId) return;
-    const max = el.scrollHeight - el.clientHeight;
-    if (max <= 0) return;
-    let raf: number;
-    function tick() {
-      if (!el) return;
-      el.scrollTop += 0.4;
-      if (el.scrollTop >= max) el.scrollTop = 0;
-      raf = requestAnimationFrame(tick);
-    }
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [isPaused, events.length, drawerId]);
 
   // Derived state
   const sorted = useMemo(() => sortEvents(events), [events]);
@@ -731,6 +698,8 @@ export function WallPage() {
     const p1 = sorted.filter(e => e.severity === 'P1').slice(0, 8);
     return [...p0, ...p1];
   }, [sorted]);
+  // Auto-scroll stream (paused on hover and while the L2 drawer is open — the reader is reading)
+  const stream = useMarquee(isPaused || !!drawerId, 22, streamEvents.map(e => e.event_id).join());
 
   const web3Events = useMemo(() => events.filter(e => e.domain === 'web3'), [events]);
   const web3ByAmount = useMemo(() =>
@@ -761,6 +730,18 @@ export function WallPage() {
     ),
     [events],
   );
+
+  const links3d = useMemo(() => threatLinks(events, dots3d), [events, dots3d]);
+  // Edge mitigation (M3) for the shield ring; null = not read ⇒ the ring says 未读取, never "protected".
+  const [mitigateDoc, setMitigateDoc] = useState<MitigateDoc | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchMitigateDoc()
+      .then(d => { if (!cancelled) setMitigateDoc(d); })
+      .catch((e: unknown) => console.warn('[wall] mitigate.json unavailable — shield shows 未读取:', e));
+    return () => { cancelled = true; };
+  }, []);
+  const shield = useMemo(() => shieldChannels(mitigateDoc), [mitigateDoc]);
 
   // Radar blip / leader label ⇒ L2 drawer (URL-driven, so refresh restores it and Back closes it).
   const handleRadarSelect = useCallback((eventId: string) => {
@@ -990,8 +971,8 @@ export function WallPage() {
               </div>
             ) : (
               <div
-                ref={streamRef}
-                style={{ flex: 1, overflowY: 'hidden', display: 'flex', flexDirection: 'column' }}
+                ref={stream.viewport}
+                style={{ flex: 1, minHeight: 0, overflowY: 'hidden' }}
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}
                 aria-live="polite"
@@ -1002,7 +983,14 @@ export function WallPage() {
                     无高危事件
                   </div>
                 ) : (
-                  streamEvents.map(ev => <StreamCard key={ev.event_id} ev={ev} />)
+                  <>
+                    <div ref={stream.first}>{streamEvents.map(ev => <StreamCard key={ev.event_id} ev={ev} />)}</div>
+                    {stream.loop && (
+                      <div ref={stream.second} {...CLONE_PROPS}>
+                        {streamEvents.map(ev => <StreamCard key={ev.event_id} ev={ev} />)}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -1090,6 +1078,8 @@ export function WallPage() {
                 }
                 dots3d={dots3d}
                 labels={labels}
+                links={links3d}
+                shield={shield}
                 selectedEventId={drawerId}
                 onSelect={handleRadarSelect}
               />

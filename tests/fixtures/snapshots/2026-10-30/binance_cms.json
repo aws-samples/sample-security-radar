@@ -1,0 +1,92 @@
+{
+ "code": "000000",
+ "message": null,
+ "messageDetail": null,
+ "data": {
+  "catalogs": [
+   {
+    "catalogId": 49,
+    "parentCatalogId": null,
+    "icon": "https://public.bnbstatic.com/image/cms/content/body/202505/1c644f6be4cad5a1c149e7318d85e9ff.png",
+    "catalogName": "Latest Binance News",
+    "description": null,
+    "catalogType": 1,
+    "total": 4473,
+    "articles": [
+     {
+      "id": 288662,
+      "code": "eb1fb9e5f41f43b682332aff0b7b89ce",
+      "title": "Predict (PREDICT) Listing Will Be Postponed",
+      "type": 1,
+      "releaseDate": 1793327554004
+     },
+     {
+      "id": 288661,
+      "code": "c5a8729a97ac486d963784d96c5642d7",
+      "title": "Security Incident Update",
+      "type": 1,
+      "releaseDate": 1793327002672
+     },
+     {
+      "id": 288567,
+      "code": "58d55610f5954d6c867bfa71658585dd",
+      "title": "Important Notice on PREDICT Airdrop Token Allocation",
+      "type": 1,
+      "releaseDate": 1793181606438
+     },
+     {
+      "id": 288538,
+      "code": "237608b847954d4f9e2c73d7c66b22ad",
+      "title": "Binance Earn Yield Arena: Earn Up to 35% APR With This Week’s New Limited-Time Offers! (2026-10-28)",
+      "type": 1,
+      "releaseDate": 1793170805614
+     },
+     {
+      "id": 288534,
+      "code": "4f406308840549ffb8fdaac9873c25a8",
+      "title": "Binance Futures Updates Trading Fee Discount for TradFi Perps (2026-11-05)",
+      "type": 1,
+      "releaseDate": 1793167210486
+     },
+     {
+      "id": 288511,
+      "code": "8d59d768fac54356b6038b41b0d0145f",
+      "title": "Binance Futures Will Apply Last Price Protected Mechanism on USDⓈ-Margined BULLAUSDT Perpetual Contract (2026-10-28)",
+      "type": 1,
+      "releaseDate": 1793161815143
+     },
+     {
+      "id": 288480,
+      "code": "5b6849270abd4e41a98d94abbf7b28f0",
+      "title": "Update on the Collateral Ratio Under Cross Margin and Portfolio Margin (2026-10-30)",
+      "type": 1,
+      "releaseDate": 1793091607580
+     },
+     {
+      "id": 288454,
+      "code": "98f858ce2402474a88369532d54494ef",
+      "title": "Binance to Adjust Leverage on Select Isolated Margin Trading Pairs",
+      "type": 1,
+      "releaseDate": 1793084414462
+     },
+     {
+      "id": 288398,
+      "code": "4688df6f250848478383acf772a7424c",
+      "title": "Updates on Tick Size for Multiple USDⓈ-M Perpetual Futures Contracts (2026-10-28)",
+      "type": 1,
+      "releaseDate": 1793070007235
+     },
+     {
+      "id": 288264,
+      "code": "b3609ecc681f4be1a56da77f5fd26c9f",
+      "title": "Binance Will Support the ASML Holding N.V. (ASML) and Nokia Corporation (NOK) Cash Dividend Distribution via bStocks",
+      "type": 1,
+      "releaseDate": 1792731607238
+     }
+    ],
+    "catalogs": []
+   }
+  ]
+ },
+ "success": true
+}

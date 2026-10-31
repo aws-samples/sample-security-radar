@@ -3,6 +3,7 @@ import type { EvidenceGroup } from '@/utils/evidence';
 import { formatAmount } from '@/utils/formatters';
 import { utcShort } from '@/utils/timeZh';
 import { safeHref } from '@/utils/safeHref';
+import { PHASE_LABEL } from '@/utils/attackFlow';
 
 const TIER: Record<ItemRef['tier'], { shape: string; word: string; tone: string }> = {
   T1: { shape: '◆', word: 'T1 一手/官方', tone: 'ok' },
@@ -24,6 +25,7 @@ function Item({ it, n, flash, echo }: { it: ItemRef; n: number; flash: boolean; 
         <div className="ev-title">{it.title}</div>
         {!echo && <div className="ev-excerpt">{it.excerpt}</div>}
         <div className="ev-sig">
+          {it.phase && it.phase !== 'other' && <span className={`chip af-chip af-${it.phase}`}>{PHASE_LABEL[it.phase]}</span>}
           {it.signals.kev && <span className="chip" style={{ color: 'var(--p0)' }}>KEV</span>}
           {it.signals.poc && <span className="chip" style={{ color: 'var(--p1)' }}>PoC</span>}
           {it.signals.exploited === 'yes' && <span className="chip" style={{ color: 'var(--p0)' }}>在野利用</span>}

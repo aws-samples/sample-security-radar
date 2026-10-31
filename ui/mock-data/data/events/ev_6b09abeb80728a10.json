@@ -235,7 +235,7 @@
    "url": "https://hacked.slowmist.io/#2026-10-14-UNCX Network V2",
    "title": "UNCX Network V2 — Smart Contract Vulnerability",
    "published_at": "2026-10-14T00:00:00Z",
-   "excerpt": "UNCX Network’s Vesting V2 contracts had a share-accounting logic vulnerability (VestingManager.cancel failed to ensure retained shares covered already-released amounts). The attacker transferred tokens directly to lower the shares-per-token rate, released and canceled schedules, and drained excess tokens from the shared vesting pool. Initial loss on Ethereum was ~$86k, later escalating to ~$1.49M across multiple chains.",
+   "excerpt": "The attacker transferred tokens directly to lower the shares-per-token rate, released and canceled schedules, and drained excess tokens from the shared vesting pool. [facts: 2; $86; $1.49M]",
    "independent_group": 1,
    "signals": {
     "exploited": "unclear",

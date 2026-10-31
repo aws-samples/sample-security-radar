@@ -11,7 +11,8 @@
  */
 import { Suspense, lazy, useState, useRef, useEffect, useCallback } from 'react';
 import { useRenderMode } from '@/hooks/useRenderMode';
-import type { Dot3D } from '@/utils/radar3dLayout';
+import type { Dot3D, ThreatLink } from '@/utils/radar3dLayout';
+import type { ShieldChannel } from '@/utils/mitigate';
 import type { LeaderLabelItem } from '@/components/radar/LeaderLabels';
 
 // Lazy import — Vite will split this into a separate chunk via manualChunks
@@ -26,6 +27,10 @@ export interface WallCenterStageProps {
   dots3d: Dot3D[];
   /** NOW leader labels for the 3D scene (the SVG scene brings its own, see ScopeWithLabels). */
   labels: LeaderLabelItem[];
+  /** Event → your-code arcs for the 3D scene (threatLinks). */
+  links: ThreatLink[];
+  /** Edge-mitigation channels drawn as the shield around the core (shieldChannels). */
+  shield: ShieldChannel[];
   /** Called when user picks an event (both 3D and SVG call this). */
   onSelect: (eventId: string) => void;
   selectedEventId?: string | null;
@@ -35,6 +40,8 @@ export function WallCenterStage({
   svgScene,
   dots3d,
   labels,
+  links,
+  shield,
   onSelect,
   selectedEventId,
 }: WallCenterStageProps) {
@@ -134,6 +141,9 @@ export function WallCenterStage({
       ref={containerRef}
       data-render-mode={renderMode}
       data-render-reason={renderReason || undefined}
+      // The stage is an instrument display: always dark, in either page theme. In the light theme it used to fade
+      // a near-black canvas into a white page through the vignette — a grey fog ring (user review 2026-10-30).
+      data-theme="dark"
       style={{
         flex: 1,
         // width:100% + minWidth:0 ensure this div fills the parent even when
@@ -144,6 +154,9 @@ export function WallCenterStage({
         position: 'relative',
         minHeight: 0,
         overflow: 'hidden',
+        background: 'var(--bg-0)',
+        borderRadius: 10,
+        boxShadow: 'inset 0 0 0 1px rgba(92,225,230,.18), inset 0 0 60px rgba(34,211,238,.06)',
       }}
     >
       {useWebGL ? (
@@ -153,6 +166,8 @@ export function WallCenterStage({
           <WallScene3D
             dots={dots3d}
             labels={labels}
+            links={links}
+            shield={shield}
             selectedEventId={selectedEventId}
             onSelect={onSelect}
             onFallback={handleFallback}

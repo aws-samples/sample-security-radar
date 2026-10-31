@@ -335,3 +335,129 @@ file = src/utils/safeHref.ts
 find = return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : undefined;
 replace = return u.href;
 expect = src/test/safeHref.test.ts
+
+[UW01 wall: a failed / not-affected verdict still draws a link into the core (a hit nobody confirmed)]
+file = src/utils/radar3dLayout.ts
+find = if (impact.status === 'affected' && impact.affected > 0) return 'affected';
+replace = if (impact.status !== 'queued' && impact.status !== 'running') return 'affected';
+expect = src/test/wallStage.test.ts
+
+[UW02 wall: checking links sort before confirmed hits (the cap can drop a real hit)]
+file = src/utils/radar3dLayout.ts
+find = a.kind === 'affected' ? -1 : 1
+replace = a.kind === 'affected' ? 1 : -1
+expect = src/test/wallStage.test.ts
+
+[UW03 wall: shield not read shows as protected]
+file = src/utils/mitigate.ts
+find = state: 'unknown' as const, detail: '未读取'
+replace = state: 'on' as const, detail: '未读取'
+expect = src/test/wallStage.test.ts
+
+[UW04 wall: a channel error is hidden behind its last good data]
+file = src/utils/mitigate.ts
+find = failed(k) ? { key: k, state: 'error', detail: '本轮失败' }
+replace = false ? { key: k, state: 'error', detail: '本轮失败' }
+expect = src/test/wallStage.test.ts
+
+[UW05 wall: WAF shield unions the whole write log (a removed rule group stays lit)]
+file = src/utils/mitigate.ts
+find = for (const a of doc.applied) latest.set(a.web_acl ?? '', a.rules ?? []);
+replace = for (const a of doc.applied) latest.set(String(latest.size), a.rules ?? []);
+expect = src/test/wallStage.test.ts
+
+[UW06 wall: P2 drawn as full pillars again (the field of sticks)]
+file = src/utils/radar3dLayout.ts
+find =   return 0.08;
+replace =   return height;
+expect = src/test/wallStage.test.ts
+
+[UW07 wall: the hit count comes from the drawing cap (HUD undercounts past 16)]
+file = src/utils/radar3dLayout.ts
+find =   max = Infinity,
+replace =   max = 16,
+expect = src/test/wallStage.test.ts
+
+[UW08 wall marquee: wrap snaps to the top instead of keeping the remainder (the old 「上下抖动」)]
+file = src/hooks/useMarquee.ts
+find = return next >= period ? next % period : next;
+replace = return next >= period ? 0 : next;
+expect = src/test/marquee.test.ts
+
+[UW09 wall marquee: a background tab's long frame jumps the list]
+file = src/hooks/useMarquee.ts
+find = Math.min(dtMs, 100)
+replace = dtMs
+expect = src/test/marquee.test.ts
+
+[UW10 detail: the loss curve mixes in freezes and sub-amounts again]
+file = src/utils/amounts.ts
+find = return points.filter(p => kindOf(p) === 'loss');
+replace = return points;
+expect = src/test/amounts.test.ts
+
+[UW11 detail: attack flow loses its order (phases drawn in report order)]
+file = src/utils/attackFlow.ts
+find = return PHASE_ORDER.filter(p => by.has(p)).map(p => {
+replace = return [...by.keys()].map(p => {
+expect = src/test/attackFlow.test.ts
+
+[UW12 detail: a one-phase story still draws a flow]
+file = src/utils/attackFlow.ts
+find = export const showFlow = (steps: PhaseStep[], web3 = false) => steps.length >= (web3 ? 1 : 2);
+replace = export const showFlow = (steps: PhaseStep[], web3 = false) => steps.length >= 1;
+expect = src/test/attackFlow.test.ts
+
+[UW13 detail: a malformed tx hash still gets an explorer link]
+file = src/utils/onchainView.ts
+find = return host && /^0x[0-9a-fA-F]{64}$/.test(tx) ? `${host}/tx/${tx}` : null;
+replace = return host ? `${host}/tx/${tx}` : null;
+expect = src/test/onchainView.test.ts
+
+[UW14 detail: the attack flow anchors on a date-only midnight again (published_at instead of evidence_at)]
+file = src/utils/attackFlow.ts
+find = const at = (it: ItemRef) => it.evidence_at ?? it.published_at;
+replace = const at = (it: ItemRef) => it.published_at;
+expect = src/test/attackFlow.test.ts
+
+[UW15 detail: the older ?section=env deep link no longer opens the environment tab]
+file = src/utils/detailTabs.ts
+find = return params.get('tab') === 'env' || params.get('section') === 'env' ? 'env' : 'track';
+replace = return params.get('tab') === 'env' ? 'env' : 'track';
+expect = src/test/detailTabs.test.ts
+
+[UW16 detail: tab arrow keys stop at the ends instead of wrapping]
+file = src/utils/detailTabs.ts
+find = if (key === 'ArrowRight') return TABS[(i + 1) % TABS.length].id;
+replace = if (key === 'ArrowRight') return TABS[Math.min(i + 1, TABS.length - 1)].id;
+expect = src/test/detailTabs.test.ts
+
+[UW17 detail: a database-only web3 incident gets no attack flow again (two phases required)]
+file = src/utils/attackFlow.ts
+find = export const showFlow = (steps: PhaseStep[], web3 = false) => steps.length >= (web3 ? 1 : 2);
+replace = export const showFlow = (steps: PhaseStep[], web3 = false) => steps.length >= 2;
+expect = src/test/attackFlow.test.ts
+
+[UW18 detail: unreported attack phases are hidden instead of listed]
+file = src/utils/attackFlow.ts
+find = export const missingPhases = (steps: PhaseStep[]) => CORE.filter(p => !steps.some(s => s.phase === p)).map(p => PHASE_LABEL[p]);
+replace = export const missingPhases = (steps: PhaseStep[]) => [] as string[];
+expect = src/test/attackFlow.test.ts
+
+[UW19 detail: the sender's take lists every gainer (the victim's own refunds read as the attacker's take)]
+file = src/utils/attackTxView.ts
+find = return tx.tokens.filter(t => t.gainer?.role === '发起地址').map(t => `${fmtAmount(t.gainer!.amount)} ${tokenName(t)}`);
+replace = return tx.tokens.filter(t => t.gainer).map(t => `${fmtAmount(t.gainer!.amount)} ${tokenName(t)}`);
+expect = src/test/attackTxView.test.ts
+
+[UW20 detail: unknown decimals print a number instead of "—"]
+file = src/utils/attackTxView.ts
+find = if (v === null || v === undefined) return '—';
+replace = if (v === null || v === undefined) return '0';
+expect = src/test/attackTxView.test.ts
+
+[UW21 detail: an undispositioned event shows a blank instead of 未处置]
+file = src/utils/triageView.ts
+find = if (!t) return '未处置';
+replace = if (!t) return '';
+expect = src/test/triageView.test.ts

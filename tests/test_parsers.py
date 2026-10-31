@@ -102,3 +102,40 @@ def test_real_in_the_wild_items_are_flagged():
     assert len(forti) == 1 and signals.exploited(forti[0].text) == "yes"
     thn = [i for i in parsers.feed(_read("thn.xml"), "thehackernews") if "PHP2Shell" in i.title]
     assert thn and signals.exploited(thn[0].text) == "yes"
+
+
+SNAP30 = Path(__file__).parent / "fixtures" / "snapshots" / "2026-10-30"
+
+
+@pytest.mark.parametrize("name", ["theblock", "coindesk", "decrypt", "cointelegraph", "defiant", "rekt", "slowmist_medium",
+                                  "chainalysis", "trm"])
+def test_m4_feeds_parse_with_dates_and_plain_text(name):
+    """M4 D5 sources (2026-10-30 snapshots, fetched through firecrawl): crypto media, forensic blogs, rekt."""
+    items = parsers.feed((SNAP30 / f"{name}.xml").read_text(), name)
+    assert len(items) >= 5
+    assert all(i.published_at is not None and i.url.startswith("http") for i in items)
+    assert not any("<p>" in i.text or "<div" in i.text for i in items)
+
+
+def test_binance_announcements_parse_to_dated_entries_with_their_page():
+    items = parsers.binance_cms((SNAP30 / "binance_cms.json").read_text(), "binance_announcements")
+    assert len(items) == 10
+    inc = next(i for i in items if i.title == "Security Incident Update")
+    assert inc.url == "https://www.binance.com/en/support/announcement/detail/c5a8729a97ac486d963784d96c5642d7"
+    # the page renders "2026-10-29 22:23" in the viewer's time zone; the API value is UTC (Odaily relayed it at 02:24Z)
+    assert timeutil.iso(inc.published_at) == "2026-10-30T02:23:22Z"
+
+
+def test_the_trm_report_is_an_attribution_naming_north_korea():
+    from radar import signals
+    [trm] = [i for i in parsers.feed((SNAP30 / "trm.xml").read_text(), "trm_blog") if "Binance" in i.title]
+    assert signals.phase(trm.title) == "attribution"
+    assert signals.attribution_actor(f"{trm.title}\n{trm.text}") == "North Korea (Lazarus / TraderTraitor)"
+
+
+def test_m4_sources_are_registered_with_their_tier():
+    from radar.registry import BY_ID, HANDLES
+    want = {"theblock": "T2", "coindesk": "T2", "decrypt": "T2", "cointelegraph": "T2", "thedefiant": "T2", "rekt": "T2",
+            "slowmist_medium": "T1", "chainalysis_blog": "T1", "trm_blog": "T1", "binance_announcements": "T1"}
+    assert {k: BY_ID[k].tier for k in want} == want
+    assert {"embercn", "ai_9684xtpa", "arkham"} <= set(HANDLES)

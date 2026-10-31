@@ -19,7 +19,7 @@ from typing import Any
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
-from radar import fetch, respond
+from radar import fetch, respond, targets
 from radar.limits import Limits
 
 log = logging.getLogger()
@@ -250,11 +250,21 @@ def _request_scan(op: respond.Op, _ev: Any, _items: Any, _st: Any, env: dict[str
     return {"scan_run_id": scan["scanRunId"], "status": scan.get("status", "SUBMITTED")}
 
 
+def review_assets(target_id: str, env: Any) -> dict[str, Any]:
+    """C2d: a gitlab-channel target is reviewed on the gitlab.com repository integrated with the agent space
+    (scripts/sa-gitlab-integration.py → cdk.json → SA_GITLAB_*), so Security Agent's automatic fix opens a merge request
+    there; any other target, or no integration configured, keeps the S3 code bundle."""
+    iid, rid = env.get("SA_GITLAB_INTEGRATION_ID"), env.get("SA_GITLAB_REPO_ID")
+    if targets.CHANNEL.get(target_id) == "gitlab" and iid and rid:
+        return {"integratedRepositories": [{"integrationId": iid, "providerResourceId": rid}]}
+    return {"sourceCode": [{"s3Location": f"s3://{env['SA_CODE_BUCKET']}/code/{target_id}.zip"}]}
+
+
 def _start_review(op: respond.Op, ev: dict[str, Any], *_: Any) -> dict[str, Any]:
     sa, space, tid = _sa(), os.environ["SA_AGENT_SPACE_ID"], op.target_id
     title = re.sub(r"[^A-Za-z0-9_-]", "-", f"radar-{ev['event_id']}-{tid}")[:100]
     cr = sa.create_code_review(title=title, agentSpaceId=space,
-                               assets={"sourceCode": [{"s3Location": f"s3://{os.environ['SA_CODE_BUCKET']}/code/{tid}.zip"}]},
+                               assets=review_assets(tid, os.environ),
                                serviceRole=os.environ["SA_SERVICE_ROLE_ARN"], codeRemediationStrategy="AUTOMATIC",
                                maxTaskHours=20.0)  # API minimum (an upper bound, not the billed amount)
     cr_id = cr.get("codeReviewId") or cr["id"]

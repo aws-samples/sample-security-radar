@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from radar import keys, parsers, pipeline
+from radar import keys, parsers, pipeline, timeutil
 from radar.model import RawItem
 from radar.store import MemoryStore
 
@@ -262,6 +262,23 @@ def test_p0_decays_to_p1_on_refresh_after_72h():
     assert any(t["kind"] == "severity_change" and t["from"] == "P0" and t["to"] == "P1" for t in ev["timeline"])
 
 
+def test_refresh_carries_a_rule_change_to_events_already_open():
+    """Live 2026-10-30: after the title / frozen / dispute fixes were deployed, the Binance event kept its stale
+    derived fields — refresh only stored an event when its timeline (level, severity, headline amount) changed, so a
+    corrected rule reached an open event only with its next new item. Any derived field now counts; a second refresh
+    with nothing new writes nothing."""
+    store = MemoryStore()
+    t0 = datetime(2026, 10, 30, 3, tzinfo=UTC)
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 6_360_000_000})], store, t0)
+    [eid] = store.events
+    store.events[eid] = {**store.events[eid], "title": "stale title", "amount_frozen_latest": 6_360_000_000}   # rules of the past
+    assert pipeline.refresh(store, datetime(2026, 10, 30, 4, tzinfo=UTC)) == [eid]
+    assert store.events[eid]["title"] == "Binance CEX — Hot Wallet Key Compromised"
+    assert store.events[eid]["amount_frozen_latest"] is None
+    assert pipeline.refresh(store, datetime(2026, 10, 30, 4, 10, tzinfo=UTC)) == []
+
+
 def test_merge_carries_the_absorbed_events_response_state():
     """Roadmap R2: a merged event's AWS job records / findings / patches used to be orphaned under the deleted id."""
     store = MemoryStore()
@@ -335,3 +352,231 @@ def test_a_roundup_attaches_without_indexing_its_cves_so_a_later_item_cannot_re_
              when="2026-10-21T10:00:00Z")], store, FETCHED)
     assert len(store.events) == 2
     assert sorted(len(e["cves"]) for e in store.events.values()) == [1, 1]
+
+
+def test_a_hack_database_loss_beats_a_sub_amount_in_a_t1_tweet():
+    """Live 2026-10-30: DeFiLlama listed the Binance theft at $5.78B; then a T1 tweet about the Arbitrum Security Council
+    freezing $30.5M of it became the event's headline amount (latest value of the best tier won)."""
+    store = MemoryStore()
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 5_780_000_000})],
+                    store, FETCHED)
+    pipeline.ingest([_raw("x_security", "BREAKING: Arbitrum Security Council froze $30.5M of the Binance hack funds",
+                          "BREAKING: Arbitrum Security Council froze $30.5M of the Binance hack funds, stolen in the exploit",
+                          author="PeckShieldAlert", extra={"x_status": "9"}, when="2026-10-30T00:14:00Z")],
+                    store, datetime(2026, 10, 30, 0, 20, tzinfo=UTC))
+    [ev] = store.events.values()
+    assert len(ev["item_ids"]) == 2
+    assert ev["amount_usd_latest"] == 5_780_000_000
+
+
+def test_a_hack_database_loss_beats_an_early_loss_estimate_in_a_t1_tweet():
+    """The structured-loss guard on its own: once freezes are their own measure (D2) the $30.5M tweet above no longer
+    competes, but an early prose LOSS estimate from a better-ranked source still would (the first Binance reports said
+    $2.5B; DeFiLlama's record is $5.78B)."""
+    store = MemoryStore()
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 5_780_000_000})],
+                    store, FETCHED)
+    pipeline.ingest([_raw("x_security", "BREAKING: Binance hot wallet drained, about $2.5B stolen",
+                          "BREAKING: Binance hot wallet drained, about $2.5B stolen in the exploit",
+                          author="PeckShieldAlert", extra={"x_status": "10"}, when="2026-10-30T00:14:00Z")],
+                    store, datetime(2026, 10, 30, 0, 20, tzinfo=UTC))
+    [ev] = store.events.values()
+    assert len(ev["item_ids"]) == 2
+    assert ev["amount_usd_latest"] == 5_780_000_000
+
+
+@pytest.mark.parametrize(("db_date", "first"), [("2026-10-29T00:00:00Z", "2026-10-29T20:51:00Z"),   # same day: the timed report
+                                                ("2026-10-28T00:00:00Z", "2026-10-28T00:00:00Z")])  # a day earlier: the database
+def test_a_date_only_database_entry_is_first_only_when_its_day_is_earlier(db_date, first):
+    """Live 2026-10-30: DeFiLlama's "2026-10-29" put the Binance theft at 00:00 — 21 h before the first report — so the
+    wall's 24h loss dropped it and the event read 首报 DeFiLlama."""
+    store = MemoryStore()
+    pipeline.ingest([_raw("panews", "币安热钱包疑似遭攻击，约25亿美元资产被转出", "币安热钱包疑似遭攻击，约25亿美元资产被盗",
+                          when="2026-10-29T20:51:00Z")], store, datetime(2026, 10, 29, 21, tzinfo=UTC))
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when=db_date,
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 5_780_000_000})],
+                    store, datetime(2026, 10, 30, 0, 18, tzinfo=UTC))
+    [ev] = store.events.values()
+    assert ev["first_seen"] == first
+    assert ev["first_report_source"] == ("PANews" if first.endswith("20:51:00Z") else "DeFiLlama Hacks")
+
+
+def test_amount_measures_are_kept_apart():
+    """Live 2026-10-30: one headline number mixed the loss with freezes ($30.5M), borrows / sales ($27.9M) and an
+    estimate of user assets ($165.12B, parsed from 「占用户资产比例为1.6%」). The headline is the loss; freezes are
+    their own measure; context amounts feed neither, nor the dispute flag."""
+    store = MemoryStore()
+    t = lambda h, m=0: datetime(2026, 10, 29, h, m, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安热钱包疑似遭攻击，约25亿美元资产被转出", "币安热钱包疑似遭攻击，约25亿美元资产被盗",
+                          when="2026-10-29T20:51:00Z")], store, t(20, 55))
+    for title, when in [("Tether在疑似币安黑客攻击中冻结价值 9.71 亿美元的 USDT", "2026-10-29T21:14:00Z"),
+                        ("涉币安疑似被盗事件的稳定币冻结额升至约21.07亿美元", "2026-10-29T21:29:00Z"),
+                        ("江卓尔：币安潜在损失占用户资产比例为1.6%，预计不会出现大规模提币潮", "2026-10-29T22:21:00Z"),
+                        ("数据：币安疑似被盗关联地址从Aave借出约1.98万枚ETH", "2026-10-29T22:25:00Z"),
+                        # later and smaller: one issuer's freeze must not replace the running total
+                        ("Arbitrum安全委员会冻结币安黑客约3050万美元资产", "2026-10-29T22:50:00Z")]:
+        body = {"江卓尔": "币安黑客攻击后，用户资产约1651.2亿美元，潜在损失占比1.6%", "数据：币安": "币安黑客关联地址借出约4470万美元ETH"}
+        text = next((v for k, v in body.items() if title.startswith(k)), title)
+        pipeline.ingest([_raw("odaily", title, text, when=when)], store, t(23))
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 5_780_000_000})],
+                    store, datetime(2026, 10, 30, 0, 18, tzinfo=UTC))
+    [ev] = store.events.values()
+    assert ev["amount_usd_latest"] == 5_780_000_000
+    assert ev["amount_frozen_latest"] == 2_107_000_000
+    assert ev["amount_disputed"] is False            # 2.5B vs 5.78B < 3×; the $165B and $44.7M never enter the comparison
+    kind = lambda v: next(p["kind"] for p in ev["amount_history"] if abs(p["value"] - v) / v < 1e-6)
+    assert kind(971_000_000) == "frozen" and kind(165_120_000_000) == "context" and kind(44_700_000) == "context"
+
+
+def test_a_title_with_both_loss_and_freeze_does_not_make_the_loss_a_freeze():
+    """Live 2026-10-30: 「损失约63亿美元，已冻结约30亿美元资产」 was one "frozen" point of $6.3B (largest number, measure of
+    the whole title) ⇒ amount_frozen_latest = the loss. Each number takes the measure of its clause."""
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 3, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安热钱包疑似遭攻击，约25亿美元资产被转出", "币安热钱包疑似遭攻击，约25亿美元资产被盗",
+                          when="2026-10-29T20:51:00Z")], store, t)
+    for title, when in [("Specter：目前已冻结币安黑客资金总额达到28.29亿美元", "2026-10-30T01:00:00Z"),
+                        ("币安披露安全事件初步调查结果：损失约63亿美元，已冻结约30亿美元资产，将全额赔付", "2026-10-30T02:30:00Z")]:
+        pipeline.ingest([_raw("odaily", title, title, when=when)], store, t)
+    [ev] = store.events.values()
+    assert ev["amount_frozen_latest"] == 3_000_000_000
+    assert ev["amount_usd_latest"] == 6_300_000_000
+    kinds = {(p["value"], p["kind"]) for p in ev["amount_history"]}
+    assert (6_300_000_000, "loss") in kinds and (3_000_000_000, "frozen") in kinds and (6_300_000_000, "frozen") not in kinds
+
+
+def test_a_later_structured_entry_does_not_rewrite_the_title():
+    """Live 2026-10-30: DeFiLlama's "Binance CEX — Hot Wallet Key Compromised" (00:18) was replaced as the title by SlowMist's
+    later "Binance — DevOps Engineer's Laptop Compromised" — Binance's own wording was "may involve": a hypothesis became
+    the headline because SlowMist outranks DeFiLlama. The first structured record captured names the event."""
+    store = MemoryStore()
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 5_780_000_000})],
+                    store, datetime(2026, 10, 30, 0, 18, tzinfo=UTC))
+    pipeline.ingest([_raw("slowmist_hacked", "Binance — DevOps Engineer’s Laptop Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://hacked.slowmist.io/#binance", extra={"entity": "Binance", "amount_usd": 6_300_000_000})],
+                    store, datetime(2026, 10, 30, 2, 48, tzinfo=UTC))
+    [ev] = store.events.values()
+    assert ev["title"] == "Binance CEX — Hot Wallet Key Compromised"
+
+
+def test_a_revised_structured_record_keeps_its_first_capture_time():
+    """Live 2026-10-30 07:22: DeFiLlama revised its Binance record ("Hot Wallet Key Compromised" → "Key Leaked via
+    Infrastructure"); the revision refreshed the item's fetched_at, so SlowMist's record became "first captured" and
+    renamed the event to its laptop hypothesis again. The first capture time survives revisions."""
+    store = MemoryStore()
+    db = lambda title, amt: _raw("defillama_hacks", title, when="2026-10-29T00:00:00Z", url="https://defillama.com/hacks#Binance",
+                                 extra={"entity": "Binance CEX", "amount_usd": amt})
+    pipeline.ingest([db("Binance CEX — Hot Wallet Key Compromised", 5_780_000_000)], store, datetime(2026, 10, 30, 0, 18, tzinfo=UTC))
+    pipeline.ingest([_raw("slowmist_hacked", "Binance — DevOps Engineer’s Laptop Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://hacked.slowmist.io/#binance", extra={"entity": "Binance", "amount_usd": 6_300_000_000})],
+                    store, datetime(2026, 10, 30, 2, 48, tzinfo=UTC))
+    pipeline.ingest([db("Binance CEX — Key Leaked via Infrastructure", 6_300_000_000)], store, datetime(2026, 10, 30, 7, 0, tzinfo=UTC))
+    [ev] = store.events.values()
+    assert ev["title"] == "Binance CEX — Key Leaked via Infrastructure"
+
+
+def test_a_number_from_the_body_takes_the_measure_of_its_body_clause():
+    """Live 2026-10-30: Decrypt's title "Drained of $5.5 Billion …, Tether and Circle Freeze $1.8 Billion" — the stored
+    amount is parsed from the body ($5.57 billion), matched no title clause, and fell back to the whole title's
+    measure ("frozen") ⇒ 已冻结 $5.57B."""
+    store = MemoryStore()
+    t = datetime(2026, 10, 29, 22, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安热钱包疑似遭攻击，约25亿美元资产被转出", "币安热钱包疑似遭攻击，约25亿美元资产被盗",
+                          when="2026-10-29T20:51:00Z")], store, t)
+    pipeline.ingest([_raw("decrypt", "Binance Drained of $5.5 Billion in Suspected Hack, Tether and Circle Freeze $1.8 Billion",
+                          "Binance was drained of $5.57 billion in a suspected hack. Tether and Circle froze $1.8 billion.",
+                          when="2026-10-29T21:36:00Z")], store, t)
+    [ev] = store.events.values()
+    kinds = {(p["value"], p["kind"]) for p in ev["amount_history"]}
+    assert (5_570_000_000, "loss") in kinds and (5_570_000_000, "frozen") not in kinds
+    assert ev["amount_frozen_latest"] == 1_800_000_000
+
+
+def test_a_price_in_a_side_story_does_not_make_the_loss_disputed():
+    """Live 2026-10-30: Cointelegraph's "…UNI token reaching $100 by 2030" was a $100 "loss" point; against $6.3B the
+    max/min ratio flagged the Binance loss as disputed. Only figures within 1% of the headline compete."""
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 4, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安：预计总损失约63亿美元", "币安黑客攻击预计总损失约63亿美元", when="2026-10-30T02:00:00Z")], store, t)
+    pipeline.ingest([_raw("cointelegraph", "Binance hack could accelerate shift to DEXs: Standard Chartered",
+                          "Kendrick says the Binance hack could strengthen his case for Uniswap’s UNI token reaching $100 by 2030.",
+                          when="2026-10-30T03:47:00Z")], store, t)
+    [ev] = store.events.values()
+    assert len(ev["item_ids"]) == 2 and any(p["value"] == 100 for p in ev["amount_history"])
+    assert ev["amount_disputed"] is False
+
+
+def test_a_sub_story_amount_is_not_a_rival_loss_estimate():
+    """A flash-news source reports the total, then a side story about one address; its latest figure is not its estimate."""
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 5, tzinfo=UTC)
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 6_360_000_000})], store, t)
+    for title, when in [("币安被盗约63亿美元", "2026-10-30T02:00:00Z"), ("币安黑客某关联地址被盗约1亿美元", "2026-10-30T04:00:00Z")]:
+        pipeline.ingest([_raw("odaily", title, title, when=when)], store, t)
+    [ev] = store.events.values()
+    assert len(ev["item_ids"]) == 3
+    assert ev["amount_disputed"] is False
+
+
+def test_attribution_is_stated_only_by_a_t1_t2_source():
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 1, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安热钱包疑似遭攻击，约25亿美元资产被转出", "币安热钱包疑似遭攻击，约25亿美元资产被盗",
+                          when="2026-10-29T20:51:00Z")], store, t)
+    pipeline.ingest([_raw("odaily", "分析：朝鲜黑客疑为币安被盗幕后黑手", "朝鲜黑客疑为币安被盗约25亿美元幕后黑手",
+                          when="2026-10-29T23:00:00Z")], store, t)
+    [ev] = store.events.values()
+    assert ev["attribution"] == {"actor": "North Korea (Lazarus / TraderTraitor)", "confidence": "suspected", "sources": 1,
+                                 "first_at": "2026-10-29T23:00:00Z"}
+    pipeline.ingest([_raw("bleepingcomputer", "Binance $6.3 billion hack linked to North Korean hackers",
+                          "Binance hack of $6.3 billion linked to North Korea's Lazarus group", when="2026-10-30T00:40:00Z")],
+                    store, datetime(2026, 10, 30, 1, 10, tzinfo=UTC))
+    [ev] = store.events.values()
+    assert ev["attribution"]["confidence"] == "stated" and ev["attribution"]["sources"] == 2
+
+
+def test_a_two_flaw_kev_story_does_not_merge_two_kev_entries():
+    """Live: ev_cc06a43cd18d1b00 held Arista VeloCloud (CVE-2026-114625) and Collabora Online (CVE-2026-110447) —
+    merged 2026-10-24 by THN's "CISA Flags Two Actively Exploited Critical Flaws in Collabora Online and Arista
+    VeloCloud" (cve:110447 + tok:velocloud), before the CVE-contradiction guard (2026-10-27). Replayed with the real
+    titles, in arrival order: two events."""
+    store = MemoryStore()
+    t = lambda h: datetime(2026, 10, 23, h, tzinfo=UTC) if h < 24 else datetime(2026, 10, 24, h - 24, tzinfo=UTC)
+    seq = [("bleepingcomputer", "Arista patches new VeloCloud Orchestrator zero-day exploited in attacks", {}, 5),
+           ("cisa_kev", "CVE-2026-114625 Arista VeloCloud Orchestrator: Arista VeloCloud Orchestrator SQL Injection Vulnerability",
+            {"cves": ["CVE-2026-114625"], "kev": True}, 17),
+           ("cisa_kev", "CVE-2026-110447 Collabora Collabora Online – Built-in CODE Server: Collabora Online Built-in CODE Server",
+            {"cves": ["CVE-2026-110447"], "kev": True}, 20),
+           ("thehackernews", "CISA Flags Two Actively Exploited Critical Flaws in Collabora Online and Arista VeloCloud",
+            {}, 31)]
+    for src, title, extra, h in seq:
+        text = title + (" CVE-2026-110447 (CVSS score: 9.2) exploited in the wild" if src == "thehackernews" else " exploited in the wild")
+        pipeline.ingest([_raw(src, title, text, extra=extra, when=timeutil.iso(t(h)))], store, t(h))
+    cves = sorted(tuple(e["cves"]) for e in store.events.values() if e["cves"])
+    assert cves == [("CVE-2026-110447",), ("CVE-2026-114625",)]
+
+
+def test_cisas_own_kev_tweet_listing_two_vendors_is_a_roundup():
+    """Live: ev_3905bf053b684805 (P0) held GitLab CVE-2026-97229 and Cisco ASA CVE-2026-76418, glued by @CISACyber's
+    "We added GitLab … CVE-2026-97229 & Cisco … CVE-2026-76418 to our KEV Catalog" — 190 characters between "added"
+    and "KEV Catalog", past the roundup pattern's 160-character window."""
+    tweet = ("🛡️We added GitLab Community Edition &amp; Enterprise Edition vulnerability CVE-2026-97229 &amp; Cisco Secure "
+             "Firewall ASA Software and Cisco Secure FTD Software vulnerability CVE-2026-76418 to our KEV Catalog. "
+             "Visit https://t.co/myxOwap1Tf for more. #Cybersecurity #InfoSec")
+    store = MemoryStore()
+    t = datetime(2026, 10, 29, 12, tzinfo=UTC)
+    pipeline.ingest([_raw("cisa_kev", "CVE-2026-97229 GitLab Community Edition and Enterprise Edition: GitLab Improper Input Validation",
+                          "GitLab CE/EE contains an improper input validation vulnerability exploited in the wild",
+                          extra={"cves": ["CVE-2026-97229"], "kev": True}, when="2026-10-29T00:00:00Z"),
+                     _raw("cisa_kev", "CVE-2026-76418 Cisco Secure Firewall ASA Software and Cisco Secure FTD Software: Cisco Secure Firewall",
+                          "Cisco ASA contains a vulnerability exploited in the wild",
+                          extra={"cves": ["CVE-2026-76418"], "kev": True}, when="2026-10-29T00:00:00Z")], store, t)
+    pipeline.ingest([_raw("x_security", tweet[:120], tweet, author="CISACyber", extra={"x_status": "77"},
+                          when="2026-10-29T13:00:00Z")], store, datetime(2026, 10, 29, 13, 5, tzinfo=UTC))
+    cves = sorted(tuple(e["cves"]) for e in store.events.values())
+    assert cves == [("CVE-2026-76418",), ("CVE-2026-97229",)]

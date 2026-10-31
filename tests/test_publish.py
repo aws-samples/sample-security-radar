@@ -112,3 +112,43 @@ def test_continuum_ledger_carries_cost_and_a_failed_read_stays_visible():
     assert not errors, errors[0].message
     assert c["ledger"]["cost"]["total_usd"] == 729.02 and c["ledger"]["cost"]["error"] == "AccessDenied"
     assert publish.build(MemoryStore(), FETCHED)["continuum.json"]["ledger"]["cost"] is None
+
+
+def test_every_item_carries_its_evidence_time_never_before_the_first_report():
+    """Live 2026-10-30: the attack flow drew 转出 at 10-29 00:00 — the UI took DeFiLlama's date-only entry as midnight.
+    The published item carries evidence_at (pipeline.evidence_at, the one rule); the UI draws with it."""
+    from datetime import UTC, datetime
+
+    from test_pipeline_replay import _raw
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 3, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安热钱包疑似遭攻击，约25亿美元资产被转出", "币安热钱包疑似遭攻击，约25亿美元资产被盗",
+                          when="2026-10-29T20:51:50Z")], store, t)
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T00:00:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 5_780_000_000})], store, t)
+    ev = pipeline.Event.from_dict(next(iter(store.events.values())))
+    doc = publish.event_doc(ev, store, t)
+    at = {i["source_id"]: i["evidence_at"] for i in doc["items"]}
+    # the date-only entry sits at the latest moment it can have been published (end of its day, before its capture)
+    assert at == {"panews": "2026-10-29T20:51:50Z", "defillama_hacks": "2026-10-29T23:59:59Z"}
+    jsonschema.validate(doc, SCHEMA)
+
+
+def test_a_hack_database_record_is_the_drain_phase_a_kev_entry_has_none():
+    """Live 2026-10-30 audit: 105 of the 141 web3 events had their database record ("Gamma — Reentrancy") in phase
+    "other", so their attack flow had no step at all. A web3 hack-database record is the record of the theft itself;
+    a KEV entry is not an attack phase."""
+    from datetime import UTC, datetime
+
+    from test_pipeline_replay import _raw
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 3, tzinfo=UTC)
+    pipeline.ingest([_raw("defihacklabs", "Gamma — Reentrancy", when="2026-10-20T00:00:00Z", url="https://x/gamma",
+                          extra={"entity": "Gamma", "amount_usd": 8_200_000}),
+                     _raw("cisa_kev", "CVE-2026-66666 Foo", "x", extra={"cves": ["CVE-2026-66666"], "kev": True},
+                          when="2026-10-20T00:00:00Z")], store, t)
+    phases = {}
+    for d in store.events.values():
+        doc = publish.event_doc(pipeline.Event.from_dict(d), store, t)
+        phases.update({i["source_id"]: i["phase"] for i in doc["items"]})
+    assert phases == {"defihacklabs": "drain", "cisa_kev": "other"}

@@ -54,6 +54,10 @@ HANDLES: dict[str, Handle] = {
     "hypernativelabs": Handle("hypernative", "T1", "web3"),
     "lookonchain": Handle("lookonchain", "T2", "web3"),
     "spotonchain": Handle("spotonchain", "T2", "web3"),
+    # M4 D5: Chinese on-chain analysts who tracked the Binance laundering minute by minute; Arkham labels wallets
+    "embercn": Handle("embercn", "T2", "web3"),
+    "ai_9684xtpa": Handle("ai_9684xtpa", "T2", "web3"),
+    "arkham": Handle("arkham", "T2", "web3"),
     "cisacyber": Handle("cisa", "T1", None),
     "watchtowrcyber": Handle("watchtowr", "T2", "vuln"),
     "horizon3attack": Handle("horizon3", "T2", "vuln"),
@@ -88,6 +92,22 @@ SOURCES: tuple[Source, ...] = (
     Source("freebuf", "FreeBuf", "T2", "freebuf", None, "feed", "https://www.freebuf.com/feed", 30,
            via="firecrawl", enabled=False,
            notes="405 WAF page from AWS egress AND from firecrawl (2026-10-23) — unreachable, kept for visibility"),
+    # --- crypto media (T2) — M4 D5: the English first reports and rolling updates of CEX / DeFi incidents
+    #     (2026-10-29 Binance: CoinDesk 7, The Defiant 6, The Block 2, Decrypt 2 items in one feed snapshot) ---
+    Source("theblock", "The Block", "T2", "theblock", None, "feed", "https://www.theblock.co/rss.xml", 15),
+    Source("coindesk", "CoinDesk", "T2", "coindesk", None, "feed", "https://www.coindesk.com/arc/outboundfeeds/rss/", 15),
+    Source("decrypt", "Decrypt", "T2", "decrypt", None, "feed", "https://decrypt.co/feed", 15),
+    Source("cointelegraph", "Cointelegraph", "T2", "cointelegraph", None, "feed", "https://cointelegraph.com/rss", 15),
+    Source("thedefiant", "The Defiant", "T2", "thedefiant", None, "feed", "https://thedefiant.io/api/feed", 15),
+    Source("rekt", "rekt.news", "T2", "rekt", "web3", "feed", "https://rekt.news/rss/feed.xml", 60),
+    # --- forensic research (T1): full reconstructions and attribution (TRM / Chainalysis named North Korea for Binance);
+    #     Elliptic's feed was 404 on 2026-10-30 — not registered ---
+    Source("trm_blog", "TRM Labs", "T1", "trm", None, "feed", "https://www.trmlabs.com/resources/blog/rss.xml", 60),
+    Source("chainalysis_blog", "Chainalysis", "T1", "chainalysis", None, "feed", "https://www.chainalysis.com/feed/", 60),
+    Source("slowmist_medium", "SlowMist Medium", "T1", "slowmist", "web3", "feed", "https://slowmist.medium.com/feed", 60),
+    # --- the victim's own channel (T1): official loss / freeze / withdrawal statements, first-hand ---
+    Source("binance_announcements", "Binance 公告", "T1", "binance", "web3", "binance_cms",
+           "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=49&pageNo=1&pageSize=20", 10),
     # --- web3 structured (always eventful) ---
     Source("defillama_hacks", "DeFiLlama Hacks", "T2", "defillama", "web3", "defillama",
            "https://api.llama.fi/hacks", 30, always_eventful=True,

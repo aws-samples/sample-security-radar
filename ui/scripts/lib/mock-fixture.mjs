@@ -32,3 +32,10 @@ export const DETAIL_NO_ENV_ID = (() => {
   const hit = ids.find(id => hasResponse(id) && responseOf(id) === null);
   return hit ?? fail('no event with response: null in mock-data/data/events/');
 })();
+
+/** A detail page with an on-chain reconstruction (M4 D6): the 链上复盘 table and the attack flow are audited too. */
+export const DETAIL_ONCHAIN_ID = (() => {
+  const ids = events.events.map(e => e.event_id).sort();
+  const hit = ids.find(id => { try { return Boolean(read(`events/${id}.json`).onchain); } catch { return false; } });
+  return hit ?? fail('no event with an onchain section in mock-data/data/events/');
+})();

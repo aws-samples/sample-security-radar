@@ -111,18 +111,22 @@ def progress(ev: Event, items: list[Item], now: datetime) -> list[dict[str, Any]
     (a historical backfill would otherwise make every stage look like "today")."""
     from radar.limits import Limits
     from radar.model import EXPLOITATION_ORDER, LEVEL_ORDER
-    from radar.pipeline import independent_groups, recompute
+    from radar.pipeline import evidence_at, first_report, independent_groups, recompute
     items = sorted(items, key=lambda i: (i.published_at, i.source_id, i.item_id))
+    if items:     # date-only entries take their place after the first report (pipeline.first_report decides)
+        first = first_report(items)
+        when = {i.item_id: evidence_at(i, first) for i in items}
+        items = sorted(items, key=lambda i: (when[i.item_id], i.source_id, i.item_id))
     at: dict[str, str | None] = dict.fromkeys(STAGES)
     if items:
-        at["first_report"] = items[0].published_at
-        firsts = _group_firsts(items, independent_groups(items))
+        at["first_report"] = when[items[0].item_id]
+        firsts = _group_firsts(items, independent_groups(items), when)
         at["second_source"] = firsts[1] if len(firsts) > 1 else None
     for k in range(1, len(items) + 1):
         probe = Event(event_id=ev.event_id, domain=ev.domain, title="", first_seen=items[0].published_at,
                       last_updated=items[0].published_at, item_ids=[], keys=[])
         p = recompute(probe, items[:k], timeutil.parse(items[k - 1].published_at) or now)
-        t = items[k - 1].published_at
+        t = when[items[k - 1].item_id]
         if at["corroborated"] is None and LEVEL_ORDER[p.level] >= 2:
             at["corroborated"] = t
         if at["confirmed"] is None and LEVEL_ORDER[p.level] >= 3:
@@ -138,10 +142,10 @@ def progress(ev: Event, items: list[Item], now: datetime) -> list[dict[str, Any]
     return [{"stage": s, "at": at[s]} for s in STAGES]
 
 
-def _group_firsts(items: list[Item], groups: list[int]) -> list[str]:
+def _group_firsts(items: list[Item], groups: list[int], when: dict[str, str] | None = None) -> list[str]:
     first: dict[int, str] = {}
     for it, g in zip(items, groups):
-        first.setdefault(g, it.published_at)
+        first.setdefault(g, when[it.item_id] if when else it.published_at)
     return sorted(first.values())
 
 

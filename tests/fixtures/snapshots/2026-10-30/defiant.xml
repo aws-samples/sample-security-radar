@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wfw="http://wellformedweb.org/CommentAPI/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:sy="http://purl.org/rss/1.0/modules/syndication/" xmlns:slash="http://purl.org/rss/1.0/modules/slash/" xmlns:media="http://search.yahoo.com/mrss/">
+    <channel>
+      <atom:link href="https://thedefiant.io/api/feed" rel="self" type="application/rss+xml" />
+      <title>The Defiant</title>
+      <link>https://thedefiant.io</link>
+      <description>Defi News. The Defiant curates, digests, and analyzes all the major developments in decentralized finance, so that you can stay informed and smart about the most cutting-edge and fastest-changing corner of crypto and finance.</description>
+      <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
+      <language>en</language>
+      <ttl>5</ttl>
+      <image>
+        <title>The Defiant</title>
+        <url>https://thedefiant.io/favicon.png</url>
+        <link>https://thedefiant.io</link>
+      </image>
+      <copyright>All rights reserved, The Defiant</copyright>
+      
+    <item>
+      <title>Binance Security Incident: Withdrawal Status, Timeline and FAQs</title>
+      <link>https://thedefiant.io/news/hacks/binance-security-incident-withdrawal-status-timeline-and-faqs</link>
+      <guid isPermaLink="true">https://thedefiant.io/news/hacks/binance-security-incident-withdrawal-status-timeline-and-faqs</guid>
+      <pubDate>Thu, 29 Oct 2026 23:32:17 GMT</pubDate>
+      <description><![CDATA[Binance says customer funds are safe.]]></description>
+      <dc:creator>The Defiant Team</dc:creator>
+      
+      <media:thumbnail url="https://cdn.sanity.io/images/6oftkxoa/production/b0632f6febf33635be98936219cb9a08dd49caba-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" height="450" width="800" />
+      <enclosure url="https://cdn.sanity.io/images/6oftkxoa/production/b0632f6febf33635be98936219cb9a08dd49caba-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" length="0" type="image/jpeg" />
+      
+      
+    </item>
+<item>
+      <title>Binance Pauses Withdrawals Amid Suspected Hack, Says User Funds Are Safe</title>
+      <link>https://thedefiant.io/news/hacks/binance-wallet-outflows-widen-to-three-accounts-in-suspected-hack</link>
+      <guid isPermaLink="true">https://thedefiant.io/news/hacks/binance-wallet-outflows-widen-to-three-accounts-in-suspected-hack</guid>
+      <pubDate>Thu, 29 Oct 2026 22:10:31 GMT</pubDate>
+      <description><![CDATA[Tether says it froze more than 1.567 billion USDT as Binance investigates large wallet outflows and conducts security checks. [facts: 1.567]]]></description>
+      <dc:creator>The Defiant Team</dc:creator>
+      
+      <media:thumbnail url="https://cdn.sanity.io/images/6oftkxoa/production/df7307c22bf0c710288f74cae53a3fd4028f5084-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" height="450" width="800" />
+      <enclosure url="https://cdn.sanity.io/images/6oftkxoa/production/df7307c22bf0c710288f74cae53a3fd4028f5084-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" length="0" type="image/jpeg" />
+      
+      
+    </item>
+<item>
+      <title>Tether Says It Froze Over 1.567B USDT Linked to Suspected Binance Hack</title>
+      <link>https://thedefiant.io/news/hacks/tether-freezes-971-million-usdt-in-wallet-linked-to-suspected-binance-drain</link>
+      <guid isPermaLink="true">https://thedefiant.io/news/hacks/tether-freezes-971-million-usdt-in-wallet-linked-to-suspected-binance-drain</guid>
+      <pubDate>Thu, 29 Oct 2026 21:22:00 GMT</pubDate>
+      <description><![CDATA[The later issuer total is broader than the roughly 971 million USDT recorded in one wallet at its initial freeze; frozen funds are not automatically recovered. [facts: 971]]]></description>
+      <dc:creator>The Defiant Team</dc:creator>
+      
+      <media:thumbnail url="https://cdn.sanity.io/images/6oftkxoa/production/b157e8057ebdeecba1fa8a813a74888cea427539-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" height="450" width="800" />
+      <enclosure url="https://cdn.sanity.io/images/6oftkxoa/production/b157e8057ebdeecba1fa8a813a74888cea427539-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" length="0" type="image/jpeg" />
+      
+      
+    </item>
+<item>
+      <title>ETH Trades at 20% Premium on Uniswap Versus Binance</title>
+      <link>https://thedefiant.io/news/markets/eth-trades-at-20-premium-on-uniswap-versus-binance</link>
+      <guid isPermaLink="true">https://thedefiant.io/news/markets/eth-trades-at-20-premium-on-uniswap-versus-binance</guid>
+      <pubDate>Thu, 29 Oct 2026 21:16:40 GMT</pubDate>
+      <description><![CDATA[Hundreds of ETH changed hands at elevated stablecoin prices, while Chainlink’s ETH/USD reference feed showed about $2,250. [facts: $2,250.]]]></description>
+      <dc:creator>The Defiant Team</dc:creator>
+      
+      <media:thumbnail url="https://cdn.sanity.io/images/6oftkxoa/production/8f6a54b81347cf2a5b652b96f4f685d4150f4041-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" height="450" width="800" />
+      <enclosure url="https://cdn.sanity.io/images/6oftkxoa/production/8f6a54b81347cf2a5b652b96f4f685d4150f4041-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" length="0" type="image/jpeg" />
+      
+      
+    </item>
+<item>
+      <title>Polymarket Adds 15-Minute Gold and Silver Bets With Chainlink</title>
+      <link>https://thedefiant.io/news/defi/polymarket-adds-15-minute-gold-and-silver-bets-with-chainlink</link>
+      <guid isPermaLink="true">https://thedefiant.io/news/defi/polymarket-adds-15-minute-gold-and-silver-bets-with-chainlink</guid>
+      <pubDate>Thu, 29 Oct 2026 21:25:05 GMT</pubDate>
+      <description><![CDATA[The contracts use start-and-end spot prices, while US takers pay about $1.74 per 100 contracts traded at 50 cents, before rebates. [facts: $1.74; 100; 50]]]></description>
+      <dc:creator>The Defiant Team</dc:creator>
+      
+      <media:thumbnail url="https://cdn.sanity.io/images/6oftkxoa/production/0d87b3c28250ef03bdd75d7f467e35b415fe2091-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" height="450" width="800" />
+      <enclosure url="https://cdn.sanity.io/images/6oftkxoa/production/0d87b3c28250ef03bdd75d7f467e35b415fe2091-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" length="0" type="image/jpeg" />
+      
+      
+    </item>
+<item>
+      <title>How Wallet Permissions Linked Two Accounts in the Suspected Binance Hack</title>
+      <link>https://thedefiant.io/news/security/binance-labeled-wallet-swept-minutes-after-eip-7702-delegation</link>
+      <guid isPermaLink="true">https://thedefiant.io/news/security/binance-labeled-wallet-swept-minutes-after-eip-7702-delegation</guid>
+      <pubDate>Thu, 29 Oct 2026 21:04:09 GMT</pubDate>
+      <description><![CDATA[Delegated code on Binance 14 could move its own assets and exercise ownership of another wallet. [facts: 14]]]></description>
+      <dc:creator>The Defiant Team</dc:creator>
+      
+      <media:thumbnail url="https://cdn.sanity.io/images/6oftkxoa/production/b7730f33cee3f4f52859a420a72857ce8fc07439-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" height="450" width="800" />
+      <enclosure url="https://cdn.sanity.io/images/6oftkxoa/production/b7730f33cee3f4f52859a420a72857ce8fc07439-2048x1152.png?w=800&amp;fit=max&amp;fm=jpg&amp;q=70&amp;bg=ffffff" length="0" type="image/jpeg" />
+      
+      
+    </item>
+  
+    </channel>
+  </rss>
+  

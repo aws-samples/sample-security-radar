@@ -17,8 +17,10 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
 import { ageMsToRadiusFrac } from '@/utils/radarLayout';
 import type { Dot3D } from '@/utils/radar3dLayout';
-import { R_WORLD, BLOOM_THRESHOLD } from '@/utils/radar3dLayout';
-import { orbitPosition, projectToScreen } from './project';
+import { R_WORLD, BLOOM_THRESHOLD, CORE, SEVERITY_TOKEN, arcPoints, srgbToLinear } from '@/utils/radar3dLayout';
+import type { ThreatLink } from '@/utils/radar3dLayout';
+import type { ShieldState } from '@/utils/mitigate';
+import { LOOK_AT, orbitPosition, projectToScreen } from './project';
 import type { ScreenPoint } from './project';
 import {
   initialQualityState, advanceQuality, tierSettings, tierReason,
@@ -38,6 +40,7 @@ const SCAN_VERT = /* glsl */`
 
 const SCAN_FRAG = /* glsl */`
   uniform float uSweep;
+  uniform float uTime;
   varying vec2 vLocalXY;
   void main() {
     float r = length(vLocalXY);
@@ -45,6 +48,7 @@ const SCAN_FRAG = /* glsl */`
 
     // atan(x, y) gives angle from +Y axis CW, matching north=0 convention
     float theta = atan(vLocalXY.x, vLocalXY.y);
+    float normT = mod(theta + 6.28318530, 6.28318530);
 
     // Sweep trail: fade over 42° (0.7330 rad, UI-BRIEF §2), capped at 0.07 so it tints instead of hiding the
     // pillars behind it (was 0.35 additive ⇒ an opaque cyan wedge over ~1/6 of the Web3 sector, spec 01 §6.1;
@@ -52,31 +56,124 @@ const SCAN_FRAG = /* glsl */`
     float diff = mod(uSweep - theta + 6.28318530, 6.28318530);
     float FADE_RAD = 0.73304; // 42° in radians
     // (1 - smoothstep(0, F, x)): smoothstep with edge0 > edge1 is undefined in GLSL — drivers rendered it flat.
-    float sweepAlpha = (1.0 - smoothstep(0.0, FADE_RAD, diff)) * 0.07;
+    float sweepA = (1.0 - smoothstep(0.0, FADE_RAD, diff)) * 0.07;
     // Bright leading edge ≈1.5 px wide: the arc length r·diff in world units, ~0.03 at the dome's framing.
-    if (diff * max(r, 0.3) < 0.03) sweepAlpha = 0.45;
+    if (diff * max(r, 0.3) < 0.03) sweepA = 0.45;
 
-    // Domain sector tint: kept at 3% additive so it barely tints the
-    // near-black background without dominating the scene.
-    float normT = mod(theta + 6.28318530, 6.28318530);
-    vec3 domainColor;
-    if (normT < 2.09440) {
-      domainColor = vec3(0.11, 0.31, 0.85);  // vuln #1D4ED8
-    } else if (normT < 4.18879) {
-      domainColor = vec3(0.55, 0.22, 0.04);  // incident warm amber
-    } else {
-      domainColor = vec3(0.40, 0.15, 0.80);  // web3 #6D28D9
-    }
-    // 1.5% additive — barely perceptible tint against the near-black bg
-    float domAlpha = 0.015;
+    // Domain: 1.5% sector tint over the disk + a 0.18-wide rim band in the domain colour (the sector reads at a
+    // glance without a label), with a gap at each divider.
+    vec3 domainColor; vec3 rimColor;
+    if (normT < 2.09440)      { domainColor = vec3(0.11, 0.31, 0.85); rimColor = vec3(0.23, 0.51, 0.96); } // vuln
+    else if (normT < 4.18879) { domainColor = vec3(0.26, 0.10, 0.02); rimColor = vec3(0.96, 0.55, 0.18); } // incident
+    else                      { domainColor = vec3(0.40, 0.15, 0.80); rimColor = vec3(0.55, 0.36, 0.96); } // web3
+    float secPos = mod(normT, 2.09440) * r;               // arc distance from the sector's start divider
+    float secGap = smoothstep(0.0, 0.12, secPos) * smoothstep(0.0, 0.12, 2.09440 * r - secPos);
+    float rimA = smoothstep(5.80, 5.84, r) * (1.0 - smoothstep(5.98, 6.02, r)) * secGap * 0.30;
 
-    float totalAlpha = max(sweepAlpha, domAlpha);
-    if (totalAlpha < 0.005) discard;
+    // Fine polar grid: a ring every 0.5 units, a spoke every 15° (spokes start off-centre so the hub stays clean).
+    float dRing = abs(fract(r * 2.0 + 0.5) - 0.5) * 0.5;
+    float dSpoke = abs(fract(theta / 0.261799 + 0.5) - 0.5) * 0.261799 * r;
+    float gridA = max(1.0 - smoothstep(0.0, 0.012, dRing),
+                      (1.0 - smoothstep(0.0, 0.010, dSpoke)) * smoothstep(0.8, 1.6, r)) * 0.055;
 
-    vec3 sweepColor = vec3(0.09, 0.85, 0.93);  // cyan accent
-    float t = sweepAlpha / (totalAlpha + 0.001);
-    vec3 finalColor = mix(domainColor, sweepColor, t);
-    gl_FragColor = vec4(finalColor, totalAlpha);
+    // Detection ripple: one ring leaves the core every 5 s and fades out towards the rim.
+    float rr = fract(uTime / 5.0) * 6.0;
+    float rippleA = (1.0 - smoothstep(0.0, 0.07, abs(r - rr))) * (1.0 - rr / 6.0) * 0.10;
+
+    vec3 cyan = vec3(0.09, 0.85, 0.93);
+    // Additive blend (SRC_ALPHA, ONE) with alpha 1 ⇒ rgb is the light added, each term already weighted.
+    vec3 col = cyan * sweepA + domainColor * 0.015 + rimColor * rimA + vec3(0.30, 0.42, 0.62) * gridA + cyan * rippleA;
+    if (max(col.r, max(col.g, col.b)) < 0.003) discard;
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+// Sweep curtain: a translucent wall standing on the leading edge of the sweep (gives the beam volume).
+const CURTAIN_VERT = /* glsl */`
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+`;
+const CURTAIN_FRAG = /* glsl */`
+  varying vec2 vUv;
+  void main() {
+    float a = pow(1.0 - vUv.y, 2.5) * smoothstep(0.0, 0.12, vUv.x) * (1.0 - 0.35 * vUv.x) * 0.20;
+    gl_FragColor = vec4(vec3(0.09, 0.85, 0.93) * a, 1.0);
+  }
+`;
+
+// P0 light shaft: an open cylinder whose light falls off with height. LDR colour on purpose — the shaft must not
+// cross BLOOM_THRESHOLD (only the P0 pillar body blooms, B1), so it reads as red light, never a white column.
+const SHAFT_VERT = /* glsl */`
+  varying float vH;
+  void main() {
+    vH = position.y;
+    vec4 p = vec4(position, 1.0);
+    #ifdef USE_INSTANCING
+      p = instanceMatrix * p;
+    #endif
+    gl_Position = projectionMatrix * modelViewMatrix * p;
+  }
+`;
+const SHAFT_FRAG = /* glsl */`
+  uniform vec3 uColor;
+  uniform float uTime;
+  varying float vH;
+  void main() {
+    float a = pow(1.0 - vH, 2.2) * 0.22 * (0.85 + 0.15 * sin(uTime * 2.6));
+    gl_FragColor = vec4(uColor * a, 1.0);
+  }
+`;
+
+// P0 ground shockwave: a ring that expands from the pillar foot every 2.4 s, phase-shifted per pillar.
+const WAVE_VERT = /* glsl */`
+  varying vec2 vUv;
+  varying float vPhase;
+  void main() {
+    vUv = uv;
+    vec4 p = vec4(position, 1.0);
+    vPhase = 0.0;
+    #ifdef USE_INSTANCING
+      vec4 ip = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+      vPhase = fract(ip.x * 0.37 + ip.z * 0.71);
+      p = instanceMatrix * p;
+    #endif
+    gl_Position = projectionMatrix * modelViewMatrix * p;
+  }
+`;
+const WAVE_FRAG = /* glsl */`
+  uniform vec3 uColor;
+  uniform float uTime;
+  varying vec2 vUv;
+  varying float vPhase;
+  void main() {
+    float r = length(vUv * 2.0 - 1.0);
+    float t = fract(uTime / 2.4 + vPhase);
+    float a = (1.0 - smoothstep(0.0, 0.05, abs(r - t))) * (1.0 - t) * 0.75;
+    if (a < 0.004) discard;
+    gl_FragColor = vec4(uColor * a, 1.0);
+  }
+`;
+
+// Threat link: energy pulses travel along the arc into the core. It fades in over the first 12 % so the pillar top
+// (the NOW label anchor) keeps its own colour — screenshot-3d.mjs checks that the pixels there are red.
+const LINK_VERT = /* glsl */`
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+`;
+const LINK_FRAG = /* glsl */`
+  uniform vec3 uColor;
+  uniform float uTime;
+  uniform float uDashed;
+  varying vec2 vUv;
+  void main() {
+    float s = vUv.x;
+    float lift = smoothstep(0.0, 0.12, s);
+    float flow = fract(s * 5.0 - uTime * 0.9);
+    float pulse = smoothstep(0.0, 0.2, flow) * (1.0 - smoothstep(0.2, 0.55, flow));
+    float base = uDashed > 0.5 ? step(0.55, fract(s * 22.0 - uTime * 0.6)) * 0.6 : 0.30;
+    float a = lift * (base + pulse * (uDashed > 0.5 ? 0.0 : 0.9));
+    if (a < 0.004) discard;
+    gl_FragColor = vec4(uColor * (1.0 + pulse * 0.5) * a, 1.0);
   }
 `;
 
@@ -101,7 +198,18 @@ export interface EngineHandle {
   project(points: ReadonlyArray<{ x: number; y: number; z: number }>): ScreenPoint[];
   /** true while the camera orbits (caller re-projects periodically); false ⇒ one projection is enough. */
   isCameraMoving(): boolean;
+  /** Arcs from event pillars into the core (affected = red pulses, checking = cyan dashes). */
+  setLinks(links: ThreatLink[]): void;
+  /** Shield arcs around the core, one per edge channel (WAF / DNS / Inspector), in SHIELD_ANGLES order. */
+  setShield(states: ShieldState[]): void;
 }
+
+/** Shield arc mid-angles (radar convention: degrees from north, clockwise) — WAF faces the camera. WallScene3D
+ * places the channel labels with the same table. */
+export const SHIELD_ANGLES = [180, 60, 300] as const;
+export const SHIELD_R = 1.18;
+/** Arcs drawn into the core at most (the HUD still counts all of them). */
+export const MAX_LINKS = 16;
 
 // ── Geometry helpers ──────────────────────────────────────────────────────────
 
@@ -227,14 +335,14 @@ export function createEngine(
   {
     const p = orbitPosition(0);
     camera.position.set(p.x, p.y, p.z);
-    camera.lookAt(0, 0, 0);
+    camera.lookAt(LOOK_AT.x, LOOK_AT.y, LOOK_AT.z);
   }
   let cssW = width || 800;
   let cssH = height || 600;
 
   // ── Grid ──
   const gridGeo = buildGridGeometry();
-  const gridMat = new THREE.LineBasicMaterial({ color: 0x26324D, opacity: 0.8, transparent: true });
+  const gridMat = new THREE.LineBasicMaterial({ color: 0x34507F, opacity: 0.9, transparent: true });
   const grid = new THREE.LineSegments(gridGeo, gridMat);
   scene.add(grid);
 
@@ -250,12 +358,25 @@ export function createEngine(
   const stars = new THREE.Points(starGeo, starMat);
   scene.add(stars);
 
+  // Shared per-frame uniforms (one object, every material reads it).
+  const sweepU = { value: 0.0 };
+  const timeU = { value: 0.0 };
+  const fx = (vertexShader: string, fragmentShader: string, uniforms: Record<string, { value: unknown }>) =>
+    new THREE.ShaderMaterial({
+      vertexShader, fragmentShader, uniforms: { uTime: timeU, ...uniforms },
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+    });
+  const lin = (hex: number) => new THREE.Vector3(
+    srgbToLinear(((hex >> 16) & 0xff) / 255), srgbToLinear(((hex >> 8) & 0xff) / 255), srgbToLinear((hex & 0xff) / 255));
+  const P0_LIN = lin(SEVERITY_TOKEN.P0);
+  const CYAN_LIN = new THREE.Vector3(0.09, 0.75, 0.86);
+
   // ── Scan plane ──
   const scanGeo = new THREE.PlaneGeometry(R_WORLD * 2 + 2, R_WORLD * 2 + 2, 1, 1);
   const scanMat = new THREE.ShaderMaterial({
     vertexShader: SCAN_VERT,
     fragmentShader: SCAN_FRAG,
-    uniforms: { uSweep: { value: 0.0 } },
+    uniforms: { uSweep: sweepU, uTime: timeU },
     transparent: true,
     depthWrite: false,
     side: THREE.DoubleSide,
@@ -265,6 +386,65 @@ export function createEngine(
   scanMesh.rotation.x = -Math.PI / 2;
   scanMesh.position.y = 0.005;
   scene.add(scanMesh);
+
+  // ── Sweep curtain (spans x ∈ [0, R], y ∈ [0, 0.9]; rotated onto the sweep's leading edge each frame) ──
+  const curtainGeo = new THREE.PlaneGeometry(R_WORLD, 0.9);
+  curtainGeo.translate(R_WORLD / 2, 0.45, 0);
+  const curtainMat = fx(CURTAIN_VERT, CURTAIN_FRAG, {});
+  const curtain = new THREE.Mesh(curtainGeo, curtainMat);
+  scene.add(curtain);
+
+  // ── Core: the code you run (the targets the AWS agents check). Links land here; the shield wraps it. ──
+  const core = new THREE.Group();
+  core.position.set(CORE.x, CORE.y, CORE.z);
+  scene.add(core);
+  const coreWireGeo = new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(0.52, 1));
+  const coreWireMat = new THREE.LineBasicMaterial({ color: 0x5CE1E6, transparent: true, opacity: 0.9 });
+  const coreWire = new THREE.LineSegments(coreWireGeo, coreWireMat);
+  core.add(coreWire);
+  const coreHeartGeo = new THREE.IcosahedronGeometry(0.22, 0);
+  const coreHeartMat = new THREE.MeshBasicMaterial({ color: 0x2FB8C4, transparent: true, opacity: 0.7 });
+  const coreHeart = new THREE.Mesh(coreHeartGeo, coreHeartMat);
+  core.add(coreHeart);
+  const orbitGeoA = new THREE.TorusGeometry(0.74, 0.008, 6, 96);
+  const orbitGeoB = new THREE.TorusGeometry(0.86, 0.006, 6, 96);
+  const orbitMat = new THREE.MeshBasicMaterial({ color: 0x5CE1E6, transparent: true, opacity: 0.55 });
+  const orbitA = new THREE.Mesh(orbitGeoA, orbitMat);
+  const orbitB = new THREE.Mesh(orbitGeoB, orbitMat);
+  orbitA.rotation.set(Math.PI / 2.4, 0, 0);
+  orbitB.rotation.set(-Math.PI / 3, 0.5, 0);
+  core.add(orbitA, orbitB);
+  // tether from the floor hub to the core + two hub rings on the disk
+  const tetherGeo = new THREE.CylinderGeometry(0.012, 0.012, CORE.y, 6, 1, true);
+  tetherGeo.translate(0, -CORE.y / 2, 0);
+  const tetherMat = new THREE.MeshBasicMaterial({ color: 0x2FB8C4, transparent: true, opacity: 0.45 });
+  core.add(new THREE.Mesh(tetherGeo, tetherMat));
+  const hubGeo = new THREE.RingGeometry(0.70, 0.72, 96);
+  hubGeo.rotateX(-Math.PI / 2);
+  const hubMat = new THREE.MeshBasicMaterial({ color: 0x5CE1E6, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+  const hub = new THREE.Mesh(hubGeo, hubMat);
+  hub.position.set(CORE.x, 0.012, CORE.z);
+  scene.add(hub);
+
+  // Shield: one 100° arc per edge channel around the core, coloured by its state (SHIELD_ANGLES order).
+  const shieldGeo = new THREE.TorusGeometry(SHIELD_R, 0.028, 6, 64, (100 * Math.PI) / 180);
+  const shieldMats = SHIELD_ANGLES.map(() => new THREE.MeshBasicMaterial({ color: 0x3A4660, transparent: true, opacity: 0.35 }));
+  SHIELD_ANGLES.forEach((deg, i) => {
+    const arc = new THREE.Mesh(shieldGeo, shieldMats[i]);
+    // Torus arcs start at +x and run CCW in their XY plane; lay it flat (XY → XZ, +y → −z) and turn the arc's
+    // middle (50°) onto the radar angle (x = sin θ, z = −cos θ ⇒ azimuth from +x = 90° − θ).
+    arc.rotation.set(-Math.PI / 2, 0, ((90 - deg - 50) * Math.PI) / 180);
+    core.add(arc);
+  });
+  const SHIELD_LOOK: Record<ShieldState, [number, number]> = {
+    on: [0x34D399, 0.95], error: [0xFFB547, 0.9], off: [0x3A4660, 0.5], unknown: [0x3A4660, 0.25],
+  };
+
+  // Links (rebuilt by setLinks; two shared materials).
+  const linkMatHit = fx(LINK_VERT, LINK_FRAG, { uColor: { value: P0_LIN }, uDashed: { value: 0 } });
+  const linkMatChk = fx(LINK_VERT, LINK_FRAG, { uColor: { value: CYAN_LIN }, uDashed: { value: 1 } });
+  const links = new THREE.Group();
+  scene.add(links);
 
   // ── Pillar InstancedMesh (pre-allocated with 0 instances, updated on setDots) ──
   const MAX_INSTANCES = 2000;
@@ -307,6 +487,45 @@ export function createEngine(
   const pillarsV4cap = new THREE.InstancedMesh(octGeo, capsMat, MAX_INSTANCES);
   pillarsV4cap.count = 0;
   scene.add(pillarsV4cap);
+
+  // Sweep detection: a pillar flares as the beam passes it, then decays over ~1 rad (≈1 s at 6 s/rev). The angle is
+  // taken from the instance's own translation, so the flare always matches where the pillar is drawn.
+  const withSweepFlash = (m: THREE.MeshBasicMaterial) => {
+    m.onBeforeCompile = shader => {
+      shader.uniforms.uSweep = sweepU;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform float uSweep;\nvarying float vFlash;')
+        .replace('#include <project_vertex>', `#include <project_vertex>
+          vec3 ip = vec3(0.0);
+          #ifdef USE_INSTANCING
+            ip = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+          #endif
+          float dd = mod(uSweep - atan(ip.x, -ip.z) + 6.2831853, 6.2831853);
+          vFlash = exp(-dd * 5.0);`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vFlash;')
+        .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb *= 1.0 + 0.9 * vFlash;');
+    };
+    return m;
+  };
+  [pillarsV0, pillarsV1, pillarsV4, pillarsV4cap].forEach(m => withSweepFlash(m.material as THREE.MeshBasicMaterial));
+
+  // P0 light shafts + ground shockwaves (rebuilt on setDots).
+  const MAX_P0 = 64;
+  const shaftGeo = new THREE.CylinderGeometry(0.2, 0.2, 1, 24, 1, true);
+  shaftGeo.translate(0, 0.5, 0);
+  const shaftMat = fx(SHAFT_VERT, SHAFT_FRAG, { uColor: { value: P0_LIN } });
+  const shafts = new THREE.InstancedMesh(shaftGeo, shaftMat, MAX_P0);
+  shafts.count = 0;
+  shafts.raycast = () => {}; // never steals a pick from the pillar inside it
+  scene.add(shafts);
+  const waveGeo = new THREE.PlaneGeometry(2, 2);
+  waveGeo.rotateX(-Math.PI / 2);
+  const waveMat = fx(WAVE_VERT, WAVE_FRAG, { uColor: { value: P0_LIN } });
+  const waves = new THREE.InstancedMesh(waveGeo, waveMat, MAX_P0);
+  waves.count = 0;
+  waves.raycast = () => {};
+  scene.add(waves);
 
   // Event ID ↔ instance index maps (rebuilt on setDots)
   const dotsByBucket: [Dot3D[], Dot3D[], Dot3D[]] = [[], [], []];
@@ -375,6 +594,7 @@ export function createEngine(
   let lastTime = performance.now();
   let sweepAngle = 0; // radians
   let cameraAzimuth = 0; // degrees
+  let hitActive = false; // any affected link ⇒ the core beats red
 
   function updateCamera(now: number) {
     const settings = tierSettings(qualState);
@@ -383,7 +603,7 @@ export function createEngine(
     cameraAzimuth = 12 * Math.sin(phase);            // ±12°
     const p = orbitPosition(cameraAzimuth);
     camera.position.set(p.x, p.y, p.z);
-    camera.lookAt(0, 0, 0);
+    camera.lookAt(LOOK_AT.x, LOOK_AT.y, LOOK_AT.z);
   }
 
   function tick(now: number) {
@@ -415,7 +635,14 @@ export function createEngine(
 
     // Advance scan angle
     sweepAngle = (sweepAngle + dt * (Math.PI * 2 / 6000)) % (Math.PI * 2);
-    scanMat.uniforms.uSweep.value = sweepAngle;
+    sweepU.value = sweepAngle;
+    timeU.value = now / 1000;
+    curtain.rotation.y = Math.PI / 2 - sweepAngle;
+    coreWire.rotation.y += dt * 0.00035;
+    coreHeart.rotation.y -= dt * 0.0009;
+    orbitA.rotation.z += dt * 0.0006;
+    orbitB.rotation.z -= dt * 0.00045;
+    coreHeart.scale.setScalar(1 + (hitActive ? 0.18 : 0.06) * Math.sin(now / (hitActive ? 180 : 600)));
 
     updateCamera(now);
 
@@ -528,12 +755,12 @@ export function createEngine(
     function sevScale(sev: string): number {
       if (sev === 'P0') return 1.5;
       if (sev === 'P1') return 1.2;
-      return 0.5; // P2 thin dot
+      return 1.1; // P2: a short ground blip (displayHeight), wide enough to read as a dot
     }
 
     // Helper: write instance matrix for cylinder (scale y = height, translate y up by h/2)
     function setCylInstance(mesh: THREE.InstancedMesh, i: number, dot: Dot3D) {
-      const h = dot.severity === 'P2' ? Math.min(dot.height, 0.5) : dot.height;
+      const h = dot.drawHeight;
       const xzScale = sevScale(dot.severity);
       _pos.set(dot.x, h / 2, dot.z);
       _scale.set(xzScale, h, xzScale);
@@ -571,7 +798,7 @@ export function createEngine(
 
       // Cap at top of pillar
       const d = b2[i];
-      _pos.set(d.x, d.height + 0.07, d.z);
+      _pos.set(d.x, d.drawHeight + 0.07, d.z);
       _scale.setScalar(1);
       _quat.identity();
       _mat.compose(_pos, _quat, _scale);
@@ -585,6 +812,17 @@ export function createEngine(
     pillarsV4cap.count = b2.length;
     pillarsV4cap.instanceMatrix.needsUpdate = true;
     if (pillarsV4cap.instanceColor) pillarsV4cap.instanceColor.needsUpdate = true;
+
+    const p0 = dots.filter(d => d.severity === 'P0').slice(0, MAX_P0);
+    p0.forEach((d, i) => {
+      _quat.identity();
+      _mat.compose(_pos.set(d.x, 0, d.z), _quat, _scale.set(1, d.drawHeight + 2.2, 1));
+      shafts.setMatrixAt(i, _mat);
+      _mat.compose(_pos.set(d.x, 0.015, d.z), _quat, _scale.set(0.75, 1, 0.75));
+      waves.setMatrixAt(i, _mat);
+    });
+    shafts.count = waves.count = p0.length;
+    shafts.instanceMatrix.needsUpdate = waves.instanceMatrix.needsUpdate = true;
   }
 
   // ── Public handle ──
@@ -622,8 +860,11 @@ export function createEngine(
       canvas.removeEventListener('click', handleClick);
 
       // Dispose scene objects
-      [gridGeo, starGeo, scanGeo, torusGeo, cylGeo, octGeo].forEach(g => g.dispose());
-      [gridMat, starMat, scanMat, capsMat].forEach(m => m.dispose());
+      for (const c of links.children) (c as THREE.Mesh).geometry.dispose();
+      [gridGeo, starGeo, scanGeo, torusGeo, cylGeo, octGeo, curtainGeo, coreWireGeo, coreHeartGeo, orbitGeoA, orbitGeoB,
+        tetherGeo, hubGeo, shieldGeo, shaftGeo, waveGeo].forEach(g => g.dispose());
+      [gridMat, starMat, scanMat, capsMat, curtainMat, coreWireMat, coreHeartMat, orbitMat, tetherMat, hubMat,
+        shaftMat, waveMat, linkMatHit, linkMatChk, ...shieldMats].forEach(m => m.dispose());
       (pillarsV0.material as THREE.Material).dispose();
       (pillarsV1.material as THREE.Material).dispose();
       (pillarsV4.material as THREE.Material).dispose();
@@ -647,6 +888,25 @@ export function createEngine(
 
     isCameraMoving() {
       return rafId !== null && tierSettings(qualState).cameraOrbit;
+    },
+
+    setLinks(next) {
+      for (const c of [...links.children]) { (c as THREE.Mesh).geometry.dispose(); links.remove(c); }
+      for (const l of next.slice(0, MAX_LINKS)) {   // threatLinks sorts affected first ⇒ the cap drops checks first
+        const pts = arcPoints(l.from).map(p => new THREE.Vector3(p.x, p.y, p.z));
+        const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 64, l.kind === 'affected' ? 0.02 : 0.014, 6, false);
+        links.add(new THREE.Mesh(geo, l.kind === 'affected' ? linkMatHit : linkMatChk));
+      }
+      hitActive = next.some(l => l.kind === 'affected');
+      coreHeartMat.color.setHex(hitActive ? SEVERITY_TOKEN.P0 : 0x2FB8C4);
+    },
+
+    setShield(states) {
+      states.slice(0, shieldMats.length).forEach((st, i) => {
+        const [hex, op] = SHIELD_LOOK[st];
+        shieldMats[i].color.setHex(hex);
+        shieldMats[i].opacity = op;
+      });
     },
   };
 }

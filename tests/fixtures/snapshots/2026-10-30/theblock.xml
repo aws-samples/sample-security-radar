@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+    xmlns:content="http://purl.org/rss/1.0/modules/content/"
+    xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:atom="http://www.w3.org/2005/Atom"
+    xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+    xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+    xmlns:media="http://search.yahoo.com/mrss/"
+    >
+
+<channel>
+    <title>The Block</title>
+    <link>https://www.theblock.co</link>
+    <atom:link href="https://www.theblock.co/rss.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://www.theblock.co/rss.xml?paged=2" rel="next" type="application/rss+xml" />
+    <atom:link href="https://pubsubhubbub.appspot.com/" rel="hub"/>
+    <description>The Block features breaking Crypto news about Bitcoin, Blockchain, Web3, and DeFi from the web&#039;s most reliable source.</description>
+    <lastBuildDate>Fri, 30 Oct 2026 02:24:09 +0000</lastBuildDate>
+    <language>en-US</language>
+    <copyright>© 2026 THE BLOCK</copyright>
+    <generator>TheBlock</generator>
+    <ttl>5</ttl>
+    <sy:updatePeriod>hourly</sy:updatePeriod>
+    <sy:updateFrequency>1</sy:updateFrequency>
+    <image>
+        <url>https://www.tbstat.com/wp/uploads/2024/03/the-block-logo-wordmark-black.png</url>
+        <title>The Block</title>
+        <link>https://www.theblock.co</link>
+    </image>
+        <item>
+        <title><![CDATA[Bitcoin slides below $77,000, BNB drops amid Binance hack]]></title>
+        <link>https://www.theblock.co/news/markets/2026-10-29-bitcoin-slides-below-77000-binance-hack-432183</link>
+        <media:content url="https://www.tbstat.com/cdn-cgi/image/width=1600,height=900,fit=cover,format=jpeg,quality=80/wp/uploads/2026/10/Screenshot-2026-10-23-at-12.06.59.png" type="image/*" medium="image"/>        <guid isPermaLink="false">87afcde5-f67a-547d-a239-bab9697cd5a8</guid>
+        <pubDate>Fri, 30 Oct 2026 02:22:31 +0000</pubDate>
+            <description><![CDATA[BNB lost 7.1%, while Binance Co-CEO Yi He pledged that the exchange will cover all user losses resulting from the hack. [facts: 7.1]]]></description>            <dc:creator><![CDATA[Timmy Shen]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+<item>
+        <title><![CDATA[Binance investigating hack as suspicious outflows reach up to $5.8 billion]]></title>
+        <link>https://www.theblock.co/news/markets/2026-10-29-binance-investigating-hack-suspicious-outflows-5-billion-432171</link>
+        <media:content url="https://www.tbstat.com/cdn-cgi/image/width=1600,height=900,fit=cover,format=jpeg,quality=80/wp/uploads/2023/04/20230418_Binance_Generic_3.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">ed91aa7a-fed0-5ad5-bb76-ff171fbfd2a4</guid>
+        <pubDate>Thu, 29 Oct 2026 21:49:16 +0000</pubDate>
+            <description><![CDATA[Tether and Circle froze $1.79 billion in USDT and USDC after billions moved out of Binance hot wallets. [facts: $1.79 billion]]]></description>            <dc:creator><![CDATA[Jason Shubnell and Yogita Khatri]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/deals"><![CDATA[Deals]]></category>
+		<category domain="https://www.theblock.co/category/exchanges"><![CDATA[Exchanges]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/companies-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/markets-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/policy-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/deals-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/policy"><![CDATA[Policy]]></category>
+		<category domain="https://www.theblock.co/category/security"><![CDATA[Security]]></category>
+		<category domain="tag"><![CDATA[Binance]]></category>
+		<category domain="tag"><![CDATA[CZ]]></category>
+		<category domain="tag"><![CDATA[Exploits]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+<item>
+        <title><![CDATA[Strategy reports $19.5 billion in Q3 net income as preferred shareholders approve daily dividends]]></title>
+        <link>https://www.theblock.co/news/business/2026-10-29-strategy-q3-net-income-preferred-daily-dividends-432141</link>
+        <media:content url="https://www.tbstat.com/cdn-cgi/image/width=1600,height=900,fit=cover,format=jpeg,quality=80/wp/uploads/2026/10/Screenshot-2026-10-19-at-10.10.02.png" type="image/*" medium="image"/>        <guid isPermaLink="false">46132bf1-f5b9-5f29-8b0e-dcdec50f3c77</guid>
+        <pubDate>Thu, 29 Oct 2026 20:58:35 +0000</pubDate>
+            <description><![CDATA[Strategy reported $19.53B in Q3 net income on a $20.91B bitcoin gain, holds 848,517 BTC, and moves preferreds to daily dividends. [facts: $19.53B; 3; $20.91B; 848,517]]]></description>            <dc:creator><![CDATA[Jason Shubnell]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/equities"><![CDATA[Equities]]></category>
+		<category domain="https://www.theblock.co/category/layer-1s"><![CDATA[Layer 1s]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/public-equities"><![CDATA[Public Equities]]></category>
+		<category domain="https://www.theblock.co/category/token-projects"><![CDATA[Token Projects]]></category>
+		<category domain="tag"><![CDATA[Bitcoin]]></category>
+		<category domain="tag"><![CDATA[Earnings]]></category>
+		<category domain="tag"><![CDATA[Strategy]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+<item>
+        <title><![CDATA[Polymarket resumes trading after $2.65 million exploit, says third-party provider was compromised]]></title>
+        <link>https://www.theblock.co/news/defi/2026-10-29-polymarket-exploit-2-5-million-cancel-only-mode-432158</link>
+        <media:content url="https://www.tbstat.com/cdn-cgi/image/width=1600,height=900,fit=cover,format=jpeg,quality=80/wp/uploads/2024/11/20241111_Polymarket_News_2.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">fd28f0ee-bfe3-53f7-9079-3f683a183486</guid>
+        <pubDate>Thu, 29 Oct 2026 19:00:06 +0000</pubDate>
+            <description><![CDATA[After over $2.5 million was lost within minutes on Polymarket, the platform said it has since placed its exchange in cancel-only mode. [facts: $2.5 million]]]></description>            <dc:creator><![CDATA[Sarah Wynn]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="https://www.theblock.co/category/policy"><![CDATA[Policy]]></category>
+		<category domain="https://www.theblock.co/category/regulation"><![CDATA[Regulation]]></category>
+		<category domain="https://www.theblock.co/category/security"><![CDATA[Security]]></category>
+		<category domain="tag"><![CDATA[Exploits]]></category>
+		<category domain="tag"><![CDATA[Polymarket]]></category>
+		<category domain="tag"><![CDATA[Prediction Markets]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+<item>
+        <title><![CDATA[HYPE surges 15% as NYSE parent ICE moves to bring Hyperliquid perps to US]]></title>
+        <link>https://www.theblock.co/news/business/2026-10-29-ice-tradexyz-hyperliquid-perpetual-futures-us-432132</link>
+        <media:content url="https://www.tbstat.com/cdn-cgi/image/width=1600,height=900,fit=cover,format=jpeg,quality=80/wp/uploads/2026/04/20260410_Hyperliquid_News.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">51b2fe9d-8fae-56e2-9f5f-879dfed7254b</guid>
+        <pubDate>Thu, 29 Oct 2026 14:44:53 +0000</pubDate>
+            <description><![CDATA[NYSE parent ICE will partner with and invest in Trade[XYZ] to launch regulated, Hyperliquid-based perpetual futures in the U.S.]]></description>            <dc:creator><![CDATA[Jason Shubnell]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/deals"><![CDATA[Deals]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/policy"><![CDATA[Policy]]></category>
+		<category domain="https://www.theblock.co/category/regulation"><![CDATA[Regulation]]></category>
+		<category domain="tag"><![CDATA[CFTC]]></category>
+		<category domain="tag"><![CDATA[Hyperliquid]]></category>
+		<category domain="tag"><![CDATA[Perpetuals]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+<item>
+        <title><![CDATA[Uniswap Labs opens fee conversion tool TJAR to apps, starting with Robinhood]]></title>
+        <link>https://www.theblock.co/news/defi/2026-10-29-uniswap-token-jar-tjar-robinhood-432131</link>
+        <media:content url="https://www.tbstat.com/cdn-cgi/image/width=1600,height=900,fit=cover,format=jpeg,quality=80/wp/uploads/2021/03/20210323_Uniswap_V3.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">33d67924-b3f4-53c9-a972-a66e45248ac9</guid>
+        <pubDate>Thu, 29 Oct 2026 14:34:17 +0000</pubDate>
+            <description><![CDATA[Uniswap Labs has opened up its Token Jar fee conversion system to other apps through a new tool called TJAR.]]></description>            <dc:creator><![CDATA[Yogita Khatri]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="https://www.theblock.co/category/exchanges"><![CDATA[Exchanges]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/public-equities"><![CDATA[Public Equities]]></category>
+		<category domain="https://www.theblock.co/category/web3"><![CDATA[Web3]]></category>
+		<category domain="tag"><![CDATA[Robinhood]]></category>
+		<category domain="tag"><![CDATA[Uniswap]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+    </channel>
+</rss>

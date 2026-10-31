@@ -12,7 +12,8 @@ from typing import Any
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
-from radar import collect, cost, keys, notify, pipeline, prsync, publish, timeutil
+from radar import attacktx, chain, collect, cost, keys, notify, pipeline, prsync, publish, timeutil, triage
+from radar import onchain as onchain_station
 from radar.dynamo import DynamoStore
 from radar.model import RawItem
 from radar.registry import BY_ID
@@ -82,8 +83,12 @@ def process(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     _store.put_source_state(FUNNEL_KEY, st)
     # age-driven recompute (V4 finalization) only needs to run hourly, not every 10-minute cycle
     refreshed = pipeline.refresh(_store, now) if now.minute < 10 or event.get("full") else []
+    chain.start_cycle()                              # one wall-clock RPC budget for the three on-chain steps below
     onchain = pipeline.verify_onchain(_store, now)   # C6: ≤ CHAIN_CHECKS_PER_CYCLE public-RPC calls, never raises
-    changed = set(res.changes) | set(refreshed) | set(onchain)
+    traced = onchain_station.cycle(_store, now)       # M4 D6: P0 web3 reconstruction, ≤ ONCHAIN_CALLS_PER_CYCLE calls
+    decoded = attacktx.cycle(_store, now)            # M4.1 E3: attack-tx breakdown, ≤ ATTACKTX_CALLS_PER_CYCLE calls
+    disposed = triage.changed(_store)                 # D: operator dispositions (scripts/triage.py) ⇒ republish
+    changed = set(res.changes) | set(refreshed) | set(onchain) | set(traced) | set(decoded) | set(disposed)
     log.info(json.dumps({"station": "process", "batches": len(pending), "raw": len(raws), "new": res.new_items,
                          "updated": res.updated_items, "unchanged": res.unchanged_items,
                          "events_changed": len(changed)}))

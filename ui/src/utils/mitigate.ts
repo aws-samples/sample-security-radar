@@ -1,4 +1,4 @@
-import type { InspectorBaselineState, InspectorFinding, MitigationDns, MitigationPlan } from '@/types/mitigate';
+import type { InspectorBaselineState, InspectorFinding, MitigateDoc, MitigationDns, MitigationPlan } from '@/types/mitigate';
 
 /** Tone classes come from detail.css (.tone-*); every tone is paired with a text label, never colour alone. */
 export type Tone = 'ok' | 'info' | 'warn' | 'loss' | 'muted';
@@ -62,4 +62,47 @@ export const SEVERITY: Record<InspectorFinding['severity'], { label: string; ton
 export function purlName(purl: string): string {
   const body = purl.replace(/^pkg:[^/]+\//, '');
   try { return decodeURIComponent(body); } catch { return body; }
+}
+
+/**
+ * GET mitigate.json. null = not published yet (older backend): a missing file falls through to index.html on the
+ * dev/preview server and the CloudFront SPA error page — same rule as useEventDetail. Throws on any other failure.
+ */
+export async function fetchMitigateDoc(): Promise<MitigateDoc | null> {
+  const r = await fetch('./data/mitigate.json');
+  const ct = r.headers.get('content-type') ?? '';
+  if (r.status === 404 || r.status === 403 || ct.includes('text/html')) return null;
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const d = (await r.json()) as MitigateDoc;
+  if (d.kind !== 'mitigate') throw new Error('unexpected data kind');
+  return d;
+}
+
+/** One edge channel on the wall's shield ring. unknown = not read (≠ off): drawn dashed, never as "protected". */
+export type ShieldState = 'on' | 'off' | 'error' | 'unknown';
+export interface ShieldChannel { key: 'WAF' | 'DNS' | 'INSPECTOR'; state: ShieldState; detail: string }
+
+/** Station channel names in mitigate.json errors[].channel (radar/mitigate_station.py). */
+const CHANNEL_OF: Record<ShieldChannel['key'], string> = { WAF: 'waf', DNS: 'dns', INSPECTOR: 'inspector' };
+
+export function shieldChannels(doc: MitigateDoc | null | undefined): ShieldChannel[] {
+  if (!doc) {
+    return (['WAF', 'DNS', 'INSPECTOR'] as const).map(key => ({ key, state: 'unknown' as const, detail: '未读取' }));
+  }
+  const failed = (k: ShieldChannel['key']) => doc.errors.some(e => e.channel === CHANNEL_OF[k]);
+  // applied[] is a write log (last 50, oldest first); each write carries the ACL's full radar rule set at that time
+  // ⇒ the newest entry per ACL is its current state (an older union would keep showing groups since removed).
+  const latest = new Map<string, string[]>();
+  for (const a of doc.applied) latest.set(a.web_acl ?? '', a.rules ?? []);
+  const groups = new Set([...latest.values()].flat());
+  const dnsRules = doc.dns?.rules ?? [];
+  const scanned = doc.inspector.filter(b => b.state === 'scanned').length;
+  const pick = (k: ShieldChannel['key'], on: boolean, onDetail: string, offDetail: string): ShieldChannel =>
+    failed(k) ? { key: k, state: 'error', detail: '本轮失败' }
+      : { key: k, state: on ? 'on' : 'off', detail: on ? onDetail : offDetail };
+  return [
+    pick('WAF', groups.size > 0, `${groups.size} 规则组`, '未下发'),
+    pick('DNS', doc.dns?.state === 'in_place', `${dnsRules.length} 条规则`, '未就位'),
+    pick('INSPECTOR', scanned > 0, `${scanned}/${doc.inspector.length} 目标`, '未扫描'),
+  ];
 }

@@ -238,3 +238,40 @@
 .mt-errors { padding: 12px 14px; border: 1px solid var(--p0); border-left-width: 4px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--p0) 6%, var(--bg-1)); color: var(--text-1); }
 .mt-h2 { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--p0); }
 .mt-errors .ops-row { grid-template-columns: 110px 1fr; }
+
+/* M4 · attack flow (AttackFlow.tsx) */
+.af-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.af-btn { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-1); color: var(--text-1); cursor: pointer; border-top: 3px solid var(--af, var(--accent)); }
+.af-btn:hover, .af-btn:focus-visible { background: var(--bg-2, var(--bg-1)); outline: 2px solid var(--accent); outline-offset: 1px; }
+.af-n { font-size: 10px; color: var(--text-3); }
+.af-label { font-weight: 700; font-size: 13.5px; }
+.af-meta { font-size: 11px; color: var(--text-2); }
+.af-drain { --af: var(--p0); } .af-laundering { --af: var(--p1); } .af-freeze { --af: var(--status-ok); }
+.af-statement, .af-attribution { --af: var(--accent-2); } .af-prep, .af-impact, .af-recovery { --af: var(--accent); }
+.af-chip { border-left: 3px solid var(--af, var(--accent)); }
+
+/* M4 · on-chain reconstruction (OnchainPanel.tsx) */
+.oc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 8px 0 10px; }
+.oc-kpis > div { display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-1); }
+.oc-scroll { max-height: 420px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.oc-table { width: 100%; }
+.oc-table td, .oc-table th { white-space: nowrap; }
+.oc-table td:nth-child(4) { white-space: normal; min-width: 260px; }
+.oc-chip-freeze { border-left: 3px solid var(--status-ok); }
+.oc-chip-outflow { border-left: 3px solid var(--p0); }
+
+/* Tabs under the verdict (2026-10-30): 事件跟踪 (default) / 在你的环境中 — each panel keeps the page's vertical rhythm */
+.dt-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); scroll-margin-top: 12px; }
+.dt-tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 10px 16px 9px;
+  font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-2); cursor: pointer; display: inline-flex; gap: 8px; align-items: baseline; }
+.dt-tab .dt-en { font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.dt-tab:hover { color: var(--text-1); }
+.dt-tab.is-on { color: var(--text-1); border-bottom-color: var(--accent); }
+.dt-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+.dt-wrap > [role="tabpanel"] { display: flex; flex-direction: column; gap: 18px; }
+.af-missing { margin: 8px 0 0; }
+/* 攻击交易拆解 (M4.1 E3) */
+.atx-card { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; margin-top: 10px; }
+.atx-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; margin: 0 0 6px; }
+.atx-take { margin: 0 0 8px; }

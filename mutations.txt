@@ -165,8 +165,8 @@ expect = tests/test_insights.py::test_now_board_never_shows_stale_or_p2
 
 [M28 echoes counted as velocity]
 file = src/radar/insights.py
-find = first.setdefault(g, it.published_at)
-replace = first[id(it)] = it.published_at
+find = first.setdefault(g, when[it.item_id] if when else it.published_at)
+replace = first[id(it)] = when[it.item_id] if when else it.published_at
 expect = tests/test_insights.py::test_velocity_counts_only_new_independent_groups
 
 [M29 truncated LLM output treated as ok]
@@ -177,7 +177,7 @@ expect = tests/test_llm.py::test_truncation_is_incomplete_not_ok
 
 [M30 progress stamped with processing time]
 file = src/radar/insights.py
-find = t = items[k - 1].published_at
+find = t = when[items[k - 1].item_id]
 replace = t = timeutil.iso(now)
 expect = tests/test_insights.py::test_progress_stage_times_are_evidence_times_not_processing_time
 
@@ -889,3 +889,405 @@ file = src/radar/securityhub.py
 find = if row.get("state") == "ACTIVE":
 replace = if False:
 expect = tests/test_securityhub.py::test_a_pair_no_longer_affected_is_archived_once
+
+[M149 web3: headline subjects are not keys (Chinese and English reports of one victim split up)]
+file = src/radar/pipeline.py
+find = + sorted(f"tt:{t}" for t in keys.entity_tokens(title))
+replace = + []
+expect = tests/test_web3_cluster_20261029.py::test_chinese_and_english_reports_of_one_victim_stay_together
+
+[M150 web3: tickers / chains / mixers / reporters count as victim names again]
+file = src/radar/keys.py
+find = return toks - MATCH_STOP
+replace = return toks
+expect = tests/test_keys_signals.py::test_entity_tokens_drop_words_that_name_no_victim
+
+[M151 tokens: names next to Chinese text are lost again (no \b between Latin and CJK)]
+file = src/radar/keys.py
+find = _CAP_WORD = re.compile(r"(?<![A-Za-z0-9])(?:[A-Z][A-Za-z0-9]{2,}|[a-z]{1,3}[A-Z][A-Za-z0-9]+)(?![A-Za-z0-9])")
+replace = _CAP_WORD = re.compile(r"\b[A-Z][A-Za-z0-9]{2,}\b")
+expect = tests/test_keys_signals.py::test_entity_tokens_read_names_next_to_chinese_text
+
+[M152 tokens: Chinese exchange names (币安) yield no token]
+file = src/radar/keys.py
+find = toks |= {v for zh, v in CEX_ZH.items() if zh in text}
+replace = toks |= set()
+expect = tests/test_web3_cluster_20261029.py::test_the_stablecoin_freezes_join_the_binance_event
+
+[M153 amounts: a number parsed from prose (a freeze, a borrow) displaces the hack database's structured loss]
+file = src/radar/pipeline.py
+find = pool = [p for p in loss if p["source_id"] in structured] or loss
+replace = pool = loss
+expect = tests/test_pipeline_replay.py::test_a_hack_database_loss_beats_an_early_loss_estimate_in_a_t1_tweet
+
+[M154 first_seen: a date-only database entry ("that day") counts as midnight again]
+file = src/radar/pipeline.py
+find = if timed is None or timed.published_at[:10] <= items[0].published_at[:10]:
+replace = if timed is None:
+expect = tests/test_pipeline_replay.py::test_a_date_only_database_entry_is_first_only_when_its_day_is_earlier
+
+[M155 entity_key: a word ending in a handle suffix loses its name again ('Hifi' → 'Hi' → no key)]
+file = src/radar/keys.py
+find = (?:IO|Io|XYZ|Xyz|FI|Fi|HQ|Hq|APP|App|Official))\b", "", s)
+replace = (?:IO|Io|XYZ|Xyz|FI|Fi|HQ|Hq|APP|App|Official))\b", "", s, flags=re.IGNORECASE)
+expect = tests/test_keys_signals.py::test_entity_key
+
+[M156 respond: a stolen production key counts as the public-dev-key class again (CEX thefts trigger reviews of alps-vault)]
+file = src/radar/patterns.py
+find = |publicly known private key|well-known (?:dev|test) key",
+replace = |publicly known private key|well-known (?:dev|test) key|Key Compromise",
+expect = tests/test_respond.py::test_a_stolen_production_key_is_not_the_public_dev_key_class
+
+[M157 amounts: freezes and sub-amounts feed the headline loss again]
+file = src/radar/pipeline.py
+find = loss = [p for p in hist if p["kind"] == "loss"]
+replace = loss = list(hist)
+expect = tests/test_pipeline_replay.py::test_amount_measures_are_kept_apart
+
+[M158 amounts: a single-issuer freeze replaces the running frozen total]
+file = src/radar/pipeline.py
+find = frozen = max(frozen_pts) if frozen_pts else None
+replace = frozen = frozen_pts[-1] if frozen_pts else None
+expect = tests/test_pipeline_replay.py::test_amount_measures_are_kept_apart
+
+[M159 amounts: a context word overrides a loss stated as the loss ("Loss: ~$821,920 … sell volume")]
+file = src/radar/signals.py
+find = if _LOSS_STATED.search(t) or not _CONTEXT.search(t):
+replace = if not _CONTEXT.search(t):
+expect = tests/test_keys_signals.py::test_a_stated_loss_beats_a_context_word_in_the_same_tweet
+
+[M160 amounts: freeze reports read as losses]
+file = src/radar/signals.py
+find = if _FROZEN.search(t):
+replace = if False:
+expect = tests/test_keys_signals.py::test_amount_kind_separates_loss_frozen_and_context
+
+[M161 domain: Chinese reports about 币安 fall out of web3 (no exchange name, \b next to CJK)]
+file = src/radar/pipeline.py
+find = |加密|区块链|交易所|钱包|代币|链上|跨链|稳定币|币安|欧易|火币",
+replace = |加密|区块链|交易所|钱包|代币|链上|跨链|稳定币",
+expect = tests/test_keys_signals.py::test_chinese_crypto_reports_are_web3
+
+[M162 signals: a Chinese report that names the hacker (黑客) is not a web3 incident]
+file = src/radar/signals.py
+find = |被盗|被黑|攻击|漏洞|损失|盗取|黑客",
+replace = |被盗|被黑|攻击|漏洞|损失|盗取",
+expect = tests/test_keys_signals.py::test_a_chinese_report_naming_the_hacker_is_a_web3_incident
+
+[M163 title: a later structured entry rewrites the title again (root-cause hypotheses become headlines)]
+file = src/radar/pipeline.py
+find = return (0 if structured else 1, first if structured else "", _TIER_RANK[it.tier], it.published_at)
+replace = return (0 if structured else 1, "", _TIER_RANK[it.tier], it.published_at)
+expect = tests/test_pipeline_replay.py::test_a_later_structured_entry_does_not_rewrite_the_title
+
+[M164 phases: a report about swapping stolen tokens is the theft again (laundering checked after drain)]
+file = src/radar/signals.py
+find = ("prep", _PH_PREP), ("laundering", _PH_LAUNDER), ("drain", _PH_DRAIN), ("impact", _PH_IMPACT)):
+replace = ("prep", _PH_PREP), ("drain", _PH_DRAIN), ("laundering", _PH_LAUNDER), ("impact", _PH_IMPACT)):
+expect = tests/test_keys_signals.py::test_phase_of_a_report
+
+[M165 phases: an exchange's own statement reads as the theft]
+file = src/radar/signals.py
+find = _PH_STATEMENT = re.compile(r"^(?:币安|Binance|何一|CZ|Tether|Circle|官方)\s*[：:]"
+replace = _PH_STATEMENT = re.compile(r"^(?!x)x"
+expect = tests/test_keys_signals.py::test_phase_of_a_report
+
+[M166 attribution: a flash-news mention counts as a stated attribution]
+file = src/radar/pipeline.py
+find = "confidence": "stated" if any(it.tier in ("T1", "T2") for it in hits) else "suspected",
+replace = "confidence": "stated",
+expect = tests/test_pipeline_replay.py::test_attribution_is_stated_only_by_a_t1_t2_source
+
+[M167 attribution: a linkage ("same attacker as …") counts as a named actor]
+file = src/radar/signals.py
+find = return next((name for rx, name in _ACTORS if rx.search(text or "")), None)
+replace = return next((name for rx, name in _ACTORS if rx.search(text or "")), "linked" if "同一" in (text or "") else None)
+expect = tests/test_keys_signals.py::test_attribution_actor_is_only_a_named_actor
+
+[M168 sources: Binance announcements lose their page (url = the list endpoint, every notice one identity)]
+file = src/radar/parsers/__init__.py
+find = out.append(RawItem(source_id=source_id, url=f"https://www.binance.com/en/support/announcement/detail/{code}",
+replace = out.append(RawItem(source_id=source_id, url="https://www.binance.com/en/support/announcement",
+expect = tests/test_parsers.py::test_binance_announcements_parse_to_dated_entries_with_their_page
+
+[M169 onchain: a fixed $1M threshold again (routine withdrawals fill the case, the split wallets are never followed)]
+file = src/radar/onchain.py
+find = return min(Limits.ONCHAIN_MAX_MIN_USD, max(Limits.ONCHAIN_MIN_USD, (loss or 0) * Limits.ONCHAIN_LOSS_SHARE))
+replace = return Limits.ONCHAIN_MIN_USD
+expect = tests/test_onchain.py::test_rows_are_incident_scale_and_the_budget_holds
+
+[M170 onchain: freezes matched only to the victims (a split wallet found later loses its freeze)]
+file = src/radar/onchain.py
+find = wallets = {a for w in case["victims"].values() for a in w} | set(case["receivers"]) | set(case["evidence"])
+replace = wallets = {a for w in case["victims"].values() for a in w}
+expect = tests/test_onchain.py::test_the_split_wallets_and_their_freezes_are_followed
+
+[M171 onchain: fixed query order (the first queries eat the budget forever)]
+file = src/radar/onchain.py
+find = pending.sort(key=lambda q: case["cursors"].get("|".join(q), {}).get("ran_at", ""))
+replace = pending.sort(key=lambda q: 0)
+expect = tests/test_onchain.py::test_a_small_budget_still_reaches_every_query_round_robin
+
+[M172 onchain: a failed call advances the cursor (that block range is never read)]
+file = src/radar/onchain.py
+find = case["errors"] = (case["errors"] + [{"at": timeutil.iso(now), "query": key, "error": str(e)[:160]}])[-20:]
+replace = case["errors"] = (case["errors"] + [{"at": timeutil.iso(now), "query": key, "error": str(e)[:160]}])[-20:]; cur = {**(cur or {}), "next": 10 ** 12}
+expect = tests/test_onchain.py::test_a_failed_call_is_recorded_and_retried_not_skipped
+
+[M173 onchain: what was not queried disappears from the page]
+file = src/radar/onchain.py
+find = "not_queried": list(NOT_QUERIED), "errors": case["errors"][-5:],
+replace = "not_queried": [], "errors": case["errors"][-5:],
+expect = tests/test_onchain.py::test_what_was_not_queried_is_published_not_hidden
+
+[M174 onchain: an ambiguous short address resolves to the first match]
+file = src/radar/onchain.py
+find = if len(hits) == 1:
+replace = if hits:
+expect = tests/test_onchain.py::test_a_short_address_resolves_only_when_unambiguous
+
+[M175 onchain: P1 events are reconstructed too (budget spent on the wrong cases)]
+file = src/radar/onchain.py
+find = return young and (ev.severity == "P0" or (ev.severity == "P1" and bool(attackers)))
+replace = return young
+expect = tests/test_onchain.py::test_only_young_p0_web3_events_are_reconstructed
+
+[M176 onchain: Circle's frozen address read from the data word (it is indexed in topics[1])]
+file = src/radar/onchain.py
+find = target = _addr(lg["topics"][1]) if tok.freeze_in_topic else _addr(lg["data"][:66])
+replace = target = _addr(lg["data"][:66])
+expect = tests/test_onchain.py::test_the_split_wallets_and_their_freezes_are_followed
+
+[M177 onchain: a failing query keeps no ran_at (it stays first and starves the round-robin)]
+file = src/radar/onchain.py
+find = case["cursors"][key] = {**(cur or {}), "ran_at": timeutil.iso(now), "failed": True}
+replace = case["cursors"][key] = {**(cur or {}), "failed": True}
+expect = tests/test_onchain.py::test_a_small_budget_still_reaches_every_query_round_robin
+
+[M178 amounts: a whole title takes one measure again (no clause split)]
+file = src/radar/signals.py
+find = for c in _CLAUSE.split(text or ""):
+replace = for c in [text or ""]:
+expect = tests/test_keys_signals.py
+
+[M179 amounts: a freeze stated beside the loss in the same title is dropped]
+file = src/radar/pipeline.py
+find = for v, k in mentions if k == "frozen" and not any(same(v, p["value"]) for p in pts)]
+replace = for v, k in mentions if False]
+expect = tests/test_pipeline_replay.py::test_a_title_with_both_loss_and_freeze_does_not_make_the_loss_a_freeze
+
+[M180 amounts: the stored point takes the whole title's measure, not its clause's]
+file = src/radar/pipeline.py
+find = kind = next((k for v, k in stated if same(v, p["value"])), whole)
+replace = kind = whole
+expect = tests/test_pipeline_replay.py::test_a_title_with_both_loss_and_freeze_does_not_make_the_loss_a_freeze
+
+[M181 amounts: a body number takes the title's measure only (body clauses ignored)]
+file = src/radar/pipeline.py
+find = stated = mentions + signals.amount_mentions(it.text)
+replace = stated = mentions
+expect = tests/test_pipeline_replay.py::test_a_number_from_the_body_takes_the_measure_of_its_body_clause
+
+[M182 title: a revision resets "first captured" (fetched_at of the latest revision)]
+file = src/radar/pipeline.py
+find = first = it.extra.get("first_fetched_at") or it.fetched_at
+replace = first = it.fetched_at
+expect = tests/test_pipeline_replay.py::test_a_revised_structured_record_keeps_its_first_capture_time
+
+[M183 amounts: an amount takes its clause's measure even when its own stretch states another]
+file = src/radar/signals.py
+find = out.append((v, _stretch_kind(c[lo:hi]) or amount_kind(c)))
+replace = out.append((v, amount_kind(c)))
+expect = tests/test_keys_signals.py
+
+[M184 amounts: a price or sub-amount far below the headline still counts as a rival loss estimate]
+file = src/radar/pipeline.py
+find = vals = [v for v in per_source.values() if v > 0 and v >= top * Limits.AMOUNT_DISPUTE_FLOOR]
+replace = vals = [v for v in per_source.values() if v > 0]
+expect = tests/test_pipeline_replay.py::test_a_price_in_a_side_story_does_not_make_the_loss_disputed
+
+[M185 amounts: a source's latest sub-story amount stands for its estimate of the total]
+file = src/radar/pipeline.py
+find = per_source[p["source_id"]] = max(p["value"], per_source.get(p["source_id"], 0))
+replace = per_source[p["source_id"]] = p["value"]
+expect = tests/test_pipeline_replay.py::test_a_sub_story_amount_is_not_a_rival_loss_estimate
+
+[M186 refresh: only a timeline change is stored (a corrected rule waits for the next new item)]
+file = src/radar/pipeline.py
+find = if diff or _derived(before) != _derived(after):
+replace = if diff:
+expect = tests/test_pipeline_replay.py::test_refresh_carries_a_rule_change_to_events_already_open
+
+[M187 progress: a date-only entry is replayed at midnight, before the first report]
+file = src/radar/pipeline.py
+find = return max(first.published_at, min(day_end, seen))
+replace = return item.published_at
+expect = tests/test_insights.py::test_progress_starts_at_the_first_report_not_at_a_date_only_midnight
+
+[M188 progress: the second source is timed by a date-only midnight]
+file = src/radar/insights.py
+find = firsts = _group_firsts(items, independent_groups(items), when)
+replace = firsts = _group_firsts(items, independent_groups(items))
+expect = tests/test_insights.py::test_progress_starts_at_the_first_report_not_at_a_date_only_midnight
+
+[M189 publish: items carry their raw published_at as timeline position (the UI re-decides date-only midnights)]
+file = src/radar/publish.py
+find = "title": it.title, "published_at": it.published_at, "evidence_at": at, "excerpt": it.text[: Limits.EXCERPT_MAX_CHARS],
+replace = "title": it.title, "published_at": it.published_at, "evidence_at": it.published_at, "excerpt": it.text[: Limits.EXCERPT_MAX_CHARS],
+expect = tests/test_publish.py::test_every_item_carries_its_evidence_time_never_before_the_first_report
+
+[M190 phase: a web3 hack-database record stays "other" (no attack flow for database-only incidents)]
+file = src/radar/publish.py
+find = return "drain" if p == "other" and src is not None and src.always_eventful and src.domain == "web3" else p
+replace = return p
+expect = tests/test_publish.py::test_a_hack_database_record_is_the_drain_phase_a_kev_entry_has_none
+
+[M191 attacktx: the net is computed without the sender's outgoing side (in only)]
+file = src/radar/attacktx.py
+find = per[m["from"]] = per.get(m["from"], 0) - m["raw"]
+replace = per[m["from"]] = per.get(m["from"], 0)
+expect = tests/test_attacktx.py::test_one_holder_paid_out_every_token_of_the_zklink_spoof
+
+[M192 attacktx: unverified (failed / not found) attack txs are decoded too]
+file = src/radar/attacktx.py
+find = return [t for t in (getattr(ev, "tx", None) or []) if t.get("verified") == "confirmed" and chain.canon(t.get("chain", "")) in chain.RPC]
+replace = return [t for t in (getattr(ev, "tx", None) or []) if chain.canon(t.get("chain", "")) in chain.RPC]
+expect = tests/test_attacktx.py::test_only_verified_attack_txs_are_read
+
+[M193 attacktx: a failed receipt is stored as an empty breakdown (shown as "no transfers")]
+file = src/radar/attacktx.py
+find = case["errors"] = (case.get("errors", []) + [{"at": timeutil.iso(now), "tx": h, "error": str(e)[:160]}])[-10:]
+replace = done[h] = {"chain": ch, "t": timeutil.iso(now), "receipt": {"blockNumber": "0x0", "status": "0x1", "from": "", "to": "", "logs": []}}
+expect = tests/test_attacktx.py::test_a_failed_receipt_is_recorded_and_retried_not_shown_as_empty
+
+[M194 attacktx: token metadata is fetched again for every event (no shared ledger)]
+file = src/radar/attacktx.py
+find = if k in meta:
+replace = if False:
+expect = tests/test_attacktx.py::test_the_budget_holds_and_the_token_ledger_is_shared
+
+[M195 attacktx: the station republishes every cycle (no digest)]
+file = src/radar/attacktx.py
+find = if digest != case.get("digest") or case.pop("dirty", False):
+replace = if True:
+expect = tests/test_attacktx.py::test_the_station_republishes_once_per_change
+
+[M196 attacktx: an NFT (ERC-721) transfer is counted as a token amount]
+file = src/radar/attacktx.py
+find = if len(t) == 3 and t[0] == TRANSFER and len(data) == 66:
+replace = if len(t) >= 3 and t[0] == TRANSFER:
+expect = tests/test_attacktx.py::test_erc721_transfers_are_not_counted_and_symbols_decode
+
+[M197 phase: "lost / poisoning / 遭窃" reports have no phase (database-less incidents get no attack flow)]
+file = src/radar/signals.py
+find = + r"|hot wallets?|lost|poison\w*|phish\w*|drainer)" + _Z
+replace = + r"|hot wallets?)" + _Z
+expect = tests/test_keys_signals.py::test_phase_of_a_report
+
+[M198 phase: the hacker buying tokens is not laundering]
+file = src/radar/signals.py
+find = + r"|抛售|售出|卖出|买入|兑换|换成|跨链|混币|洗钱|借出|转入|转移至|归集", re.IGNORECASE)
+replace = + r"|抛售|售出|卖出|兑换|换成|跨链|混币|洗钱|借出|转入|转移至|归集", re.IGNORECASE)
+expect = tests/test_keys_signals.py::test_phase_of_a_report
+
+[M199 attacktx: the native value a tx sends is never read (a plain ETH drain shows an empty table)]
+file = src/radar/attacktx.py
+find = if d.get("receipt") and "value" not in d:
+replace = if False:
+expect = tests/test_attacktx.py::test_a_plain_native_transfer_shows_its_value_not_an_empty_table
+
+[M200 cluster: a named-vulnerability token glues events whose CVE sets contradict (Arista + Collabora, live 2026-10-24)]
+file = src/radar/pipeline.py
+find = contradicts = not strong and item_cves and ev.cves and not (item_cves & set(ev.cves))
+replace = contradicts = False
+expect = tests/test_pipeline_replay.py::test_a_two_flaw_kev_story_does_not_merge_two_kev_entries
+
+[M201 cluster: a KEV roundup whose vendor names push "KEV Catalog" past 160 chars glues two CVEs again]
+file = src/radar/pipeline.py
+find = KEV_ROUNDUP_RE = re.compile(r"\badd(?:s|ed)?\b.{0,320}?\b(?:known exploited vulnerabilit(?:y|ies)|KEV catalog)\b", re.IGNORECASE | re.DOTALL)
+replace = KEV_ROUNDUP_RE = re.compile(r"\badd(?:s|ed)?\b.{0,160}?\b(?:known exploited vulnerabilit(?:y|ies)|KEV catalog)\b", re.IGNORECASE | re.DOTALL)
+expect = tests/test_pipeline_replay.py::test_cisas_own_kev_tweet_listing_two_vendors_is_a_roundup
+
+[M202 progress: a date-only entry is placed at the first report (corroboration claims a speed nobody saw)]
+file = src/radar/pipeline.py
+find = return max(first.published_at, min(day_end, seen))
+replace = return first.published_at
+expect = tests/test_insights.py::test_a_date_only_entry_does_not_make_the_second_source_earlier_than_any_timed_one
+
+[M203 rpc: a refused primary node is final (no per-chain fallback)]
+file = src/radar/chain.py
+find = for u in (url, *FALLBACK.get(ch or "", ())):
+replace = for u in (url,):
+expect = tests/test_chain.py::test_a_refused_ethereum_read_falls_back_to_the_next_public_node
+
+[M204 rpc: a real error answer (invalid params) is retried on every node]
+file = src/radar/chain.py
+find = if not any(k in str(e).lower() for k in _REFUSED):
+replace = if False:
+expect = tests/test_chain.py::test_a_real_answer_is_not_retried_elsewhere
+
+[M205 rpc: no cycle wall-clock budget (fallbacks × timeouts can outlive the process station)]
+file = src/radar/chain.py
+find = if _budget["left"] is not None and _budget["left"] <= 0:
+replace = if False:
+expect = tests/test_chain.py::test_the_cycle_rpc_wall_clock_is_bounded
+
+[M206 attacktx: the shared token ledger grows without bound (one DynamoDB item ≤ 400 KB)]
+file = src/radar/attacktx.py
+find = over = len(meta) - Limits.ATTACKTX_TOKEN_LEDGER_MAX
+replace = over = 0
+expect = tests/test_attacktx.py::test_the_shared_token_ledger_stays_bounded
+
+[M207 triage: a disposition change is never republished (the station does not look)]
+file = src/radar/triage.py
+find = ids = sorted(eid for eid, e in idx.items() if isinstance(e, dict) and e.get("at") != seen.get(eid))
+replace = ids = []
+expect = tests/test_triage.py::test_a_disposition_is_republished_once_and_keeps_its_predecessor
+
+[M208 triage: an event id is checked with match(...$) semantics (a trailing newline slips through)]
+file = src/radar/triage.py
+find = if not _EVENT_ID.fullmatch(event_id or ""):
+replace = if not re.match(r"ev_[0-9a-f]{16}$", event_id or ""):
+expect = tests/test_triage.py::test_bad_input_is_refused_with_the_four_part_error
+
+[M209 ops: P0 events nobody dispositioned are not listed]
+file = src/radar/ops.py
+find = for e in f.get("events") or [] if e.get("severity") == "P0" and not e.get("triage")]
+replace = for e in f.get("events") or [] if False]
+expect = tests/test_triage.py::test_ops_lists_p0_events_nobody_has_triaged
+
+[M210 c2d: the gitlab target is still reviewed from the S3 bundle (Security Agent cannot open an MR on gitlab.com)]
+file = src/radar/continuum_aws.py
+find = if targets.CHANNEL.get(target_id) == "gitlab" and iid and rid:
+replace = if False:
+expect = tests/test_sa_gitlab.py::test_the_gitlab_target_is_reviewed_on_the_integrated_repository
+
+[M211 c2d: an unconfigured integration sends the gitlab target to an empty integrated repository]
+file = src/radar/continuum_aws.py
+find = if targets.CHANNEL.get(target_id) == "gitlab" and iid and rid:
+replace = if targets.CHANNEL.get(target_id) == "gitlab":
+expect = tests/test_sa_gitlab.py::test_other_targets_and_an_unconfigured_integration_use_the_s3_bundle
+
+[M212 onchain: an attack-tx sender is not followed (P1 incidents get no reconstruction)]
+file = src/radar/onchain.py
+find = q += [("out", v["chain"], t.symbol, a) for t in TOKENS.get(v["chain"], ())]
+replace = q += []
+expect = tests/test_onchain.py::test_the_attack_tx_sender_is_followed_on_its_own_chain
+
+[M213 onchain: the window ends 24 h after first_seen even when the attack tx is later (date-only first_seen)]
+file = src/radar/onchain.py
+find = case["window"] = [min(case["window"][0], lo), max(case["window"][1], hi)]
+replace = case["window"] = case["window"]
+expect = tests/test_onchain.py::test_the_attack_tx_sender_is_followed_on_its_own_chain
+
+[M214 onchain: an attacker decoded after the case was built is never added]
+file = src/radar/onchain.py
+find = elif add_attackers(case, att.get(ev.event_id) or {}):
+replace = elif False:
+expect = tests/test_onchain.py::test_an_attacker_found_after_the_case_was_built_is_added
+
+[M215 attacktx: the attacker window uses the first (probe) tx only]
+file = src/radar/attacktx.py
+find = o["t"], o["last"] = min(o["t"], d["t"]), max(o["last"], d["t"])     # a probe tx often precedes the drain
+replace = o["t"], o["last"] = min(o["t"], d["t"]), min(o["last"], d["t"])
+expect = tests/test_onchain.py::test_the_attack_tx_sender_is_followed_on_its_own_chain
