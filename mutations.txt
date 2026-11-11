@@ -1291,3 +1291,9 @@ file = src/radar/attacktx.py
 find = o["t"], o["last"] = min(o["t"], d["t"]), max(o["last"], d["t"])     # a probe tx often precedes the drain
 replace = o["t"], o["last"] = min(o["t"], d["t"]), min(o["last"], d["t"])
 expect = tests/test_onchain.py::test_the_attack_tx_sender_is_followed_on_its_own_chain
+
+[M216 destroy-stage: a comment before the heredoc swallows the cleanup program and cdk destroy is never reached]
+file = scripts/destroy-stage.sh
+find = uv run -q python -I - "$name" "$pack" "$space" <<'PY'
+replace = uv run -q python -I -   # "$name" "$pack" "$space" <<'PY'
+expect = tests/test_destroy_stage.py::test_destroy_stage_runs_the_cleanup_program_then_cdk_destroy
