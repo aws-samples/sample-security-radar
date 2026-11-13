@@ -1,0 +1,1386 @@
+{
+ "event_id": "ev_40bbda4fb2090dde",
+ "name": "radar-ev-40bbda4fb2090dde-pack",
+ "note": "缓解 ≠ 修复：边缘规则只在打补丁之前降低风险，升级到修复版本才是唯一完整的修复。",
+ "managed": [],
+ "custom": [
+  {
+   "rule_id": "radar-40bbda4fb209-named-header-1",
+   "kind": "size",
+   "extractor": "named_header",
+   "cve": "CVE-2026-104935",
+   "statement": {
+    "SizeConstraintStatement": {
+     "FieldToMatch": {
+      "SingleHeader": {
+       "Name": "x-dscgi-path"
+      }
+     },
+     "ComparisonOperator": "GT",
+     "Size": 0,
+     "TextTransformations": [
+      {
+       "Priority": 0,
+       "Type": "NONE"
+      }
+     ]
+    }
+   },
+   "source_quotes": [
+    {
+     "token": "X-DSCGI-PATH",
+     "repo": "projectdiscovery/nuclei-templates",
+     "sha": "5cf0e5cf09111111111111111111111111111111",
+     "path": "http/cves/2026/CVE-2026-104935.yaml",
+     "line": 34,
+     "href": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-104935.yaml#L34"
+    },
+    {
+     "token": "X-DSCGI-PATH",
+     "repo": "projectdiscovery/nuclei-templates",
+     "sha": "5cf0e5cf09111111111111111111111111111111",
+     "path": "http/cves/2026/CVE-2026-104935.yaml",
+     "line": 4,
+     "href": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-104935.yaml#L4"
+    }
+   ],
+   "confidence": "exact",
+   "false_positive_note": "外部客户端不应发送 X-DSCGI-PATH；若你的前置代理会合法注入它，先在代理处剥掉再启用。",
+   "action": "Count",
+   "verified": {
+    "offline": {
+     "state": "pass",
+     "reason": "samples_agree",
+     "detail": "1 个正样本全中、8 个负样本全不中"
+    },
+    "capacity": {
+     "state": "unchecked"
+    }
+   },
+   "samples": {
+    "positive": [
+     {
+      "method": "GET",
+      "uri": "/radarsample",
+      "headers": [
+       [
+        "User-Agent",
+        "Mozilla/5.0"
+       ],
+       [
+        "X-DSCGI-PATH",
+        "/home/bin/internal.cgi"
+       ]
+      ],
+      "body": ""
+     }
+    ],
+    "negative": [
+     {
+      "method": "GET",
+      "uri": "/radarsample",
+      "headers": [
+       [
+        "User-Agent",
+        "Mozilla/5.0"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [
+       [
+        "User-Agent",
+        "Mozilla/5.0"
+       ],
+       [
+        "Accept",
+        "text/html"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/index.html",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/static/app.js",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/api/v1/items?page=2&sort=name",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "POST",
+      "uri": "/search",
+      "headers": [
+       [
+        "Content-Type",
+        "application/x-www-form-urlencoded"
+       ]
+      ],
+      "body": "q=select+a+plan+and+script+notes"
+     },
+     {
+      "method": "POST",
+      "uri": "/api/v1/login",
+      "headers": [
+       [
+        "Content-Type",
+        "application/json"
+       ]
+      ],
+      "body": "{\"user\":\"alice\",\"password\":\"correct horse\"}"
+     },
+     {
+      "method": "GET",
+      "uri": "/account",
+      "headers": [
+       [
+        "X-Forwarded-For",
+        "203.0.113.7, 127.0.0.1"
+       ],
+       [
+        "X-Forwarded-Proto",
+        "https"
+       ],
+       [
+        "X-Forwarded-Port",
+        "443"
+       ],
+       [
+        "X-Forwarded-Host",
+        "shop.example.com"
+       ],
+       [
+        "X-Real-IP",
+        "203.0.113.7"
+       ],
+       [
+        "Forwarded",
+        "for=203.0.113.7;proto=https"
+       ],
+       [
+        "Via",
+        "2.0 abc.cloudfront.net (CloudFront)"
+       ],
+       [
+        "X-Amz-Cf-Id",
+        "Zx1-example=="
+       ],
+       [
+        "X-Amzn-Trace-Id",
+        "Root=1-67891233-abcdef012345678912345678"
+       ]
+      ],
+      "body": ""
+     }
+    ]
+   },
+   "what": "header `x-dscgi-path` 长度 > 0（即：带了这个 header）"
+  },
+  {
+   "rule_id": "radar-40bbda4fb209-trailing-slash-2",
+   "kind": "byte",
+   "extractor": "trailing_slash",
+   "cve": "CVE-2026-42018",
+   "statement": {
+    "ByteMatchStatement": {
+     "SearchString": "/access/api/v1/aws/token/",
+     "PositionalConstraint": "EXACTLY",
+     "FieldToMatch": {
+      "UriPath": {}
+     },
+     "TextTransformations": [
+      {
+       "Priority": 0,
+       "Type": "URL_DECODE"
+      }
+     ]
+    }
+   },
+   "source_quotes": [
+    {
+     "token": "/access/api/v1/aws/token/",
+     "repo": "projectdiscovery/nuclei-templates",
+     "sha": "5cf0e5cf09111111111111111111111111111111",
+     "path": "http/cves/2026/CVE-2026-42018.yaml",
+     "line": 22,
+     "href": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-42018.yaml#L22"
+    },
+    {
+     "token": "/access/api/v1/aws/token",
+     "repo": "projectdiscovery/nuclei-templates",
+     "sha": "5cf0e5cf09111111111111111111111111111111",
+     "path": "http/cves/2026/CVE-2026-42018.yaml",
+     "line": 16,
+     "href": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-42018.yaml#L16"
+    }
+   ],
+   "confidence": "exact",
+   "false_positive_note": "只计数带尾斜杠的 /access/api/v1/aws/token/；同一端点的正常（无尾斜杠）调用不受影响。部署在路径前缀之下时把 EXACTLY 改为 ENDS_WITH。",
+   "action": "Count",
+   "verified": {
+    "offline": {
+     "state": "pass",
+     "reason": "samples_agree",
+     "detail": "2 个正样本全中、8 个负样本全不中"
+    },
+    "capacity": {
+     "state": "unchecked"
+    }
+   },
+   "samples": {
+    "positive": [
+     {
+      "method": "POST",
+      "uri": "/access/api/v1/aws/token/",
+      "headers": [
+       [
+        "Content-Type",
+        "application/json"
+       ]
+      ],
+      "body": "{\"roleArn\":\"radarsample\"}"
+     },
+     {
+      "method": "POST",
+      "uri": "/access/api/v1/aws/token%2F",
+      "headers": [
+       [
+        "Content-Type",
+        "application/json"
+       ]
+      ],
+      "body": "{\"roleArn\":\"radarsample\"}"
+     }
+    ],
+    "negative": [
+     {
+      "method": "POST",
+      "uri": "/access/api/v1/aws/token",
+      "headers": [
+       [
+        "Content-Type",
+        "application/json"
+       ]
+      ],
+      "body": "{\"roleArn\":\"radarsample\"}"
+     },
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [
+       [
+        "User-Agent",
+        "Mozilla/5.0"
+       ],
+       [
+        "Accept",
+        "text/html"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/index.html",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/static/app.js",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/api/v1/items?page=2&sort=name",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "POST",
+      "uri": "/search",
+      "headers": [
+       [
+        "Content-Type",
+        "application/x-www-form-urlencoded"
+       ]
+      ],
+      "body": "q=select+a+plan+and+script+notes"
+     },
+     {
+      "method": "POST",
+      "uri": "/api/v1/login",
+      "headers": [
+       [
+        "Content-Type",
+        "application/json"
+       ]
+      ],
+      "body": "{\"user\":\"alice\",\"password\":\"correct horse\"}"
+     },
+     {
+      "method": "GET",
+      "uri": "/account",
+      "headers": [
+       [
+        "X-Forwarded-For",
+        "203.0.113.7, 127.0.0.1"
+       ],
+       [
+        "X-Forwarded-Proto",
+        "https"
+       ],
+       [
+        "X-Forwarded-Port",
+        "443"
+       ],
+       [
+        "X-Forwarded-Host",
+        "shop.example.com"
+       ],
+       [
+        "X-Real-IP",
+        "203.0.113.7"
+       ],
+       [
+        "Forwarded",
+        "for=203.0.113.7;proto=https"
+       ],
+       [
+        "Via",
+        "2.0 abc.cloudfront.net (CloudFront)"
+       ],
+       [
+        "X-Amz-Cf-Id",
+        "Zx1-example=="
+       ],
+       [
+        "X-Amzn-Trace-Id",
+        "Root=1-67891233-abcdef012345678912345678"
+       ]
+      ],
+      "body": ""
+     }
+    ]
+   },
+   "what": "URI 路径（先 URL_DECODE） 等于 `/access/api/v1/aws/token/`"
+  },
+  {
+   "rule_id": "radar-40bbda4fb209-query-traversal-3",
+   "kind": "byte",
+   "extractor": "query_traversal",
+   "cve": "CVE-2026-87902",
+   "statement": {
+    "ByteMatchStatement": {
+     "SearchString": "../",
+     "PositionalConstraint": "CONTAINS",
+     "FieldToMatch": {
+      "SingleQueryArgument": {
+       "Name": "pagename"
+      }
+     },
+     "TextTransformations": [
+      {
+       "Priority": 0,
+       "Type": "URL_DECODE"
+      },
+      {
+       "Priority": 1,
+       "Type": "URL_DECODE"
+      }
+     ]
+    }
+   },
+   "source_quotes": [
+    {
+     "token": "pagename=templates%252f%252e%252e%252f%252e%252e%252freadme",
+     "repo": "projectdiscovery/nuclei-templates",
+     "sha": "5cf0e5cf09111111111111111111111111111111",
+     "path": "http/cves/2026/CVE-2026-87902.yaml",
+     "line": 31,
+     "href": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-87902.yaml#L31"
+    }
+   ],
+   "confidence": "exact",
+   "false_positive_note": "参数 pagename 里出现上级目录序列即计数；合法请求几乎不会这样写。两次 URL_DECODE：AWS 是否接受同类型重复 transformation 以 CheckCapacity 为准。",
+   "action": "Count",
+   "verified": {
+    "offline": {
+     "state": "pass",
+     "reason": "samples_agree",
+     "detail": "4 个正样本全中、9 个负样本全不中"
+    },
+    "capacity": {
+     "state": "unchecked"
+    }
+   },
+   "samples": {
+    "positive": [
+     {
+      "method": "GET",
+      "uri": "/?page_id=radarsample&pagename=templates%252f%252e%252e%252f%252e%252e%252freadme",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/?page_id=radarsample&pagename=templates%2F..%2F..%2Freadme",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/?page_id=radarsample&pagename=templates/../../readme",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/?page_id=radarsample&pagename=templates%252f%252e%252e%252f%252e%252e%252freadme",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     }
+    ],
+    "negative": [
+     {
+      "method": "GET",
+      "uri": "/?page_id=radarsample&pagename=about-us",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/?page_id=radarsample&pagename=parent/child",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [
+       [
+        "User-Agent",
+        "Mozilla/5.0"
+       ],
+       [
+        "Accept",
+        "text/html"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/index.html",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/static/app.js",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/api/v1/items?page=2&sort=name",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "POST",
+      "uri": "/search",
+      "headers": [
+       [
+        "Content-Type",
+        "application/x-www-form-urlencoded"
+       ]
+      ],
+      "body": "q=select+a+plan+and+script+notes"
+     },
+     {
+      "method": "POST",
+      "uri": "/api/v1/login",
+      "headers": [
+       [
+        "Content-Type",
+        "application/json"
+       ]
+      ],
+      "body": "{\"user\":\"alice\",\"password\":\"correct horse\"}"
+     },
+     {
+      "method": "GET",
+      "uri": "/account",
+      "headers": [
+       [
+        "X-Forwarded-For",
+        "203.0.113.7, 127.0.0.1"
+       ],
+       [
+        "X-Forwarded-Proto",
+        "https"
+       ],
+       [
+        "X-Forwarded-Port",
+        "443"
+       ],
+       [
+        "X-Forwarded-Host",
+        "shop.example.com"
+       ],
+       [
+        "X-Real-IP",
+        "203.0.113.7"
+       ],
+       [
+        "Forwarded",
+        "for=203.0.113.7;proto=https"
+       ],
+       [
+        "Via",
+        "2.0 abc.cloudfront.net (CloudFront)"
+       ],
+       [
+        "X-Amz-Cf-Id",
+        "Zx1-example=="
+       ],
+       [
+        "X-Amzn-Trace-Id",
+        "Root=1-67891233-abcdef012345678912345678"
+       ]
+      ],
+      "body": ""
+     }
+    ]
+   },
+   "what": "查询参数 `pagename`（先 URL_DECODE → URL_DECODE） 包含 `../`"
+  },
+  {
+   "rule_id": "radar-40bbda4fb209-sqli-element-4",
+   "kind": "and",
+   "extractor": "sqli_element",
+   "cve": "CVE-2026-9586",
+   "statement": {
+    "AndStatement": {
+     "Statements": [
+      {
+       "ByteMatchStatement": {
+        "SearchString": "/pa",
+        "PositionalConstraint": "EXACTLY",
+        "FieldToMatch": {
+         "UriPath": {}
+        },
+        "TextTransformations": [
+         {
+          "Priority": 0,
+          "Type": "URL_DECODE"
+         }
+        ]
+       }
+      },
+      {
+       "ByteMatchStatement": {
+        "SearchString": "<phoneip>",
+        "PositionalConstraint": "CONTAINS",
+        "FieldToMatch": {
+         "Body": {
+          "OversizeHandling": "CONTINUE"
+         }
+        },
+        "TextTransformations": [
+         {
+          "Priority": 0,
+          "Type": "LOWERCASE"
+         }
+        ]
+       }
+      },
+      {
+       "SqliMatchStatement": {
+        "FieldToMatch": {
+         "Body": {
+          "OversizeHandling": "CONTINUE"
+         }
+        },
+        "TextTransformations": [
+         {
+          "Priority": 0,
+          "Type": "URL_DECODE"
+         },
+         {
+          "Priority": 1,
+          "Type": "HTML_ENTITY_DECODE"
+         }
+        ],
+        "SensitivityLevel": "LOW"
+       }
+      }
+     ]
+    }
+   },
+   "source_quotes": [
+    {
+     "token": "<PhoneIP>",
+     "repo": "projectdiscovery/nuclei-templates",
+     "sha": "5cf0e5cf09111111111111111111111111111111",
+     "path": "http/cves/2026/CVE-2026-9586.yaml",
+     "line": 20,
+     "href": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-9586.yaml#L20"
+    }
+   ],
+   "confidence": "heuristic",
+   "false_positive_note": "端点与元素名 <PhoneIP> 逐字；注入判定用 AWS SqliMatch（LOW），签名非逐字、离线无法验证。",
+   "action": "Count",
+   "verified": {
+    "offline": {
+     "state": "unchecked",
+     "reason": "signature_not_offline",
+     "detail": "SqliMatch / XssMatch / 速率 / 托管组的签名由 AWS 维护，离线无法判定；样本未与可判定部分矛盾"
+    },
+    "capacity": {
+     "state": "unchecked"
+    }
+   },
+   "samples": {
+    "positive": [
+     {
+      "method": "POST",
+      "uri": "/pa",
+      "headers": [
+       [
+        "Content-Type",
+        "text/xml"
+       ]
+      ],
+      "body": "<request><tel_notify><PhoneIP>1' OR '1'='1</PhoneIP></tel_notify></request>"
+     }
+    ],
+    "negative": [
+     {
+      "method": "POST",
+      "uri": "/pa",
+      "headers": [
+       [
+        "Content-Type",
+        "text/xml"
+       ]
+      ],
+      "body": "<request><tel_notify><PhoneIP>10.0.0.1</PhoneIP></tel_notify></request>"
+     },
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [
+       [
+        "User-Agent",
+        "Mozilla/5.0"
+       ],
+       [
+        "Accept",
+        "text/html"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/index.html",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/static/app.js",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/api/v1/items?page=2&sort=name",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "POST",
+      "uri": "/search",
+      "headers": [
+       [
+        "Content-Type",
+        "application/x-www-form-urlencoded"
+       ]
+      ],
+      "body": "q=select+a+plan+and+script+notes"
+     },
+     {
+      "method": "POST",
+      "uri": "/api/v1/login",
+      "headers": [
+       [
+        "Content-Type",
+        "application/json"
+       ]
+      ],
+      "body": "{\"user\":\"alice\",\"password\":\"correct horse\"}"
+     },
+     {
+      "method": "GET",
+      "uri": "/account",
+      "headers": [
+       [
+        "X-Forwarded-For",
+        "203.0.113.7, 127.0.0.1"
+       ],
+       [
+        "X-Forwarded-Proto",
+        "https"
+       ],
+       [
+        "X-Forwarded-Port",
+        "443"
+       ],
+       [
+        "X-Forwarded-Host",
+        "shop.example.com"
+       ],
+       [
+        "X-Real-IP",
+        "203.0.113.7"
+       ],
+       [
+        "Forwarded",
+        "for=203.0.113.7;proto=https"
+       ],
+       [
+        "Via",
+        "2.0 abc.cloudfront.net (CloudFront)"
+       ],
+       [
+        "X-Amz-Cf-Id",
+        "Zx1-example=="
+       ],
+       [
+        "X-Amzn-Trace-Id",
+        "Root=1-67891233-abcdef012345678912345678"
+       ]
+      ],
+      "body": ""
+     }
+    ]
+   },
+   "what": "URI 路径（先 URL_DECODE） 等于 `/pa` 且 请求体（前 8 KB）（先 LOWERCASE） 包含 `<phoneip>` 且 请求体（前 8 KB）（先 URL_DECODE → HTML_ENTITY_DECODE） 被 AWS SqliMatch 判为 SQL 注入（敏感度 LOW）"
+  },
+  {
+   "rule_id": "radar-40bbda4fb209-ssrf-param-5",
+   "kind": "and",
+   "extractor": "ssrf_param",
+   "cve": "CVE-2026-96655",
+   "statement": {
+    "AndStatement": {
+     "Statements": [
+      {
+       "ByteMatchStatement": {
+        "SearchString": "/video/:/transcode/universal/start.m3u8",
+        "PositionalConstraint": "EXACTLY",
+        "FieldToMatch": {
+         "UriPath": {}
+        },
+        "TextTransformations": [
+         {
+          "Priority": 0,
+          "Type": "URL_DECODE"
+         }
+        ]
+       }
+      },
+      {
+       "RegexMatchStatement": {
+        "RegexString": "^(https?|ftp|gopher|file)://",
+        "FieldToMatch": {
+         "SingleQueryArgument": {
+          "Name": "path"
+         }
+        },
+        "TextTransformations": [
+         {
+          "Priority": 0,
+          "Type": "URL_DECODE"
+         },
+         {
+          "Priority": 1,
+          "Type": "LOWERCASE"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   },
+   "source_quotes": [
+    {
+     "token": "path=http://",
+     "repo": "projectdiscovery/nuclei-templates",
+     "sha": "5cf0e5cf09111111111111111111111111111111",
+     "path": "http/cves/2026/CVE-2026-96655.yaml",
+     "line": 16,
+     "href": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-96655.yaml#L16"
+    }
+   ],
+   "confidence": "exact",
+   "false_positive_note": "参数 path 的值是外部 URL 即计数；若你的用户合法地转码远程 URL 媒体，会被一并计数（中等误报）。",
+   "action": "Count",
+   "verified": {
+    "offline": {
+     "state": "pass",
+     "reason": "samples_agree",
+     "detail": "2 个正样本全中、8 个负样本全不中"
+    },
+    "capacity": {
+     "state": "unchecked"
+    }
+   },
+   "samples": {
+    "positive": [
+     {
+      "method": "GET",
+      "uri": "/video/:/transcode/universal/start.m3u8?protocol=hls&path=http://example.invalid/x",
+      "headers": [
+       [
+        "X-Plex-Client-Identifier",
+        "radarsample"
+       ],
+       [
+        "X-Plex-Product",
+        "Plex Web"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/video/:/transcode/universal/start.m3u8?protocol=hls&path=HTTP%3A%2F%2FEXAMPLE.INVALID%2Fx",
+      "headers": [
+       [
+        "X-Plex-Client-Identifier",
+        "radarsample"
+       ],
+       [
+        "X-Plex-Product",
+        "Plex Web"
+       ]
+      ],
+      "body": ""
+     }
+    ],
+    "negative": [
+     {
+      "method": "GET",
+      "uri": "/video/:/transcode/universal/start.m3u8?protocol=hls&path=/library/metadata/123",
+      "headers": [
+       [
+        "X-Plex-Client-Identifier",
+        "radarsample"
+       ],
+       [
+        "X-Plex-Product",
+        "Plex Web"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [
+       [
+        "User-Agent",
+        "Mozilla/5.0"
+       ],
+       [
+        "Accept",
+        "text/html"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/index.html",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/static/app.js",
+      "headers": [
+       [
+        "Accept",
+        "*/*"
+       ]
+      ],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/api/v1/items?page=2&sort=name",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "POST",
+      "uri": "/search",
+      "headers": [
+       [
+        "Content-Type",
+        "application/x-www-form-urlencoded"
+       ]
+      ],
+      "body": "q=select+a+plan+and+script+notes"
+     },
+     {
+      "method": "POST",
+      "uri": "/api/v1/login",
+      "headers": [
+       [
+        "Content-Type",
+        "application/json"
+       ]
+      ],
+      "body": "{\"user\":\"alice\",\"password\":\"correct horse\"}"
+     },
+     {
+      "method": "GET",
+      "uri": "/account",
+      "headers": [
+       [
+        "X-Forwarded-For",
+        "203.0.113.7, 127.0.0.1"
+       ],
+       [
+        "X-Forwarded-Proto",
+        "https"
+       ],
+       [
+        "X-Forwarded-Port",
+        "443"
+       ],
+       [
+        "X-Forwarded-Host",
+        "shop.example.com"
+       ],
+       [
+        "X-Real-IP",
+        "203.0.113.7"
+       ],
+       [
+        "Forwarded",
+        "for=203.0.113.7;proto=https"
+       ],
+       [
+        "Via",
+        "2.0 abc.cloudfront.net (CloudFront)"
+       ],
+       [
+        "X-Amz-Cf-Id",
+        "Zx1-example=="
+       ],
+       [
+        "X-Amzn-Trace-Id",
+        "Root=1-67891233-abcdef012345678912345678"
+       ]
+      ],
+      "body": ""
+     }
+    ]
+   },
+   "what": "URI 路径（先 URL_DECODE） 等于 `/video/:/transcode/universal/start.m3u8` 且 查询参数 `path`（先 URL_DECODE → LOWERCASE） 匹配正则 `^(https?|ftp|gopher|file)://`"
+  }
+ ],
+ "templates": [
+  {
+   "rule_id": "radar-40bbda4fb209-rate-6",
+   "kind": "rate",
+   "extractor": "rate",
+   "cve": null,
+   "statement": {
+    "RateBasedStatement": {
+     "Limit": 300,
+     "AggregateKeyType": "IP",
+     "EvaluationWindowSec": 300
+    }
+   },
+   "source_quotes": [
+    {
+     "token": "Credential stuffing",
+     "url": "https://example.com/advisory",
+     "sentence": "Credential stuffing against the login.",
+     "item_id": "it_1",
+     "span": [
+      0,
+      19
+     ],
+     "href": "https://example.com/advisory"
+    }
+   ],
+   "confidence": "heuristic",
+   "false_positive_note": "阈值 300 次/5 分钟/IP 是模板默认值，不是证据值；NAT / 企业出口后的多用户会被聚合计数。",
+   "action": "Count",
+   "verified": {
+    "offline": {
+     "state": "unchecked",
+     "reason": "signature_not_offline",
+     "detail": "SqliMatch / XssMatch / 速率 / 托管组的签名由 AWS 维护，离线无法判定；样本未与可判定部分矛盾"
+    },
+    "capacity": {
+     "state": "unchecked"
+    }
+   },
+   "samples": {
+    "positive": [
+     {
+      "method": "POST",
+      "uri": "/login",
+      "headers": [],
+      "body": ""
+     }
+    ],
+    "negative": [
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [],
+      "body": ""
+     }
+    ]
+   },
+   "what": "同一 IP 在 5 分钟内超过 300 次请求"
+  },
+  {
+   "rule_id": "radar-40bbda4fb209-origin-lockdown-7",
+   "kind": "origin_lockdown",
+   "extractor": "origin_lockdown",
+   "cve": null,
+   "statement": {
+    "NotStatement": {
+     "Statement": {
+      "ByteMatchStatement": {
+       "SearchString": "{{ORIGIN_SECRET}}",
+       "PositionalConstraint": "EXACTLY",
+       "FieldToMatch": {
+        "SingleHeader": {
+         "Name": "x-origin-verify"
+        }
+       },
+       "TextTransformations": [
+        {
+         "Priority": 0,
+         "Type": "NONE"
+        }
+       ]
+      }
+     }
+    }
+   },
+   "source_quotes": [
+    {
+     "token": "origin server was exposed",
+     "url": "https://example.com/advisory",
+     "sentence": "The origin server was exposed to the internet.",
+     "item_id": "it_1",
+     "span": [
+      43,
+      68
+     ],
+     "href": "https://example.com/advisory"
+    }
+   ],
+   "confidence": "heuristic",
+   "false_positive_note": "放在源站（ALB）的 web ACL：没有 CloudFront 注入的密钥 header 即计数。密钥不进规则包 —— {{ORIGIN_SECRET}} 由 Secrets Manager 动态引用替换；CloudFront 侧配 origin custom header，安全组只放 CloudFront origin-facing 托管前缀列表。健康检查等直连流量也会被计数。",
+   "action": "Count",
+   "verified": {
+    "offline": {
+     "state": "pass",
+     "reason": "samples_agree",
+     "detail": "2 个正样本全中、1 个负样本全不中"
+    },
+    "capacity": {
+     "state": "unchecked"
+    }
+   },
+   "samples": {
+    "positive": [
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [],
+      "body": ""
+     },
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [
+       [
+        "x-origin-verify",
+        "guess"
+       ]
+      ],
+      "body": ""
+     }
+    ],
+    "negative": [
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [
+       [
+        "x-origin-verify",
+        "{{ORIGIN_SECRET}}"
+       ]
+      ],
+      "body": ""
+     }
+    ]
+   },
+   "what": "不满足「header `x-origin-verify` 等于 `{{ORIGIN_SECRET}}`」"
+  },
+  {
+   "rule_id": "radar-40bbda4fb209-ipset-8",
+   "kind": "ipset",
+   "extractor": "ipset",
+   "cve": null,
+   "statement": {
+    "IPSetReferenceStatement": {
+     "ARN": "{{IPSET_ARN}}"
+    }
+   },
+   "source_quotes": [
+    {
+     "token": "8.8.8[.]8",
+     "url": "https://example.com/advisory",
+     "sentence": "Infrastructure at 8.8.8[.]8 was seen.",
+     "item_id": "it_1",
+     "span": [
+      104,
+      113
+     ],
+     "href": "https://example.com/advisory"
+    }
+   ],
+   "confidence": "exact",
+   "false_positive_note": "攻击者 IP 轮换极快，命中率随时间下降；共享出口（NAT / VPN / CDN）会误伤。 共 1 个地址。",
+   "action": "Count",
+   "verified": {
+    "offline": {
+     "state": "pass",
+     "reason": "samples_agree",
+     "detail": "1 个正样本全中、1 个负样本全不中"
+    },
+    "capacity": {
+     "state": "unchecked"
+    }
+   },
+   "samples": {
+    "positive": [
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [],
+      "body": ""
+     }
+    ],
+    "negative": [
+     {
+      "method": "GET",
+      "uri": "/",
+      "headers": [],
+      "body": ""
+     }
+    ]
+   },
+   "ip_set": {
+    "addresses": [
+     "8.8.8.8/32"
+    ],
+    "version": "IPV4"
+   },
+   "what": "源 IP 在规则包的 IP 集合内"
+  }
+ ],
+ "rejected": [
+  {
+   "cve": "CVE-2026-35273",
+   "source": "nuclei",
+   "extractor": "-",
+   "reason": "payload_by_helper",
+   "detail": "攻击字节由模板 helper 在运行时生成（如 generate_java_gadget），模板里不存在逐字特征"
+  }
+ ],
+ "poc": [
+  {
+   "cve": "CVE-2026-0001",
+   "state": "unavailable",
+   "path": null,
+   "sha": null,
+   "url": null,
+   "error": null
+  },
+  {
+   "cve": "CVE-2026-104935",
+   "state": "found",
+   "path": "http/cves/2026/CVE-2026-104935.yaml",
+   "sha": "5cf0e5cf09111111111111111111111111111111",
+   "url": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-104935.yaml",
+   "error": null
+  },
+  {
+   "cve": "CVE-2026-35273",
+   "state": "found",
+   "path": "http/cves/2026/CVE-2026-35273.yaml",
+   "sha": "5cf0e5cf09111111111111111111111111111111",
+   "url": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-35273.yaml",
+   "error": null
+  },
+  {
+   "cve": "CVE-2026-42018",
+   "state": "found",
+   "path": "http/cves/2026/CVE-2026-42018.yaml",
+   "sha": "5cf0e5cf09111111111111111111111111111111",
+   "url": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-42018.yaml",
+   "error": null
+  },
+  {
+   "cve": "CVE-2026-87902",
+   "state": "found",
+   "path": "http/cves/2026/CVE-2026-87902.yaml",
+   "sha": "5cf0e5cf09111111111111111111111111111111",
+   "url": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-87902.yaml",
+   "error": null
+  },
+  {
+   "cve": "CVE-2026-9586",
+   "state": "found",
+   "path": "http/cves/2026/CVE-2026-9586.yaml",
+   "sha": "5cf0e5cf09111111111111111111111111111111",
+   "url": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-9586.yaml",
+   "error": null
+  },
+  {
+   "cve": "CVE-2026-96655",
+   "state": "found",
+   "path": "http/cves/2026/CVE-2026-96655.yaml",
+   "sha": "5cf0e5cf09111111111111111111111111111111",
+   "url": "https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-96655.yaml",
+   "error": null
+  }
+ ],
+ "license": "MIT — Copyright (c) 2025 ProjectDiscovery, Inc. (nuclei-templates/LICENSE.md)",
+ "capacity": {
+  "state": "pass",
+  "wcu": 41,
+  "checked_on": "2026-11-11",
+  "detail": "CheckCapacity 41 WCU"
+ },
+ "hash": "bc4b88cfaf6b2c25",
+ "updated_at": "2026-11-11T03:00:00Z",
+ "renderings": [
+  {
+   "id": "wafv2_json",
+   "filename": "rule-group.json",
+   "media_type": "application/json",
+   "label": "AWS WAF API JSON",
+   "text": "{\n  \"Note\": \"缓解 ≠ 修复：边缘规则只在打补丁之前降低风险，升级到修复版本才是唯一完整的修复。\",\n  \"RuleGroup\": {\n    \"Name\": \"radar-ev-40bbda4fb2090dde-pack\",\n    \"Scope\": \"CLOUDFRONT\",\n    \"Capacity\": 50,\n    \"Rules\": [\n      {\n        \"Name\": \"radar-40bbda4fb209-named-header-1\",\n        \"Priority\": 0,\n        \"Statement\": {\n          \"SizeConstraintStatement\": {\n            \"FieldToMatch\": {\n              \"SingleHeader\": {\n                \"Name\": \"x-dscgi-path\"\n              }\n            },\n            \"ComparisonOperator\": \"GT\",\n            \"Size\": 0,\n            \"TextTransformations\": [\n              {\n                \"Priority\": 0,\n                \"Type\": \"NONE\"\n              }\n            ]\n          }\n        },\n        \"Action\": {\n          \"Count\": {}\n        },\n        \"VisibilityConfig\": {\n          \"SampledRequestsEnabled\": true,\n          \"CloudWatchMetricsEnabled\": true,\n          \"MetricName\": \"radar40bbda4fb209namedheader1\"\n        }\n      },\n      {\n        \"Name\": \"radar-40bbda4fb209-trailing-slash-2\",\n        \"Priority\": 1,\n        \"Statement\": {\n          \"ByteMatchStatement\": {\n            \"SearchString\": \"/access/api/v1/aws/token/\",\n            \"PositionalConstraint\": \"EXACTLY\",\n            \"FieldToMatch\": {\n              \"UriPath\": {}\n            },\n            \"TextTransformations\": [\n              {\n                \"Priority\": 0,\n                \"Type\": \"URL_DECODE\"\n              }\n            ]\n          }\n        },\n        \"Action\": {\n          \"Count\": {}\n        },\n        \"VisibilityConfig\": {\n          \"SampledRequestsEnabled\": true,\n          \"CloudWatchMetricsEnabled\": true,\n          \"MetricName\": \"radar40bbda4fb209trailingslash2\"\n        }\n      },\n      {\n        \"Name\": \"radar-40bbda4fb209-query-traversal-3\",\n        \"Priority\": 2,\n        \"Statement\": {\n          \"ByteMatchStatement\": {\n            \"SearchString\": \"../\",\n            \"PositionalConstraint\": \"CONTAINS\",\n            \"FieldToMatch\": {\n              \"SingleQueryArgument\": {\n                \"Name\": \"pagename\"\n              }\n            },\n            \"TextTransformations\": [\n              {\n                \"Priority\": 0,\n                \"Type\": \"URL_DECODE\"\n              },\n              {\n                \"Priority\": 1,\n                \"Type\": \"URL_DECODE\"\n              }\n            ]\n          }\n        },\n        \"Action\": {\n          \"Count\": {}\n        },\n        \"VisibilityConfig\": {\n          \"SampledRequestsEnabled\": true,\n          \"CloudWatchMetricsEnabled\": true,\n          \"MetricName\": \"radar40bbda4fb209querytraversal3\"\n        }\n      },\n      {\n        \"Name\": \"radar-40bbda4fb209-sqli-element-4\",\n        \"Priority\": 3,\n        \"Statement\": {\n          \"AndStatement\": {\n            \"Statements\": [\n              {\n                \"ByteMatchStatement\": {\n                  \"SearchString\": \"/pa\",\n                  \"PositionalConstraint\": \"EXACTLY\",\n                  \"FieldToMatch\": {\n                    \"UriPath\": {}\n                  },\n                  \"TextTransformations\": [\n                    {\n                      \"Priority\": 0,\n                      \"Type\": \"URL_DECODE\"\n                    }\n                  ]\n                }\n              },\n              {\n                \"ByteMatchStatement\": {\n                  \"SearchString\": \"<phoneip>\",\n                  \"PositionalConstraint\": \"CONTAINS\",\n                  \"FieldToMatch\": {\n                    \"Body\": {\n                      \"OversizeHandling\": \"CONTINUE\"\n                    }\n                  },\n                  \"TextTransformations\": [\n                    {\n                      \"Priority\": 0,\n                      \"Type\": \"LOWERCASE\"\n                    }\n                  ]\n                }\n              },\n              {\n                \"SqliMatchStatement\": {\n                  \"FieldToMatch\": {\n                    \"Body\": {\n                      \"OversizeHandling\": \"CONTINUE\"\n                    }\n                  },\n                  \"TextTransformations\": [\n                    {\n                      \"Priority\": 0,\n                      \"Type\": \"URL_DECODE\"\n                    },\n                    {\n                      \"Priority\": 1,\n                      \"Type\": \"HTML_ENTITY_DECODE\"\n                    }\n                  ],\n                  \"SensitivityLevel\": \"LOW\"\n                }\n              }\n            ]\n          }\n        },\n        \"Action\": {\n          \"Count\": {}\n        },\n        \"VisibilityConfig\": {\n          \"SampledRequestsEnabled\": true,\n          \"CloudWatchMetricsEnabled\": true,\n          \"MetricName\": \"radar40bbda4fb209sqlielement4\"\n        }\n      },\n      {\n        \"Name\": \"radar-40bbda4fb209-ssrf-param-5\",\n        \"Priority\": 4,\n        \"Statement\": {\n          \"AndStatement\": {\n            \"Statements\": [\n              {\n                \"ByteMatchStatement\": {\n                  \"SearchString\": \"/video/:/transcode/universal/start.m3u8\",\n                  \"PositionalConstraint\": \"EXACTLY\",\n                  \"FieldToMatch\": {\n                    \"UriPath\": {}\n                  },\n                  \"TextTransformations\": [\n                    {\n                      \"Priority\": 0,\n                      \"Type\": \"URL_DECODE\"\n                    }\n                  ]\n                }\n              },\n              {\n                \"RegexMatchStatement\": {\n                  \"RegexString\": \"^(https?|ftp|gopher|file)://\",\n                  \"FieldToMatch\": {\n                    \"SingleQueryArgument\": {\n                      \"Name\": \"path\"\n                    }\n                  },\n                  \"TextTransformations\": [\n                    {\n                      \"Priority\": 0,\n                      \"Type\": \"URL_DECODE\"\n                    },\n                    {\n                      \"Priority\": 1,\n                      \"Type\": \"LOWERCASE\"\n                    }\n                  ]\n                }\n              }\n            ]\n          }\n        },\n        \"Action\": {\n          \"Count\": {}\n        },\n        \"VisibilityConfig\": {\n          \"SampledRequestsEnabled\": true,\n          \"CloudWatchMetricsEnabled\": true,\n          \"MetricName\": \"radar40bbda4fb209ssrfparam5\"\n        }\n      },\n      {\n        \"Name\": \"radar-40bbda4fb209-rate-6\",\n        \"Priority\": 5,\n        \"Statement\": {\n          \"RateBasedStatement\": {\n            \"Limit\": 300,\n            \"AggregateKeyType\": \"IP\",\n            \"EvaluationWindowSec\": 300\n          }\n        },\n        \"Action\": {\n          \"Count\": {}\n        },\n        \"VisibilityConfig\": {\n          \"SampledRequestsEnabled\": true,\n          \"CloudWatchMetricsEnabled\": true,\n          \"MetricName\": \"radar40bbda4fb209rate6\"\n        }\n      },\n      {\n        \"Name\": \"radar-40bbda4fb209-origin-lockdown-7\",\n        \"Priority\": 6,\n        \"Statement\": {\n          \"NotStatement\": {\n            \"Statement\": {\n              \"ByteMatchStatement\": {\n                \"SearchString\": \"{{ORIGIN_SECRET}}\",\n                \"PositionalConstraint\": \"EXACTLY\",\n                \"FieldToMatch\": {\n                  \"SingleHeader\": {\n                    \"Name\": \"x-origin-verify\"\n                  }\n                },\n                \"TextTransformations\": [\n                  {\n                    \"Priority\": 0,\n                    \"Type\": \"NONE\"\n                  }\n                ]\n              }\n            }\n          }\n        },\n        \"Action\": {\n          \"Count\": {}\n        },\n        \"VisibilityConfig\": {\n          \"SampledRequestsEnabled\": true,\n          \"CloudWatchMetricsEnabled\": true,\n          \"MetricName\": \"radar40bbda4fb209originlockdown7\"\n        }\n      },\n      {\n        \"Name\": \"radar-40bbda4fb209-ipset-8\",\n        \"Priority\": 7,\n        \"Statement\": {\n          \"IPSetReferenceStatement\": {\n            \"ARN\": \"{{IPSET_ARN}}\"\n          }\n        },\n        \"Action\": {\n          \"Count\": {}\n        },\n        \"VisibilityConfig\": {\n          \"SampledRequestsEnabled\": true,\n          \"CloudWatchMetricsEnabled\": true,\n          \"MetricName\": \"radar40bbda4fb209ipset8\"\n        }\n      }\n    ],\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radarev40bbda4fb2090ddepack\"\n    }\n  },\n  \"IPSets\": [\n    {\n      \"Name\": \"radar-ev-40bbda4fb2090dde-pack-ips\",\n      \"IPAddressVersion\": \"IPV4\",\n      \"Addresses\": [\n        \"8.8.8.8/32\"\n      ],\n      \"Scope\": \"CLOUDFRONT\"\n    }\n  ],\n  \"WebACLReference\": {\n    \"Name\": \"radar-ev-40bbda4fb2090dde-pack\",\n    \"Priority\": 9999,\n    \"Statement\": {\n      \"RuleGroupReferenceStatement\": {\n        \"ARN\": \"{{RULE_GROUP_ARN}}\"\n      }\n    },\n    \"OverrideAction\": {\n      \"Count\": {}\n    },\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radarev40bbda4fb2090ddepack\"\n    }\n  },\n  \"ManagedRules\": [],\n  \"AdvisoryManagedRules\": [],\n  \"Placeholders\": {\n    \"{{RULE_GROUP_ARN}}\": \"create-rule-group 返回的 ARN\",\n    \"{{IPSET_ARN}}\": \"create-ip-set 返回的 ARN\",\n    \"{{ORIGIN_SECRET}}\": \"CloudFront 注入的源站密钥（Secrets Manager，绝不写进文件）\"\n  }\n}\n"
+  },
+  {
+   "id": "cloudformation",
+   "filename": "rule-pack.cfn.json",
+   "media_type": "application/json",
+   "label": "CloudFormation",
+   "text": "{\n  \"AWSTemplateFormatVersion\": \"2010-09-09\",\n  \"Description\": \"radar-ev-40bbda4fb2090dde-pack — security-radar rule pack (Count only). 缓解 ≠ 修复：边缘规则只在打补丁之前降低风险，升级到修复版本才是唯一完整的修复。\",\n  \"Parameters\": {\n    \"Scope\": {\n      \"Type\": \"String\",\n      \"Default\": \"CLOUDFRONT\",\n      \"AllowedValues\": [\n        \"CLOUDFRONT\",\n        \"REGIONAL\"\n      ],\n      \"Description\": \"CLOUDFRONT 只能在 us-east-1 部署\"\n    },\n    \"RuleGroupCapacity\": {\n      \"Type\": \"Number\",\n      \"MinValue\": 1,\n      \"Description\": \"建后不可改；= CheckCapacity × 1.2\",\n      \"Default\": 50\n    },\n    \"OriginSecretName\": {\n      \"Type\": \"String\",\n      \"Description\": \"Secrets Manager 里源站密钥 header 值的 secret 名\"\n    }\n  },\n  \"Resources\": {\n    \"RadarIpSet\": {\n      \"Type\": \"AWS::WAFv2::IPSet\",\n      \"Properties\": {\n        \"Name\": \"radar-ev-40bbda4fb2090dde-pack-ips\",\n        \"IPAddressVersion\": \"IPV4\",\n        \"Addresses\": [\n          \"8.8.8.8/32\"\n        ],\n        \"Scope\": {\n          \"Ref\": \"Scope\"\n        }\n      }\n    },\n    \"RadarRuleGroup\": {\n      \"Type\": \"AWS::WAFv2::RuleGroup\",\n      \"Properties\": {\n        \"Name\": \"radar-ev-40bbda4fb2090dde-pack\",\n        \"Scope\": {\n          \"Ref\": \"Scope\"\n        },\n        \"Capacity\": {\n          \"Ref\": \"RuleGroupCapacity\"\n        },\n        \"Rules\": [\n          {\n            \"Name\": \"radar-40bbda4fb209-named-header-1\",\n            \"Priority\": 0,\n            \"Statement\": {\n              \"SizeConstraintStatement\": {\n                \"FieldToMatch\": {\n                  \"SingleHeader\": {\n                    \"Name\": \"x-dscgi-path\"\n                  }\n                },\n                \"ComparisonOperator\": \"GT\",\n                \"Size\": 0,\n                \"TextTransformations\": [\n                  {\n                    \"Priority\": 0,\n                    \"Type\": \"NONE\"\n                  }\n                ]\n              }\n            },\n            \"Action\": {\n              \"Count\": {}\n            },\n            \"VisibilityConfig\": {\n              \"SampledRequestsEnabled\": true,\n              \"CloudWatchMetricsEnabled\": true,\n              \"MetricName\": \"radar40bbda4fb209namedheader1\"\n            }\n          },\n          {\n            \"Name\": \"radar-40bbda4fb209-trailing-slash-2\",\n            \"Priority\": 1,\n            \"Statement\": {\n              \"ByteMatchStatement\": {\n                \"SearchString\": \"/access/api/v1/aws/token/\",\n                \"PositionalConstraint\": \"EXACTLY\",\n                \"FieldToMatch\": {\n                  \"UriPath\": {}\n                },\n                \"TextTransformations\": [\n                  {\n                    \"Priority\": 0,\n                    \"Type\": \"URL_DECODE\"\n                  }\n                ]\n              }\n            },\n            \"Action\": {\n              \"Count\": {}\n            },\n            \"VisibilityConfig\": {\n              \"SampledRequestsEnabled\": true,\n              \"CloudWatchMetricsEnabled\": true,\n              \"MetricName\": \"radar40bbda4fb209trailingslash2\"\n            }\n          },\n          {\n            \"Name\": \"radar-40bbda4fb209-query-traversal-3\",\n            \"Priority\": 2,\n            \"Statement\": {\n              \"ByteMatchStatement\": {\n                \"SearchString\": \"../\",\n                \"PositionalConstraint\": \"CONTAINS\",\n                \"FieldToMatch\": {\n                  \"SingleQueryArgument\": {\n                    \"Name\": \"pagename\"\n                  }\n                },\n                \"TextTransformations\": [\n                  {\n                    \"Priority\": 0,\n                    \"Type\": \"URL_DECODE\"\n                  },\n                  {\n                    \"Priority\": 1,\n                    \"Type\": \"URL_DECODE\"\n                  }\n                ]\n              }\n            },\n            \"Action\": {\n              \"Count\": {}\n            },\n            \"VisibilityConfig\": {\n              \"SampledRequestsEnabled\": true,\n              \"CloudWatchMetricsEnabled\": true,\n              \"MetricName\": \"radar40bbda4fb209querytraversal3\"\n            }\n          },\n          {\n            \"Name\": \"radar-40bbda4fb209-sqli-element-4\",\n            \"Priority\": 3,\n            \"Statement\": {\n              \"AndStatement\": {\n                \"Statements\": [\n                  {\n                    \"ByteMatchStatement\": {\n                      \"SearchString\": \"/pa\",\n                      \"PositionalConstraint\": \"EXACTLY\",\n                      \"FieldToMatch\": {\n                        \"UriPath\": {}\n                      },\n                      \"TextTransformations\": [\n                        {\n                          \"Priority\": 0,\n                          \"Type\": \"URL_DECODE\"\n                        }\n                      ]\n                    }\n                  },\n                  {\n                    \"ByteMatchStatement\": {\n                      \"SearchString\": \"<phoneip>\",\n                      \"PositionalConstraint\": \"CONTAINS\",\n                      \"FieldToMatch\": {\n                        \"Body\": {\n                          \"OversizeHandling\": \"CONTINUE\"\n                        }\n                      },\n                      \"TextTransformations\": [\n                        {\n                          \"Priority\": 0,\n                          \"Type\": \"LOWERCASE\"\n                        }\n                      ]\n                    }\n                  },\n                  {\n                    \"SqliMatchStatement\": {\n                      \"FieldToMatch\": {\n                        \"Body\": {\n                          \"OversizeHandling\": \"CONTINUE\"\n                        }\n                      },\n                      \"TextTransformations\": [\n                        {\n                          \"Priority\": 0,\n                          \"Type\": \"URL_DECODE\"\n                        },\n                        {\n                          \"Priority\": 1,\n                          \"Type\": \"HTML_ENTITY_DECODE\"\n                        }\n                      ],\n                      \"SensitivityLevel\": \"LOW\"\n                    }\n                  }\n                ]\n              }\n            },\n            \"Action\": {\n              \"Count\": {}\n            },\n            \"VisibilityConfig\": {\n              \"SampledRequestsEnabled\": true,\n              \"CloudWatchMetricsEnabled\": true,\n              \"MetricName\": \"radar40bbda4fb209sqlielement4\"\n            }\n          },\n          {\n            \"Name\": \"radar-40bbda4fb209-ssrf-param-5\",\n            \"Priority\": 4,\n            \"Statement\": {\n              \"AndStatement\": {\n                \"Statements\": [\n                  {\n                    \"ByteMatchStatement\": {\n                      \"SearchString\": \"/video/:/transcode/universal/start.m3u8\",\n                      \"PositionalConstraint\": \"EXACTLY\",\n                      \"FieldToMatch\": {\n                        \"UriPath\": {}\n                      },\n                      \"TextTransformations\": [\n                        {\n                          \"Priority\": 0,\n                          \"Type\": \"URL_DECODE\"\n                        }\n                      ]\n                    }\n                  },\n                  {\n                    \"RegexMatchStatement\": {\n                      \"RegexString\": \"^(https?|ftp|gopher|file)://\",\n                      \"FieldToMatch\": {\n                        \"SingleQueryArgument\": {\n                          \"Name\": \"path\"\n                        }\n                      },\n                      \"TextTransformations\": [\n                        {\n                          \"Priority\": 0,\n                          \"Type\": \"URL_DECODE\"\n                        },\n                        {\n                          \"Priority\": 1,\n                          \"Type\": \"LOWERCASE\"\n                        }\n                      ]\n                    }\n                  }\n                ]\n              }\n            },\n            \"Action\": {\n              \"Count\": {}\n            },\n            \"VisibilityConfig\": {\n              \"SampledRequestsEnabled\": true,\n              \"CloudWatchMetricsEnabled\": true,\n              \"MetricName\": \"radar40bbda4fb209ssrfparam5\"\n            }\n          },\n          {\n            \"Name\": \"radar-40bbda4fb209-rate-6\",\n            \"Priority\": 5,\n            \"Statement\": {\n              \"RateBasedStatement\": {\n                \"Limit\": 300,\n                \"AggregateKeyType\": \"IP\",\n                \"EvaluationWindowSec\": 300\n              }\n            },\n            \"Action\": {\n              \"Count\": {}\n            },\n            \"VisibilityConfig\": {\n              \"SampledRequestsEnabled\": true,\n              \"CloudWatchMetricsEnabled\": true,\n              \"MetricName\": \"radar40bbda4fb209rate6\"\n            }\n          },\n          {\n            \"Name\": \"radar-40bbda4fb209-origin-lockdown-7\",\n            \"Priority\": 6,\n            \"Statement\": {\n              \"NotStatement\": {\n                \"Statement\": {\n                  \"ByteMatchStatement\": {\n                    \"SearchString\": {\n                      \"Fn::Sub\": \"{{resolve:secretsmanager:${OriginSecretName}:SecretString}}\"\n                    },\n                    \"PositionalConstraint\": \"EXACTLY\",\n                    \"FieldToMatch\": {\n                      \"SingleHeader\": {\n                        \"Name\": \"x-origin-verify\"\n                      }\n                    },\n                    \"TextTransformations\": [\n                      {\n                        \"Priority\": 0,\n                        \"Type\": \"NONE\"\n                      }\n                    ]\n                  }\n                }\n              }\n            },\n            \"Action\": {\n              \"Count\": {}\n            },\n            \"VisibilityConfig\": {\n              \"SampledRequestsEnabled\": true,\n              \"CloudWatchMetricsEnabled\": true,\n              \"MetricName\": \"radar40bbda4fb209originlockdown7\"\n            }\n          },\n          {\n            \"Name\": \"radar-40bbda4fb209-ipset-8\",\n            \"Priority\": 7,\n            \"Statement\": {\n              \"IPSetReferenceStatement\": {\n                \"Arn\": {\n                  \"Fn::GetAtt\": [\n                    \"RadarIpSet\",\n                    \"Arn\"\n                  ]\n                }\n              }\n            },\n            \"Action\": {\n              \"Count\": {}\n            },\n            \"VisibilityConfig\": {\n              \"SampledRequestsEnabled\": true,\n              \"CloudWatchMetricsEnabled\": true,\n              \"MetricName\": \"radar40bbda4fb209ipset8\"\n            }\n          }\n        ],\n        \"VisibilityConfig\": {\n          \"SampledRequestsEnabled\": true,\n          \"CloudWatchMetricsEnabled\": true,\n          \"MetricName\": \"radarev40bbda4fb2090ddepack\"\n        }\n      }\n    }\n  },\n  \"Outputs\": {\n    \"RuleGroupArn\": {\n      \"Value\": {\n        \"Fn::GetAtt\": [\n          \"RadarRuleGroup\",\n          \"Arn\"\n        ]\n      },\n      \"Description\": \"在 web ACL 里加一条 RuleGroupReferenceStatement 引用它，OverrideAction Count\"\n    }\n  }\n}\n"
+  },
+  {
+   "id": "terraform",
+   "filename": "rule-pack.tf",
+   "media_type": "text/plain",
+   "label": "Terraform",
+   "text": "# 缓解 ≠ 修复：边缘规则只在打补丁之前降低风险，升级到修复版本才是唯一完整的修复。\n\n# radar-ev-40bbda4fb2090dde-pack — security-radar rule pack. Every rule is Count.\n\nvariable \"scope\" {\n  type    = string\n  default = \"CLOUDFRONT\" # CLOUDFRONT: provider region us-east-1\n}\n\nvariable \"capacity\" {\n  type    = number\n  default = 50\n}\n\nresource \"aws_wafv2_ip_set\" \"radar\" {\n  name = \"radar-ev-40bbda4fb2090dde-pack-ips\"\n  scope = var.scope\n  ip_address_version = \"IPV4\"\n  addresses = [\"8.8.8.8/32\"]\n}\n\nvariable \"origin_secret_arn\" {\n  type = string # Secrets Manager secret: the origin header value\n}\ndata \"aws_secretsmanager_secret_version\" \"origin\" {\n  secret_id = var.origin_secret_arn\n}\n\nresource \"aws_wafv2_rule_group\" \"radar\" {\n  name = \"radar-ev-40bbda4fb2090dde-pack\"\n  scope = var.scope\n  capacity = var.capacity\n  rule {\n    name = \"radar-40bbda4fb209-named-header-1\"\n    priority = 0\n    action {\n      count {}\n    }\n    statement {\n      size_constraint_statement {\n        comparison_operator = \"GT\"\n        size = 0\n        field_to_match {\n          single_header {\n            name = \"x-dscgi-path\"\n          }\n        }\n        text_transformation {\n          priority = 0\n          type = \"NONE\"\n        }\n      }\n    }\n    visibility_config {\n      sampled_requests_enabled = true\n      cloudwatch_metrics_enabled = true\n      metric_name = \"radar40bbda4fb209namedheader1\"\n    }\n  }\n  rule {\n    name = \"radar-40bbda4fb209-trailing-slash-2\"\n    priority = 1\n    action {\n      count {}\n    }\n    statement {\n      byte_match_statement {\n        search_string = \"/access/api/v1/aws/token/\"\n        positional_constraint = \"EXACTLY\"\n        field_to_match {\n          uri_path {}\n        }\n        text_transformation {\n          priority = 0\n          type = \"URL_DECODE\"\n        }\n      }\n    }\n    visibility_config {\n      sampled_requests_enabled = true\n      cloudwatch_metrics_enabled = true\n      metric_name = \"radar40bbda4fb209trailingslash2\"\n    }\n  }\n  rule {\n    name = \"radar-40bbda4fb209-query-traversal-3\"\n    priority = 2\n    action {\n      count {}\n    }\n    statement {\n      byte_match_statement {\n        search_string = \"../\"\n        positional_constraint = \"CONTAINS\"\n        field_to_match {\n          single_query_argument {\n            name = \"pagename\"\n          }\n        }\n        text_transformation {\n          priority = 0\n          type = \"URL_DECODE\"\n        }\n        text_transformation {\n          priority = 1\n          type = \"URL_DECODE\"\n        }\n      }\n    }\n    visibility_config {\n      sampled_requests_enabled = true\n      cloudwatch_metrics_enabled = true\n      metric_name = \"radar40bbda4fb209querytraversal3\"\n    }\n  }\n  rule {\n    name = \"radar-40bbda4fb209-sqli-element-4\"\n    priority = 3\n    action {\n      count {}\n    }\n    statement {\n      and_statement {\n        statement {\n          byte_match_statement {\n            search_string = \"/pa\"\n            positional_constraint = \"EXACTLY\"\n            field_to_match {\n              uri_path {}\n            }\n            text_transformation {\n              priority = 0\n              type = \"URL_DECODE\"\n            }\n          }\n        }\n        statement {\n          byte_match_statement {\n            search_string = \"<phoneip>\"\n            positional_constraint = \"CONTAINS\"\n            field_to_match {\n              body {\n                oversize_handling = \"CONTINUE\"\n              }\n            }\n            text_transformation {\n              priority = 0\n              type = \"LOWERCASE\"\n            }\n          }\n        }\n        statement {\n          sqli_match_statement {\n            sensitivity_level = \"LOW\"\n            field_to_match {\n              body {\n                oversize_handling = \"CONTINUE\"\n              }\n            }\n            text_transformation {\n              priority = 0\n              type = \"URL_DECODE\"\n            }\n            text_transformation {\n              priority = 1\n              type = \"HTML_ENTITY_DECODE\"\n            }\n          }\n        }\n      }\n    }\n    visibility_config {\n      sampled_requests_enabled = true\n      cloudwatch_metrics_enabled = true\n      metric_name = \"radar40bbda4fb209sqlielement4\"\n    }\n  }\n  rule {\n    name = \"radar-40bbda4fb209-ssrf-param-5\"\n    priority = 4\n    action {\n      count {}\n    }\n    statement {\n      and_statement {\n        statement {\n          byte_match_statement {\n            search_string = \"/video/:/transcode/universal/start.m3u8\"\n            positional_constraint = \"EXACTLY\"\n            field_to_match {\n              uri_path {}\n            }\n            text_transformation {\n              priority = 0\n              type = \"URL_DECODE\"\n            }\n          }\n        }\n        statement {\n          regex_match_statement {\n            regex_string = \"^(https?|ftp|gopher|file)://\"\n            field_to_match {\n              single_query_argument {\n                name = \"path\"\n              }\n            }\n            text_transformation {\n              priority = 0\n              type = \"URL_DECODE\"\n            }\n            text_transformation {\n              priority = 1\n              type = \"LOWERCASE\"\n            }\n          }\n        }\n      }\n    }\n    visibility_config {\n      sampled_requests_enabled = true\n      cloudwatch_metrics_enabled = true\n      metric_name = \"radar40bbda4fb209ssrfparam5\"\n    }\n  }\n  rule {\n    name = \"radar-40bbda4fb209-rate-6\"\n    priority = 5\n    action {\n      count {}\n    }\n    statement {\n      rate_based_statement {\n        limit = 300\n        aggregate_key_type = \"IP\"\n        evaluation_window_sec = 300\n      }\n    }\n    visibility_config {\n      sampled_requests_enabled = true\n      cloudwatch_metrics_enabled = true\n      metric_name = \"radar40bbda4fb209rate6\"\n    }\n  }\n  rule {\n    name = \"radar-40bbda4fb209-origin-lockdown-7\"\n    priority = 6\n    action {\n      count {}\n    }\n    statement {\n      not_statement {\n        statement {\n          byte_match_statement {\n            search_string = data.aws_secretsmanager_secret_version.origin.secret_string\n            positional_constraint = \"EXACTLY\"\n            field_to_match {\n              single_header {\n                name = \"x-origin-verify\"\n              }\n            }\n            text_transformation {\n              priority = 0\n              type = \"NONE\"\n            }\n          }\n        }\n      }\n    }\n    visibility_config {\n      sampled_requests_enabled = true\n      cloudwatch_metrics_enabled = true\n      metric_name = \"radar40bbda4fb209originlockdown7\"\n    }\n  }\n  rule {\n    name = \"radar-40bbda4fb209-ipset-8\"\n    priority = 7\n    action {\n      count {}\n    }\n    statement {\n      ip_set_reference_statement {\n        arn = aws_wafv2_ip_set.radar.arn\n      }\n    }\n    visibility_config {\n      sampled_requests_enabled = true\n      cloudwatch_metrics_enabled = true\n      metric_name = \"radar40bbda4fb209ipset8\"\n    }\n  }\n  visibility_config {\n    sampled_requests_enabled = true\n    cloudwatch_metrics_enabled = true\n    metric_name = \"radarev40bbda4fb2090ddepack\"\n  }\n}\n\noutput \"rule_group_arn\" {\n  value = aws_wafv2_rule_group.radar.arn\n}\n"
+  },
+  {
+   "id": "cli",
+   "filename": "rule-pack.sh",
+   "media_type": "text/x-shellscript",
+   "label": "AWS CLI 步骤",
+   "text": "# 缓解 ≠ 修复：边缘规则只在打补丁之前降低风险，升级到修复版本才是唯一完整的修复。\n# radar-ev-40bbda4fb2090dde-pack: 客户自持的 RuleGroup，所有规则 Count；web ACL 里只加一条引用（回滚 = 删这一条）。\n# 需要 AWS CLI v2 与 jq。CLOUDFRONT 作用域必须用 us-east-1。先 get 再 update：所有字段原样带回。\nset -euo pipefail\nexport SCOPE=\"${SCOPE:-CLOUDFRONT}\" REGION=\"${REGION:-us-east-1}\"\n: \"${ACL_NAME:?你的 web ACL 名}\"; : \"${ACL_ID:?你的 web ACL Id}\"\ncat > rules.json <<'JSON'\n[\n  {\n    \"Name\": \"radar-40bbda4fb209-named-header-1\",\n    \"Priority\": 0,\n    \"Statement\": {\n      \"SizeConstraintStatement\": {\n        \"FieldToMatch\": {\n          \"SingleHeader\": {\n            \"Name\": \"x-dscgi-path\"\n          }\n        },\n        \"ComparisonOperator\": \"GT\",\n        \"Size\": 0,\n        \"TextTransformations\": [\n          {\n            \"Priority\": 0,\n            \"Type\": \"NONE\"\n          }\n        ]\n      }\n    },\n    \"Action\": {\n      \"Count\": {}\n    },\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radar40bbda4fb209namedheader1\"\n    }\n  },\n  {\n    \"Name\": \"radar-40bbda4fb209-trailing-slash-2\",\n    \"Priority\": 1,\n    \"Statement\": {\n      \"ByteMatchStatement\": {\n        \"SearchString\": \"/access/api/v1/aws/token/\",\n        \"PositionalConstraint\": \"EXACTLY\",\n        \"FieldToMatch\": {\n          \"UriPath\": {}\n        },\n        \"TextTransformations\": [\n          {\n            \"Priority\": 0,\n            \"Type\": \"URL_DECODE\"\n          }\n        ]\n      }\n    },\n    \"Action\": {\n      \"Count\": {}\n    },\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radar40bbda4fb209trailingslash2\"\n    }\n  },\n  {\n    \"Name\": \"radar-40bbda4fb209-query-traversal-3\",\n    \"Priority\": 2,\n    \"Statement\": {\n      \"ByteMatchStatement\": {\n        \"SearchString\": \"../\",\n        \"PositionalConstraint\": \"CONTAINS\",\n        \"FieldToMatch\": {\n          \"SingleQueryArgument\": {\n            \"Name\": \"pagename\"\n          }\n        },\n        \"TextTransformations\": [\n          {\n            \"Priority\": 0,\n            \"Type\": \"URL_DECODE\"\n          },\n          {\n            \"Priority\": 1,\n            \"Type\": \"URL_DECODE\"\n          }\n        ]\n      }\n    },\n    \"Action\": {\n      \"Count\": {}\n    },\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radar40bbda4fb209querytraversal3\"\n    }\n  },\n  {\n    \"Name\": \"radar-40bbda4fb209-sqli-element-4\",\n    \"Priority\": 3,\n    \"Statement\": {\n      \"AndStatement\": {\n        \"Statements\": [\n          {\n            \"ByteMatchStatement\": {\n              \"SearchString\": \"/pa\",\n              \"PositionalConstraint\": \"EXACTLY\",\n              \"FieldToMatch\": {\n                \"UriPath\": {}\n              },\n              \"TextTransformations\": [\n                {\n                  \"Priority\": 0,\n                  \"Type\": \"URL_DECODE\"\n                }\n              ]\n            }\n          },\n          {\n            \"ByteMatchStatement\": {\n              \"SearchString\": \"<phoneip>\",\n              \"PositionalConstraint\": \"CONTAINS\",\n              \"FieldToMatch\": {\n                \"Body\": {\n                  \"OversizeHandling\": \"CONTINUE\"\n                }\n              },\n              \"TextTransformations\": [\n                {\n                  \"Priority\": 0,\n                  \"Type\": \"LOWERCASE\"\n                }\n              ]\n            }\n          },\n          {\n            \"SqliMatchStatement\": {\n              \"FieldToMatch\": {\n                \"Body\": {\n                  \"OversizeHandling\": \"CONTINUE\"\n                }\n              },\n              \"TextTransformations\": [\n                {\n                  \"Priority\": 0,\n                  \"Type\": \"URL_DECODE\"\n                },\n                {\n                  \"Priority\": 1,\n                  \"Type\": \"HTML_ENTITY_DECODE\"\n                }\n              ],\n              \"SensitivityLevel\": \"LOW\"\n            }\n          }\n        ]\n      }\n    },\n    \"Action\": {\n      \"Count\": {}\n    },\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radar40bbda4fb209sqlielement4\"\n    }\n  },\n  {\n    \"Name\": \"radar-40bbda4fb209-ssrf-param-5\",\n    \"Priority\": 4,\n    \"Statement\": {\n      \"AndStatement\": {\n        \"Statements\": [\n          {\n            \"ByteMatchStatement\": {\n              \"SearchString\": \"/video/:/transcode/universal/start.m3u8\",\n              \"PositionalConstraint\": \"EXACTLY\",\n              \"FieldToMatch\": {\n                \"UriPath\": {}\n              },\n              \"TextTransformations\": [\n                {\n                  \"Priority\": 0,\n                  \"Type\": \"URL_DECODE\"\n                }\n              ]\n            }\n          },\n          {\n            \"RegexMatchStatement\": {\n              \"RegexString\": \"^(https?|ftp|gopher|file)://\",\n              \"FieldToMatch\": {\n                \"SingleQueryArgument\": {\n                  \"Name\": \"path\"\n                }\n              },\n              \"TextTransformations\": [\n                {\n                  \"Priority\": 0,\n                  \"Type\": \"URL_DECODE\"\n                },\n                {\n                  \"Priority\": 1,\n                  \"Type\": \"LOWERCASE\"\n                }\n              ]\n            }\n          }\n        ]\n      }\n    },\n    \"Action\": {\n      \"Count\": {}\n    },\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radar40bbda4fb209ssrfparam5\"\n    }\n  },\n  {\n    \"Name\": \"radar-40bbda4fb209-rate-6\",\n    \"Priority\": 5,\n    \"Statement\": {\n      \"RateBasedStatement\": {\n        \"Limit\": 300,\n        \"AggregateKeyType\": \"IP\",\n        \"EvaluationWindowSec\": 300\n      }\n    },\n    \"Action\": {\n      \"Count\": {}\n    },\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radar40bbda4fb209rate6\"\n    }\n  },\n  {\n    \"Name\": \"radar-40bbda4fb209-origin-lockdown-7\",\n    \"Priority\": 6,\n    \"Statement\": {\n      \"NotStatement\": {\n        \"Statement\": {\n          \"ByteMatchStatement\": {\n            \"SearchString\": \"{{ORIGIN_SECRET}}\",\n            \"PositionalConstraint\": \"EXACTLY\",\n            \"FieldToMatch\": {\n              \"SingleHeader\": {\n                \"Name\": \"x-origin-verify\"\n              }\n            },\n            \"TextTransformations\": [\n              {\n                \"Priority\": 0,\n                \"Type\": \"NONE\"\n              }\n            ]\n          }\n        }\n      }\n    },\n    \"Action\": {\n      \"Count\": {}\n    },\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radar40bbda4fb209originlockdown7\"\n    }\n  },\n  {\n    \"Name\": \"radar-40bbda4fb209-ipset-8\",\n    \"Priority\": 7,\n    \"Statement\": {\n      \"IPSetReferenceStatement\": {\n        \"ARN\": \"{{IPSET_ARN}}\"\n      }\n    },\n    \"Action\": {\n      \"Count\": {}\n    },\n    \"VisibilityConfig\": {\n      \"SampledRequestsEnabled\": true,\n      \"CloudWatchMetricsEnabled\": true,\n      \"MetricName\": \"radar40bbda4fb209ipset8\"\n    }\n  }\n]\nJSON\n\n# 0a. IP 集合（攻击源 IP，取自证据里的去武装写法）\nIPSET_ARN=$(aws wafv2 create-ip-set --name radar-ev-40bbda4fb2090dde-pack-ips --scope \"$SCOPE\" --region \"$REGION\" --ip-address-version IPV4 --addresses 8.8.8.8/32 --query Summary.ARN --output text)\njq --arg a \"$IPSET_ARN\" 'walk(if . == \"{{IPSET_ARN}}\" then $a else . end)' rules.json > r.tmp && mv r.tmp rules.json\n\n# 0b. 源站密钥：从 Secrets Manager 读进环境变量，由 jq 从 env 取 —— 不出现在任何命令行参数里\n: \"${ORIGIN_SECRET_ID:?Secrets Manager secret id}\"\nexport ORIGIN_SECRET=\"$(aws secretsmanager get-secret-value --secret-id \"$ORIGIN_SECRET_ID\" --query SecretString --output text)\"\njq 'walk(if . == \"{{ORIGIN_SECRET}}\" then env.ORIGIN_SECRET else . end)' rules.json > r.tmp && mv r.tmp rules.json\n# rules.json 现在含密钥：用完即删（见最后一步）\n\n# 1. 只读：算 WCU（也是语法校验 —— 不合法的规则在这里报错）\naws wafv2 check-capacity --scope \"$SCOPE\" --region \"$REGION\" --rules file://rules.json --cli-binary-format raw-in-base64-out\n\n# 2. 建规则组（capacity 建后不可改：取第 1 步结果 × 1.2）\nCAPACITY=\"${CAPACITY:-50}\"\narn=$(aws wafv2 create-rule-group --name radar-ev-40bbda4fb2090dde-pack --scope \"$SCOPE\" --region \"$REGION\" --capacity \"$CAPACITY\" --rules file://rules.json --cli-binary-format raw-in-base64-out --visibility-config SampledRequestsEnabled=true,CloudWatchMetricsEnabled=true,MetricName=radarev40bbda4fb2090ddepack --query Summary.ARN --output text)\n\n# 3. 读你的 web ACL，在 Rules 末尾追加一条引用（OverrideAction Count）；其余字段原样带回（漏带的字段会被重置）\n#    不加 raw-in-base64-out：get-web-acl 输出里已有规则的 SearchString 是 base64，原样回传才不会被二次编码\naws wafv2 get-web-acl --name \"$ACL_NAME\" --id \"$ACL_ID\" --scope \"$SCOPE\" --region \"$REGION\" > acl.json\njq --arg arn \"$arn\" '{Name: .WebACL.Name, Scope: env.SCOPE, Id: .WebACL.Id, LockToken: .LockToken, DefaultAction: .WebACL.DefaultAction, VisibilityConfig: .WebACL.VisibilityConfig} + (.WebACL | with_entries(select(.key | IN(\"Description\", \"CustomResponseBodies\", \"CaptchaConfig\", \"ChallengeConfig\", \"TokenDomains\", \"AssociationConfig\")))) + {Rules: (.WebACL.Rules + [{\"Name\": \"radar-ev-40bbda4fb2090dde-pack\", \"Priority\": 9999, \"Statement\": {\"RuleGroupReferenceStatement\": {\"ARN\": $arn}}, \"OverrideAction\": {\"Count\": {}}, \"VisibilityConfig\": {\"SampledRequestsEnabled\": true, \"CloudWatchMetricsEnabled\": true, \"MetricName\": \"radarev40bbda4fb2090ddepack\"}}])}' acl.json > update.json\n# 若你的 ACL 已用 Priority 9999，先把 update.json 里这条改成未用的值\naws wafv2 update-web-acl --cli-input-json file://update.json --region \"$REGION\"\nrm -f rules.json update.json   # 不留含密钥 / 规则副本的文件\n\n# 回滚（一条引用即可摘下，立即生效）：\n#   aws wafv2 get-web-acl --name \"$ACL_NAME\" --id \"$ACL_ID\" --scope \"$SCOPE\" --region \"$REGION\" > acl.json\n#   jq '{Name: .WebACL.Name, Scope: env.SCOPE, Id: .WebACL.Id, LockToken: .LockToken, DefaultAction: .WebACL.DefaultAction, VisibilityConfig: .WebACL.VisibilityConfig} + (.WebACL | with_entries(select(.key | IN(\"Description\", \"CustomResponseBodies\", \"CaptchaConfig\", \"ChallengeConfig\", \"TokenDomains\", \"AssociationConfig\")))) + {Rules: [.WebACL.Rules[] | select(.Name != \"radar-ev-40bbda4fb2090dde-pack\")]}' acl.json > rollback.json\n#   aws wafv2 update-web-acl --cli-input-json file://rollback.json --region \"$REGION\"\n#   aws wafv2 delete-rule-group --name radar-ev-40bbda4fb2090dde-pack --scope \"$SCOPE\" --region \"$REGION\" --id <规则组 Id> --lock-token <get-rule-group 的 LockToken>\n#   aws wafv2 delete-ip-set --name radar-ev-40bbda4fb2090dde-pack-ips --scope \"$SCOPE\" --region \"$REGION\" --id <Id> --lock-token <LockToken>\n"
+  },
+  {
+   "id": "markdown",
+   "filename": "rule-pack.md",
+   "media_type": "text/markdown",
+   "label": "说明（人读）",
+   "text": "缓解 ≠ 修复：边缘规则只在打补丁之前降低风险，升级到修复版本才是唯一完整的修复。\n\n# WAF 规则包 · ev_40bbda4fb2090dde\n\n客户自持的规则组 `radar-ev-40bbda4fb2090dde-pack`：所有规则 **Count**（只计数不拦截），web ACL 里只加一条引用 （`RuleGroupReferenceStatement`，`OverrideAction: Count`）。雷达不写你的任何资源，下面是可复制的文本。\n\n**WCU**：41（CheckCapacity 41 WCU）\n\n## 自定义规则（5 条）\n\n### `radar-40bbda4fb209-named-header-1` · exact · 离线验证 pass\n\n- **计数什么**：header `x-dscgi-path` 长度 > 0（即：带了这个 header）\n- **为什么**：`projectdiscovery/nuclei-templates@5cf0e5cf09` [http/cves/2026/CVE-2026-104935.yaml:34](https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-104935.yaml#L34) 逐字 `X-DSCGI-PATH`；`projectdiscovery/nuclei-templates@5cf0e5cf09` [http/cves/2026/CVE-2026-104935.yaml:4](https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-104935.yaml#L4) 逐字 `X-DSCGI-PATH`\n- **可能误伤**：外部客户端不应发送 X-DSCGI-PATH；若你的前置代理会合法注入它，先在代理处剥掉再启用。\n- **离线验证**：1 个正样本全中、8 个负样本全不中\n\n### `radar-40bbda4fb209-trailing-slash-2` · exact · 离线验证 pass\n\n- **计数什么**：URI 路径（先 URL_DECODE） 等于 `/access/api/v1/aws/token/`\n- **为什么**：`projectdiscovery/nuclei-templates@5cf0e5cf09` [http/cves/2026/CVE-2026-42018.yaml:22](https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-42018.yaml#L22) 逐字 `/access/api/v1/aws/token/`；`projectdiscovery/nuclei-templates@5cf0e5cf09` [http/cves/2026/CVE-2026-42018.yaml:16](https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-42018.yaml#L16) 逐字 `/access/api/v1/aws/token`\n- **可能误伤**：只计数带尾斜杠的 /access/api/v1/aws/token/；同一端点的正常（无尾斜杠）调用不受影响。部署在路径前缀之下时把 EXACTLY 改为 ENDS_WITH。\n- **离线验证**：2 个正样本全中、8 个负样本全不中\n\n### `radar-40bbda4fb209-query-traversal-3` · exact · 离线验证 pass\n\n- **计数什么**：查询参数 `pagename`（先 URL_DECODE → URL_DECODE） 包含 `../`\n- **为什么**：`projectdiscovery/nuclei-templates@5cf0e5cf09` [http/cves/2026/CVE-2026-87902.yaml:31](https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-87902.yaml#L31) 逐字 `pagename=templates%252f%252e%252e%252f%252e%252e%252freadme`\n- **可能误伤**：参数 pagename 里出现上级目录序列即计数；合法请求几乎不会这样写。两次 URL_DECODE：AWS 是否接受同类型重复 transformation 以 CheckCapacity 为准。\n- **离线验证**：4 个正样本全中、9 个负样本全不中\n\n### `radar-40bbda4fb209-sqli-element-4` · heuristic · 离线验证 unchecked\n\n- **计数什么**：URI 路径（先 URL_DECODE） 等于 `/pa` 且 请求体（前 8 KB）（先 LOWERCASE） 包含 `<phoneip>` 且 请求体（前 8 KB）（先 URL_DECODE → HTML_ENTITY_DECODE） 被 AWS SqliMatch 判为 SQL 注入（敏感度 LOW）\n- **为什么**：`projectdiscovery/nuclei-templates@5cf0e5cf09` [http/cves/2026/CVE-2026-9586.yaml:20](https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-9586.yaml#L20) 逐字 `<PhoneIP>`\n- **可能误伤**：端点与元素名 <PhoneIP> 逐字；注入判定用 AWS SqliMatch（LOW），签名非逐字、离线无法验证。\n- **离线验证**：SqliMatch / XssMatch / 速率 / 托管组的签名由 AWS 维护，离线无法判定；样本未与可判定部分矛盾\n\n### `radar-40bbda4fb209-ssrf-param-5` · exact · 离线验证 pass\n\n- **计数什么**：URI 路径（先 URL_DECODE） 等于 `/video/:/transcode/universal/start.m3u8` 且 查询参数 `path`（先 URL_DECODE → LOWERCASE） 匹配正则 `^(https?|ftp|gopher|file)://`\n- **为什么**：`projectdiscovery/nuclei-templates@5cf0e5cf09` [http/cves/2026/CVE-2026-96655.yaml:16](https://github.com/projectdiscovery/nuclei-templates/blob/5cf0e5cf09111111111111111111111111111111/http/cves/2026/CVE-2026-96655.yaml#L16) 逐字 `path=http://`\n- **可能误伤**：参数 path 的值是外部 URL 即计数；若你的用户合法地转码远程 URL 媒体，会被一并计数（中等误报）。\n- **离线验证**：2 个正样本全中、8 个负样本全不中\n\n## 模板（启发式，非证据规则）（3 条）\n\n### `radar-40bbda4fb209-rate-6` · heuristic · 离线验证 unchecked\n\n- **计数什么**：同一 IP 在 5 分钟内超过 300 次请求\n- **为什么**：[https://example.com/advisory](https://example.com/advisory)：「Credential stuffing against the login.」\n- **可能误伤**：阈值 300 次/5 分钟/IP 是模板默认值，不是证据值；NAT / 企业出口后的多用户会被聚合计数。\n- **离线验证**：SqliMatch / XssMatch / 速率 / 托管组的签名由 AWS 维护，离线无法判定；样本未与可判定部分矛盾\n\n### `radar-40bbda4fb209-origin-lockdown-7` · heuristic · 离线验证 pass\n\n- **计数什么**：不满足「header `x-origin-verify` 等于 `{{ORIGIN_SECRET}}`」\n- **为什么**：[https://example.com/advisory](https://example.com/advisory)：「The origin server was exposed to the internet.」\n- **可能误伤**：放在源站（ALB）的 web ACL：没有 CloudFront 注入的密钥 header 即计数。密钥不进规则包 —— {{ORIGIN_SECRET}} 由 Secrets Manager 动态引用替换；CloudFront 侧配 origin custom header，安全组只放 CloudFront origin-facing 托管前缀列表。健康检查等直连流量也会被计数。\n- **离线验证**：2 个正样本全中、1 个负样本全不中\n\n### `radar-40bbda4fb209-ipset-8` · exact · 离线验证 pass\n\n- **计数什么**：源 IP 在规则包的 IP 集合内\n- **为什么**：[https://example.com/advisory](https://example.com/advisory)：「Infrastructure at 8.8.8[.]8 was seen.」\n- **可能误伤**：攻击者 IP 轮换极快，命中率随时间下降；共享出口（NAT / VPN / CDN）会误伤。 共 1 个地址。\n- **离线验证**：1 个正样本全中、1 个负样本全不中\n\n## 未生成的规则（1）\n\n- CVE-2026-35273 · `-` · **payload_by_helper**：攻击字节由模板 helper 在运行时生成（如 generate_java_gadget），模板里不存在逐字特征\n\n## 从 Count 切到 Block\n\n1. 挂上后看 CloudWatch 指标（每条规则的 MetricName = 规则名去掉非字母数字）`CountedRequests`，并用 `aws wafv2 get-sampled-requests` 看被计数的样本，至少覆盖一个完整业务周期（建议 24–72 小时）。\n2. 样本里没有正常流量 ⇒ 用 `update-rule-group` 把那一条的 `Action` 改为 `Block`；整组拦截则把 web ACL 引用的 `OverrideAction` 改为 `None`。逐条切，不要整组一次切。\n3. heuristic 规则（模板、SqliMatch）误报风险更高：观察期加倍。\n\n## 回滚\n\n- 从 web ACL 删掉名为 `radar-ev-40bbda4fb2090dde-pack` 的那一条引用（一条，立即生效），再 `delete-rule-group`。\n- 回滚不影响 web ACL 里的其他规则。\n\n## 修复\n\n这只是打补丁之前的缓解：升级到修复版本才是唯一完整的修复。\n\n## 许可\n\n自定义规则的特征派生自 nuclei-templates：MIT — Copyright (c) 2025 ProjectDiscovery, Inc. (nuclei-templates/LICENSE.md)。规则属检测模板派生，Count 观察后由你决定 Block。\n"
+  }
+ ]
+}

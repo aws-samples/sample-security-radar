@@ -1,0 +1,1 @@
+{"kind": "search-shard", "generated_at": "2026-10-23T04:00:00Z", "month": "2026-10", "events": [{"id": "ev_example2", "t": "Exchange hot wallet theft", "d": "web3", "s": "P1", "l": "V2", "f": "2026-10-03", "u": "2026-10-05", "c": [], "e": ["exampleex"], "a": 12000000}]}

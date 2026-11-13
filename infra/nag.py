@@ -10,7 +10,7 @@ REASONS: dict[str, str] = {
                          "service permission is an explicit inline statement.",
     "AwsSolutions-IAM5": "Wildcards are (a) CDK grant_* object/index scopes on the stack's own buckets and table "
                          "(bucket/*, table/index/*), (b) read-only APIs without resource-level permissions "
-                         "(wafv2 List/Get/Describe, inspector-scan:ScanSbom, ce:GetCostAndUsage, route53resolver List*), "
+                         "(wafv2 List/Get/Describe/CheckCapacity, inspector-scan:ScanSbom, ce:GetCostAndUsage, route53resolver List*), "
                          "(c) Continuum / Security Agent resources created at runtime, scoped to this account. Writes to "
                          "WAF / DNS Firewall are scoped to the radar's own resources (verified with simulate-principal-policy).",
     "AwsSolutions-L1": "Python 3.12 is pinned to match CI and the test environment; upgrade together with them.",
@@ -23,7 +23,6 @@ REASONS: dict[str, str] = {
     "AwsSolutions-CFR3": "Sample: no CloudFront standard logs (cost, extra bucket). Enable for production.",
     "AwsSolutions-CFR4": "Default *.cloudfront.net certificate (no custom domain in a sample), which fixes the minimum "
                          "TLS policy; use a custom domain with TLSv1.2_2021 for production.",
-    "AwsSolutions-DDB3": "Point-in-time recovery: the table holds re-derivable radar state (sources are re-fetched).",
 }
 
 

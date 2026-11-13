@@ -14,14 +14,8 @@ for id in "${ids[@]}"; do
       ':(exclude)tests/fixtures' ':(exclude)ui/mock-data' ':(exclude)ui/public/*.png' \
       ':(exclude)integrations/continuum/targets'  # the demo targets are scanned as themselves, not twice
   else
-    # python zipfile, not the zip CLI: CI images do not all ship it; sorted + fixed mtime ⇒ reproducible bytes
-    uv run -q python -I -c '
-import sys, zipfile, pathlib
-src, out = pathlib.Path(sys.argv[1]), sys.argv[2]
-with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-    for p in sorted(x for x in src.rglob("*") if x.is_file()):
-        z.writestr(zipfile.ZipInfo(str(p.relative_to(src)), (2026, 1, 1, 0, 0, 0)), p.read_bytes())
-' "integrations/continuum/targets/$id" "build/targets/code/$id.zip"
+    # git-tracked files only, like the security-radar archive above: an untracked .env / node_modules never ships
+    uv run -q python -I scripts/target_files.py zip "integrations/continuum/targets/$id" "build/targets/code/$id.zip"
   fi
 done
 # Continuum S3 environment reads code/ in its own bucket: only the targets whose channel is s3 (targets.CHANNEL) —

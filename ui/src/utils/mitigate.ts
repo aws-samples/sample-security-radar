@@ -9,11 +9,12 @@ export interface StateWord { label: string; tone: Tone; hint: string }
  * at runtime (so a schema edit without regenerating types still goes red).
  */
 export const PLAN_STATE: Record<MitigationPlan['state'], StateWord> = {
-  staged:        { label: '观察期 · 等人确认', tone: 'info',  hint: '规则以 Count 暂存，确认无误报后切 Block' },
-  blocking:      { label: '已拦截',           tone: 'ok',    hint: '规则生效（Block）' },
+  staged:        { label: '观察期 · 等人确认', tone: 'info',  hint: '整个规则组以 Count 暂存（组内规则都不拦截），确认无误报后只让点名的规则切 Block' },
+  blocking:      { label: '已拦截',           tone: 'ok',    hint: '规则生效（Block）；点名了规则的计划只有点名规则拦截，组内其余规则仍为 Count' },
   absent:        { label: '尚未下发',         tone: 'warn',  hint: 'web ACL 里还没有这个规则组' },
   too_old:       { label: '版本过低 · 需注意', tone: 'warn',  hint: '规则组版本低于覆盖该漏洞的最低版本' },
-  group_counted: { label: '整组 Count · 需注意', tone: 'warn', hint: '整个规则组被设为 Count，不拦截' },
+  group_counted: { label: '整组 Count · 需注意', tone: 'warn', hint: '别人的规则把整个规则组设为 Count，不拦截' },
+  rules_counted: { label: '部分 Count · 需注意', tone: 'warn', hint: '只有这些规则被设为 Count，组内其余规则按自身动作生效（可能拦截）—— 不是观察期' },
   unchecked:     { label: '本轮没查 · 需注意', tone: 'warn',  hint: '读取 web ACL 失败，状态未知（不是"没问题"）' },
   no_web_acl:    { label: '仅给出规则',       tone: 'muted', hint: '目标前没有登记 web ACL，规则由你决定挂在哪里' },
 };
@@ -23,6 +24,12 @@ export const TIER: Record<MitigationPlan['tier'], { label: string; advisory: boo
   product: { label: '产品',     advisory: false },
   cwe:     { label: '通用提示', advisory: true },
 };
+/**
+ * Shown under the rule JSON of a plan without a radar web ACL: its Priority is a placeholder (radar.mitigate.paste_priority —
+ * 10000+, distinct per rule group), because the radar cannot know which priorities the user's own web ACL already uses.
+ */
+export const PASTE_PRIORITY_NOTE = 'Priority 是占位值（每个规则组不同，10000 起）：粘贴进你自己的 web ACL 前，若与已有规则的 Priority 重复请改成一个未用的值（重复会被 UpdateWebACL 拒绝）。';
+
 /** Shown next to every cwe-tier plan: the station never auto-applies these. */
 export const ADVISORY_NOTE = '仅建议，不自动下发';
 

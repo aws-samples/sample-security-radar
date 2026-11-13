@@ -1,0 +1,44 @@
+{
+ "code": "200000",
+ "data": {
+  "totalNum": 119,
+  "items": [
+   {
+    "annId": 353816,
+    "annTitle": "KuCoin Has Temporarily Closed the Deposit Service of Ankr Network (ANKR)",
+    "annType": [
+     "latest-announcements"
+    ],
+    "annDesc": "KuCoin Has Temporarily Closed the Deposit Service of Ankr Network (ANKR)",
+    "language": "en_US",
+    "annUrl": "https://www.kucoin.com/announcement/en-kucoin-has-temporarily-closed-the-deposit-service-of-ankr-network-ankr?lang=en_US",
+    "cTime": 1794239820000
+   },
+   {
+    "annId": 353745,
+    "annTitle": "KuCoin Content Mining Rewards Distribution Notice (November 2 - November 8)",
+    "annType": [
+     "latest-announcements"
+    ],
+    "annDesc": "The Content Mining rewards generated on KuCoin Feed from November 2, 2026 to November 8, 2026 have now been successfully settled.",
+    "language": "en_US",
+    "annUrl": "https://www.kucoin.com/announcement/en-kucoin-content-mining-rewards-distribution-notice-november-2-november-8?lang=en_US",
+    "cTime": 1794217500000
+   },
+   {
+    "annId": 353538,
+    "annTitle": "KuCoin Will Resume Trading of DIAM (DIAM) on 2026-11-09",
+    "annType": [
+     "latest-announcements"
+    ],
+    "annDesc": "KuCoin Will Resume Trading of DIAM (DIAM) on 2026-11-09",
+    "language": "en_US",
+    "annUrl": "https://www.kucoin.com/announcement/en-kucoin-will-resume-trading-of-diam-diam-on-2026-11-09?lang=en_US",
+    "cTime": 1794196860000
+   }
+  ],
+  "currentPage": 1,
+  "pageSize": 20,
+  "totalPage": 6
+ }
+}

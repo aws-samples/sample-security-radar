@@ -14,12 +14,24 @@ cd "$(dirname "$0")/.."
 source scripts/lib.sh
 step() { printf '\n\033[1;36m▸ %s\033[0m\n' "$*"; }
 
+step "preflight: clean tree for deployed paths, commit not older than the floor, tests pass"
+uv run python scripts/preflight.py
+
+step "snapshot what the site shows now (compared after the verification cycle)"
+mkdir -p build
+before="build/site-before${STAGE:+-$STAGE}.json"; : > build/events-before.json
+if [ -f "$OUTPUTS" ]; then   # a first deployment has no site yet: the comparison then says SKIP, never PASS
+  aws s3 cp --region ap-northeast-1 "s3://$(out SiteBucketName)/data/events.json" build/events-before.json --quiet \
+    || echo "no events.json yet — no baseline"
+fi
+uv run python scripts/site_diff.py snapshot build/events-before.json > "$before"
+
 step "build Lambda asset and target code bases"
 ./scripts/build-lambda.sh
 ./scripts/build-targets.sh
 
 step "cdk deploy (us-east-1 Continuum side, then ap-northeast-1 radar + Security Agent)"
-ctx=(-c "schedule=${SCHEDULE:-on}")
+ctx=(-c "schedule=${SCHEDULE:-on}" -c "commit=$(git rev-parse --short HEAD)")   # every Lambda carries RADAR_COMMIT
 [ -n "$STAGE" ] && ctx+=(-c "stage=$STAGE")
 [ -n "${REVIEW_BUDGET:-}" ] && ctx+=(-c "review_budget=$REVIEW_BUDGET")   # paid Security Agent reviews per day
 (cd infra && JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1 npx -y aws-cdk@2.1146.1 deploy \
@@ -46,3 +58,7 @@ step "upload UI"
 
 step "run one cycle now and verify end to end"
 ./scripts/verify.sh --run
+
+step "compare the site with the snapshot taken before the deployment"
+aws s3 cp --region ap-northeast-1 "s3://$(out SiteBucketName)/data/events.json" build/events-after.json --quiet
+uv run python scripts/site_diff.py compare "$before" build/events-after.json

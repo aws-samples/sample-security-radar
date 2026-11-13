@@ -5,7 +5,8 @@ public RPC per chain turns a tx's `verified: unchecked` into a verdict the level
   failed        receipt exists, status 0x0 — mined but reverted (an attempt, not a theft)
   not_found     no receipt (wrong chain, typo, not yet indexed) — re-checked, then given up after CHAIN_MAX_ATTEMPTS
   unsupported   chain without an EVM receipt endpoint here (Solana, Tron, …) — said so, never guessed
-A failed RPC call never changes the verdict: the error is recorded beside it (check_error) and retried next cycle.
+A failed RPC call never changes the verdict and never uses up an attempt: the error is recorded beside it
+(check_error) and the tx is checked again after the back-off, for as long as the event is in the window.
 
 Endpoints: PublicNode, keyless (read 2026-10-28 via firecrawl on each chain's page: ethereum / bsc / base / polygon /
 arbitrum, each page names the HTTPS endpoint, no key stated). One registry, one place to change a provider.
@@ -137,11 +138,13 @@ def check_txs(txs: list[dict[str, Any]], now: datetime, budget: int, call: Any =
         t = dict(t)
         if used < budget and due(t, now):
             used += 1
-            t["attempts"] = int(t.get("attempts", 0)) + 1
             t["checked_at"] = timeutil.iso(now)
             try:
                 t.update(verdict(t.get("chain", ""), t["hash"], call))
                 t.pop("check_error", None)
+                # only an answer counts as an attempt: an RPC error backs off (checked_at) but never uses one up — three
+                # errors in a row used to end verification of a real attack tx for good (audit 04 §5.1)
+                t["attempts"] = int(t.get("attempts", 0)) + 1
             except RpcError as e:      # verdict unchanged, the reason is visible (degradation leaves a trace)
                 t["check_error"] = str(e)
                 log.warning(json.dumps({"station": "process", "degraded": "chain_rpc", "chain": t.get("chain"),

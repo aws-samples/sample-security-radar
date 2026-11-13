@@ -5,7 +5,8 @@ receipt once (receipts never change), decode its ERC-20 Transfer logs and publis
 in that transaction — the second-level view of a contract exploit (the Binance-style follow-the-money table is
 radar.onchain; most incidents are one exploit transaction instead).
 
-Calls: eth_getTransactionReceipt + eth_getBlockByNumber (timestamp) + eth_getTransactionByHash (native value) per tx, eth_call symbol() / decimals() per token —
+Calls: eth_getTransactionReceipt + eth_getBlockByNumber (timestamp) + eth_getTransactionByHash (native value) per tx, eth_call symbol() / decimals() per token,
+one DefiLlama historical-price GET per tx (★2, its own budget) —
 token metadata is shared by every event through one ledger (TOKEN_KEY). At most Limits.ATTACKTX_CALLS_PER_CYCLE per
 cycle; a tx that fails is recorded and retried, never shown as "no transfers". What is not decoded is stated:
 native-coin value moved inside contracts (needs traces) and NFT transfers (ERC-721, 4-topic Transfer).
@@ -19,7 +20,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from radar import chain, timeutil
+from radar import chain, fetch, timeutil
 from radar.limits import Limits
 
 TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -27,6 +28,13 @@ SYMBOL, DECIMALS = "0x95d89b41", "0x313ce567"
 # shown first among tokens with as many transfers (stablecoins and the ETH / BTC families a reader can value at a glance)
 NATIVE = {"ethereum": "ETH", "arbitrum": "ETH", "base": "ETH", "bsc": "BNB", "avalanche": "AVAX", "polygon": "POL"}
 MAJOR = {"USDT", "USDC", "DAI", "USDE", "FDUSD", "WETH", "ETH", "STETH", "WSTETH", "WBTC", "CBBTC", "BTCB", "WBNB", "WAVAX"}
+# ★2 DefiLlama coin ids: its chain prefix differs for Avalanche; the native coin goes by its CoinGecko id
+LLAMA_CHAIN = {"ethereum": "ethereum", "arbitrum": "arbitrum", "base": "base", "bsc": "bsc", "avalanche": "avax",
+               "polygon": "polygon"}
+NATIVE_ID = {"ethereum": "coingecko:ethereum", "arbitrum": "coingecko:ethereum", "base": "coingecko:ethereum",
+             "bsc": "coingecko:binancecoin", "avalanche": "coingecko:avalanche-2", "polygon": "coingecko:polygon-ecosystem-token"}
+PRICE_SOURCE = (f"DefiLlama coins API：交易区块时间前后 4 小时内的历史价；DefiLlama 置信度低于 {Limits.PRICE_MIN_CONFIDENCE} "
+                "或查不到的代币不换算（刚被攻击的代币价格本身不可信）")
 KEY_PREFIX = "__attacktx__"
 TOKEN_KEY = "__tokenmeta__"
 NOT_DECODED = ("原生币（ETH / BNB / AVAX）在合约内部的转移：公共节点不提供 trace",
@@ -84,8 +92,12 @@ def _amount(raw: int, dec: Any) -> float | None:
     return round(raw / 10 ** dec, 6) if isinstance(dec, int) else None
 
 
+def _usd(amount: float | None, price: float | None) -> float | None:
+    return round(amount * price, 2) if amount is not None and price else None
+
+
 def breakdown(tx: str, ch: str, receipt: dict[str, Any], ts: str, meta: dict[str, dict[str, Any]],
-              value: str | None = None) -> dict[str, Any]:
+              value: str | None = None, prices: dict[str, float] | None = None) -> dict[str, Any]:
     """The published view of one attack tx: per token (most transfers first) the largest net gainer and loser, with
     the roles the receipt names (发起地址 = tx sender, 被调用合约 = tx target)."""
     moves = transfers(receipt)
@@ -103,16 +115,21 @@ def breakdown(tx: str, ch: str, receipt: dict[str, Any], ts: str, meta: dict[str
         dec = md.get("decimals")
         gain = max(per.items(), key=lambda kv: (kv[1], kv[0]))
         loss = min(per.items(), key=lambda kv: (kv[1], kv[0]))
+        px = (prices or {}).get(tok)
+        g_amt, l_amt = _amount(gain[1], dec), _amount(-loss[1], dec)
         tokens.append({"token": tok, "symbol": md.get("symbol"), "transfers": count[tok],
-                       "gainer": {"address": gain[0], "role": role.get(gain[0]), "amount": _amount(gain[1], dec), "raw": str(gain[1])} if gain[1] > 0 else None,
-                       "loser": {"address": loss[0], "role": role.get(loss[0]), "amount": _amount(-loss[1], dec), "raw": str(-loss[1])} if loss[1] < 0 else None})
+                       "gainer": {"address": gain[0], "role": role.get(gain[0]), "amount": g_amt, "raw": str(gain[1]),
+                                  "usd": _usd(g_amt, px)} if gain[1] > 0 else None,
+                       "loser": {"address": loss[0], "role": role.get(loss[0]), "amount": l_amt, "raw": str(-loss[1]),
+                                 "usd": _usd(l_amt, px)} if loss[1] < 0 else None})
     return {"tx": tx, "chain": ch, "block": int(receipt["blockNumber"], 16), "t": ts,
             "status": "success" if str(receipt.get("status", "")).lower() == "0x1" else "reverted",
             "sender": sender, "target": target, "transfers": len(moves), "tokens": tokens[: Limits.ATTACKTX_MAX_TOKENS],
             "tokens_total": len(tokens),
             # the native coin the transaction itself sends (a plain "682 ETH drained" tx has no ERC-20 log at all);
             # None = not read yet, 0 ⇒ omitted
-            "native": {"symbol": NATIVE.get(ch, "native"), "amount": round(int(value) / 1e18, 6)} if value and int(value) > 0 else None}
+            "native": {"symbol": NATIVE.get(ch, "native"), "amount": round(int(value) / 1e18, 6),
+                       "usd": _usd(int(value) / 1e18, (prices or {}).get("native"))} if value and int(value) > 0 else None}
 
 
 def _due(ev: Any, now: datetime) -> list[dict[str, Any]]:
@@ -177,6 +194,42 @@ def step(case: dict[str, Any], ev: Any, meta: dict[str, dict[str, Any]], now: da
     return used
 
 
+def llama_prices(ts: int, coins: list[str]) -> dict[str, dict[str, Any]]:
+    """DefiLlama historical prices (unauthenticated GET) for coin ids at unix time ts, ±4 h."""
+    url = f"https://coins.llama.fi/prices/historical/{ts}/{','.join(coins)}?searchWidth=4h"
+    return json.loads(fetch.http_get(url).body).get("coins") or {}
+
+
+def price_step(case: dict[str, Any], now: datetime, price: Callable[[int, list[str]], dict[str, dict[str, Any]]],
+               budget: int) -> int:
+    """★2: one price request per decoded tx (every token it moves + the native coin), at its block time — stored on the
+    tx, never asked again. A failed request is recorded and retried next cycle; a price below PRICE_MIN_CONFIDENCE or
+    absent is simply not stored (the table then shows no dollar figure, never $0). Returns requests used."""
+    used = 0
+    for h, d in (case.get("txs") or {}).items():
+        if not d.get("receipt") or "value" not in d or "prices" in d:
+            continue
+        if used >= budget:
+            break
+        toks = sorted({m["token"] for m in transfers(d["receipt"])})
+        ids = {f"{LLAMA_CHAIN.get(d['chain'], d['chain'])}:{t}": t for t in toks}
+        if int(d["value"] or 0) > 0:
+            ids[NATIVE_ID.get(d["chain"], "")] = "native"
+        ids.pop("", None)
+        if not ids:
+            d["prices"] = {}
+            continue
+        used += 1
+        try:
+            got = price(int(timeutil.parse(d["t"]).timestamp()), sorted(ids))   # type: ignore[union-attr]
+        except (fetch.FetchError, ValueError, KeyError, TypeError) as e:
+            case["errors"] = (case.get("errors", []) + [{"at": timeutil.iso(now), "tx": h, "error": f"price: {e}"[:160]}])[-10:]
+            continue
+        d["prices"] = {ids[c]: float(v["price"]) for c, v in got.items() if c in ids and isinstance(v.get("price"), (int, float))
+                       and float(v.get("confidence") or 0) >= Limits.PRICE_MIN_CONFIDENCE}
+    return used
+
+
 def prune(meta: dict[str, dict[str, Any]]) -> None:
     """Keep the newest Limits.ATTACKTX_TOKEN_LEDGER_MAX entries (one DynamoDB item ≤ 400 KB); entries written before
     timestamps existed count as oldest. An evicted token is fetched again when a later tx needs it."""
@@ -203,14 +256,17 @@ def doc(case: dict[str, Any] | None, meta: dict[str, dict[str, Any]]) -> dict[st
     """The published `attack_txs` section, or None when the event has no decoded attack tx yet."""
     if not case or not case.get("txs"):
         return None
-    txs = [breakdown(h, d["chain"], d["receipt"], d["t"], meta, d.get("value")) for h, d in case["txs"].items() if d.get("receipt")]
+    txs = [breakdown(h, d["chain"], d["receipt"], d["t"], meta, d.get("value"), d.get("prices"))
+           for h, d in case["txs"].items() if d.get("receipt")]
     if not txs:
         return None
     return {"txs": sorted(txs, key=lambda x: (x["t"], x["tx"])), "not_decoded": list(NOT_DECODED),
-            "errors": (case.get("errors") or [])[-3:]}
+            "errors": (case.get("errors") or [])[-3:],
+            "price_source": PRICE_SOURCE if any("prices" in d for d in case["txs"].values()) else None}
 
 
-def cycle(store: Any, now: datetime, call: Callable[[str, str, list[Any]], Any] = chain.rpc_call) -> list[str]:
+def cycle(store: Any, now: datetime, call: Callable[[str, str, list[Any]], Any] = chain.rpc_call,
+          price: Callable[[int, list[str]], dict[str, dict[str, Any]]] = llama_prices) -> list[str]:
     """Process-station step: newest web3 events with verified attack txs first, inside ATTACKTX_CALLS_PER_CYCLE.
     Returns the events whose published breakdown changed — compared by digest, because token metadata fetched for
     one event completes another event's table too."""
@@ -219,13 +275,15 @@ def cycle(store: Any, now: datetime, call: Callable[[str, str, list[Any]], Any] 
                  key=lambda e: e.first_seen, reverse=True)
     meta = store.get_source_state(TOKEN_KEY)
     n_meta = len(meta)
-    budget, cases = Limits.ATTACKTX_CALLS_PER_CYCLE, {}
+    budget, price_budget, cases = Limits.ATTACKTX_CALLS_PER_CYCLE, Limits.ATTACKTX_PRICE_CALLS_PER_CYCLE, {}
     for ev in evs:
         case = cases[ev.event_id] = store.get_source_state(case_key(ev.event_id))
-        if budget <= 0:
+        if budget <= 0 and price_budget <= 0:
             continue
         try:
-            budget -= step(case, ev, meta, now, call, budget)
+            if budget > 0:
+                budget -= step(case, ev, meta, now, call, budget)
+            price_budget -= price_step(case, now, price, price_budget)
         except Exception as e:    # noqa: BLE001 — recorded on the case (degradation leaves a trace), other events go on
             case["errors"] = (case.get("errors", []) + [{"at": timeutil.iso(now), "tx": "step", "error": f"{type(e).__name__}: {e}"[:160]}])[-10:]
             case["dirty"] = True

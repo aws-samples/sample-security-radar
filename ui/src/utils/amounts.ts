@@ -10,7 +10,7 @@ export function lossPoints(points: AmountPoint[]): AmountPoint[] {
 }
 
 export function measureCounts(points: AmountPoint[]): Record<NonNullable<AmountPoint['kind']>, number> {
-  const out = { loss: 0, frozen: 0, context: 0 };
+  const out = { loss: 0, frozen: 0, context: 0, outlier: 0 };
   for (const p of points) out[kindOf(p)] += 1;
   return out;
 }

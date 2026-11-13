@@ -1,0 +1,245 @@
+{
+ "feed": {
+  "category": [
+   {
+    "scheme": "urn:ietf:params:rolie:category:information-type",
+    "term": "csaf"
+   }
+  ],
+  "entry": [
+   {
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-294-01.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    },
+    "id": "VA-26-294-01",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-294-01.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-294-01.json.sha512",
+      "rel": "hash"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-294-01.json.asc",
+      "rel": "signature"
+     }
+    ],
+    "published": "2026-10-22T17:14:18Z",
+    "title": "HAPI FHIR",
+    "updated": "2026-10-22T17:14:18Z"
+   },
+   {
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-296-01.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    },
+    "id": "VA-26-296-01",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-296-01.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-296-01.json.sha512",
+      "rel": "hash"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-296-01.json.asc",
+      "rel": "signature"
+     }
+    ],
+    "published": "2026-10-22T17:13:57Z",
+    "title": "AgentZero XSS",
+    "updated": "2026-10-22T17:13:57Z"
+   },
+   {
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-295-01.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    },
+    "id": "VA-26-295-01",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-295-01.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-295-01.json.sha512",
+      "rel": "hash"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-295-01.json.asc",
+      "rel": "signature"
+     }
+    ],
+    "published": "2026-10-21T14:56:09Z",
+    "title": "PHP insecure error handling and state management",
+    "updated": "2026-10-21T14:56:09Z"
+   },
+   {
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-278-01.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    },
+    "id": "VA-26-278-01",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-278-01.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-278-01.json.sha512",
+      "rel": "hash"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-278-01.json.asc",
+      "rel": "signature"
+     }
+    ],
+    "published": "2026-10-05T19:49:17Z",
+    "title": "Canimaan Software ClamXAV local privilege escalation",
+    "updated": "2026-10-05T19:49:17Z"
+   },
+   {
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-01.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    },
+    "id": "VA-26-275-01",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-01.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-01.json.sha512",
+      "rel": "hash"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-01.json.asc",
+      "rel": "signature"
+     }
+    ],
+    "published": "2026-10-05T19:42:46Z",
+    "title": "Newell Brands DYMO ID multiple vulnerabilities",
+    "updated": "2026-10-05T19:42:46Z"
+   },
+   {
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-05.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    },
+    "id": "VA-26-275-05",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-05.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-05.json.sha512",
+      "rel": "hash"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-05.json.asc",
+      "rel": "signature"
+     }
+    ],
+    "published": "2026-10-01T18:50:47Z",
+    "title": "Cadmos LTI",
+    "updated": "2026-10-01T18:50:47Z"
+   },
+   {
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-02.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    },
+    "id": "VA-26-275-02",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-02.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-02.json.sha512",
+      "rel": "hash"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-02.json.asc",
+      "rel": "signature"
+     }
+    ],
+    "published": "2026-10-01T18:47:46Z",
+    "title": "C-Open CANopen stack multiple vulnerabilities",
+    "updated": "2026-10-01T18:47:46Z"
+   },
+   {
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-04.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    },
+    "id": "VA-26-275-04",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-04.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-04.json.sha512",
+      "rel": "hash"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2026/va-26-275-04.json.asc",
+      "rel": "signature"
+     }
+    ],
+    "published": "2026-10-01T15:30:52Z",
+    "title": "wormhole.app WebRTC TURN relay",
+    "updated": "2026-10-01T15:30:52Z"
+   }
+  ],
+  "id": "cisa-csaf-it-feed-tlp-white",
+  "link": [
+   {
+    "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/cisa-csaf-it-feed-tlp-white.json",
+    "rel": "self"
+   }
+  ],
+  "title": "CISA CSAF IT feed (TLP:WHITE)",
+  "updated": "2026-10-22T17:47:54Z"
+ }
+}

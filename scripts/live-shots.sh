@@ -10,4 +10,7 @@ P=$(printf '%s' "$creds" | uv run -q python -I -c 'import json,sys;print(json.lo
 unset creds
 mkdir -p docs/screenshots
 (cd ui && U="$U" P="$P" OUT="$(pwd)/../docs/screenshots" node scripts/live-screenshots.mjs)
+# deck v9: announcements / search / 响应决策 / WAF rule pack shots + the event documents its numbers are checked against
+(cd ui && U="$U" P="$P" OUT="$(pwd)/../docs/screenshots" UI_DIR="$(pwd)" DUMP="${DUMP:-/tmp}" \
+  node ../docs/deck/v9/tools/live-shots-v9.mjs)
 echo "screenshots in docs/screenshots"

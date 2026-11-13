@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/logo.svg" width="112" height="112" alt="Security Radar logo"/>
+  <img src="docs/assets/logo.svg" width="112" height="112" alt="Security Radar logo"/>
 </p>
 
 <h1 align="center">Security Radar</h1>
@@ -21,6 +21,23 @@
 > **Preview notice.** This sample calls AWS Continuum code scanning, which is in **public preview**. APIs and behaviour
 > may change. Use a non-production AWS account.
 
+## What's new in v1.2.0
+
+Full list in [CHANGELOG.md](CHANGELOG.md).
+
+| Area | What changed |
+|---|---|
+| **It reports its own mistakes** | An event that changes shape within one cycle, a station that fails every run or stopped, a source that is not collected or went quiet — all on the ops page; five CloudWatch alarms notify the owner through SNS |
+| **Clustering** | Only a report of an event may merge two events; a name is evidence for the event it names. `scripts/move_item.py` moves a single report |
+| **Timeliness** | Published → held and first report → P0 push (median / p90) on the ops page; short lists read every 5–10 minutes |
+| **Mitigation** | A promoted WAF / DNS Firewall rule blocks what was approved; later growth is reported, not applied |
+| **WAF rule pack** | Per-event rules from verbatim template or evidence features, checked offline, rendered as wafv2 JSON / CloudFormation / Terraform / CLI |
+| **Response decisions** | One decision table; every event page shows each action's outcome, reason code and time |
+| **Notifications** | Subscriptions (Slack, Lark, webhook) and Atom / JSON feeds |
+| **Sources** | CVE List, CISA CSAF, AWS bulletins, vendor PSIRTs, CERTs, exchange announcement boards, Telegram previews, WeChat feeds — each admitted by an onboarding harness; 5-minute incremental collection |
+| **Pages** | Search over every published event; exchange announcement board |
+| **Deploy guard** | Preflight before a deployment, site comparison after it |
+
 ## What it is
 
 Attacks on exchanges and DeFi protocols move fast: hot-wallet key leaks and contract exploits are often used within
@@ -41,8 +58,8 @@ Patching takes hours to days; exploitation of a fresh disclosure can take minute
 it located**, on resources it owns, in a non-blocking mode until a human promotes it (see *Fast path* below).
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/respond-loop-dark.svg">
-  <img src="docs/diagrams/respond-loop.svg" alt="Respond loop: radar → AWS Security Agent + AWS Continuum">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/respond-loop-dark.svg">
+  <img src="docs/assets/respond-loop.svg" alt="Respond loop: radar → AWS Security Agent + AWS Continuum">
 </picture>
 
 ## What it looks like
@@ -92,8 +109,8 @@ registry). End-to-end checks: `scripts/waf-e2e.py`, `scripts/dns-e2e.py`, `scrip
 ## Architecture
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.svg">
-  <img src="docs/diagrams/architecture.svg" alt="Security Radar architecture">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
+  <img src="docs/assets/architecture.svg" alt="Security Radar architecture">
 </picture>
 
 Serverless on AWS: EventBridge (every 10 min) → Step Functions (plan → collect → process → analyze → respond → mitigate → publish) →

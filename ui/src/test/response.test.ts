@@ -107,6 +107,7 @@ describe('responseBluf — one template per state', () => {
   });
   it('failed / not_eligible / running', () => {
     const f = clone(); f.status = 'failed'; f.reason = 'code_review_timeout';
+    f.targets[0].verdict = 'not_affected'; f.targets[0].locations = [];
     expect(responseBluf(f)).toEqual({ tone: 'warn', text: '⚠ 环境检查失败 · code_review_timeout' });
     const n = clone(); n.status = 'not_eligible'; n.reason = 'P2 不触发';
     expect(responseBluf(n)).toEqual({ tone: 'muted', text: '不触发环境检查 · P2 不触发' });
@@ -184,5 +185,37 @@ describe('pipelineRows', () => {
     expect(pipelineRows(STEPS, d)[4].note).not.toContain('验证中');
     expect(rows[6]).toMatchObject({ status: 'done', detail: '补丁已生成 1', note: '由环境检查推出' });
     expect(rows[5].status).toBe('not_connected');
+  });
+});
+
+describe('unchecked ≠ 未命中 (B1) · failed checks surface (B2)', () => {
+  // live 2026-11-11: Node2Shell × security-radar (node:24 not pinned) ⇒ verdict unknown; the chip said 未命中 0/N and
+  // the BLUF "已检查 N 个相关目标，均未命中".
+  const unknownR = (): Response => {
+    const r = clone(); r.status = 'done'; r.actions.forEach(a => { a.status = 'done'; });
+    r.targets[0].verdict = 'unknown'; r.targets[0].locations = []; r.targets[0].detail = '版本无法比较（未钉死），未发起评审';
+    return r;
+  };
+  it('impactFromResponse: an unknown target ⇒ unchecked, never not_affected', () => {
+    expect(impactFromResponse(unknownR())).toEqual({ status: 'unchecked', affected: 0, checked: 2 });
+  });
+  it('impactView: unchecked looks different from 未命中', () => {
+    const v = impactView({ status: 'unchecked', affected: 0, checked: 2 })!;
+    const ok = impactView({ status: 'not_affected', affected: 0, checked: 2 })!;
+    expect(v).toMatchObject({ label: '未检查 ·/2', glyph: '○', tone: 'warn' });
+    expect(v.label).not.toMatch(/未命中/);
+    expect([v.tone, v.glyph]).not.toEqual([ok.tone, ok.glyph]);
+  });
+  it('responseBluf: names the unchecked target and its reason, never 均未命中', () => {
+    const b = responseBluf(unknownR());
+    expect(b.tone).toBe('warn');
+    expect(b.text).toBe('○ 1 个相关目标未检查（demo-shop：版本无法比较（未钉死），未发起评审） · 另 1 个与产品无关已跳过');
+  });
+  it('a failed check next to a located hit keeps 命中 as the headline, the failure as its qualifier', () => {
+    const f = clone(); f.status = 'failed'; f.reason = 'ThrottlingException';
+    const b = responseBluf(f);
+    expect(b.tone).toBe('loss');
+    expect(b.text).toContain('◆ 命中 1 / 2');
+    expect(b.tail).toEqual({ tone: 'warn', text: '⚠ 有检查动作失败 · ThrottlingException' });
   });
 });

@@ -5,6 +5,8 @@ import { RadarPage } from '@/pages/RadarPage';
 import { EventDetailPage } from '@/pages/EventDetailPage';
 import { Web3Page } from '@/pages/Web3Page';
 import { VulnPage } from '@/pages/VulnPage';
+import { AnnouncementsPage } from '@/pages/AnnouncementsPage';
+import { SearchPage } from '@/pages/SearchPage';
 import { SourcesPage } from '@/pages/SourcesPage';
 import { OpsPage } from '@/pages/OpsPage';
 import { MitigatePage } from '@/pages/MitigatePage';
@@ -34,6 +36,8 @@ export default function App() {
             <Route path="vuln" element={<VulnPage />} />
             <Route path="continuum" element={<ContinuumPage />} />
             <Route path="sources" element={<SourcesPage />} />
+            <Route path="announcements" element={<AnnouncementsPage />} />
+            <Route path="search" element={<SearchPage />} />
             <Route path="ops" element={<OpsPage />} />
             <Route path="mitigate" element={<MitigatePage />} />
           </Route>

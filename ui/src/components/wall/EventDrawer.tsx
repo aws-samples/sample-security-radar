@@ -18,6 +18,7 @@ import { resolveImpact, responseBluf } from '@/utils/response';
 import { agoZh, utcShort } from '@/utils/timeZh';
 import '@/styles/detail.css';
 import '@/styles/wall.css';
+import { fmtDisclosureAt } from '@/utils/disclosureView';
 
 interface Props {
   eventId: string;
@@ -127,7 +128,8 @@ export function EventDrawer({ eventId, summary, onClose }: Props) {
 
         {ev && (
           <dl className="wd-facts">
-            <div><dt>首见</dt><dd>{agoZh(ev.first_seen)} · {utcShort(ev.first_seen)} UTC</dd></div>
+            {ev.cve_disclosed && <div><dt>CVE 公开</dt><dd>{fmtDisclosureAt(ev.cve_disclosed.at)}{ev.cve_disclosed.resurfaced ? ' · 旧漏洞' : ''}</dd></div>}
+            <div><dt>首报</dt><dd>{agoZh(ev.first_seen)} · {utcShort(ev.first_seen)} UTC</dd></div>
             <div><dt>来源</dt><dd>{ev.independent_sources} 个独立来源 · {ev.item_count} 条证据</dd></div>
             <div><dt>更新</dt><dd>{agoZh(ev.last_updated)}</dd></div>
           </dl>

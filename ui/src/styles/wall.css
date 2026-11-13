@@ -92,3 +92,7 @@
 .wall-stream-chip { margin-top: 4px; }
 .wall-stream-chip .impact-chip { font-size: 10px; padding: 1px 6px; }
 .wall-stream-chip .impact-chip .impact-ctx { font-size: 10px; }
+
+/* item 5: incident follow-up line on a NOW card (on-chain moves / freezes / decoded txs / disposition) */
+.wn-follow { display: block; margin-top: 4px; font-size: 11px; color: var(--text-secondary); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }

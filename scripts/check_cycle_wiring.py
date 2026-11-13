@@ -27,7 +27,8 @@ def violations(defn: dict[str, Any]) -> list[str]:
     for name, s in defn["States"].items():
         narrowed = s.get("Parameters") or s.get("Arguments") or {}
         narrowed = narrowed.get("Payload", narrowed) if isinstance(narrowed, dict) else {}
-        if s.get("Type") == "Task" and narrowed and "full.$" not in narrowed and "full" not in narrowed:
+        whole = any(v == "$" for v in narrowed.values())    # e.g. Plan's {"input.$": "$", …} carries `full` inside
+        if s.get("Type") == "Task" and narrowed and "full.$" not in narrowed and "full" not in narrowed and not whole:
             bad.append(f"{name}: input narrowed to {sorted(narrowed)} — `full` is dropped")
     return bad
 

@@ -20,6 +20,9 @@ Exploited = Literal["yes", "no", "unclear"]
 
 LEVEL_ORDER: dict[str, int] = {"X": -1, "V0": 0, "V1": 1, "V2": 2, "V3": 3, "V4": 4}
 SEVERITY_ORDER: dict[str, int] = {"P2": 0, "P1": 1, "P0": 2}
+# every root document under data/ carries it (schemas/site-data.schema.json SchemaVersion): a reader pins the shape it
+# was written against; a breaking change bumps it
+SITE_SCHEMA_VERSION = "1"
 EXPLOITATION_ORDER: dict[str, int] = {"none": 0, "poc": 1, "reported": 2, "confirmed": 3}
 
 

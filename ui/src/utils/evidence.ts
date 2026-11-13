@@ -47,7 +47,7 @@ export const STAGE_ORDER: ProgressStage['stage'][] =
   ['first_report', 'second_source', 'corroborated', 'confirmed', 'exploited', 'analyzed', 'finalized'];
 
 export const STAGE_LABEL: Record<ProgressStage['stage'], string> = {
-  first_report: '首报', second_source: '第二独立来源', corroborated: '证实 V2', confirmed: '官方确认 V3',
+  disclosed: 'CVE 公开', first_report: '首报', second_source: '第二独立来源', corroborated: '证实 V2', confirmed: '官方确认 V3',
   exploited: '在野利用', analyzed: '分析完成', finalized: '定稿 V4',
 };
 
@@ -57,7 +57,9 @@ export const STAGE_LABEL: Record<ProgressStage['stage'], string> = {
  */
 export function progressRows(progress: ProgressStage[]): { stage: ProgressStage['stage']; label: string; at: string | null }[] {
   const by = new Map(progress.map(p => [p.stage, p.at]));
-  return STAGE_ORDER.map(stage => ({ stage, label: STAGE_LABEL[stage], at: by.get(stage) ?? null }));
+  const rows = STAGE_ORDER.map(stage => ({ stage, label: STAGE_LABEL[stage], at: by.get(stage) ?? null }));
+  // stage 0 only for an event with a CVE record (radar.cvemeta) — a web3 theft has no "published" moment
+  return by.get('disclosed') ? [{ stage: 'disclosed' as const, label: STAGE_LABEL.disclosed, at: by.get('disclosed') ?? null }, ...rows] : rows;
 }
 
 /**

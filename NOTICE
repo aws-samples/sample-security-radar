@@ -37,3 +37,16 @@ tests/fixtures/attacktx/):
   hashes, ERC-20 transfer logs, token symbols / decimals) read from public JSON-RPC endpoints; the evidence texts in the
   first file are reduced to one sentence each.
 
+Test fixtures recorded in November 2026 (tests/fixtures/snapshots/2026-11-02/, 2026-11-06/, 2026-11-10/,
+tests/fixtures/nuclei/, tests/fixtures/cvemeta/):
+
+- aws_bulletins.xml — the AWS Security Bulletins RSS feed (https://aws.amazon.com/security/security-bulletins/).
+- cisa-csaf-*.json, icsa-26-307-01.json — CISA CSAF advisories and ROLIE feeds (U.S. government public data).
+- cve-record.json, cvemeta/ — CVE Records from the CVE List (https://github.com/CVEProject/cvelistV5), used under the
+  CVE Program Terms of Use.
+- exchanges/*.json — titles, codes and dates of exchanges' public announcement lists (a few rows each).
+- social/doonsec.xml — titles, links and dates from a public index of WeChat official-account articles.
+- social/tme-investigations.html — synthetic: neutral rewrites shaped like a public channel preview page; not original posts.
+- nuclei/*.yaml — excerpts of templates from projectdiscovery/nuclei-templates, MIT License
+  (see tests/fixtures/nuclei/NOTICE.md).
+- attacktx/llama_prices.json — token prices returned by a public price API for the tokens of the recorded transactions.

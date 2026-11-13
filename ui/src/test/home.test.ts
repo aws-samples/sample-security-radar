@@ -109,7 +109,7 @@ describe('funnelView', () => {
 describe('eventTimeLabel', () => {
   it('backfilled 2021 hack updated 15 min ago says both dates', () => {
     const r = eventTimeLabel({ first_seen: '2021-05-26T00:00:00Z', last_updated: '2026-10-23T17:18:00Z' }, NOW);
-    expect(r).toEqual({ text: '首见 2021-05 · 更新 15 分钟前', longRunning: true });
+    expect(r).toEqual({ text: '首报 2021-05 · 更新 15 分钟前', longRunning: true });
   });
   it('fresh event: update age only', () => {
     expect(eventTimeLabel({ first_seen: '2026-10-23T07:50:00Z', last_updated: '2026-10-23T15:33:37Z' }, NOW))

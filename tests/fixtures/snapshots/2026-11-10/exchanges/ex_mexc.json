@@ -1,0 +1,80 @@
+{
+ "data": {
+  "results": [
+   {
+    "id": 17827791539546,
+    "articleStaticUrlName": "mexc-digest-50",
+    "articleSameStaticTitleIndex": 1,
+    "staticFlag": 1,
+    "title": "MEXC Digest #50: How Big Is Anthropic's Slice?",
+    "sectionId": 15425930840834,
+    "thumbnail": "",
+    "updateTime": "2026-11-06T03:48:08Z",
+    "parentSections": [
+     {
+      "staticUrlName": "",
+      "id": 15425930840834
+     }
+    ],
+    "articleDetailId": 392786,
+    "tags": [],
+    "createdAt": "2026-11-04T00:52:20Z",
+    "createdAtLocale": "Nov 4, 2026",
+    "top": true,
+    "routerUrl": "/announcements/17827791539546"
+   },
+   {
+    "id": 17827791539462,
+    "articleStaticUrlName": "canton-0-fee-carnival-now-live",
+    "articleSameStaticTitleIndex": 1,
+    "staticFlag": 1,
+    "title": "Canton 0-Fee Carnival Now Live: $1,000,000 Up for Grabs",
+    "sectionId": 15425930840825,
+    "thumbnail": "",
+    "updateTime": "2026-10-30T08:48:03Z",
+    "parentSections": [
+     {
+      "staticUrlName": "",
+      "id": 15425930840825
+     }
+    ],
+    "articleDetailId": 391979,
+    "tags": [],
+    "createdAt": "2026-10-30T08:47:34Z",
+    "createdAtLocale": "Oct 30, 2026",
+    "top": true,
+    "routerUrl": "/announcements/17827791539462"
+   },
+   {
+    "id": 17827791539295,
+    "articleStaticUrlName": "mexc-trading-carnival",
+    "articleSameStaticTitleIndex": 1,
+    "staticFlag": 1,
+    "title": "MEXC Trading Carnival: Chance to Win an iPhone Duo and Share $500,000",
+    "sectionId": 15425930840825,
+    "thumbnail": "",
+    "updateTime": "2026-10-23T06:38:10Z",
+    "parentSections": [
+     {
+      "staticUrlName": "",
+      "id": 15425930840825
+     }
+    ],
+    "articleDetailId": 390213,
+    "tags": [],
+    "createdAt": "2026-10-22T16:00:56Z",
+    "createdAtLocale": "Oct 23, 2026",
+    "top": true,
+    "routerUrl": "/announcements/17827791539295"
+   }
+  ],
+  "count": 28377,
+  "page": 1,
+  "perPage": 20,
+  "pageCount": 1419
+ },
+ "code": 0,
+ "msg": "success",
+ "timestamp": 1794241223575,
+ "traceId": "6af1f2c7537783b63604fb13330f4d47"
+}

@@ -30,6 +30,22 @@ def test_creator_request_id_fits_the_64_char_limit_and_is_deterministic(monkeypa
     assert [kw["CreatorRequestId"] for _, kw in stub.calls] == ids     # a retry reuses the same ids
 
 
+def test_group_meta_carries_the_group_rule_names_a_promotion_needs(monkeypatch):
+    """W1: a promoted plan keeps every rule it does not name at Count — the names come from DescribeManagedRuleGroup."""
+    class _Waf:
+        def describe_managed_rule_group(self, **kw):
+            return {"Rules": [{"Name": "PHP2Shell_BODY", "Action": {"Block": {}}},
+                              {"Name": "PHPHighRiskMethodsVariables_BODY", "Action": {"Block": {}}}],
+                    "AvailableLabels": [{"Name": "awswaf:managed:aws:php-app:PHP2Shell_Body"}]}
+
+        def list_available_managed_rule_group_versions(self, **kw):
+            return {"CurrentDefaultVersion": "Version_2.5"}
+    monkeypatch.setitem(mitigate_aws._clients, "waf", _Waf())
+    assert mitigate_aws.group_meta("AWSManagedRulesPHPRuleSet") == {
+        "labels": ["awswaf:managed:aws:php-app:PHP2Shell_Body"],
+        "rules": ["PHP2Shell_BODY", "PHPHighRiskMethodsVariables_BODY"], "default_version": "Version_2.5"}
+
+
 def test_put_rules_refuses_a_web_acl_outside_the_radar_prefix():
     out = mitigate_aws.put_rules({"name": "n8n-waf"}, {"Name": "n8n-waf"}, "L", [])
     assert "refusing" in out["error"]

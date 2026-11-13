@@ -1,4 +1,4 @@
-import { healthSummary } from '@/utils/health';
+import { errorView, healthSummary } from '@/utils/health';
 import { useSources } from '@/hooks/useSources';
 import { formatDateTime } from '@/utils/formatters';
 
@@ -146,9 +146,18 @@ export function SourcesPage() {
 
                     {/* Last error */}
                     <td style={{ padding: '8px 10px', fontSize: '11px', maxWidth: '200px' }}>
-                      {src.last_error ? (
-                        <span style={{ color: 'var(--sev-p0)', fontFamily: 'var(--font-mono)', fontSize: '10px' }} title={src.last_error}>
-                          {src.last_error.length > 50 ? src.last_error.slice(0, 50) + '…' : src.last_error}
+                      {src.degraded ? (
+                        <span style={{ color: 'var(--sev-p1)', fontFamily: 'var(--font-mono)', fontSize: '10px' }} title={src.degraded}>
+                          {src.degraded.length > 50 ? src.degraded.slice(0, 50) + '…' : src.degraded}
+                        </span>
+                      ) : errorView(src).kind === 'current' ? (
+                        <span style={{ color: 'var(--sev-p0)', fontFamily: 'var(--font-mono)', fontSize: '10px' }} title={src.last_error ?? ''}>
+                          {(src.last_error ?? '').length > 50 ? (src.last_error ?? '').slice(0, 50) + '…' : src.last_error}
+                        </span>
+                      ) : errorView(src).kind === 'recovered' ? (
+                        <span data-testid="error-recovered" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '10px' }}
+                              title={`已恢复 · ${src.last_error}`}>
+                          已恢复 · 上次出错 {formatDateTime(src.last_error_at as string)}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-muted)' }}>—</span>

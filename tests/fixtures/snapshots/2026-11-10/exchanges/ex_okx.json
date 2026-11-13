@@ -1,0 +1,32 @@
+{
+ "code": "0",
+ "msg": "",
+ "data": [
+  {
+   "details": [
+    {
+     "annType": "announcements-trading-updates",
+     "title": "OKX to Adjust SNDK Spot, Perpetual Futures and X-Perp Products Due to Stock Split",
+     "url": "https://www.okx.com/help/okx-to-adjust-sndk-spot-perpetual-futures-and-x-perp-products-due-to-stock",
+     "pTime": "1794220809031",
+     "businessPTime": "1794220800000"
+    },
+    {
+     "annType": "announcements-new-listings",
+     "title": "OKX to list Unified Tokenized Stocks xNVDL, xSKDD and more for spot trading",
+     "url": "https://www.okx.com/help/okx-to-list-unified-tokenized-stocks-xnvdl-xskdd-and-more-for-spot-trading",
+     "pTime": "1794214810571",
+     "businessPTime": "1794214800000"
+    },
+    {
+     "annType": "announcements-new-listings",
+     "title": "OKX to list USDC trading pairs for Tokenized Stocks xBSP",
+     "url": "https://www.okx.com/help/okx-to-list-usdc-trading-pairs-for-tokenized-stocks-xbsp",
+     "pTime": "1794193210653",
+     "businessPTime": "1794193200000"
+    }
+   ],
+   "totalPage": "164"
+  }
+ ]
+}

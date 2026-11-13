@@ -1,0 +1,245 @@
+{
+ "feed": {
+  "id": "cisa-csaf-ot-feed-tlp-white",
+  "title": "CISA CSAF OT feed (TLP:WHITE)",
+  "link": [
+   {
+    "rel": "self",
+    "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/cisa-csaf-ot-feed-tlp-white.json"
+   }
+  ],
+  "category": [
+   {
+    "scheme": "urn:ietf:params:rolie:category:information-type",
+    "term": "csaf"
+   }
+  ],
+  "updated": "2026-11-05T15:26:16.090664Z",
+  "entry": [
+   {
+    "id": "ICSA-26-211-07",
+    "title": "Mitsubishi Electric CC-Link IE TSN Communication Protocol (Update B)",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-211-07.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-211-07.json.asc",
+      "rel": "signature"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-211-07.json.sha512",
+      "rel": "hash"
+     }
+    ],
+    "published": "2026-07-30T00:00:00.000000Z",
+    "updated": "2026-11-05T07:00:00.000000Z",
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-211-07.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    }
+   },
+   {
+    "id": "ICSA-26-307-01",
+    "title": "Subnet Solutions PowerSYSTEM Center",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-307-01.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-307-01.json.asc",
+      "rel": "signature"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-307-01.json.sha512",
+      "rel": "hash"
+     }
+    ],
+    "published": "2026-11-03T06:00:00.000000Z",
+    "updated": "2026-11-03T06:00:00.000000Z",
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-307-01.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    }
+   },
+   {
+    "id": "ICSA-26-302-03",
+    "title": "Hitachi Energy CoreTec Product",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-03.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-03.json.asc",
+      "rel": "signature"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-03.json.sha512",
+      "rel": "hash"
+     }
+    ],
+    "published": "2026-10-27T00:00:00.000000Z",
+    "updated": "2026-10-29T06:00:00.000000Z",
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-03.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    }
+   },
+   {
+    "id": "ICSA-26-302-02",
+    "title": "Hitachi Energy TRO600 series products",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-02.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-02.json.asc",
+      "rel": "signature"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-02.json.sha512",
+      "rel": "hash"
+     }
+    ],
+    "published": "2026-10-27T00:00:00.000000Z",
+    "updated": "2026-10-29T06:00:00.000000Z",
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-02.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    }
+   },
+   {
+    "id": "ICSA-26-302-01",
+    "title": "Siemens Mendix SAML Module",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-01.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-01.json.asc",
+      "rel": "signature"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-01.json.sha512",
+      "rel": "hash"
+     }
+    ],
+    "published": "2026-10-26T00:00:00.000000Z",
+    "updated": "2026-10-29T06:00:00.000000Z",
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-302-01.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    }
+   },
+   {
+    "id": "ICSA-26-300-02",
+    "title": "Mitsubishi Electric and Mitsubishi Electric Iconics Digital Solutions GENESIS, GENESIS64, ICONICS Suite, Hyper Historian, AnalytiX, MobileHMI, IoTWorX, MC Works64, GENESIS32 and BizViz",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-300-02.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-300-02.json.asc",
+      "rel": "signature"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-300-02.json.sha512",
+      "rel": "hash"
+     }
+    ],
+    "published": "2026-10-15T00:00:00.000000Z",
+    "updated": "2026-10-29T06:00:00.000000Z",
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-300-02.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    }
+   },
+   {
+    "id": "ICSA-26-258-06",
+    "title": "Siemens Mendix SAML",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-258-06.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-258-06.json.asc",
+      "rel": "signature"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-258-06.json.sha512",
+      "rel": "hash"
+     }
+    ],
+    "published": "2026-09-03T00:00:00.000000Z",
+    "updated": "2026-10-29T06:00:00.000000Z",
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-258-06.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    }
+   },
+   {
+    "id": "ICSA-26-125-01",
+    "title": "Hitachi Energy PCM600 (Update A)",
+    "link": [
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-125-01.json",
+      "rel": "self"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-125-01.json.asc",
+      "rel": "signature"
+     },
+     {
+      "href": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-125-01.json.sha512",
+      "rel": "hash"
+     }
+    ],
+    "published": "2026-04-28T00:00:00.000000Z",
+    "updated": "2026-10-29T06:00:00.000000Z",
+    "content": {
+     "src": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-125-01.json",
+     "type": "application/json"
+    },
+    "format": {
+     "schema": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf_json_schema.json",
+     "version": "2.0"
+    }
+   }
+  ]
+ }
+}

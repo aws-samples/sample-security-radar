@@ -1,0 +1,45 @@
+{
+ "id": 0,
+ "method": "public/get-announcements",
+ "code": 0,
+ "result": {
+  "data": [
+   {
+    "id": "6ae98ebb671bd0de0894e2cb",
+    "category": "list",
+    "product_type": "Spot",
+    "announced_at": 1793664000000,
+    "title": "Deposits and withdrawals of USDC via Arc network now supported on Crypto.com Exchange",
+    "content": "<p dir=\"ltr\">Crypto.com Exchange now supports deposits and withdrawals of USDC via Arc network</p>\n<p dir=\"ltr\">Deposit Now 👉<a href=\"https://crypto-exchange.onelink.me/E54m/6cf81eb9\"> https://crypto-exchange.onelink.me/E54m/6cf81eb9</a>&nbsp;</p>\n<p>&nbsp;</p>",
+    "instrument_name": "USDC",
+    "impacted_params": null,
+    "start_time": 1793691240000,
+    "end_time": null
+   },
+   {
+    "id": "6ae9494f671bd0de0894e24c",
+    "category": "list",
+    "product_type": "Derivative",
+    "announced_at": 1793664000000,
+    "title": "Crypto.com Exchange lists Equity Perpetuals: ABBVUSD-PERP and more",
+    "content": "<p dir=\"ltr\">Trade newly added Equity Perpetuals on the Crypto.com Exchange!</p>\n<p dir=\"ltr\"><strong>Equity Perps:</strong></p>\n<p dir=\"ltr\">⚡ ABBVUSD-PERP (AbbVie Inc.)</p>\n<p dir=\"ltr\">⚡ BACUSD-PERP (Bank of America Corporation)</p>\n<p dir=\"ltr\">⚡ CEGUSD-PERP (Constellation Energy Corporation)</p",
+    "instrument_name": "ABBVUSD-PERP, BACUSD-PERP, CEGUSD-PERP, CRMLUSD-PERP, GSUSD-PERP, IBKRUSD-PERP, MPUSD-PERP, RUMUSD-PERP",
+    "impacted_params": null,
+    "start_time": 1793673420000,
+    "end_time": null
+   },
+   {
+    "id": "6ae93b6e65663b8c8fa8bf1b",
+    "category": "list",
+    "product_type": "Spot",
+    "announced_at": 1793664000000,
+    "title": "Crypto.com Exchange lists NEAR/BTC, UNI/BTC",
+    "content": "<p dir=\"ltr\">New BTC trading pairs have been added to the Crypto․com Exchange:</p>\n<p dir=\"ltr\"><strong>NEAR/BTC, UNI/BTC</strong></p>\n<p dir=\"ltr\">Start trading now 👇</p>\n<p dir=\"ltr\"><a href=\"https://crypto-exchange.onelink.me/E54m/6cf81eb9\">https://crypto-exchange.onelink.me/E54m/6cf81eb9</a>&nbs",
+    "instrument_name": "NEAR_BTC, UNI_BTC",
+    "impacted_params": null,
+    "start_time": 1793669760000,
+    "end_time": null
+   }
+  ]
+ }
+}

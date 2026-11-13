@@ -166,12 +166,12 @@ export default function WallScene3D({
         }}
       >
         <caption style={{ clip: 'rect(0,0,0,0)', position: 'absolute' }}>
-          安全雷达事件（领域 · 严重度 · 等级 · 信源数 · 首见时间）
+          安全雷达事件（领域 · 严重度 · 等级 · 信源数 · 首报时间）
         </caption>
         <thead>
           <tr>
             <th scope="col">领域</th><th scope="col">严重度</th><th scope="col">等级</th>
-            <th scope="col">信源数</th><th scope="col">标题</th><th scope="col">首见时间</th>
+            <th scope="col">信源数</th><th scope="col">标题</th><th scope="col">首报时间</th>
           </tr>
         </thead>
         <tbody>
@@ -311,7 +311,7 @@ function StageHud({ links, shield }: { links: ThreatLink[]; shield: ShieldChanne
       {corner({ right: 10, bottom: 10 }, 'Bottom', 'Right')}
       <div style={{ ...box, left: 22, top: 18 }}>
         <div style={{ color: '#5CE1E6', fontWeight: 700, letterSpacing: '0.16em' }}>THREAT SCOPE · 7D</div>
-        <div>扇区 = 领域 · 半径 = 首见时间 · 光柱 = P0</div>
+        <div>扇区 = 领域 · 半径 = 首报时间 · 光柱 = P0</div>
       </div>
       <div style={{ ...box, right: 22, top: 18, textAlign: 'right' }}>
         <div><span style={{ color: 'var(--p0)', fontWeight: 700, fontSize: 13 }}>{hits}</span> 命中你的代码</div>

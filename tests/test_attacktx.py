@@ -109,9 +109,9 @@ def test_the_station_republishes_once_per_change():
                               item_ids=[], keys=[], tx=e["tx"]))
     changed = set()
     for _ in range(8):
-        changed |= set(attacktx.cycle(store, NOW, tape()))
+        changed |= set(attacktx.cycle(store, NOW, tape(), llama()))
     assert changed == {TRANCHE, ZKLINK}
-    assert attacktx.cycle(store, NOW, tape()) == []                            # nothing new ⇒ nothing republished
+    assert attacktx.cycle(store, NOW, tape(), llama()) == []                   # nothing new ⇒ nothing republished
 
 
 def test_the_event_document_carries_the_breakdown():
@@ -124,7 +124,7 @@ def test_the_event_document_carries_the_breakdown():
                item_ids=[], keys=[], tx=e["tx"])
     store.put_event(ev)
     for _ in range(3):
-        attacktx.cycle(store, NOW, tape())
+        attacktx.cycle(store, NOW, tape(), llama())
     doc = publish.event_doc(ev, store, NOW)
     assert doc["attack_txs"]["txs"][1]["tokens"][0]["gainer"]["amount"] == pytest.approx(1_013_353.611687)
 
@@ -133,7 +133,7 @@ def test_a_plain_native_transfer_shows_its_value_not_an_empty_table():
     """"682 ETH drained in under 2 hours": the verified tx has no ERC-20 log at all; the 200 ETH it sends is the fact."""
     _, _, doc = run("ev_afd1c1acf73f2445", tape())
     [tx] = doc["txs"]
-    assert tx["transfers"] == 0 and tx["native"] == {"symbol": "ETH", "amount": 200.0}
+    assert tx["transfers"] == 0 and tx["native"] == {"symbol": "ETH", "amount": 200.0, "usd": None}   # not priced yet
     _, _, tranche = run(TRANCHE, tape())
     assert all(t["native"] is None for t in tranche["txs"])                  # a contract call sending no coin: omitted
 
@@ -148,3 +148,65 @@ def test_the_shared_token_ledger_stays_bounded(monkeypatch):
     assert len(meta) == 10
     assert "avalanche|0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e" in meta          # the token just fetched is kept
     assert doc["txs"][1]["tokens"][0]["symbol"] == "USDC"
+
+
+# ★2 USD at the tx's block time — DefiLlama coins API responses recorded 2026-11-01 (tests/fixtures/attacktx/llama_prices.json)
+PRICES = json.loads((Path(__file__).parent / "fixtures" / "attacktx" / "llama_prices.json").read_text())
+
+
+def llama(fail=False, override=None):
+    asked = []
+
+    def price(ts, coins):
+        asked.append((ts, tuple(coins)))
+        if fail:
+            raise attacktx.fetch.FetchError("http_error", "Bad Gateway", 502, "https://coins.llama.fi/…")
+        got = {**PRICES.get(str(ts), {}), **(override or {})}
+        return {c: got[c] for c in coins if c in got}
+    price.asked = asked
+    return price
+
+
+def priced(eid, price, budget=50):
+    case, meta, _ = run(eid, tape())
+    used = attacktx.price_step(case, NOW, price, budget)
+    return case, used, attacktx.doc(case, meta)
+
+
+def test_the_tranche_drain_is_valued_at_its_block_time():
+    _, _, doc = priced(TRANCHE, llama())
+    usdc = doc["txs"][1]["tokens"][0]
+    assert usdc["gainer"]["usd"] == pytest.approx(1_013_353.611687 * 0.9993450547508778, abs=0.01)   # ≈ $1.0127M
+    assert "DefiLlama" in doc["price_source"]
+
+
+def test_prices_are_read_once_per_tx_within_the_budget():
+    price = llama()
+    case, used, _ = priced(ZKLINK, price, budget=1)
+    assert used == 1 and len(price.asked) == 1 and len([d for d in case["txs"].values() if "prices" in d]) == 1
+    assert attacktx.price_step(case, NOW, price, 5) == 1            # the other tx; the first is never asked again
+    assert attacktx.price_step(case, NOW, price, 5) == 0 and len(price.asked) == 2
+
+
+def test_a_low_confidence_or_missing_price_is_not_converted():
+    wbtc = "ethereum:0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"
+    low = {**PRICES["1793226095"][wbtc], "confidence": 0.5}
+    _, _, doc = priced(ZKLINK, llama(override={wbtc: low}))
+    by = {t["token"]: t for t in doc["txs"][0]["tokens"]}
+    assert by["0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"]["gainer"]["usd"] is None   # thin / unsure ⇒ no dollar figure
+    assert all(t["gainer"]["usd"] is None for t in doc["txs"][1]["tokens"])           # not in the recorded responses
+
+
+def test_a_failed_price_read_is_recorded_and_retried():
+    case, used, doc = priced(TRANCHE, llama(fail=True))
+    assert used == 2 and not any("prices" in d for d in case["txs"].values())
+    assert any("price" in e["error"] for e in case["errors"]) and doc["txs"][1]["tokens"][0]["gainer"]["usd"] is None
+    _, _, doc = priced(TRANCHE, llama())
+    assert doc["txs"][1]["tokens"][0]["gainer"]["usd"]
+
+
+def test_the_priced_section_validates_against_the_schema():
+    import jsonschema
+    schema = json.loads((Path(__file__).parents[1] / "schemas" / "site-data.schema.json").read_text())
+    _, _, doc = priced(ZKLINK, llama())
+    jsonschema.validate(doc, {"$ref": "#/$defs/AttackTxs", "$defs": schema["$defs"]})

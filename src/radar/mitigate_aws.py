@@ -59,13 +59,38 @@ def changelog_rows() -> list[mitigate.ChangelogRow] | dict[str, str]:
 
 
 def group_meta(group: str, scope: str = "CLOUDFRONT") -> dict[str, Any]:
-    """{labels, default_version} for an AWS managed group — {"error"} if either call fails."""
+    """{labels, rules, default_version} for an AWS managed group — {"error"} if either call fails. `rules` (the group's
+    rule names) is what lets a promoted plan keep every rule it does not name at Count (mitigate.waf_rule)."""
     try:
         d = _waf().describe_managed_rule_group(VendorName="AWS", Name=group, Scope=scope)
         v = _waf().list_available_managed_rule_group_versions(VendorName="AWS", Name=group, Scope=scope)
-        return {"labels": [lb["Name"] for lb in d.get("AvailableLabels") or []], "default_version": v.get("CurrentDefaultVersion")}
+        return {"labels": [lb["Name"] for lb in d.get("AvailableLabels") or []], "rules": [r["Name"] for r in d.get("Rules") or []],
+                "default_version": v.get("CurrentDefaultVersion")}
     except (ClientError, BotoCoreError) as e:
         return {"error": str(e)[:300]}
+
+
+# CheckCapacity answers these for a statement AWS will not accept — the rule is wrong, not the call (01-waf §5.1)
+_INVALID_RULE = ("WAFInvalidParameterException", "WAFNonexistentItemException", "WAFLimitsExceededException",
+                 "WAFInvalidResourceException", "WAFExpiredManagedRuleGroupVersionException", "WAFSubscriptionNotFoundException")
+
+
+def check_capacity(rules: list[dict[str, Any]], scope: str = "CLOUDFRONT") -> dict[str, Any]:
+    """P2 rule pack: read-only WCU of a reader's RuleGroup rules (also AWS's own syntax check). {"capacity": n} |
+    {"invalid": why} (AWS rejected a statement) | {"error": why} (the call failed — unchecked, retried next run)."""
+    try:
+        return {"capacity": int(_waf().check_capacity(Scope=scope, Rules=rules)["Capacity"])}
+    except ClientError as e:
+        code = (e.response.get("Error") or {}).get("Code", "")
+        return {"invalid": f"{code}: {str(e)[:280]}"} if code in _INVALID_RULE else {"error": str(e)[:300]}
+    except BotoCoreError as e:
+        return {"error": str(e)[:300]}
+
+
+def poc_get(url: str) -> str:
+    """nuclei-templates fetch for radar.pocs (https on its GitHub allowlist only)."""
+    from radar import pocs
+    return pocs.get(url)
 
 
 def _acl_id(ref: dict[str, str]) -> str:
@@ -101,8 +126,7 @@ def put_rules(ref: dict[str, str], acl: dict[str, Any], lock: str, rules: list[d
     kw: dict[str, Any] = {"Name": acl["Name"], "Scope": ref.get("scope", "CLOUDFRONT"), "Id": acl["Id"],
                           "DefaultAction": acl["DefaultAction"], "Rules": rules, "VisibilityConfig": acl["VisibilityConfig"],
                           "LockToken": lock}
-    for k in ("Description", "CustomResponseBodies", "CaptchaConfig", "ChallengeConfig", "TokenDomains",
-              "AssociationConfig"):
+    for k in mitigate.ACL_CARRY_FIELDS:
         if acl.get(k):
             kw[k] = acl[k]
     try:

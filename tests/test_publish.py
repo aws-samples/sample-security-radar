@@ -84,19 +84,61 @@ def test_published_response_impact_and_continuum_overview_validate():
         st = respond.apply(st, op, {"finding_id": "cf-1", "status": "SUBMITTED", "title": "t", "scan_run_id": "s",
                                     "code_review_id": "cr", "job_id": "cj", "ok": True}, "2026-10-23T04:00:00Z")
     store.put_response(php.event_id, st)
-    store.put_source_state("__continuum__", {"counters": {"requirements_synced": 1}, "reviews": ["2026-10-23T04:00:00Z"]})
+    store.put_source_state("__continuum__", {"counters": {"requirements_synced": 1}, "reviews": ["2026-10-23T04:00:00Z"],
+                                             "station": {"status": "configured", "at": "2026-10-23T04:00:00Z"}})
     docs = publish.build(store, FETCHED)
     validator = jsonschema.Draft202012Validator(SCHEMA, format_checker=jsonschema.FormatChecker())
-    for path in ("events.json", f"events/{php.event_id}.json", "continuum.json", "mitigate.json", "ops.json"):
+    bare = next(k for k in docs if k.startswith("events/") and docs[k]["response"] is None)   # no response state at all
+    for path in ("events.json", f"events/{php.event_id}.json", "continuum.json", "mitigate.json", "ops.json", bare):
         errors = sorted(validator.iter_errors(docs[path]), key=str)
         assert not errors, f"{path}: {errors[0].message}"
     d = docs[f"events/{php.event_id}.json"]
     row = next(e for e in docs["events.json"]["events"] if e["event_id"] == php.event_id)
     assert d["response"]["targets"][0]["verdict"] == "affected" and row["impact"]["status"] == "affected"
+    # 「响应决策」: every action of the radar.decisions table is on the page, with the rows respond.decide persisted
+    from radar import decisions
+    dec = {decisions.key(r): r for r in d["decisions"]}
+    assert {r["action"] for r in dec.values()} == {a.key for a in decisions.ACTIONS}
+    assert dec["sa_review:demo-shop"]["outcome"] == "fire" and dec["sa_review:demo-shop"]["evaluated_by"] == "respond"
+    assert dec["sa_review:demo-shop"]["result"] == "ok"   # the issued start_review succeeded (respond.apply marked it)
+    # an event the station never wrote state for (P2, another domain …) still shows every action — not a missing block
+    for k in (k for k in docs if k.startswith("events/")):
+        assert {r["action"] for r in docs[k]["decisions"]} == {a.key for a in decisions.ACTIONS}, k
+    assert all(r["gate"] for r in docs[bare]["decisions"] if r["action"] != "waf_stage")
     steps = {s["step"]: s for s in d["pipeline_steps"]}
     assert steps["impact_match"]["status"] == "running" and "1 个受影响" in steps["impact_match"]["detail"]
     c = docs["continuum.json"]
     assert c["recent"][0]["event_id"] == php.event_id and c["ledger"]["code_reviews_24h"] == 1
+    assert c["recent"][0]["impact"] == row["impact"]["status"] == "affected"
+
+
+def test_continuum_recent_says_unchecked_like_the_event_page_for_a_target_nobody_checked():
+    """Review of ff24559: the recent rows carried only the response status ('done') and the UI mapped done + 0 to
+    未命中 0/N — the live Node2Shell × security-radar case read 未检查 on the event page and 未命中 on #/continuum.
+    The row now carries respond.impact()'s status, the one authority both pages render."""
+    from radar import respond
+    from radar.model import Event
+    store = MemoryStore()
+    pipeline.ingest(snapshot_raws(), store, FETCHED)
+    php = next(Event.from_dict(e) for e in store.events.values() if "CVE-2026-109618" in e["cves"])
+    root = Path(__file__).parents[1] / "integrations" / "continuum" / "targets" / "wp-storefront"
+    wp = respond.Target("wp-storefront", "wp-storefront", "w",   # PHP image, no comparable pin ⇒ verdict unknown
+                        {f"wp-storefront/{p.relative_to(root)}": p.read_text() for p in root.rglob("*") if p.is_file()})
+    items = [{"title": i.title, "excerpt": i.text, "url": i.url, "source_name": i.source_id} for i in store.get_items(php.item_ids)]
+    view = {"event_id": php.event_id, "domain": php.domain, "title": php.title, "severity": "P0", "level": php.level,
+            "exploitation": php.exploitation, "cves": php.cves, "entities": php.entities,
+            "independent_sources": php.independent_sources, "first_seen": php.first_seen}
+    st, ops = respond.decide(view, items, None, None, [wp], respond.Budget(0, True, "2026-10-23"))
+    for op in ops:
+        if op.kind != "start_review":   # no budget left: the station blocks the review instead of starting it
+            st = respond.apply(st, op, {"ok": True}, "2026-10-23T04:00:00Z")
+    store.put_response(php.event_id, respond.block_review(st, "wp-storefront", 2))
+    docs = publish.build(store, FETCHED)
+    errors = sorted(jsonschema.Draft202012Validator(SCHEMA).iter_errors(docs["continuum.json"]), key=str)
+    assert not errors, errors[0].message
+    row = next(e for e in docs["events.json"]["events"] if e["event_id"] == php.event_id)
+    rec = next(r for r in docs["continuum.json"]["recent"] if r["event_id"] == php.event_id)
+    assert rec["status"] == "done" and rec["impact"] == row["impact"]["status"] == "unchecked"
 
 
 def test_continuum_ledger_carries_cost_and_a_failed_read_stays_visible():
@@ -151,4 +193,4 @@ def test_a_hack_database_record_is_the_drain_phase_a_kev_entry_has_none():
     for d in store.events.values():
         doc = publish.event_doc(pipeline.Event.from_dict(d), store, t)
         phases.update({i["source_id"]: i["phase"] for i in doc["items"]})
-    assert phases == {"defihacklabs": "drain", "cisa_kev": "other"}
+    assert phases == {"defihacklabs": "asset_transfer", "cisa_kev": "other"}

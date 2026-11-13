@@ -24,6 +24,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from radar import chain, timeutil
+from radar import wallets as exchange_wallets
 from radar.limits import Limits
 
 TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -59,13 +60,10 @@ BLOCK_S = {"ethereum": 12.0, "arbitrum": 0.25, "avalanche": 2.0, "base": 2.0, "b
 # eth_getLogs block span per call (public nodes reject wide spans; filtered by address + topics a span this size is small)
 SPAN = {"ethereum": 5_000, "arbitrum": 100_000, "avalanche": 50_000, "base": 50_000, "bsc": 20_000}   # bsc: 100k ⇒ -32005 limit exceeded
 
-# Publicly labelled exchange hot wallets (Etherscan public labels; the Binance 2026-10-29 reconstructions by Ondology Labs
-# and TRM name the same wallets). Matched on the event's entity / title token; a registry, not a code path.
+# Victim hot wallets per exchange: the `seed` entries of radar.wallets (Etherscan public labels; the Binance 2026-10-29
+# reconstructions by Ondology Labs and TRM name the same wallets). Matched on the event's entity / title token.
 WALLETS: dict[str, dict[str, dict[str, str]]] = {
-    "binance": {"ethereum": {"0x28c6c06298d514db089934071355e5743bf21d60": "Binance 14",
-                             "0xdfd5293d8e347dfe59e90efd55b2956a1343963d": "Binance 16",
-                             "0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055": "Binance Hot Wallet 34"}},
-}
+    ex.lower(): exchange_wallets.seeds(ex) for ex in sorted({w.exchange for w in exchange_wallets.ENTRIES if w.seed})}
 NOT_QUERIED = ("原生币（ETH / AVAX 等）的合约内部转出：公共节点不提供 trace",
                "历史时刻的 EIP-7702 委托状态：公共节点不提供归档状态（只查当前）",
                "非 EVM 链（Bitcoin / Tron / XRP Ledger / Solana）",
@@ -180,6 +178,8 @@ def _queries(case: dict[str, Any]) -> list[tuple[str, str, str, str]]:
     for a in case["evidence"]:
         q += [("out", ch, t.symbol, a) for ch in case.get("evidence_chains", ["ethereum"]) for t in TOKENS[ch]]
     for a, r in case["receivers"].items():
+        if exchange_wallets.lookup(r["chain"], a):   # an exchange is a terminal (a case may predate the registry): never followed
+            continue
         q += [("out", r["chain"], t.symbol, a) for t in TOKENS.get(r["chain"], ())]
     return q
 
@@ -195,6 +195,8 @@ def _label(case: dict[str, Any], ch: str, a: str) -> str:
         return case["receivers"][a]["label"]
     if a in (case.get("attackers") or {}):
         return f"攻击发起地址 {a[:6]}…{a[-4:]}"
+    if w := exchange_wallets.lookup(ch, a):
+        return exchange_wallets.label(w)
     return f"{a[:6]}…{a[-4:]}"
 
 
@@ -289,27 +291,37 @@ def _ingest_log(case: dict[str, Any], kind: str, ch: str, tok: Token, addr: str,
             return
         to = _addr(lg["topics"][2])
         is_victim = addr in case["victims"].get(ch, {})
-        if to not in case["receivers"] and to not in case["victims"].get(ch, {}) and len(case["receivers"]) < Limits.ONCHAIN_MAX_DOWNSTREAM \
-                and not to[2:].startswith("0" * 30):
+        exchange = exchange_wallets.lookup(ch, to) if to not in case["victims"].get(ch, {}) else None
+        # an exchange wallet is where the money is cashed out or deposited: a terminal, not a receiver to follow (it
+        # would take one of the ONCHAIN_MAX_DOWNSTREAM slots and its outflows are the exchange's customers')
+        if not exchange and to not in case["receivers"] and to not in case["victims"].get(ch, {}) \
+                and len(case["receivers"]) < Limits.ONCHAIN_MAX_DOWNSTREAM and not to[2:].startswith("0" * 30):
             hop = 1 if is_victim or addr in case["evidence"] or addr in (case.get("attackers") or {}) \
                 else case["receivers"].get(addr, {}).get("hop", 0) + 1
             if hop <= 2:
                 case["receivers"][to] = {"chain": ch, "hop": hop, "first_at": ts, "label": f"接收方 {to[:6]}…{to[-4:]}"}
         row = {"id": rid, "t": ts, "kind": "outflow", "chain": ch, "tx": lg["transactionHash"], "token": tok.symbol,
                "amount": round(value, 2), "from": addr, "to": to, "from_label": _label(case, ch, addr), "to_label": _label(case, ch, to)}
+        if exchange:
+            row["to_exchange"] = exchange.exchange
     case["rows"].append(row)
     seen.add(rid)
+
+
+def victim_set(case: dict[str, Any] | None) -> set[str]:
+    """Every victim wallet address of a case (all chains); empty when there is no case."""
+    return {a for w in (case or {}).get("victims", {}).values() for a in w}
 
 
 def doc(case: dict[str, Any] | None) -> dict[str, Any] | None:
     """The published `onchain` section of an event document (sorted rows, totals, coverage, limits)."""
     if not case:
         return None
-    wallets = {a for w in case["victims"].values() for a in w} | set(case["receivers"]) | set(case["evidence"]) \
-        | set(case.get("attackers") or {})
+    victims = victim_set(case)
+    wallets = victims | set(case["receivers"]) | set(case["evidence"]) | set(case.get("attackers") or {})
     freezes = [{**f, "label": _label(case, f["chain"], f["address"])} for f in case.get("freezes", []) if f["address"] in wallets]
     rows = sorted([*case["rows"], *freezes], key=lambda r: (r["t"], r["id"]))
-    short = resolve([tuple(x) for x in case["short"]], [*case["receivers"], *(a for w in case["victims"].values() for a in w)])
+    short = resolve([tuple(x) for x in case["short"]], [*case["receivers"], *victims])
     for r in rows:
         for side in ("from", "to", "address"):
             a = r.get(side)
@@ -317,15 +329,19 @@ def doc(case: dict[str, Any] | None) -> dict[str, Any] | None:
                 r[f"{side}_evidence"] = short[a]        # the shortened form a report used for this address
     out_by: dict[str, float] = {}
     frozen_by: dict[str, int] = {}
+    into_ex: dict[str, float] = {}
     for r in rows:
-        if r["kind"] == "outflow" and r["from"] in {a for w in case["victims"].values() for a in w}:
+        if r["kind"] == "outflow" and r["from"] in victims:
             out_by[r["token"]] = round(out_by.get(r["token"], 0) + r["amount"], 2)
+        # cash-out: funds leaving the attacker's side into an exchange (a victim exchange moving its own funds is not one)
+        if r["kind"] == "outflow" and r.get("to_exchange") and r["from"] not in victims:
+            into_ex[r["to_exchange"]] = round(into_ex.get(r["to_exchange"], 0) + r["amount"], 2)
         if r["kind"] == "freeze":
             frozen_by[r["issuer"]] = frozen_by.get(r["issuer"], 0) + 1
     checked = sorted({k.split("|")[1] for k in case["cursors"]})
     return {"window": case["window"], "rows": rows,
             "totals": {"victim_outflow_by_token": out_by, "freezes_by_issuer": frozen_by,
-                       "receivers": len(case["receivers"])},
+                       "receivers": len(case["receivers"]), "exchange_inflow_by_exchange": into_ex},
             "delegation": [{"address": a, "label": _label(case, d["chain"], a), **d} for a, d in sorted(case["delegation"].items())],
             "coverage": {"chains_checked": checked, "tokens": {ch: [t.symbol for t in toks] for ch, toks in TOKENS.items() if ch in checked}},
             "not_queried": list(NOT_QUERIED), "errors": case["errors"][-5:],
@@ -347,7 +363,7 @@ def cycle(store: Any, now: datetime, call: Callable[[str, str, list[Any]], Any] 
     since = timeutil.iso(now - timedelta(days=Limits.ONCHAIN_ACTIVE_DAYS))
     from radar import attacktx  # local: attacktx imports chain only, no cycle
     att = {e.event_id: attacktx.attackers(store.get_source_state(attacktx.case_key(e.event_id)))
-           for e in store.events_updated_since(since) if e.domain == "web3" and e.severity == "P1" or e.severity == "P0"}
+           for e in store.events_updated_since(since) if e.domain == "web3" and e.severity in ("P0", "P1")}
     evs = sorted((e for e in store.events_updated_since(since) if eligible(e, now, att.get(e.event_id))),
                  key=lambda e: e.first_seen, reverse=True)
     idx = store.get_source_state(INDEX)

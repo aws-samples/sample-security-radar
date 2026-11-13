@@ -20,6 +20,14 @@ d('onchain view', () => {
   it('summarises outflow by token, freezes by issuer, delegations found', () => {
     const o = { totals: { victim_outflow_by_token: { USDC: 8.23e8, USDT: 1.87e9 }, freezes_by_issuer: { Tether: 4, Circle: 3 }, receivers: 3 },
       delegation: [{ delegate: null }, { delegate: '0x63e8' }] } as unknown as Onchain;
-    expect(summary(o)).toEqual({ outflow: [['USDT', 1.87e9], ['USDC', 8.23e8]], freezes: [['Tether', 4], ['Circle', 3]], delegated: 1, checked: 2 });
+    expect(summary(o)).toEqual({ outflow: [['USDT', 1.87e9], ['USDC', 8.23e8]], freezes: [['Tether', 4], ['Circle', 3]], exchanges: [],
+      delegated: 1, checked: 2 });
+  });
+  it('marks a flow into an exchange and totals the cash-out per exchange', () => {
+    const r = { kind: 'outflow', from_label: '接收方 0x5227…2f8c', to_label: '交易所 OKX 10', to_exchange: 'OKX' } as OnchainRow;
+    expect(describe(r).kind).toBe('转出 · 进入交易所 OKX');
+    const o = { totals: { victim_outflow_by_token: {}, freezes_by_issuer: {}, receivers: 1, exchange_inflow_by_exchange: { Bybit: 2e7, OKX: 5e7 } },
+      delegation: [] } as unknown as Onchain;
+    expect(summary(o).exchanges).toEqual([['OKX', 5e7], ['Bybit', 2e7]]);
   });
 });

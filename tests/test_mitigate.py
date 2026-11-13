@@ -57,8 +57,7 @@ def test_b1_php2shell_maps_to_php_rule_set_at_least_2_4_with_both_rules():
     assert {"PHP2Shell_BODY", "PHP2Shell_BODY_Extended"} <= set(plan.rules)
     assert set(plan.labels) == {"awswaf:managed:aws:php-app:PHP2Shell_Body", "awswaf:managed:aws:php-app:PHP2Shell_Body_Extended"}
     rule = M.waf_rule(plan, 0)
-    counted = {o["Name"] for o in rule["Statement"]["ManagedRuleGroupStatement"]["RuleActionOverrides"]}
-    assert counted == set(plan.rules) and rule["OverrideAction"] == {"None": {}}
+    assert rule["OverrideAction"] == {"Count": {}}   # staged: the whole group counts (W1), not just the named rules
     assert "Version" not in rule["Statement"]["ManagedRuleGroupStatement"]   # default version (AWS recommendation)
 
 
@@ -89,11 +88,45 @@ def test_cwe_tier_is_advisory_never_applied():
     assert "通用" in plans[0].reason
 
 
-def test_block_rendering_drops_every_count_override():
-    (plan,) = [p for p in M.waf_plans(PHP2SHELL, TARGETS[:1], CATALOG, {}, LABELS)]
-    rule = M.waf_rule(plan, 0, block=True)
-    assert "RuleActionOverrides" not in rule["Statement"]["ManagedRuleGroupStatement"]
-    assert rule["OverrideAction"] == {"None": {}}
+def _effective(rule, group_rules):
+    """Rule name → the action AWS WAF takes for it under this web ACL rule. OverrideAction Count turns every rule of the
+    group into Count; with OverrideAction None each rule acts at its own action (Block for these groups) unless a
+    RuleActionOverrides entry names it."""
+    if "Count" in rule["OverrideAction"]:
+        return {r: "Count" for r in group_rules}
+    stmt = rule["Statement"]["ManagedRuleGroupStatement"]
+    ov = {o["Name"]: next(iter(o["ActionToUse"])) for o in stmt.get("RuleActionOverrides") or []}
+    return {r: ov.get(r, "Block") for r in group_rules}
+
+
+# every appliable plan shape the registry produces: cve tier (PHP2Shell names 2 of the PHP rules, CVE-2023-22518 names 1
+# of the 12 Known bad inputs rules) and product tier (WordPress, whole group)
+W1_EVENTS = [PHP2SHELL, {"event_id": "kbi", "cves": ["CVE-2023-22518"]},
+             {"event_id": "wp", "product": "wordpress", "cves": ["CVE-2099-0001"]}]
+
+
+def test_w1_staged_counts_every_rule_of_the_group_and_promotion_blocks_only_the_named_rules():
+    """Live bug (docs/research/action/01-waf.md Bug-1): staging rendered OverrideAction None + Count on the named rules,
+    so the group's OTHER rules blocked with nobody's confirmation — PHP2Shell staging blocked the 4
+    PHPHighRiskMethodsVariables_* rules, CVE-2023-22518 staging blocked 11 Known bad inputs rules."""
+    plans = [p for ev in W1_EVENTS for p in M.waf_plans(ev, TARGETS[:1], CATALOG, {}, LABELS) if p.appliable]
+    assert {(p.tier, p.group) for p in plans} == {("cve", "AWSManagedRulesPHPRuleSet"),
+                                                  ("cve", "AWSManagedRulesKnownBadInputsRuleSet"),
+                                                  ("product", "AWSManagedRulesWordPressRuleSet")}
+    for plan in plans:
+        every = GROUPS[plan.group]["rules"]
+        staged = _effective(M.waf_rule(plan, 0), every)
+        assert set(staged.values()) == {"Count"}, (plan.group, sorted(r for r, a in staged.items() if a != "Count"))
+        promoted = _effective(M.waf_rule(plan, 0, block=True, group_rules=every), every)
+        blocks = {r for r, a in promoted.items() if a == "Block"}
+        assert blocks == (set(plan.rules) & set(every) if plan.rules else set(every)), plan.group
+        assert blocks, plan.group
+
+
+def test_w1_promoting_a_named_rule_plan_without_the_group_rule_list_is_refused():
+    (plan,) = M.waf_plans(PHP2SHELL, TARGETS[:1], CATALOG, {}, LABELS)
+    with pytest.raises(ValueError):
+        M.waf_rule(plan, 0, block=True)   # cannot tell which rules to keep at Count ⇒ never render a blind Block
 
 
 # ---------------------------------------------------------------- check (read-only state of a web ACL)
@@ -101,18 +134,54 @@ def _acl(*rules):
     return {"Name": "x", "Rules": list(rules)}
 
 
+PHP_RULES = GROUPS["AWSManagedRulesPHPRuleSet"]["rules"]
+
+
 def test_check_states():
     (plan,) = M.waf_plans(PHP2SHELL, TARGETS[:1], CATALOG, {}, LABELS)
     staged = M.waf_rule(plan, 0)
+    blocking = M.waf_rule(plan, 0, block=True, group_rules=PHP_RULES)
     assert M.waf_check(plan, _acl(), "Version_2.5")["state"] == "absent"
     assert M.waf_check(plan, _acl(staged), "Version_2.5")["state"] == "staged"
-    assert M.waf_check(plan, _acl(M.waf_rule(plan, 0, block=True)), "Version_2.5")["state"] == "blocking"
+    assert M.waf_check(plan, _acl(blocking), "Version_2.5")["state"] == "blocking"
     pinned = json.loads(json.dumps(staged))
     pinned["Statement"]["ManagedRuleGroupStatement"]["Version"] = "Version_2.3"
     assert M.waf_check(plan, _acl(pinned), "Version_2.5")["state"] == "too_old"
-    assert M.waf_check(plan, _acl(M.waf_rule(plan, 0, block=True)), "Version_2.2")["state"] == "too_old"   # stale default
-    counted = {**M.waf_rule(plan, 0, block=True), "OverrideAction": {"Count": {}}}
+    assert M.waf_check(plan, _acl(blocking), "Version_2.2")["state"] == "too_old"   # stale default
+    # someone else's rule counting the whole group: nothing blocks, and it is not the radar's stage (nobody promotes it)
+    counted = {**blocking, "Name": "ops-php", "OverrideAction": {"Count": {}}}
     assert M.waf_check(plan, _acl(counted), "Version_2.5")["state"] == "group_counted"
+    # the pre-W1 staged shape: named rules Count, the group's other rules at their own action ⇒ never reported as staged
+    old = {**blocking, "OverrideAction": {"None": {}},
+           "Statement": {"ManagedRuleGroupStatement": {"VendorName": "AWS", "Name": plan.group, "RuleActionOverrides":
+                                                       [{"Name": r, "ActionToUse": {"Count": {}}} for r in plan.rules]}}}
+    assert M.waf_check(plan, _acl(old), "Version_2.5")["state"] == "rules_counted"
+    schema = json.loads((ROOT / "schemas" / "site-data.schema.json").read_text())
+    enum = schema["$defs"]["MitigationPlan"]["properties"]["state"]["enum"]
+    assert set(enum) == set(M.CHECK_STATES) | {"no_web_acl", "unchecked"}   # the page can render every state check says
+
+
+def test_w2_plans_on_one_group_merge_into_one_rule():
+    """Live bug (01-waf.md Bug-2): plans of two events on the same web ACL × group were deduplicated by group, the later
+    one replacing the earlier — the rule was rendered for the later plan's rules only."""
+    (a,) = M.waf_plans({"event_id": "a", "cves": ["CVE-2022-42889"]}, TARGETS[:1], CATALOG, {}, LABELS)
+    (b,) = M.waf_plans({"event_id": "b", "cves": ["CVE-2023-22515"]}, TARGETS[1:2], CATALOG, {}, LABELS)
+    assert a.group == b.group == "AWSManagedRulesKnownBadInputsRuleSet" and not set(a.rules) & set(b.rules)
+    for m in (M.merge_plans([a, b]), M.merge_plans([b, a])):
+        assert (m.group, set(m.rules), set(m.cves)) == (a.group, set(a.rules) | set(b.rules), set(a.cves) | set(b.cves))
+        assert set(m.labels) == set(a.labels) | set(b.labels)
+    # a whole-group plan in the mix ⇒ the merged plan is the whole group, named after the most specific tier
+    (w,) = M.waf_plans({"event_id": "w", "product": "php", "cves": []}, TARGETS[:1], CATALOG, {}, LABELS)
+    (p,) = M.waf_plans(PHP2SHELL, TARGETS[:1], CATALOG, {}, LABELS)
+    for m in (M.merge_plans([p, w]), M.merge_plans([w, p])):
+        assert (m.rules, m.tier) == ((), "cve")
+
+
+def test_w4_rule_json_for_pasting_has_a_distinct_priority_per_group():
+    """A rule copied into the user's own web ACL cannot know their priorities (Bug-5: a fixed 0 collides with the rule most
+    hand-built ACLs start at). The placeholder is distinct per group, so radar rules pasted together never collide."""
+    prios = [M.paste_priority(g) for g in M.WAF_GROUPS]
+    assert len(set(prios)) == len(prios) and min(prios) >= M.PASTE_PRIORITY_BASE > 0
 
 
 def test_b8_every_plan_surface_says_mitigation_is_not_a_fix():
@@ -147,11 +216,11 @@ def test_merge_adds_staged_rule_after_existing_priorities_and_keeps_foreign_rule
 def test_merge_promotes_in_place_and_never_touches_foreign_rules():
     (plan,) = M.waf_plans(PHP2SHELL, TARGETS[:1], CATALOG, {}, LABELS)
     staged = M.merge_acl_rules([FOREIGN], [(plan, False)])
-    out = M.merge_acl_rules(staged, [(plan, True)])
+    out = M.merge_acl_rules(staged, [(plan, True)], {plan.group: PHP_RULES})
     assert out[0] == FOREIGN and out[1]["Priority"] == staged[1]["Priority"]
     assert M.waf_check(plan, {"Rules": out}, "Version_2.5")["state"] == "blocking"
     # a foreign rule that happens to use the same managed group is left alone (the radar only writes radar-*)
-    theirs = {**M.waf_rule(plan, 1, block=True), "Name": "their-php-rules"}
+    theirs = {**M.waf_rule(plan, 1, block=True, group_rules=PHP_RULES), "Name": "their-php-rules"}
     out2 = M.merge_acl_rules([theirs], [(plan, False)])
     assert out2[0] == theirs and out2[1]["Name"].startswith(M.RADAR_RULE_PREFIX)
 
@@ -189,3 +258,52 @@ def test_dns_diff_creates_updates_and_never_touches_foreign_rules():
 def test_dns_domain_list_always_carries_the_canary():
     assert M.dns_domains({}) == [M.DNS_CANARY]
     assert M.dns_domains({"e1": ["b.top", "a.xyz"], "e2": ["a.xyz"]}) == ["a.xyz", "b.top", M.DNS_CANARY]
+
+
+# --- R4.1: a promotion covers what the human approved, not what the plan becomes later -------------------------------
+
+def _plan(rules, tier="cve"):
+    return M.WafPlan("demo-shop", tier, "AWSManagedRulesPHPRuleSet", tuple(rules), None, "r")
+
+
+def test_a_promotion_is_pinned_to_the_rules_approved_and_a_later_whole_group_plan_does_not_widen_it():
+    """Audit 04 §6.1 (reproduced), and live on the demo ACL since 2026-11: the ledger kept {by, at} per rule name. Neo
+    promoted the PHP rule for the two PHP2Shell rules; a later event added a whole-group plan for the same group, the
+    plans merged to "whole group", and the promoted rule blocked every rule of the group — a decision nobody made."""
+    approved = {"by": "ops", "at": "2026-11-01T07:48:57Z", "rules": ["PHP2Shell_BODY", "PHP2Shell_BODY_Extended"]}
+    grown = M.merge_plans([_plan(approved["rules"]), _plan((), "product")])
+    assert grown.rules == ()                                                  # the merged plan now asks for the whole group
+    plan, beyond = M.pinned(grown, approved, named=tuple(approved["rules"]))
+    assert plan.rules == ("PHP2Shell_BODY", "PHP2Shell_BODY_Extended") and beyond == "whole group"
+    rule = M.waf_rule(plan, 1, block=True, group_rules=["PHP2Shell_BODY", "PHP2Shell_BODY_Extended", "PHPHighRisk_A", "PHPHighRisk_B"])
+    counted = {o["Name"] for o in rule["Statement"]["ManagedRuleGroupStatement"]["RuleActionOverrides"]}
+    assert counted == {"PHPHighRisk_A", "PHPHighRisk_B"}                      # everything not approved still only counts
+
+
+def test_pinned_reports_new_rules_and_leaves_an_unchanged_or_whole_group_approval_alone():
+    two = {"by": "n", "at": "t", "rules": ["A", "B"]}
+    plan, beyond = M.pinned(_plan(["A", "B", "C"]), two, named=("A", "B", "C"))
+    assert plan.rules == ("A", "B") and beyond == "C"
+    assert M.pinned(_plan(["A", "B"]), two, named=("A", "B")) == (_plan(["A", "B"]), None)
+    assert M.pinned(_plan(["A"]), two, named=("A",))[0].rules == ("A", "B")          # never demoted on its own
+    whole = {"by": "n", "at": "t", "rules": []}
+    assert M.pinned(_plan(()), whole, named=()) == (_plan(()), None)                   # the whole group was approved
+
+
+def test_a_promotion_from_before_pinning_covers_the_named_rules_not_a_whole_group_that_came_later():
+    """The live row: {"by": "ops", "at": …} and no "rules". What was approved is unknown; the narrow reading is taken —
+    the rules the plans name today — and the whole-group part is reported as waiting for a decision."""
+    old = {"by": "ops", "at": "2026-11-01T07:48:57Z"}
+    plan, beyond = M.pinned(_plan(()), old, named=("PHP2Shell_BODY", "PHP2Shell_BODY_Extended"))
+    assert plan.rules == ("PHP2Shell_BODY", "PHP2Shell_BODY_Extended") and beyond == "whole group"
+    assert M.pinned(_plan(()), old, named=()) == (_plan(()), None)      # only ever a whole-group plan: that was it
+
+
+def test_what_a_promotion_records_is_what_the_plans_ask_for_at_that_moment():
+    rows = [{"web_acl": "acl", "group": "G", "appliable": True, "rules": ["A"]},
+            {"web_acl": "acl", "group": "G", "appliable": True, "rules": ["B", "A"]},
+            {"web_acl": "acl", "group": "G", "appliable": False, "rules": []},          # advice only: not what is applied
+            {"web_acl": "other", "group": "G", "appliable": True, "rules": []}]
+    assert M.promotion_scope(rows, "acl", "G") == ["A", "B"]
+    assert M.promotion_scope([*rows, {"web_acl": "acl", "group": "G", "appliable": True, "rules": []}], "acl", "G") == []
+    assert M.promotion_scope(rows, "acl", "H") is None                             # nothing to approve

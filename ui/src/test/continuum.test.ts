@@ -6,7 +6,7 @@
  *   - coverageScore: put needs_user back in the denominator ⇒ "same definition as coverage.py" red
  *   - coverageScore: Math.round instead of Math.floor       ⇒ "199/200 is not 100%" red
  *   - sortCapabilities: drop STATUS_ORDER                   ⇒ "missing first" red
- *   - recentImpact: map done ⇒ affected unconditionally     ⇒ "done + 0 ⇒ not_affected" red
+ *   - recentImpact: map done ⇒ not_affected again            ⇒ "done + a target nobody checked reads 未检查" red
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
@@ -17,6 +17,7 @@ import {
   resourcesByRegion, uploadAge, inventoryRows, kindWord, heroView, otherServicesLine, classifyContinuumResponse,
   statusChip, hhmm, RECENT_STATUS, costView, usd, channelLine,
 } from '@/utils/continuum';
+import { impactView } from '@/utils/response';
 
 const doc = JSON.parse(readFileSync(resolve(__dirname, '../../mock-data/data/continuum.json'), 'utf-8'));
 const COV: Capability[] = doc.coverage;
@@ -83,22 +84,23 @@ describe('capability ordering', () => {
 });
 
 describe('recentImpact', () => {
-  const r = (status: ContinuumRecent['status'], affected: number): ContinuumRecent =>
-    ({ event_id: 'e', title: 't', severity: 'P0', status, affected, checked: 2, updated_at: '2026-10-23T17:20:00Z' });
-  it('done + affected>0 ⇒ affected; done + 0 ⇒ not_affected; others 1:1', () => {
-    expect(recentImpact(r('done', 1))).toEqual({ status: 'affected', affected: 1, checked: 2 });
-    expect(recentImpact(r('done', 0))).toEqual({ status: 'not_affected', affected: 0, checked: 2 });
-    expect(recentImpact(r('running', 0)).status).toBe('running');
-    expect(recentImpact(r('failed', 0)).status).toBe('failed');
+  const r = (status: ContinuumRecent['status'], affected: number, impact: ContinuumRecent['impact']): ContinuumRecent =>
+    ({ event_id: 'e', title: 't', severity: 'P0', status, impact, affected, checked: 2, updated_at: '2026-10-23T17:20:00Z' });
+  it('renders the published impact (respond.impact, same authority as the event page), not a mapping of status', () => {
+    expect(recentImpact(r('done', 1, 'affected'))).toEqual({ status: 'affected', affected: 1, checked: 2 });
+    expect(recentImpact(r('done', 0, 'not_affected'))).toEqual({ status: 'not_affected', affected: 0, checked: 2 });
+    expect(recentImpact(r('running', 1, 'affected')).status).toBe('affected');
+    expect(recentImpact(r('failed', 0, 'failed')).status).toBe('failed');
   });
-  it('an affected target wins even mid-run (same rule as impactFromResponse)', () => {
-    expect(recentImpact(r('running', 1))).toEqual({ status: 'affected', affected: 1, checked: 2 });
-    expect(recentImpact(r('queued', 1)).status).toBe('affected');
-    expect(recentImpact(r('failed', 1)).status).toBe('failed');
+  it('done + a target nobody checked reads 未检查 like the event page, never the green 未命中 (live Node2Shell × node:24)', () => {
+    const imp = recentImpact(r('done', 0, 'unchecked'));
+    expect(imp).toEqual({ status: 'unchecked', affected: 0, checked: 2 });
+    expect(impactView(imp, 'detail')!.label).not.toContain('未命中');
   });
-  it('done with checked=0 is not a green 未命中: not_affected/0 ⇒ impactView renders 无可检查目标', () => {
-    const z: ContinuumRecent = { ...r('done', 0), checked: 0 };
-    expect(recentImpact(z)).toEqual({ status: 'not_affected', affected: 0, checked: 0 });
+  it('a row published before `impact` existed never claims 未命中: affected stays 命中, anything else 未检查', () => {
+    const legacy = (x: ContinuumRecent) => { const { impact: _, ...rest } = x; return rest as ContinuumRecent; };
+    expect(recentImpact(legacy(r('done', 1, 'affected'))).status).toBe('affected');
+    expect(recentImpact(legacy(r('done', 0, 'not_affected'))).status).toBe('unchecked');
   });
   it('done reads 定位完成, not 完成 (Recent has no per-service state)', () => {
     expect(RECENT_STATUS.done).toBe('定位完成');

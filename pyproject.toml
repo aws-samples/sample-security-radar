@@ -1,6 +1,6 @@
 [project]
 name = "security-radar"
-version = "1.0.0"
+version = "1.2.0"
 license = "MIT-0"
 description = "Serverless security incident radar (IT vulns + Web3 hacks) with code-computed verification levels"
 requires-python = ">=3.12"

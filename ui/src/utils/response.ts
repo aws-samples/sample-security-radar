@@ -46,6 +46,10 @@ export function impactView(impact: ImpactSummary | null | undefined, context: 'l
         return { tone: 'muted', glyph: '○', label: '无可检查目标', sr: '在你的环境中：没有可检查的目标（未做判定）', live: false };
       }
       return { tone: 'ok', glyph: '◇', label: `未命中 0/${checked}`, sr: `在你的环境中：未命中，已检查 ${checked}`, live: false };
+    case 'unchecked':
+      // A relevant target was NOT looked at (version not comparable, review blocked / failed). Must never read as
+      // the green 未命中 — the publisher said not_affected for these until 2026-11-11 (live: Node2Shell × node:24).
+      return { tone: 'warn', glyph: '○', label: `未检查 ·/${checked}`, sr: `在你的环境中：未检查（有相关目标未能检查），目标 ${checked} 个`, live: false };
     case 'queued':
     case 'running':
       return { tone: 'info', glyph: '◌', label: `检查中 ·/${checked}`, sr: `在你的环境中：检查中，目标 ${checked} 个`, live: status === 'running' };
@@ -62,7 +66,7 @@ export function impactView(impact: ImpactSummary | null | undefined, context: 'l
  * Response → the ImpactSummary it implies. Deliberately the same rule as the publisher's `impact()` in
  * src/radar/respond.py (authority; this copy exists so the detail page can reconcile a stale chip):
  * checked = every target considered (incl. skipped-as-irrelevant), an affected target wins even mid-run,
- * pending targets / queued|running ⇒ running.
+ * pending targets / queued|running ⇒ running, then failed, then any unknown target ⇒ unchecked (never not_affected).
  */
 export function impactFromResponse(r: Response): ImpactSummary {
   if (r.status === 'not_eligible') return { status: 'not_eligible', affected: 0, checked: 0 };
@@ -70,7 +74,8 @@ export function impactFromResponse(r: Response): ImpactSummary {
   const status: ImpactSummary['status'] =
     affected > 0 ? 'affected'
       : r.targets.some(t => t.verdict === 'pending') || r.status === 'running' || r.status === 'queued' ? 'running'
-        : r.status === 'failed' ? 'failed' : 'not_affected';
+        : r.status === 'failed' ? 'failed'
+          : r.targets.some(t => t.verdict === 'unknown') ? 'unchecked' : 'not_affected';
   return { status, affected, checked: r.targets.length };
 }
 
@@ -137,8 +142,15 @@ export function responseBluf(r: Response | null | undefined): Bluf {
   switch (r.status) {
     case 'not_eligible':
       return { tone: 'muted', text: `不触发环境检查 · ${r.reason}` };
-    case 'failed':
+    case 'failed': {
+      // a failed review/scan next to a located hit: the hit is still the headline, the failure its qualifier
+      const t = sortTargets(r.targets).find(x => x.verdict === 'affected');
+      if (t) {
+        const { affected: a, checked: c } = impactFromResponse(r);
+        return { tone: 'loss', text: `◆ 命中 ${a} / ${c} 个目标 · ${t.name}`, tail: { tone: 'warn', text: `⚠ 有检查动作失败 · ${r.reason}` } };
+      }
       return { tone: 'warn', text: `⚠ 环境检查失败 · ${r.reason}` };
+    }
     case 'queued':
     case 'running': {
       const done = r.actions.filter(a => a.status === 'done').length;
@@ -157,6 +169,16 @@ export function responseBluf(r: Response | null | undefined): Bluf {
       }
       const skipped = r.targets.filter(t => !t.relevant).length;
       const tail = continuumTail(r);
+      const unknown = r.targets.filter(t => t.verdict === 'unknown');
+      if (unknown.length > 0) {
+        // 没查 ≠ 查过没事: an unknown target is named, with the reason the publisher gave
+        const clean = c - skipped - unknown.length;
+        return {
+          tone: 'warn',
+          text: `○ ${unknown.length} 个相关目标未检查（${unknown[0].name}：${unknown[0].detail}）${clean > 0 ? ` · ${clean} 个已检查未命中` : ''}${skipped > 0 ? ` · 另 ${skipped} 个与产品无关已跳过` : ''}`,
+          ...(tail ? { tail } : {}),
+        };
+      }
       return { tone: 'ok', text: `◇ 已检查 ${c - skipped} 个相关目标，均未命中${skipped > 0 ? ` · 另 ${skipped} 个与产品无关已跳过` : ''}`, ...(tail ? { tail } : {}) };
     }
   }

@@ -1,0 +1,61 @@
+{
+ "retCode": 0,
+ "retMsg": "OK",
+ "result": {
+  "list": [
+   {
+    "title": "This November, Make Every Day Black Friday: Spend With Bybit Card Or Bybit Pay",
+    "description": "Spend with Bybit Card or Bybit Pay from Nov 1 to Nov 30, 2026, to earn lucky draw entries. Every valid entry wins a reward, subject to availability.",
+    "type": {
+     "key": "latest_bybit_news",
+     "title": "Latest Bybit News"
+    },
+    "tags": [
+     "Bybit Pay",
+     "Bybit Card"
+    ],
+    "url": "https://announcements.bybit.com/en-US/article/this-november-make-every-day-black-friday-spend-with-bybit-card-or-bybit-pay--arta4c2b9edcdf2/",
+    "dateTimestamp": 1793664000000,
+    "startDateTimestamp": 1793664000000,
+    "endDateTimestamp": 1795996800000,
+    "publishTime": 1793788515000
+   },
+   {
+    "title": "[Fiat Welcome Offer] Deposit, Trade, and Earn 10 USDT on Bybit!",
+    "description": "[Fiat Welcome Offer] Deposit, Trade, and Earn 10 USDT on Bybit!",
+    "type": {
+     "key": "latest_activities",
+     "title": "Latest Campaigns"
+    },
+    "tags": [
+     "Fiat Deposit"
+    ],
+    "url": "https://announcements.bybit.com/en-US/article/fiat-welcome-offer-deposit-trade-and-earn-10-usdt-on-bybit--art82e3ac8aa3af/",
+    "dateTimestamp": 1793664000000,
+    "startDateTimestamp": 1793664000000,
+    "endDateTimestamp": 1795996800000,
+    "publishTime": 1793788574000
+   },
+   {
+    "title": "TradFi CFD Demo Trading Is Now Available on Bybit",
+    "description": "TradFi CFD Demo Trading is available on Bybit.",
+    "type": {
+     "key": "latest_bybit_news",
+     "title": "Latest Bybit News"
+    },
+    "tags": [
+     "TradFi",
+     "Derivatives"
+    ],
+    "url": "https://announcements.bybit.com/en-US/article/tradfi-cfd-demo-trading-is-now-available-on-bybit--artd0eff6efe2dc/",
+    "dateTimestamp": 1793664000000,
+    "startDateTimestamp": 1793664000000,
+    "endDateTimestamp": 1795996800000,
+    "publishTime": 1793788621000
+   }
+  ],
+  "total": 9118
+ },
+ "retExtInfo": {},
+ "time": 1794241223393
+}

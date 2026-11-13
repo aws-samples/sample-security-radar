@@ -207,3 +207,23 @@ def test_the_cycle_rpc_wall_clock_is_bounded(monkeypatch):
         chain.rpc_call(chain.RPC["ethereum"], "eth_blockNumber", [])
     assert len(tried) == 1
     chain.start_cycle(budget_s=None)                                                    # tests elsewhere: unbounded
+
+
+def test_a_node_outage_does_not_use_up_the_tx_checks():
+    """Audit 04 §5.1: `attempts` was incremented before the call and an RPC error counted — three errors (an 18-hour
+    node outage at 6-hour back-off) and a real attack transaction stayed `unchecked` for good, with only check_error
+    to show for it. Only an answer from the node counts as an attempt."""
+    def down(url, method, params):
+        raise chain.RpcError("rpc_unreachable: timed out")
+    t = {"chain": "ethereum", "hash": TX}
+    for k in range(Limits.CHAIN_MAX_ATTEMPTS + 2):                       # more failures than the attempt limit
+        (t,), used = chain.check_txs([t], NOW + timedelta(hours=7 * k), 5, down)
+        assert used == 1 and t["check_error"]
+    assert t.get("attempts", 0) == 0 and chain.due(t, NOW + timedelta(days=3))
+    assert not chain.due(t, NOW + timedelta(hours=7 * (Limits.CHAIN_MAX_ATTEMPTS + 1), minutes=30))   # errors still back off
+    (t,), _ = chain.check_txs([t], NOW + timedelta(days=3), 5, lambda *a: {"status": "0x1", "blockNumber": "0x10"})
+    assert t["verified"] == "confirmed" and "check_error" not in t      # the node is back: the tx is verified
+    gone = {"chain": "ethereum", "hash": TX}
+    for k in range(Limits.CHAIN_MAX_ATTEMPTS):                           # the node answers "no such tx": that is an attempt
+        (gone,), _ = chain.check_txs([gone], NOW + timedelta(hours=7 * k), 5, lambda *a: None)
+    assert gone["attempts"] == Limits.CHAIN_MAX_ATTEMPTS and not chain.due(gone, NOW + timedelta(days=9))

@@ -91,12 +91,19 @@ def station(env, monkeypatch):  # noqa: F811
     for name in ("ensure_environment", "load_targets", "execute", "resources", "requirement_names", "delete_requirements"):
         monkeypatch.setattr(A, name, getattr(fake, name))
     monkeypatch.setattr(h, "_sync_prs", lambda led, now: [])
-    monkeypatch.setattr(h, "_notify", lambda led, now: None)
     monkeypatch.setattr(h.cost, "due", lambda led, now: False)
     start = datetime.fromisoformat(_seed(h._store)) + timedelta(minutes=10)
     clock = {"now": start}
     monkeypatch.setattr(timeutil, "now", lambda: clock["now"])
     return h, fake, clock
+
+
+def test_the_pre_p3_push_status_leaves_the_respond_ledger(station):
+    """Push moved to its own station (radar.notify_station.STATUS_KEY); the ledger's old `notify` key is dropped."""
+    h, _fake, _clock = station
+    h._store.put_source_state(h.CONTINUUM_KEY, {"notify": {"slack": {"status": "ok", "baselined": True}}})
+    h.respond_events({"changed": []})
+    assert "notify" not in h._store.get_source_state(h.CONTINUUM_KEY)
 
 
 def test_three_cycles_route_scan_once_per_day_and_prune_daily(station):
@@ -135,3 +142,66 @@ def test_three_cycles_route_scan_once_per_day_and_prune_daily(station):
     clock["now"] += timedelta(days=15)                                         # a stale rule ages out of the pack
     h.respond_events({"changed": []})
     assert fake.deleted == ["radar-ev-merged-away-long-ago"]
+
+
+# ---------------------------------------------------------------- P0 respond fixes (docs/research/action/02 B4/B5/B8)
+
+def _eid() -> str:
+    return json.loads(FX.read_text())["event"]["event_id"]
+
+
+def test_too_many_targets_is_a_visible_degradation_not_a_station_crash(station, monkeypatch):
+    """B8: continuum_aws raised a bare ValueError, outside handlers' ClientError/BotoCoreError/KeyError catch ⇒ the
+    whole Respond station failed. Now Security-Agent-only, and every Continuum op records why."""
+    h, _fake, _clock = station
+
+    def too_many(_ids: list[str], github_retry: bool = True) -> dict[str, Any]:
+        raise A.TooManyTargets(11, 10)
+    monkeypatch.setattr(A, "ensure_environment", too_many)
+    h.respond_events({"changed": []})
+    st = h._store.get_response(_eid())
+    cn = [a for a in st["actions"].values() if a["service"] == "continuum"]
+    assert cn and all(a["status"] == "failed" and "too_many_targets: 11 > 10" in a["detail"] for a in cn)
+    assert st["actions"]["requirement"]["status"] == "done"     # Security Agent side still ran
+
+
+def test_an_event_past_the_window_with_open_jobs_is_still_polled(station):
+    """B4: candidates = events updated in 7 days, and put_response never moves last_updated ⇒ a quiet event with a
+    running review stayed 检查中 forever. Bootstrap (ledger without the list) and the kept list both find it."""
+    h, fake, clock = station
+    h.respond_events({"changed": []})                        # starts the review (FakeAws: job "j", never finishes)
+    assert h._store.get_source_state(h.CONTINUUM_KEY)["open_jobs"] == [_eid()]
+    clock["now"] += timedelta(days=8)
+    n = len(fake.ops)
+    h.respond_events({"changed": []})
+    assert ("poll_review", "demo-shop") in fake.ops[n:]
+    led = h._store.get_source_state(h.CONTINUUM_KEY)
+    led.pop("open_jobs")                                     # a ledger written before the list existed
+    h._store.put_source_state(h.CONTINUUM_KEY, led)
+    n = len(fake.ops)
+    h.respond_events({"changed": []})
+    assert ("poll_review", "demo-shop") in fake.ops[n:]
+
+
+def test_the_per_cycle_cap_records_not_evaluated_instead_of_dropping_silently(station, monkeypatch):
+    """B5: `break` at RESPOND_MAX_EVENTS left no trace — 未轮到 and 不合格 looked the same on the page."""
+    h, fake, clock = station
+    monkeypatch.setattr(h.publish.Limits, "RESPOND_MAX_EVENTS", 0)
+    h.respond_events({"changed": []})
+    st = h._store.get_response(_eid())
+    assert st and st["not_evaluated"]["code"] == "cycle_cap" and st["not_evaluated"]["max"] == 0
+    assert not [o for o in fake.ops if o[0] in ("sync_requirement", "start_review")]
+    r = respond.to_response(st, {}, timeutil.iso(clock["now"]))
+    assert r["status"] == "queued" and "未评估" in r["reason"]
+    monkeypatch.setattr(h.publish.Limits, "RESPOND_MAX_EVENTS", 8)
+    h.respond_events({"changed": []})
+    assert "not_evaluated" not in h._store.get_response(_eid())   # evaluated ⇒ the note goes
+
+
+def test_the_station_remembers_when_it_evaluated_an_event(station):
+    """The queue order (respond.order) reads the respond ledger: an evaluated event carries its time there, and an event
+    that left the candidates leaves the ledger."""
+    h, _fake, clock = station
+    h.respond_events({"changed": []})
+    led = h._store.get_source_state(h.CONTINUUM_KEY)
+    assert led["evaluated"] == {_eid(): timeutil.iso(clock["now"])}

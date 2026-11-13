@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://security-radar/site-data.schema.json",
   "title": "Security Radar site-data (published to S3, read by the UI)",
-  "description": "Root documents. events.json = {kind:'events'}, events/<id>.json = {kind:'event'}, sources.json = {kind:'sources'}, mitigate.json = {kind:'mitigate'}.",
+  "description": "Root documents. events.json = {kind:'events'}, events/<id>.json = {kind:'event'}, sources.json = {kind:'sources'}, mitigate.json = {kind:'mitigate'}. feeds/index.json = {kind:'feeds'} (feeds/<name>.json are JSON Feed 1.1, feeds/<name>.atom Atom 1.0). Every root document carries schema_version.",
   "$defs": {
     "Domain": {
       "enum": [
@@ -262,6 +262,36 @@
             }
           ],
           "description": "Operator disposition (radar.triage, set by scripts/triage.py with IAM credentials); null = not dispositioned"
+        },
+        "followup": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Followup"
+            }
+          ]
+        },
+        "title_override": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/TitleOverride"
+            }
+          ]
+        },
+        "cve_disclosed": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CveDisclosed"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -348,18 +378,20 @@
           }
         },
         "phase": {
-          "enum": [
-            "prep",
-            "drain",
-            "laundering",
-            "freeze",
-            "statement",
-            "attribution",
-            "recovery",
-            "impact",
-            "other"
-          ],
-          "description": "Attack phase of the report, from its title (signals.phase)."
+          "$ref": "#/$defs/AttackStage",
+          "description": "Attack stage of the report, from its title (radar.stages.of_title)."
+        },
+        "collected_at": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "radar's first capture (first_fetched_at)"
+        },
+        "published_is_collected": {
+          "type": "boolean",
+          "description": "source gave no publication time; published_at is the capture time"
+        },
+        "date_only": {
+          "type": "boolean",
+          "description": "source gave a date without a time"
         }
       }
     },
@@ -431,7 +463,8 @@
           "enum": [
             "loss",
             "frozen",
-            "context"
+            "context",
+            "outlier"
           ],
           "description": "Which measure the amount is (pipeline._amounts): only loss feeds the headline and the dispute flag; frozen feeds amount_frozen_latest."
         }
@@ -483,6 +516,48 @@
         "epss_percentile": {
           "type": [
             "number",
+            "null"
+          ]
+        },
+        "published_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "assigner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cvss": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        },
+        "cvss_severity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cvss_source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cve_record": {
+          "type": [
+            "string",
             "null"
           ]
         }
@@ -593,6 +668,13 @@
           ]
         },
         "last_error_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "degraded": {
+          "description": "Why the source is served by a fallback channel (e.g. X via firecrawl when the X data source is out of quota); null when not degraded.",
           "type": [
             "string",
             "null"
@@ -794,6 +876,7 @@
       "properties": {
         "stage": {
           "enum": [
+            "disclosed",
             "first_report",
             "second_source",
             "corroborated",
@@ -864,8 +947,10 @@
             "running",
             "affected",
             "not_affected",
+            "unchecked",
             "failed"
-          ]
+          ],
+          "description": "unchecked = no target hit, but at least one relevant target was not actually checked (version not comparable, review blocked or failed) — never rendered as 未命中."
         },
         "affected": {
           "type": "integer",
@@ -1197,6 +1282,165 @@
         }
       }
     },
+    "ResponseDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "label",
+        "service",
+        "scope",
+        "outcome",
+        "gate",
+        "reason",
+        "at",
+        "paid",
+        "evaluated_by"
+      ],
+      "description": "One action's decision for this event, from the radar.decisions table (first failing gate decides). not_evaluated = nobody evaluated it (station off, out of window, per-cycle cap, channel not wired) — never the same as not_fire (evaluated, condition not met / already done).",
+      "properties": {
+        "action": {
+          "enum": [
+            "sa_requirement",
+            "cn_context",
+            "cn_finding",
+            "cn_scan",
+            "sa_review",
+            "delivery",
+            "waf_stage",
+            "notify"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "service": {
+          "enum": [
+            "security_agent",
+            "continuum",
+            "waf",
+            "radar"
+          ]
+        },
+        "scope": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "target_id (target actions), channel (s3 / github / gitlab) or null (event)."
+        },
+        "outcome": {
+          "enum": [
+            "fire",
+            "not_fire",
+            "blocked",
+            "not_evaluated"
+          ]
+        },
+        "gate": {
+          "enum": [
+            "N_STATION_OFF",
+            "N_OUT_OF_WINDOW",
+            "E_DOMAIN",
+            "E_SEVERITY",
+            "N_NOT_YET",
+            "E_NO_PRODUCT",
+            "E_NO_WEB3_ANCHOR",
+            "N_CYCLE_CAP",
+            "U_REQUIREMENT_CURRENT",
+            "U_CONTEXT_SAME",
+            "T_NO_CHANNEL",
+            "N_CHANNEL_NOT_WIRED",
+            "T_NO_LOCATION",
+            "U_FINDING_SUBMITTED",
+            "S_NOTHING_WAITING",
+            "S_IN_FLIGHT",
+            "B_SCAN_INTERVAL",
+            "B_SCAN_THIS_CYCLE",
+            "T_NOT_RELEVANT",
+            "R_SEVERITY",
+            "U_SAME_TRIGGER",
+            "R_IN_FLIGHT",
+            "B_REVIEWS_DAY",
+            "D_NO_PATCH",
+            "D_NOT_NATIVE",
+            "D_WAITING_LINK",
+            "M_STATION_OFF",
+            "M_OUT_OF_WINDOW",
+            "W_NO_PLAN",
+            "W_NO_WEB_ACL",
+            "W_ADVISORY",
+            "W_UNCHECKED",
+            "W_NOT_IN_PLACE",
+            "N_NOTIFY_OFF",
+            "N_NOTIFY_WINDOW",
+            "N_NOTIFY_NOT_YET",
+            "X_NO_SUBSCRIBER",
+            "X_NOTHING_TO_SAY",
+            "B_NOTIFY_PENDING",
+            null
+          ],
+          "description": "Reason code of the gate that decided; null = fire (every gate passed)."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Page text from the table (code-templated)."
+        },
+        "at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "respond rows: when this outcome + gate first held (kept while unchanged); publish rows: the ledger time it was read from."
+        },
+        "paid": {
+          "type": "boolean"
+        },
+        "evaluated_by": {
+          "enum": [
+            "respond",
+            "publish"
+          ]
+        },
+        "limit": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "The limit a limit gate read (actual enforced value)."
+        },
+        "result": {
+          "enum": [
+            "ok",
+            "error",
+            null
+          ],
+          "description": "fire rows: the issued call's result (respond.apply → decisions.mark_result; publish rows: the ledger's done state). Absent on a fire row = the result was never recorded."
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "result=error: what failed (truncated)."
+        },
+        "result_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the result was recorded (a failing retry shows its latest attempt)."
+        }
+      }
+    },
     "Response": {
       "type": "object",
       "additionalProperties": false,
@@ -1436,6 +1680,7 @@
         "title",
         "severity",
         "status",
+        "impact",
         "affected",
         "checked",
         "updated_at"
@@ -1458,6 +1703,18 @@
             "done",
             "failed"
           ]
+        },
+        "impact": {
+          "enum": [
+            "not_eligible",
+            "queued",
+            "running",
+            "affected",
+            "not_affected",
+            "unchecked",
+            "failed"
+          ],
+          "description": "respond.impact() status — the same authority as the event page and the listing chip (ImpactSummary.status). The UI renders this, never a mapping of `status`: done + 0 affected used to read 未命中 for a target nobody checked."
         },
         "affected": {
           "type": "integer",
@@ -1745,6 +2002,541 @@
         }
       }
     },
+    "RulePack": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "P2 WAF rule pack (radar.rulepack): one customer-owned AWS WAF RuleGroup per event — managed groups, custom rules from verbatim template / evidence features (each gated by the offline matcher), heuristic templates, and every rejected candidate with its reason. Every rule is Count.",
+      "required": [
+        "event_id",
+        "name",
+        "note",
+        "managed",
+        "custom",
+        "templates",
+        "rejected",
+        "poc",
+        "capacity",
+        "hash"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "hash": {
+          "type": "string"
+        },
+        "updated_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "license": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "managed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RulePackManaged"
+          }
+        },
+        "custom": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RulePackRule"
+          }
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RulePackRule"
+          }
+        },
+        "rejected": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RulePackRejected"
+          }
+        },
+        "poc": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RulePackPoc"
+          }
+        },
+        "capacity": {
+          "$ref": "#/$defs/RulePackCapacity"
+        },
+        "renderings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RulePackRendering"
+          }
+        }
+      }
+    },
+    "RulePackManaged": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tier",
+        "group",
+        "group_label",
+        "rules",
+        "min_version",
+        "reason",
+        "cves",
+        "appliable",
+        "rule"
+      ],
+      "properties": {
+        "tier": {
+          "enum": [
+            "cve",
+            "product",
+            "cwe"
+          ]
+        },
+        "group": {
+          "type": "string"
+        },
+        "group_label": {
+          "type": "string"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "min_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "cves": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "appliable": {
+          "type": "boolean"
+        },
+        "rule": {
+          "type": "object"
+        }
+      }
+    },
+    "RulePackQuote": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "token",
+            "repo",
+            "sha",
+            "path",
+            "line"
+          ],
+          "properties": {
+            "token": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repo": {
+              "type": "string"
+            },
+            "sha": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "path": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,120}(?:/[A-Za-z0-9][A-Za-z0-9._+-]{0,120}){0,12}\\.ya?ml$"
+            },
+            "line": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "href": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "rulepack.quote_href (public doc only): pinned-commit link / http(s) item URL; null = no safe link"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "token",
+            "url",
+            "sentence",
+            "item_id",
+            "span"
+          ],
+          "properties": {
+            "token": {
+              "type": "string",
+              "minLength": 1
+            },
+            "url": {
+              "type": "string"
+            },
+            "sentence": {
+              "type": "string"
+            },
+            "item_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "span": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2,
+              "description": "[start, end) of token in rulepack.evidence_text(item) — what --check reads back"
+            },
+            "href": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "rulepack.quote_href (public doc only): pinned-commit link / http(s) item URL; null = no safe link"
+            }
+          }
+        }
+      ]
+    },
+    "RulePackCheck": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "pass",
+            "fail",
+            "unchecked"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    },
+    "RulePackRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "kind",
+        "extractor",
+        "cve",
+        "statement",
+        "source_quotes",
+        "confidence",
+        "false_positive_note",
+        "action",
+        "verified",
+        "samples"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "byte",
+            "regex",
+            "size",
+            "and",
+            "sqli",
+            "ipset",
+            "rate",
+            "origin_lockdown"
+          ]
+        },
+        "extractor": {
+          "type": "string"
+        },
+        "cve": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "statement": {
+          "type": "object"
+        },
+        "source_quotes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/RulePackQuote"
+          }
+        },
+        "confidence": {
+          "enum": [
+            "exact",
+            "heuristic"
+          ]
+        },
+        "false_positive_note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "const": "Count"
+        },
+        "what": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "offline",
+            "capacity"
+          ],
+          "properties": {
+            "offline": {
+              "$ref": "#/$defs/RulePackCheck"
+            },
+            "capacity": {
+              "$ref": "#/$defs/RulePackCheck"
+            }
+          }
+        },
+        "samples": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "positive",
+            "negative"
+          ],
+          "properties": {
+            "positive": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "negative": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "ip_set": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "addresses",
+            "version"
+          ],
+          "properties": {
+            "addresses": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "version": {
+              "enum": [
+                "IPV4",
+                "IPV6"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "RulePackRejected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cve",
+        "source",
+        "extractor",
+        "reason",
+        "detail"
+      ],
+      "properties": {
+        "cve": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "enum": [
+            "nuclei",
+            "evidence",
+            "template",
+            "pack"
+          ]
+        },
+        "extractor": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    },
+    "RulePackPoc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cve",
+        "state",
+        "path",
+        "sha",
+        "url",
+        "error"
+      ],
+      "properties": {
+        "cve": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "found",
+            "no_template",
+            "unavailable",
+            "too_large",
+            "error"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "RulePackCapacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "wcu",
+        "detail"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "pass",
+            "over_budget",
+            "fail",
+            "unchecked"
+          ]
+        },
+        "wcu": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_wcu": {
+          "type": "integer"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "checked_on": {
+          "type": "string"
+        }
+      }
+    },
+    "RulePackRendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "filename",
+        "media_type",
+        "label",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "wafv2_json",
+            "cloudformation",
+            "terraform",
+            "cli",
+            "markdown"
+          ]
+        },
+        "filename": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
     "Mitigation": {
       "type": "object",
       "additionalProperties": false,
@@ -1831,6 +2623,7 @@
         "appliable",
         "web_acl",
         "promoted",
+        "priority_placeholder",
         "state",
         "detail",
         "rule_json"
@@ -1899,11 +2692,15 @@
         "promoted": {
           "type": "boolean"
         },
+        "priority_placeholder": {
+          "type": "boolean"
+        },
         "state": {
           "enum": [
             "absent",
             "too_old",
             "group_counted",
+            "rules_counted",
             "staged",
             "blocking",
             "no_web_acl",
@@ -2051,6 +2848,10 @@
         },
         "address_evidence": {
           "type": "string"
+        },
+        "to_exchange": {
+          "type": "string",
+          "description": "Exchange the outflow went into (radar.wallets): a terminal — cash-out or deposit, not followed further"
         }
       }
     },
@@ -2106,6 +2907,13 @@
             },
             "receivers": {
               "type": "integer"
+            },
+            "exchange_inflow_by_exchange": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              },
+              "description": "USD (stablecoins) that left the attacker's side into each exchange; absent in data published before 2026-11-01"
             }
           }
         },
@@ -2321,6 +3129,13 @@
                             },
                             "raw": {
                               "type": "string"
+                            },
+                            "usd": {
+                              "type": [
+                                "number",
+                                "null"
+                              ],
+                              "description": "amount × historical USD price at the tx's block time; null when unpriced or low-confidence"
                             }
                           }
                         }
@@ -2360,6 +3175,13 @@
                             },
                             "raw": {
                               "type": "string"
+                            },
+                            "usd": {
+                              "type": [
+                                "number",
+                                "null"
+                              ],
+                              "description": "amount × historical USD price at the tx's block time; null when unpriced or low-confidence"
                             }
                           }
                         }
@@ -2386,6 +3208,13 @@
                       },
                       "amount": {
                         "type": "number"
+                      },
+                      "usd": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "description": "amount × historical USD price at the tx's block time; null when unpriced or low-confidence"
                       }
                     }
                   }
@@ -2423,6 +3252,406 @@
               }
             }
           }
+        },
+        "price_source": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "How usd values were obtained (DefiLlama historical price at the tx's block time); null when no tx is priced yet."
+        }
+      }
+    },
+    "Followup": {
+      "description": "Incident follow-up so far (radar.insights.followup): on-chain outflows and freezes (radar.onchain), decoded attack txs (radar.attacktx), time of the latest; absent / null when nobody follows it on chain.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "onchain_moves",
+        "freezes",
+        "attack_txs",
+        "last_at"
+      ],
+      "properties": {
+        "onchain_moves": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "freezes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attack_txs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Timestamp"
+            }
+          ]
+        }
+      }
+    },
+    "TitleOverride": {
+      "description": "An operator's sourced root-cause correction of the title (radar.retitle); the original title is kept.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "original",
+        "source",
+        "note",
+        "by",
+        "at"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "original": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string"
+        },
+        "at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      }
+    },
+    "Disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at",
+        "cve",
+        "assigner",
+        "lag_hours",
+        "resurfaced"
+      ],
+      "description": "Earliest CVE-record publication among the event's CVEs; lag_hours = radar first_seen − at (≥ 0).",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "cve": {
+          "type": "string"
+        },
+        "assigner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lag_hours": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "resurfaced": {
+          "type": "boolean",
+          "description": "lag ≥ Limits.RESURFACED_DAYS: an old CVE back on the radar, not a late detection"
+        }
+      }
+    },
+    "Sighting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "first_report_at",
+        "first_report_source",
+        "first_collected_at",
+        "collect_lag_minutes",
+        "first_collected_source",
+        "first_report_date_only"
+      ],
+      "description": "pipeline.sighting: first report published vs radar first capture",
+      "properties": {
+        "first_report_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "first_report_source": {
+          "type": "string"
+        },
+        "first_collected_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "collect_lag_minutes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "first_collected_source": {
+          "type": "string"
+        },
+        "first_report_date_only": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CveDisclosed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at",
+        "cve",
+        "resurfaced"
+      ],
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "cve": {
+          "type": "string"
+        },
+        "resurfaced": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Notice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "exchange",
+        "title",
+        "url",
+        "kind",
+        "published_at",
+        "seen_at"
+      ],
+      "description": "One exchange announcement (radar.announcements.board_add); kind decided by code (announcements.kind).",
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "exchange": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "url": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "security",
+            "suspension",
+            "delisting",
+            "maintenance",
+            "listing",
+            "other"
+          ]
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "seen_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      }
+    },
+    "SearchRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "t",
+        "d",
+        "s",
+        "l",
+        "f",
+        "u",
+        "c",
+        "e",
+        "a"
+      ],
+      "description": "One event in the static search index (radar.search.record): id, title, domain, severity, level, first/last date, CVEs, entities, amount; p = the event has a published detail page (absent ⇒ no page, shown without a link).",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "t": {
+          "type": "string"
+        },
+        "d": {
+          "$ref": "#/$defs/Domain"
+        },
+        "s": {
+          "$ref": "#/$defs/Severity"
+        },
+        "l": {
+          "$ref": "#/$defs/Level"
+        },
+        "f": {
+          "type": "string"
+        },
+        "u": {
+          "type": "string"
+        },
+        "c": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "e": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "a": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p": {
+          "const": true
+        }
+      }
+    },
+    "AttackStage": {
+      "description": "Attack stage (radar.stages — generated by scripts/gen_stages.py, do not edit). Canonical ids in attack order; drain→asset_transfer, statement→disclosure are legacy M4 values still accepted in documents published before the rename, until 2027-01-15.",
+      "enum": [
+        "recon",
+        "prep",
+        "initial_access",
+        "execution",
+        "persistence",
+        "credential_access",
+        "privilege_escalation",
+        "lateral_movement",
+        "key_access",
+        "asset_transfer",
+        "laundering",
+        "freeze",
+        "disclosure",
+        "attribution",
+        "recovery",
+        "impact",
+        "other",
+        "drain",
+        "statement"
+      ]
+    },
+    "ChainStage": {
+      "description": "What the event's on-chain sections confirm for one attack stage (radar.stages.chain_evidence): outflow from a victim → asset_transfer, any other outflow → laundering, issuer freeze → freeze, decoded successful attack tx → asset_transfer, live EIP-7702 delegation → key_access. first_at is the earliest time of the kind's rows on the clock named by `clock`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "kind",
+        "count",
+        "first_at",
+        "first_tx",
+        "clock"
+      ],
+      "properties": {
+        "stage": {
+          "$ref": "#/$defs/AttackStage"
+        },
+        "clock": {
+          "enum": [
+            "chain",
+            "checked"
+          ],
+          "description": "radar.stages.CLOCK: 'chain' = first_at is the earliest row's block time (when it happened); 'checked' = first_at is when the radar checked (an EIP-7702 delegation read at check time — when it was set is not queried), never an event time"
+        },
+        "kind": {
+          "enum": [
+            "outflow",
+            "freeze",
+            "attack_tx",
+            "delegation"
+          ]
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "first_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "first_tx": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "tx of the earliest row; null for a delegation (eth_getCode has no tx)"
+        }
+      }
+    },
+    "SchemaVersion": {
+      "description": "Shape version of a root document (radar.model.SITE_SCHEMA_VERSION). A breaking change bumps it; readers pin the version they were written against.",
+      "const": "1"
+    },
+    "FeedEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "title",
+        "filters",
+        "items",
+        "json",
+        "atom"
+      ],
+      "description": "One pull feed (radar.feeds.FEEDS): JSON Feed 1.1 and Atom 1.0 documents of the newest matching events, behind the site's access control.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "filters": {
+          "type": "object",
+          "description": "Subscription filters (radar.notify.FILTER_FIELDS)."
+        },
+        "items": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "json": {
+          "type": "string",
+          "description": "Path under data/ (application/feed+json)."
+        },
+        "atom": {
+          "type": "string",
+          "description": "Path under data/ (application/atom+xml)."
         }
       }
     }
@@ -2466,6 +3695,9 @@
         },
         "digest": {
           "$ref": "#/$defs/Digest"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
         }
       }
     },
@@ -2560,6 +3792,17 @@
             "$ref": "#/$defs/PossibleDuplicate"
           }
         },
+        "rule_pack": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RulePack"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "P2 WAF rule pack (mitigate station row __rule_pack__#<event_id>); null = no pack for this event"
+        },
         "mitigation": {
           "oneOf": [
             {
@@ -2589,6 +3832,43 @@
               "$ref": "#/$defs/AttackTxs"
             }
           ]
+        },
+        "chain_stages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChainStage"
+          },
+          "description": "On-chain stage evidence (P1b); absent in documents published before 2026-11-11."
+        },
+        "disclosure": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Disclosure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sighting": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Sighting"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResponseDecision"
+          },
+          "description": "「响应决策」: every action of the radar.decisions table x its decision for this event (radar.decisions.evaluate at publish) — for every event, with or without a response state. Absent on documents published before 2026-11-11."
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
         }
       }
     },
@@ -2612,6 +3892,9 @@
           "items": {
             "$ref": "#/$defs/SourceHealth"
           }
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
         }
       }
     },
@@ -2660,6 +3943,9 @@
         },
         "ledger": {
           "$ref": "#/$defs/Ledger"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
         }
       }
     },
@@ -2707,6 +3993,9 @@
               "minimum": 0
             }
           }
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
         }
       }
     },
@@ -2807,6 +4096,216 @@
             "object",
             "null"
           ]
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at",
+        "counts",
+        "notices",
+        "boards"
+      ],
+      "description": "announcements.json — the exchange announcement board (#/announcements)",
+      "properties": {
+        "kind": {
+          "const": "announcements"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "security",
+            "suspension",
+            "delisting",
+            "maintenance",
+            "listing",
+            "other"
+          ],
+          "properties": {
+            "security": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "suspension": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "delisting": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maintenance": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "listing": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "other": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "notices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Notice"
+          }
+        },
+        "boards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_id",
+              "exchange",
+              "url",
+              "last_notice"
+            ],
+            "properties": {
+              "source_id": {
+                "type": "string"
+              },
+              "exchange": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "last_notice": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at",
+        "month",
+        "events"
+      ],
+      "description": "data/search/<yyyy-mm>.json",
+      "properties": {
+        "kind": {
+          "const": "search-shard"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "month": {
+          "type": "string"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SearchRow"
+          }
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at",
+        "months",
+        "total"
+      ],
+      "description": "data/search/index.json",
+      "properties": {
+        "kind": {
+          "const": "search-index"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "total": {
+          "type": "integer"
+        },
+        "detail_cap": {
+          "type": "integer",
+          "description": "Limits.PUBLISH_MAX_EVENTS: only this many of the window's events get a detail doc. Absent in indexes written before it existed."
+        },
+        "months": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "month",
+              "events"
+            ],
+            "properties": {
+              "month": {
+                "type": "string"
+              },
+              "events": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "generated_at",
+        "feeds"
+      ],
+      "properties": {
+        "kind": {
+          "const": "feeds"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "feeds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FeedEntry"
+          }
         }
       }
     }

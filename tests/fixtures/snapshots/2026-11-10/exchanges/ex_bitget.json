@@ -1,0 +1,37 @@
+{
+ "code": "00000",
+ "msg": "success",
+ "requestTime": 1794241223337,
+ "data": [
+  {
+   "annId": "12560603900199",
+   "annDesc": "maintenance_system_updates",
+   "annTitle": "Announcement on suspending INJECTIVE network deposit and withdrawal services",
+   "annType": "maintenance_system_updates",
+   "annSubType": "asset_maintenance",
+   "language": "en_US",
+   "annUrl": "https://www.bitget.com/en/support/articles/12560603900199",
+   "cTime": "1794231839000"
+  },
+  {
+   "annId": "12560603900197",
+   "annDesc": "coin_listings",
+   "annTitle": "Bitget spot copy trade now supports rBGC/USDT",
+   "annType": "coin_listings",
+   "annSubType": "copy_trading",
+   "language": "en_US",
+   "annUrl": "https://www.bitget.com/en/support/articles/12560603900197",
+   "cTime": "1794231360416"
+  },
+  {
+   "annId": "12560603900196",
+   "annDesc": "coin_listings",
+   "annTitle": "Bitget spot copy trade now supports rCHCO/USDT",
+   "annType": "coin_listings",
+   "annSubType": "copy_trading",
+   "language": "en_US",
+   "annUrl": "https://www.bitget.com/en/support/articles/12560603900196",
+   "cTime": "1794224160625"
+  }
+ ]
+}

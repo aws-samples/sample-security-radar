@@ -34,6 +34,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
+from target_files import tracked  # the one definition of "what of a target may leave this machine"
+
 from radar import fetch, respond, targets  # src/ is not installed for scripts
 
 REPO = "security-radar-demo-fleet"
@@ -57,6 +60,16 @@ def plan(channel: str, existing_dirs: set[str]) -> Plan:
         raise SystemExit(f"[sync-fleet] unknown channel {channel!r}: one of {sorted(respond.REPO_CHANNELS)}")
     ids = targets.on(channel)
     return Plan(tuple(sorted(d for d in existing_dirs - set(ids) - {".git"})), tuple(ids))
+
+
+def copy_target(src: Path, dst: Path) -> None:
+    """Replace `dst` with the git-tracked files of `src`: the mirror has no .gitignore and runs `git add -A`, so an
+    untracked .env / node_modules copied in would be committed, pushed and scanned."""
+    files = tracked(src)                       # fails loudly before the mirror's copy is removed
+    shutil.rmtree(dst, ignore_errors=True)
+    for rel in files:
+        (dst / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src / rel, dst / rel)
 
 
 def mirror_dir(channel: str) -> Path:
@@ -183,8 +196,7 @@ def main(argv: list[str] | None = None) -> int:
     for name in p.remove:
         run("git", "rm", "-rq", name, cwd=d)
     for t in p.copy:
-        shutil.rmtree(d / t, ignore_errors=True)
-        shutil.copytree(TARGETS_DIR / t, d / t)
+        copy_target(TARGETS_DIR / t, d / t)
     shutil.copy(README, d / "README.md")
     run("git", "add", "-A", cwd=d)
     if run("git", "diff", "--cached", "--quiet", cwd=d, check=False).returncode:     # 1 = staged changes

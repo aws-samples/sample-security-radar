@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from radar import decisions
+
 
 @dataclass(frozen=True)
 class Capability:
@@ -22,16 +24,17 @@ class Capability:
 
 
 CAPABILITIES: tuple[Capability, ...] = (
-    Capability("eligibility", "事件 → 代码侧响应资格（产品登记表）", "radar", "只对 P0 或已利用/有 PoC 的 P1，且产品可在代码中定位", "events_considered"),
+    # trigger conditions below come from radar.decisions (the one decision table) — never restated by hand here
+    Capability("eligibility", "事件 → 代码侧响应资格（产品登记表）", "radar", decisions.describe_eligibility(), "events_considered"),
     Capability("inventory", "目标代码清单（确定性定位受影响版本）", "radar", "Dockerfile / CI 镜像 / composer / Lambda runtime 等逐行定位", "inventory_scans"),
-    Capability("requirement", "雷达规则 → Security Agent requirement pack", "security_agent", "BatchCreate/UpdateSecurityRequirements，按名称幂等", "requirements_synced"),
-    Capability("code_review", "代码评审（含雷达规则）", "security_agent", "CreateCodeReview + StartCodeReviewJob，P0 且目标用到该产品才发起", "code_reviews_started"),
+    Capability("requirement", "雷达规则 → Security Agent requirement pack", "security_agent", "BatchCreate/UpdateSecurityRequirements，按名称幂等；" + decisions.describe("sa_requirement"), "requirements_synced"),
+    Capability("code_review", "代码评审（含雷达规则）", "security_agent", "CreateCodeReview + StartCodeReviewJob；" + decisions.describe("sa_review"), "code_reviews_started"),
     Capability("review_results", "评审结果回流（命中雷达规则的 finding）", "security_agent", "BatchGetFindings，按 [Requirement: radar-…] 判定命中", "code_reviews_completed"),
     Capability("remediation", "自动修复 diff 当场落盘", "security_agent", "codeRemediationStrategy=AUTOMATIC；预签名链接 180 秒内抓取", "sa_patches"),
     Capability("environment", "Continuum S3 集成 + 环境（每个仓库一个 zip）", "continuum", "us-east-1（东京无端点）；按名称对账，幂等；每环境 1 个 S3 源、≤10 个仓库", "environment_ensured"),
-    Capability("context", "威胁情报 → Continuum 知识文档", "continuum", "事件与已校验的分析卡写入 context/", "contexts_written"),
-    Capability("code_finding", "雷达 finding → Continuum 验证", "continuum", "CreateCodeFinding：OCSF 2002 + osint 证据，精确到文件行", "findings_submitted"),
-    Capability("code_scan", "雷达触发环境扫描", "continuum", "CreateCodeScan，6 小时去抖", "scans_requested"),
+    Capability("context", "威胁情报 → Continuum 知识文档", "continuum", decisions.describe("cn_context"), "contexts_written"),
+    Capability("code_finding", "雷达 finding → Continuum 验证", "continuum", "CreateCodeFinding：OCSF 2002 + osint 证据；" + decisions.describe("cn_finding"), "findings_submitted"),
+    Capability("code_scan", "雷达触发环境扫描", "continuum", decisions.describe("cn_scan"), "scans_requested"),
     Capability("finding_verdict", "Continuum 验证结论回流", "continuum", "GetCodeFinding.validation.verdict / discardReason", "finding_verdicts"),
     Capability("issues", "Issue / 可利用性证据 / 补丁回流", "continuum", "GetCodeIssue + VALIDATION_EVIDENCE + PATCH artifacts", "issues_seen"),
     Capability("github", "补丁以 GitHub PR 交付", "continuum",

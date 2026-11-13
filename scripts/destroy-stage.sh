@@ -7,7 +7,8 @@ source scripts/lib.sh
 [ -z "$STAGE" ] && { echo "refusing: STAGE is empty (that is the live deployment)" >&2; exit 1; }
 name="security-radar-$STAGE"
 pack=$(out RequirementPackId 2>/dev/null || true); space=$(out AgentSpaceId 2>/dev/null || true)
-# boto3 from the locked project environment
+# boto3 from the locked project environment. Never put a comment before the arguments / heredoc on this line: bash
+# reads the rest as a comment and runs the Python below as shell (GitHub issue #13; tests/test_destroy_stage.py).
 uv run -q python -I - "$name" "$pack" "$space" <<'PY'
 import sys, boto3
 name, pack, space = sys.argv[1], sys.argv[2], sys.argv[3]

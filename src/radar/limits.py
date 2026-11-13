@@ -5,8 +5,36 @@ from __future__ import annotations
 
 
 class Limits:
+    TIMEOUT_WATCHDOG_S = 15         # a station logs phases + stack this long before its Lambda deadline
+    STATE_ROW_WARN_BYTES = 250_000  # a ledger record above this logs state_row_near_limit (DynamoDB max 400 KB)
+    EVENT_ROW_COMPACT_BYTES = 300_000  # an event row above this is compacted before the write (DynamoDB max 400 KB)
+    EVENT_STREAM_KEEP = 300         # … and if still too big: the newest report-added / amount-changed entries kept
+    # --- cycle & collection (research/17) ---
+    CYCLE_MINUTES = 5               # EventBridge rate; infra/stack.py reads this constant
+    REFRESH_EVERY_MINUTES = 55      # time-driven refresh (P0→P1 freshness, V4): ≥ this since the last one (ledger), ~hourly
+    COLLECT_BATCH = 12              # light sources per Collect invocation (heavy ones run alone)
+    COLLECT_THREADS = 8             # host groups fetched concurrently inside one invocation
+    COLLECT_DEADLINE_S = 150        # of the 180 s Collect timeout: sources not started by then wait one cycle, logged
+    CVE_PENDING_RETRIES = 5         # runs a CVE waits for its unreadable record before it is given up (logged)
+    CVE_PENDING_MAX = 200           # CVEs waiting in the source state (~450 B each ⇒ ≤ 90 KB of the 400 KB row)
+    MAX_CVE_RECORDS = 60            # CVE records fetched per run (cvelistV5 delta; ~130 new CVEs a day)
+    CVE_LIST_EVENT_CVSS = 9.0       # a CVE List entry opens an event only when critical (else it is context)
+    # --- incremental collection (collect.incremental) ---
+    SEEN_CAP = 3000                 # older entries remembered per source beyond its current response (≈ 45 B each)
+    FIRST_RUN_DAYS = 3              # a newly added feed hands over only its last 3 days, not its archive
+    POC_RETRIES = 3                 # runs a DeFiHackLabs entry waits for its unreadable .sol before going without it
     # --- clustering ---
     ENTITY_WINDOW_DAYS = 3          # same normalized entity within ±N days ⇒ same web3/incident event
+    ENTITY_SPAN_DAYS = 21           # … rolling from the latest evidence, at most this long after the first report
+    AMOUNT_OUTLIER_RATIO = 100         # a lone prose loss this many times the event's other figures is an outlier …
+    MAX_PLAUSIBLE_LOSS_USD = 20_000_000_000   # … and so is any lone prose loss above this (largest theft on record ≈ $6.3B)
+    LATE_LOSS_TOLERANCE = 0.2          # a later report of the victim with a loss within ±20 % of the event's …
+    LATE_LOSS_DAYS = 30                # … up to this long after the latest evidence is the same theft
+    LATE_LOSS_EXACT_TOLERANCE = 0.02   # a loss within ±2 % (the same figure restated) …
+    LATE_LOSS_EXACT_DAYS = 180         # … stays evidence this long (a recovery / post-mortem months later)
+    AMOUNT_KEY_WEIGHT = 5              # a shared specific loss figure scores like 5 shared names
+    AMOUNT_KEY_MIN_USD = 10_000_000    # amt:<value> clustering key: only a figure this large …
+    AMOUNT_KEY_ROUND_USD = 10_000_000  # … and not a multiple of this (「1亿」「$50M」 are common)
     ECHO_TITLE_SIMILARITY = 0.85    # titles this similar from different sources ⇒ echo (same origin)
     MIN_ENTITY_TOKEN_LEN = 3
 
@@ -32,7 +60,7 @@ class Limits:
     HTTP_TIMEOUT_S = 25
     CHAIN_RPC_TIMEOUT_S = 6          # C6: one eth_getTransactionReceipt; worst case 8 × 6 s = 48 s of a 600 s process station
     CHAIN_CHECKS_PER_CYCLE = 8       # C6: RPC calls per 10-min cycle (process station stays well inside its timeout)
-    RPC_WALL_S_PER_CYCLE = 240       # all public-RPC calls of one process run (verify + on-chain + attack-tx, fallbacks included) ≤ 240 s of 600 s
+    RPC_WALL_S_PER_CYCLE = 120       # all public-RPC calls of one process run (verify + on-chain + attack-tx, fallbacks included); 5-min cycles since 2026-11-10 (typical use ≈ 20 s)
     CHAIN_RECHECK_H = 6              # C6: not_found / RPC error ⇒ re-check after this long …
     CHAIN_MAX_ATTEMPTS = 3           # … at most this many times (then the verdict stays not_found)
     # M4 D6 on-chain reconstruction (radar.onchain): P0 web3 incidents only
@@ -47,24 +75,89 @@ class Limits:
     ONCHAIN_MAX_DOWNSTREAM = 8       # receivers followed (≤ 2 hops) — the case must not explode into a chain-wide crawl
     ONCHAIN_CALLS_PER_CYCLE = 40     # all events together; typical 0.5 s/call ⇒ 20 s; worst case 40 × 6 s = 240 s of the 600 s process station
     ATTACKTX_CALLS_PER_CYCLE = 20   # attack-tx breakdown: receipts + block time + token symbol/decimals (receipts never change)
+    ATTACKTX_PRICE_CALLS_PER_CYCLE = 5   # ★2 one DefiLlama request per tx (all its tokens + native); prices at a past block never change
+    PRICE_MIN_CONFIDENCE = 0.9       # DefiLlama's own confidence; below it (thin pools, a just-exploited token) no dollar figure
     ATTACKTX_MAX_TOKENS = 12        # tokens shown per attack tx (most transfers first); tokens_total states the rest
     ATTACKTX_TOKEN_LEDGER_MAX = 3000  # shared token symbol/decimals ledger, newest kept (~100 B each; one DynamoDB item ≤ 400 KB)
     HTTP_MAX_BYTES = 20_000_000
+    PUBLISH_RESERVE_S = 45           # publish stops building event pages with this much left (S3 writes of ~370 docs ≈ 15 s)
+    CVE_META_CALLS_PER_RUN = 60      # CVE Services record lookups per publish (112 CVEs live 2026-11-02 ⇒ backfill in 2 runs)
+    CVE_META_BUDGET_S = 60           # … and wall time for them, of the publish station's 300 s
+    LATE_DETECTION_HOURS = 72        # #/ops late_detection: first seen this long after the CVE record was published …
+    LATE_DETECTION_MIN_CVSS = 9.0    # … for a critical CVE …
+    LATE_DETECTION_RECENT_DAYS = 14  # … among events first seen this recently (a review queue, not an archive)
+    RESURFACED_DAYS = 30             # CVE published this long before the radar's first report ⇒ resurfaced, not missed
+    CVE_META_RESCORE_HOURS = 24
+    EPSS_MISSING_RECHECK_HOURS = 6   # a CVE FIRST does not score yet (published today) is asked again this often      # an unscored record is re-read this often (CVE-2026-98432: published 10-15, scored 10-24)
     SOURCE_FAILING_AFTER = 3        # consecutive failures ⇒ status "failing"
+    # radar.latency — published → held, measured every cycle
+    LATENCY_MAX_HOURS = 48          # older when first seen ⇒ a backfill, not a latency sample
+    LATENCY_SAMPLES_MAX = 3000      # 24 h of samples (~35 B each; 650 a day measured 2026-11-12)
+    LATENCY_WARN_P50_MIN = 60       # #/ops warns above this median (measured 48 on 2026-11-12; R2 targets ≤ 20)
+    LATENCY_MIN_SAMPLES = 20        # fewer in 24 h ⇒ stated, not judged
+    # #/ops source_stalled (publish.stalled_sources): not collected / gone quiet
+    SOURCE_OVERDUE_CADENCES = 3     # no run for this many cadences …
+    SOURCE_OVERDUE_MIN_MINUTES = 30 # … and at least this long (cycles are skipped under load: gaps reach 17.5 min)
+    SOURCE_SILENT_DAYS = 3          # nothing handed over for this many days …
+    SOURCE_SILENT_BASELINE_DAYS = 14  # … by a source whose median over the days before was ≥ 1 a day
+    SOURCE_DAYS_KEPT = 30           # per-day counts kept in the source state (~15 B a day)
     TWITTERAPI_MIN_INTERVAL_S = 5.5  # never-topped-up key: 1 request / 5 s
     TWITTERAPI_RETRIES = 2
+    # X fallback through firecrawl profile snapshots (docs/research/13): 30 credits per handle, from a one-off key pool
+    # shared with the blocked-site sources — a cap per day so a long twitterapi outage cannot drain it (≈ 5 full runs)
+    X_FIRECRAWL_MAX_HANDLES = 20
+    X_FIRECRAWL_CONCURRENCY = 4      # 20 profiles × 5–15 s serially would outlive the 180 s collect Lambda
+    X_FIRECRAWL_TIMEOUT_S = 45
+    FIRECRAWL_CREDITS_X_PROFILE = 30
+    X_FIRECRAWL_CREDITS_PER_DAY = 3_000
+    OWN_NAME_BONUS = 4              # once per event: the report names the event's own victim (pipeline._names_event)
+    REMOVED_EVENTS_MAX = 2000       # radar.removals ledgers (~80 B a row): what publish must still prune from the site
+    # radar.anomaly — an event that changes shape in one cycle (live 2026-11-12: 2 → 703 reports, web3 into vuln)
+    ANOMALY_ABSORBED_ITEMS = 20     # absorbing an event this established is reported
+    ANOMALY_ITEMS_ADDED = 50        # reports gained in one cycle …
+    ANOMALY_GROWTH_MIN_ITEMS = 20   # … or doubling, for an event at least this big
+    ANOMALY_CVES_ADDED = 5
+    ANOMALY_LOSS_RATIO = 10         # headline loss ×10 either way
+    ANOMALY_SHOW_HOURS = 48         # how long a row stays on #/ops
+    ANOMALY_MAX = 200               # ledger rows (~300 B each)
+    GENERIC_NAME_EVENTS = 3         # a name key held by this many events names none of them (pipeline.find_events)
+    MERGE_MAX_LINKS = 8             # an item citing more pages than this is a newsletter: it attaches, merges nothing
+    MERGE_MAX_EVENTS_PER_ITEM = 3   # an item proving more events "the same story" is a digest (it links to all of them)
+    FEED_FIRECRAWL_FALLBACKS_PER_DAY = 24   # per source: a direct feed fetch that failed is retried through firecrawl
 
     # --- respond (AWS Security Agent + AWS Continuum) ---
     RESPOND_WINDOW_DAYS = 7          # only events updated within this window are (re)considered
     RESPOND_MAX_EVENTS = 8           # per cycle; bounds station time (each op is one or two API calls)
+    RESPOND_OPEN_JOBS_BOOTSTRAP_DAYS = 30  # one-off look-back for events with open jobs, before the ledger listed them
     SA_REVIEWS_PER_DAY = 6           # paid Security Agent code reviews (≈27 min, $10/CIU) per rolling 24 h
     CONTINUUM_DAILY_USD_CAP = 500    # R10 budget line: a billed day above is flagged (ledger + log), never blocks a scan
     CONTINUUM_SCHEDULED_SCAN = "PT0H"   # no scheduled scans (API allows only PT0H / P1D / P2D / P7D): the radar triggers the scans it needs
     COST_REFRESH_H = 6               # Cost Explorer read for the ledger ($0.01/request; CE data lags ~24 h anyway)
-    NOTIFY_MAX_PER_CYCLE = 10        # Slack/Lark messages per channel per cycle; the rest go next cycle (C3)
+    NOTIFY_MAX_PER_CYCLE = 10        # messages per subscription per cycle; the rest go next cycle (C3 / P3)
+    NOTIFY_SUBSCRIPTIONS_MAX = 50    # subscriptions read from the NotifyConfig secret; more are reported, not used
+    NOTIFY_STATE_ROW_MAX_BYTES = 200_000   # one push-state row (DynamoDB item limit 400 KB): refused above, never truncated
+    NOTIFY_RESERVE_S = 30            # the notify station stops sending with this many seconds left (one send ≤ 2 × HTTP timeout)
+    WEBHOOK_SECRET_MIN_CHARS = 32    # per-subscription HMAC key length (≈ 192 bits as base64)
+    FEED_MAX_ITEMS = 50              # newest events per data/feeds/<name> document
     PR_SYNC_H = 1                    # demo-fleet PR list → event pages (C2c); the PR schedule is hourly too
     COST_WINDOW_DAYS = 14            # days of per-service spend shown on #/continuum
     REQUIREMENT_TTL_DAYS = 14        # R6: a radar-* rule not re-asserted for this long leaves the Security Agent pack
     INSPECTOR_SCANS_PER_DAY = 5      # M3: ScanSbom calls per day ($0.03 each, first 25 free); one per target with lockfiles
     MITIGATE_WINDOW_DAYS = 30        # M3: a mitigation stays planned/checked while the event is this fresh (patch windows run long)
     CONTINUUM_SCAN_MIN_INTERVAL_H = 24     # ≤ 1 paid environment scan per day per environment (≈ $450 each, measured 10-26)
+
+    # --- P2 WAF rule pack (radar.pocs / radar.wafmatch / radar.rulepack; docs/research/action/01-waf.md, 08-poc-sources.md) ---
+    POC_LOOKUPS_PER_HOUR = 30        # GitHub commits-API calls (unauthenticated limit 60/h per IP; the Lambda's IP may be shared)
+    POC_LOOKUPS_PER_RUN = 10         # … and per run, so one cycle cannot spend the hour
+    POC_BUDGET_S = 30                # wall time for template lookups, of the mitigate station's timeout
+    POC_RECHECK_DAYS = 7             # a pinned template's newest commit is re-read this often (templates change: 7–59 commits each)
+    POC_INDEX_SHARDS = 32            # cves.json index {cve: path}: 4,585 rows ≈ 10 KB a shard; 40k rows still < POC_ROW_MAX_BYTES
+    POC_TEMPLATE_MAX_BYTES = 100_000 # a template larger than this is not stored (state too_large) — real ones are 1–10 KB
+    POC_ROW_MAX_BYTES = 200_000      # no ledger row the radar writes for PoCs exceeds this (DynamoDB item limit 400 KB)
+    WAF_BODY_INSPECT_BYTES = 8_192   # AWS WAF body inspection limit (ALB / AppSync; CloudFront default 16 KB) — the matcher uses the smaller
+    WAF_SEARCH_STRING_MAX = 200      # ByteMatchStatement.SearchString max length (API reference)
+    RULEPACK_MIN_TOKEN = 3           # a verbatim match string shorter than this is never a rule ("/", "a", "..")
+    RULEPACK_MAX_RULES = 20          # custom + template rules per pack (the rest listed as rejected, reason given)
+    RULEPACK_MAX_WCU = 500           # a pack above this would take a third of a default web ACL's 1,500 WCU ⇒ capacity over_budget
+    RULEPACK_CAPACITY_CHECKS_PER_RUN = 20   # CheckCapacity calls per run (free, read-only); a pack is re-checked only when it changes
+    RULEPACK_RATE_LIMIT = 300        # rate template default: requests per IP per 5-minute window (a template value, not evidence)

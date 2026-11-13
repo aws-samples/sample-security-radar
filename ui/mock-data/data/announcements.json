@@ -1,0 +1,96 @@
+{
+ "kind": "announcements",
+ "generated_at": "2026-10-23T04:00:00Z",
+ "counts": {
+  "security": 1,
+  "suspension": 1,
+  "delisting": 1,
+  "maintenance": 1,
+  "listing": 1,
+  "other": 0
+ },
+ "notices": [
+  {
+   "source_id": "binance_announcements",
+   "exchange": "Binance",
+   "title": "Security Incident | Recovery Update #8: Withdrawals for More Assets to Reopen",
+   "url": "https://www.binance.com/en/support/announcement/detail/example1",
+   "kind": "security",
+   "category": null,
+   "published_at": "2026-10-23T03:00:00Z",
+   "seen_at": "2026-10-23T03:05:00Z"
+  },
+  {
+   "source_id": "ex_bybit",
+   "exchange": "Bybit",
+   "title": "Suspension of TRON (TRX) network deposits and withdrawals",
+   "url": "https://announcements.bybit.com/en-US/article/example2",
+   "kind": "suspension",
+   "category": "maintenance_updates",
+   "published_at": "2026-10-23T02:00:00Z",
+   "seen_at": "2026-10-23T02:05:00Z"
+  },
+  {
+   "source_id": "ex_okx",
+   "exchange": "OKX",
+   "title": "OKX to delist several spot trading pairs",
+   "url": "https://www.okx.com/help/example3",
+   "kind": "delisting",
+   "category": "announcements-delistings",
+   "published_at": "2026-10-22T08:00:00Z",
+   "seen_at": "2026-10-22T08:05:00Z"
+  },
+  {
+   "source_id": "ex_kraken",
+   "exchange": "Kraken",
+   "title": "Scheduled maintenance: funding gateway",
+   "url": "https://status.kraken.com/incidents/example4",
+   "kind": "maintenance",
+   "category": null,
+   "published_at": "2026-10-22T06:00:00Z",
+   "seen_at": "2026-10-22T06:05:00Z"
+  },
+  {
+   "source_id": "ex_kucoin",
+   "exchange": "KuCoin",
+   "title": "KuCoin will list Example Token (EXT)",
+   "url": "https://www.kucoin.com/announcement/example5",
+   "kind": "listing",
+   "category": "new-listings",
+   "published_at": "2026-10-21T10:00:00Z",
+   "seen_at": "2026-10-21T10:05:00Z"
+  }
+ ],
+ "boards": [
+  {
+   "source_id": "binance_announcements",
+   "exchange": "Binance",
+   "url": "https://example.invalid/",
+   "last_notice": "2026-10-23T03:00:00Z"
+  },
+  {
+   "source_id": "ex_bybit",
+   "exchange": "Bybit",
+   "url": "https://example.invalid/",
+   "last_notice": "2026-10-23T02:00:00Z"
+  },
+  {
+   "source_id": "ex_okx",
+   "exchange": "OKX",
+   "url": "https://example.invalid/",
+   "last_notice": "2026-10-22T08:00:00Z"
+  },
+  {
+   "source_id": "ex_kraken",
+   "exchange": "Kraken",
+   "url": "https://example.invalid/",
+   "last_notice": "2026-10-22T06:00:00Z"
+  },
+  {
+   "source_id": "ex_kucoin",
+   "exchange": "KuCoin",
+   "url": "https://example.invalid/",
+   "last_notice": "2026-10-21T10:00:00Z"
+  }
+ ]
+}

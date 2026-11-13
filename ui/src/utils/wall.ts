@@ -3,6 +3,7 @@
  * Pure; tested in src/test/wall.test.ts.
  */
 import type { EventSummary, NowItem } from '@/types/site-data';
+import { agoZh } from '@/utils/timeZh';
 import type { LeaderLabelItem } from '@/components/radar/LeaderLabels';
 
 /**
@@ -41,4 +42,22 @@ export function drawerEventId(params: URLSearchParams): string | null {
 /** Link target that opens the L2 drawer on the wall (refresh-safe; Back closes it). */
 export function drawerHref(eventId: string): string {
   return `/wall?event=${encodeURIComponent(eventId)}`;
+}
+
+/**
+ * Item 5 — how an incident on the NOW board is being followed, in one line: on-chain moves and freezes traced
+ * (radar.onchain), attack txs decoded (radar.attacktx), the operator's disposition, and how fresh the latest move is.
+ * Only facts that exist are listed — an event nobody follows on chain gets no "0 笔" (null = no line at all).
+ */
+export function followupLine(ev: EventSummary | null | undefined, nowMs: number = Date.now()): string | null {
+  if (!ev) return null;
+  const f = ev.followup;
+  const parts: string[] = [];
+  if (f?.onchain_moves) parts.push(`链上 ${f.onchain_moves} 笔转出`);
+  if (f?.freezes) parts.push(`冻结 ${f.freezes} 次`);
+  if (f?.attack_txs) parts.push(`攻击交易 ${f.attack_txs} 笔已拆解`);
+  if (ev.triage?.label) parts.push(`处置：${ev.triage.label}`);
+  if (parts.length === 0) return null;
+  if (f?.last_at) parts.push(`最新 ${agoZh(f.last_at, nowMs)}`);
+  return `跟进 · ${parts.join(' · ')}`;
 }

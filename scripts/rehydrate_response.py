@@ -3,7 +3,7 @@
 Needed once on 2026-10-25: a cooled-down event (P0 → P1) had its state overwritten by a since-fixed bug. AWS keeps the
 work, so we reconstruct the job references and let the next Respond cycle re-read results, diffs, issues and patches:
   · Security Agent code reviews titled radar-<event_id>-<target>  → targets[<target>].review (re-read on next poll)
-  · Continuum findings whose title contains the event title        → targets[<target>].cn_findings
+  · Continuum findings whose title contains the event title        → s3.findings (with target_id; R11 shape)
   STAGE= uv run python scripts/rehydrate_response.py <event_id> [--write]
 """
 
@@ -63,9 +63,10 @@ def main() -> None:
                 if tid in NAMES:
                     # keyed by findingId, not the radar uid: respond.decide re-keys by (file, line) on its next run
                     # (before that fix, these keys made the findings look 'gone' — live 2026-10-26, PHP2Shell)
-                    st["targets"].setdefault(tid, {}).setdefault("cn_findings", {})[f["findingId"]] = {
+                    st["targets"].setdefault(tid, {})
+                    st.setdefault(respond.S3, {}).setdefault("findings", {})[f["findingId"]] = {
                         "finding_id": f["findingId"], "status": f["status"], "title": f.get("title", ""),
-                        "file": path, "line": g.get("lineNumber") or 1}
+                        "target_id": tid, "file": path, "line": g.get("lineNumber") or 1}
         token = page.get("nextToken")
         if not token:
             break
@@ -79,7 +80,7 @@ def main() -> None:
             tgt = respond.Target(tid, tid, "", files)
             ts["relevant"] = respond.relevant(tgt, hist)
             ts["locations"] = respond.locations(tgt, hist)
-    print(json.dumps({t: {k: (v if k != "cn_findings" else len(v)) for k, v in s.items()} for t, s in st["targets"].items()},
+    print(json.dumps({**st["targets"], "s3_findings": len((st.get(respond.S3) or {}).get("findings") or {})},
                      indent=1, default=str))
     if write:
         table.put_item(Item={"pk": f"EVENT#{event_id}", "sk": "RESPONSE", "d": json.dumps(st)})

@@ -140,6 +140,7 @@ details.lc-group > summary { cursor: pointer; }
 .row-amt { font-family: var(--font-mono); font-weight: 700; color: var(--loss); }
 .row-cve { font-family: var(--font-mono); font-size: 11px; color: var(--text-2); }
 .row-src { color: var(--text-3); }
+.row-disc { font-size: 11.5px; color: var(--text-2); }   /* 「CVE 公开 10-15」: the vulnerability date next to its id */
 .row-sum { grid-area: sum; margin: 2px 0 0; font-size: 12px; line-height: 1.55; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 @media (max-width: 800px) { .row { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'sev title' 'sig right' 'meta meta' 'sum sum'; } .row-title { white-space: normal; } }
 

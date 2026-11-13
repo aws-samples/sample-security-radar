@@ -15,7 +15,6 @@ annotates `possible_duplicates`; merging stays with the rules (and a human).
 from __future__ import annotations
 
 import hashlib
-import itertools
 import json
 import re
 from datetime import timedelta
@@ -39,17 +38,39 @@ def pair_key(a: Event, b: Event) -> str:
 
 
 def candidates(evs: list[Event]) -> list[tuple[Event, Event]]:
+    """Same-domain pairs first seen within WINDOW_H of each other that share no key but share an entity or a similar
+    title. A sweep over events sorted by first_seen (only neighbours inside the window are compared) with times, key
+    and entity sets computed once — the all-pairs loop with per-pair parsing took 5.5 min of every Analyze run once the
+    CVE List filled the window (live 2026-11-11, ~1,500 events: ~1.1 M pairs). SequenceMatcher runs only when its
+    cheap upper bounds can reach TITLE_SIMILARITY. Same result as the all-pairs loop (test)."""
+    prep = []
+    for i, e in enumerate(evs):
+        t = timeutil.parse(e.first_seen)
+        if t:
+            prep.append((t, i, e, set(e.keys), {x.lower() for x in e.entities}, e.title.lower(), set(e.cves),
+                         {x["hash"] for x in e.tx}))
+    prep.sort(key=lambda r: (r[0], r[1]))
+    win = timedelta(hours=WINDOW_H)
     out = []
-    for a, b in itertools.combinations(evs, 2):
-        if a.domain != b.domain or set(a.keys) & set(b.keys):
-            continue
-        ta, tb = timeutil.parse(a.first_seen), timeutil.parse(b.first_seen)
-        if not ta or not tb or abs(ta - tb) > timedelta(hours=WINDOW_H):
-            continue
-        shared_entity = bool({e.lower() for e in a.entities} & {e.lower() for e in b.entities})
-        if shared_entity or SequenceMatcher(None, a.title.lower(), b.title.lower()).ratio() >= TITLE_SIMILARITY:
-            out.append((a, b))
-    # most severe first: a P0/P1 duplicate matters more than a P2 press copy
+    for j, (tb, ib, b, kb, eb, lb, cb, xb) in enumerate(prep):
+        k = j - 1
+        while k >= 0 and tb - prep[k][0] <= win:
+            _, ia, a, ka, ea, la, ca, xa = prep[k]
+            k -= 1
+            if a.domain != b.domain or ka & kb:
+                continue
+            if (ca and cb and not ca & cb) or (xa and xb and not xa & xb):
+                continue    # contradiction(): code already says different — not a pair to judge (107,811 → few)
+            if ea & eb:
+                out.append((a, b) if ia < ib else (b, a))
+                continue
+            sm = SequenceMatcher(None, la, lb)
+            if sm.real_quick_ratio() >= TITLE_SIMILARITY and sm.quick_ratio() >= TITLE_SIMILARITY \
+                    and sm.ratio() >= TITLE_SIMILARITY:
+                out.append((a, b) if ia < ib else (b, a))
+    order = {id(e): i for i, e in enumerate(evs)}
+    out.sort(key=lambda p: (order[id(p[0])], order[id(p[1])]))           # the all-pairs loop's order …
+    # … then most severe first (stable): a P0/P1 duplicate matters more than a P2 press copy
     out.sort(key=lambda p: -max({"P0": 2, "P1": 1}.get(p[0].severity, 0), {"P0": 2, "P1": 1}.get(p[1].severity, 0)))
     return out
 
@@ -110,13 +131,52 @@ def run(evs: list[Event], state: dict[str, Any], now_iso: str, call: Any = None)
     return state, calls
 
 
-def possible_duplicates(event_id: str, state: dict[str, Any], titles: dict[str, str]) -> list[dict[str, str]]:
-    """What the event page shows: the other side of every 'same' verdict that is still on the board."""
-    out = []
+SHARDS = 16
+
+
+def _shard(key: str, pair: str) -> str:
+    return f"{key}#{int(hashlib.sha1(pair.encode(), usedforsecurity=False).hexdigest(), 16) % SHARDS}"
+
+
+def load(store: Any, key: str) -> dict[str, Any]:
+    """Every remembered verdict: the legacy single record (read-merged until the first save) plus the shards."""
+    out = dict((store.get_source_state(key) or {}).get("pairs") or {})
+    for part in store.get_source_states([f"{key}#{i}" for i in range(SHARDS)]).values():
+        out.update((part or {}).get("pairs") or {})
+    return out
+
+
+def save(store: Any, key: str, pairs: dict[str, Any]) -> None:
+    """Live 2026-11-11: one record held 1,658 pairs in 399,029 bytes and the next write failed with 413, every cycle.
+    Only model verdicts are kept — a code verdict (contradiction()) is recomputed for free on every run — and they are
+    sharded so no record nears DynamoDB's 400 KB. Every shard is rewritten (pairs leave as the window moves on)."""
+    kept = {k: v for k, v in pairs.items() if v.get("by") != "code"}
+    for i in range(SHARDS):
+        sh = f"{key}#{i}"
+        store.put_source_state(sh, {"pairs": {k: v for k, v in kept.items() if _shard(key, k) == sh}})
+    if store.get_source_state(key):
+        store.put_source_state(key, {})
+
+
+def possible_duplicates(event_id: str, state: dict[str, Any], titles: dict[str, str],
+                        labels: dict[str, Any] | None = None) -> list[dict[str, str]]:
+    """What the event page shows: the other side of every 'same' verdict that is still on the board. An operator's
+    label (radar.duplabels, item 6) beats the model: 'different' hides the hint, 'same' shows it whatever the verdict."""
+    labels = labels or {}
+    why: dict[str, str] = {}
     for row in state.values():
-        if row.get("verdict") != "same" or event_id not in (row.get("a"), row.get("b")):
-            continue
-        other = row["b"] if row["a"] == event_id else row["a"]
-        if other in titles:
-            out.append({"event_id": other, "title": titles[other], "why": row.get("why", "")})
-    return sorted(out, key=lambda d: d["event_id"])
+        if row.get("verdict") == "same" and event_id in (row.get("a"), row.get("b")):
+            why[row["b"] if row["a"] == event_id else row["a"]] = row.get("why", "")
+    for k, lab in labels.items():
+        a, b = k.split("|")
+        if event_id in (a, b):
+            other = b if a == event_id else a
+            if lab.get("label") == "same":
+                why[other] = f"人工确认：{lab.get('note') or LABEL_SAME_DEFAULT}"
+            else:
+                why.pop(other, None)
+    return sorted(({"event_id": o, "title": titles[o], "why": w} for o, w in why.items() if o in titles),
+                  key=lambda d: d["event_id"])
+
+
+LABEL_SAME_DEFAULT = "同一事件"

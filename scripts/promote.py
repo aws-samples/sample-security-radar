@@ -58,6 +58,11 @@ def main() -> int:
             return 2
         else:
             dns[a.web_acl] = {"by": a.by, "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
+            if a.web_acl == mitigate.DNS_RADAR_RULE:
+                # the approval is of the domains listed (and waiting) NOW; one found later waits for its own decision
+                now_dns = led.get("dns") or {}
+                dns[a.web_acl]["domains"] = sorted({*(now_dns.get("domains") or []), *(now_dns.get("waiting") or [])})
+                print(f"[promote] approving {len(dns[a.web_acl]['domains'])} domain(s): {', '.join(dns[a.web_acl]['domains'][:20])}")
         store.put_source_state(mitigate_station.PROMOTE_KEY, promo)
         print(f"[promote] {'revoked' if a.revoke else 'promoted'} DNS rule {a.web_acl}; applied next cycle")
         return 0
@@ -83,7 +88,11 @@ def main() -> int:
         if not a.by:
             print("[promote] --by <name> is required: a promotion is a human decision and keeps who made it", file=sys.stderr)
             return 2
-        acl[rule] = {"by": a.by, "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
+        rows = [p for m in (led.get("events") or {}).values() for p in m.get("plans") or []]
+        scope = mitigate.promotion_scope(rows, a.web_acl, a.group)
+        # the approval is of what the plans ask for NOW; the station blocks exactly this and reports anything beyond it
+        print(f"[promote] approving: {', '.join(scope) if scope else 'the whole group ' + a.group}")
+        acl[rule] = {"by": a.by, "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "rules": scope or []}
     store.put_source_state(mitigate_station.PROMOTE_KEY, promo)
     print(f"[promote] {'revoked' if a.revoke else 'promoted'} {rule} on {a.web_acl}; the mitigate station applies it next cycle")
     return 0

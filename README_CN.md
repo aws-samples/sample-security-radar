@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/logo.svg" width="112" height="112" alt="Security Radar logo"/>
+  <img src="docs/assets/logo.svg" width="112" height="112" alt="Security Radar logo"/>
 </p>
 
 <h1 align="center">Security Radar</h1>
@@ -9,6 +9,23 @@
 [English](README.md)
 
 > **预览说明**：本示例调用 AWS Continuum 代码扫描，该功能处于**公开预览**，API 与行为可能变化。请使用非生产账号。
+
+## v1.2.0 更新了什么
+
+完整条目见 [CHANGELOG.md](CHANGELOG.md)。
+
+| 方向 | 变化 |
+|---|---|
+| **错了能知道** | 事件在一轮内变形、站点连续失败或停摆、信源停采或沉默，都上运维页；5 个 CloudWatch 告警经 SNS 通知负责人 |
+| **聚类** | 只有事件本身的报道才能合并两个事件；名字只指向它命名的事件。`scripts/move_item.py` 可移动单条报道 |
+| **时效** | 「发布 → 持有」与「首报 → P0 推送」的中位与 90 分位在运维页；短列表每 5–10 分钟读一次 |
+| **缓解** | 批准的 WAF / DNS Firewall 规则只拦批准时的范围；之后的扩大会被报告，不会生效 |
+| **WAF 规则包** | 每个事件一份，取自模板或证据原文的特征，离线校验，可导出 wafv2 JSON / CloudFormation / Terraform / CLI |
+| **响应决策** | 一张决策表；事件页显示每个动作的结果、原因码与时间 |
+| **通知** | 订阅（Slack、Lark、webhook）与 Atom / JSON feed |
+| **信源** | CVE List、CISA CSAF、AWS 公告、厂商 PSIRT、CERT、交易所公告板、Telegram 预览、公众号 feed，全部经准入试跑；5 分钟增量采集 |
+| **页面** | 搜索发布过的每个事件；交易所公告板 |
+| **部署护栏** | 部署前检查，部署后比对站点 |
 
 ## 它是什么
 
@@ -27,8 +44,8 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界（C
 先用不拦截的模式，等人确认后才拦截（见下文「快路」）。
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/respond-loop-dark.svg">
-  <img src="docs/diagrams/respond-loop.svg" alt="雷达 → AWS Security Agent + AWS Continuum">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/respond-loop-dark.svg">
+  <img src="docs/assets/respond-loop.svg" alt="雷达 → AWS Security Agent + AWS Continuum">
 </picture>
 
 ## 界面一览

@@ -13,7 +13,7 @@ import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'fs
 import { tmpdir } from 'os';
 import { createHash } from 'crypto';
 import { spawnSync } from 'child_process';
-import { resolve, dirname, join } from 'path';
+import { resolve, dirname, join, sep } from 'path';
 import { fileURLToPath } from 'url';
 
 const UI = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -67,6 +67,10 @@ function runOne(m) {
   if (m.find === m.replace) return ['NOT LANDED', 'find == replace (empty mutation)'];
   if (resolve(UI, m.file) === resolve(UI, m.expect)) return ['NOT LANDED', 'mutates its own test (judge, not code)'];
   const path = resolve(UI, m.file);
+  // registry paths stay inside ui/: a ../ entry would let a registry edit rewrite (and restore) any file on the box
+  for (const p of [path, resolve(UI, m.expect)]) {
+    if (p !== UI && !p.startsWith(UI + sep)) return ['NOT LANDED', `path outside ui/: ${p}`];
+  }
   if (!existsSync(path)) return ['NOT LANDED', `no such file ${m.file}`];
   if (!existsSync(resolve(UI, m.expect))) return ['NOT LANDED', `no such test ${m.expect}`];
   // `vitest list` exits 0 even for a path with no tests ⇒ require ≥1 listed test, or a typo would read as "red".

@@ -3,6 +3,7 @@
 import importlib
 import json
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import boto3
 import pytest
@@ -92,6 +93,9 @@ def test_cycle_wiring_check_catches_a_station_that_drops_full():
         "DefinitionString": {"Fn::Join": ["", ['{"States":{"Process":{"Type":"Task","Resource":"', {"Fn::GetAtt": ["F", "Arn"]},
                                                '","Parameters":{"results.$":"$.results"}}}}']]}}}}}
     assert w.violations(ok) == [] and len(w.violations(bad)) == 1
+    # Plan gets {"input.$": "$", …}: the whole state (full included) — not a narrowing (overlap guard, 2026-11-10)
+    whole = {"States": {"Plan": {"Type": "Task", "Arguments": {"Payload": {"input.$": "$", "execution.$": "$$.Execution.Id"}}}}}
+    assert w.violations(whole) == []
     assert w.definition(tpl)["States"]["Process"]["Parameters"] == {"results.$": "$.results"}
 
 
@@ -112,7 +116,8 @@ def test_pr_sync_writes_links_and_reports_a_placeholder_token(env, monkeypatch):
     sm.put_secret_value(SecretId=arn, SecretString="github_pat_x")
     body = "**AWS Continuum** issue `i9` — HIGH · validation **EXPLOITABLE**"
     monkeypatch.setattr(prsync, "fetch_pulls", lambda repo, token: [
-        {"head": {"ref": "continuum/18021be5-node-gateway"}, "body": body, "html_url": "https://x/pull/4"}])
+        {"head": {"ref": "continuum/18021be5-node-gateway", "repo": {"full_name": "your-org/security-radar-demo-fleet"}},
+         "body": body, "html_url": "https://x/pull/4"}])
     assert h._sync_prs(led, now) == []                       # throttled: last attempt < PR_SYNC_H ago
     led.pop("pr_sync")
     assert h._sync_prs(led, now) == ["ev_18021be5786d7984"]
@@ -120,34 +125,58 @@ def test_pr_sync_writes_links_and_reports_a_placeholder_token(env, monkeypatch):
     assert led["counters"]["github_prs"] == 1 and led["pr_sync"]["status"] == "ok"
 
 
-def test_notify_baselines_first_then_threads_new_facts_and_survives_a_channel_error(env, monkeypatch):
-    """C3: enabling push must not replay the backlog; later facts reply in the event's thread; a failing channel
-    is recorded and retried, never raised."""
+def test_notify_station_baselines_first_then_threads_new_facts_and_survives_a_channel_error(env, monkeypatch):
+    """P3 (was C3 inside Respond): enabling push must not replay the backlog; later facts reply in the event's thread;
+    a failing subscription is recorded and retried, never raised; the station runs with no Security Agent space."""
     h, _ = env
-    from radar import notify
+    from radar import notify, notify_station
     from radar.model import Event
+    monkeypatch.delenv("SA_AGENT_SPACE_ID", raising=False)
     sm = boto3.client("secretsmanager", region_name="ap-northeast-1")
-    cfg = {"slack_bot_token": "xoxb-1", "slack_channel_id": "C1", "lark_app_id": "a", "lark_app_secret": "s", "lark_chat_id": "oc"}
+    cfg = {"slack_bot_token": "xoxb-1", "lark_app_id": "a", "lark_app_secret": "s", "subscriptions": [
+        {"id": "slack", "owner": True, "channel": "slack_channel", "target": "C1"},
+        {"id": "lark", "owner": True, "channel": "lark_chat", "target": "oc"}]}
     monkeypatch.setenv("NOTIFY_SECRET_ARN", sm.create_secret(Name="notify", SecretString=json.dumps(cfg))["ARN"])
     now = timeutil.now()
     ev = Event(event_id="ev_1", domain="vuln", title="PHP2Shell", first_seen=timeutil.iso(now),
                last_updated=timeutil.iso(now), item_ids=[], keys=[], severity="P0")
     h._store.put_event(ev)
     sent = []
-    monkeypatch.setitem(notify.SENDERS, "slack", lambda c, text, thread: sent.append(("slack", text[:4], thread)) or "T-slack")
-    def lark_down(c, text, thread):
+    monkeypatch.setitem(notify.SENDERS, "slack_channel",
+                        lambda c, sub, m, thread, cache: sent.append((sub.id, m["text"][:4], thread)) or "T-slack")
+    def lark_down(c, sub, m, thread, cache):
         raise ValueError("lark: app not installed")
-    monkeypatch.setitem(notify.SENDERS, "lark", lark_down)
-    led: dict = {}
-    h._notify(led, now)
-    assert sent == [] and led["notify"]["slack"]["status"] == "baseline"   # existing P0 recorded, not sent
+    monkeypatch.setitem(notify.SENDERS, "lark_chat", lark_down)
+    h.notify_events({})
+    st = h._store.get_source_state(notify_station.STATUS_KEY)
+    assert sent == [] and st["subscriptions"]["slack"]["status"] == "baseline"   # existing P0 recorded, not sent
     h._store.put_event(Event(**{**ev.to_dict(), "event_id": "ev_2", "title": "New P0"}))
-    h._notify(led, now)
-    assert sent == [("slack", "[P0]", None)] and led["notify"]["slack"]["status"] == "ok"
-    assert led["notify"]["lark"]["status"] == "error" and "not installed" in led["notify"]["lark"]["error"]
-    h._notify(led, now)
+    h.notify_events({})
+    st = h._store.get_source_state(notify_station.STATUS_KEY)
+    assert sent == [("slack", "[P0]", None)] and st["subscriptions"]["slack"]["status"] == "ok"
+    assert st["subscriptions"]["lark"]["status"] == "error" and "not installed" in st["subscriptions"]["lark"]["error"]["message"]
+    assert st["status"] == "degraded"
+    h.notify_events({})
     assert len(sent) == 1                                                    # at most once per fact
-    assert h._store.get_source_state("__notify__")["ev_2"]["slack"]["thread"] == "T-slack"
+    assert h._store.get_source_state(notify_station.state_key("ev_2", "slack"))["thread"] == "T-slack"
+
+
+def test_a_passing_secret_error_does_not_stay_on_the_ops_page(env, monkeypatch):
+    """research/action/03 B3: status["error"] was set and never cleared — one Secrets Manager blip showed
+    「推送配置读取失败」 forever. The status row is rewritten whole every run."""
+    h, _ = env
+    from radar import notify_station, ops
+    sm = boto3.client("secretsmanager", region_name="ap-northeast-1")
+    monkeypatch.setenv("NOTIFY_SECRET_ARN", "arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:missing-AbCdEf")
+    h.notify_events({})
+    st = h._store.get_source_state(notify_station.STATUS_KEY)
+    assert st["status"] == "error" and [i["level"] for i in ops._notify({"notify": st})] == ["error"]
+    arn = sm.create_secret(Name="notify2", SecretString=json.dumps({"subscriptions": []}))["ARN"]
+    monkeypatch.setenv("NOTIFY_SECRET_ARN", arn)
+    h.notify_events({})
+    st = h._store.get_source_state(notify_station.STATUS_KEY)
+    assert st["status"] == "not_configured" and "error" not in st
+    assert [i["title"] for i in ops._notify({"notify": st})] == ["推送未配置（没有订阅）"]
 
 
 def test_dns_probe_only_resolves_the_canary_and_never_raises(env, monkeypatch):
@@ -160,3 +189,109 @@ def test_dns_probe_only_resolves_the_canary_and_never_raises(env, monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", busy)
     out = handlers.dns_probe({"name": mitigate.DNS_CANARY})
     assert out["error"].startswith("OSError 16")
+
+
+def test_an_ineligible_events_reason_is_rewritten_when_it_changes_not_only_once(env):
+    reason_changed = env[0].reason_changed     # handlers builds AWS clients at import: only under moto
+    p1 = {"eligible": False, "reason": "P1/reported：只对 P0，或已利用/有 PoC 的 P1 做代码侧响应"}
+    p0 = {"eligible": False, "reason": "产品不在登记表（网络设备/闭源产品不在代码里），无法定位代码"}
+    assert reason_changed(None, p1) and reason_changed({"eligibility": p1}, p0)
+    assert not reason_changed({"eligibility": p0}, dict(p0))       # quiet event: no write, no republish
+
+
+def test_the_time_driven_refresh_runs_once_an_hour_whatever_the_cycle_phase(env, monkeypatch):
+    """research 07 B8: `now.minute < CYCLE_MINUTES` made the hourly refresh a coin toss — rate(5 min) is not aligned to
+    the hour and Process's `now` drifts with Collect's duration, so an hour got two (04:00:20, 04:04:50) or none (the
+    05:0x cycle skipped for overlap, 05:58 the next). A ledger of the last refresh decides it: every ≥ 55 min."""
+    h, _ = env
+    runs: list[datetime] = []
+    monkeypatch.setattr(h.pipeline, "refresh", lambda store, now: runs.append(now) or [])
+    cycles = ["03:57:40", "04:00:20", "04:04:50", "04:09:30", "04:31:00", "04:58:10",
+              # 05:03 skipped (overlap) — the next Process run is 05:08
+              "05:08:40", "05:31:00", "05:58:30", "06:03:10", "06:07:00", "06:41:00", "07:02:30"]
+    for c in cycles:
+        t = datetime.fromisoformat(f"2026-10-23T{c}+00:00")
+        monkeypatch.setattr(timeutil, "now", lambda t=t: t)
+        h.process({})
+    assert [r.strftime("%H:%M") for r in runs] == ["03:57", "04:58", "05:58", "07:02"]
+    gaps = [(b - a).total_seconds() / 60 for a, b in pairwise(runs)]
+    assert all(55 <= g <= 70 for g in gaps), gaps
+
+
+def test_a_full_run_refreshes_whenever_it_is_asked(env, monkeypatch):
+    h, _ = env
+    runs: list[datetime] = []
+    monkeypatch.setattr(h.pipeline, "refresh", lambda store, now: runs.append(now) or [])
+    h.process({})
+    h.process({"full": True})
+    assert len(runs) == 2
+
+
+def test_publish_logs_its_phases_and_stack_before_the_lambda_deadline(env, caplog):
+    """Live 2026-11-11: Publish timed out with nothing logged after its first line; which phase hung was unknowable."""
+    import json as _json
+    import logging
+    import time
+    handlers = env[0]
+    t_end = time.monotonic() + handlers.Limits.TIMEOUT_WATCHDOG_S + 0.3
+    caplog.set_level(logging.ERROR)
+    timings = {"listing": 1.0}
+    stop = handlers._timeout_watchdog("publish", lambda: t_end - time.monotonic(), timings)
+    time.sleep(0.6)
+    stop()
+    rec = [_json.loads(r.getMessage()) for r in caplog.records if "about_to_time_out" in r.getMessage()]
+    assert rec and rec[0]["phases"] == {"listing": 1.0} and rec[0]["stack"]
+    caplog.clear()
+    stop2 = handlers._timeout_watchdog("publish", lambda: 100.0, {})
+    stop2()
+    time.sleep(0.05)
+    assert not [r for r in caplog.records if "about_to_time_out" in r.getMessage()]
+
+
+def test_process_records_the_cycles_anomalies_for_the_ops_page(env, monkeypatch):
+    """radar.anomaly rows found by ingest are stored by the station (R0.1) — unrecorded, #/ops stays green."""
+    from radar import anomaly
+    h, s3 = env
+    _put(s3, "raw/2026-10-23/2026-10-23T04:00:00Z/bleepingcomputer.jsonl", "x")
+    real = h.pipeline.ingest
+    row = {"kind": "absorbed_other_domain", "level": "error", "event_id": "ev_1", "title": "t", "at": "2026-10-23T04:30:00Z",
+           "actual": "web3 → vuln", "limit": "same domain", "message": "m"}
+
+    def ingest(*a, **k):
+        res = real(*a, **k)
+        res.anomalies = [row]
+        return res
+    monkeypatch.setattr(h.pipeline, "ingest", ingest)
+    h.process({})
+    assert anomaly.recent(h._store, timeutil.now()) == [row]
+
+
+def test_the_alert_function_delivers_an_alarm_to_the_owner_and_fails_loudly_when_it_cannot(env, monkeypatch):
+    """R0.2: SNS record → owner's chat. The secret is read at call time; a delivery nobody received raises."""
+    h, _ = env
+    from radar import alert, notify
+    sm = boto3.client("secretsmanager", region_name="ap-northeast-1")
+    cfg = {"slack_bot_token": "xoxb-1", "subscriptions": [{"id": "ops", "owner": True, "channel": "slack_dm", "target": "U1"}]}
+    monkeypatch.setenv("NOTIFY_SECRET_ARN", sm.create_secret(Name="notify-alert", SecretString=json.dumps(cfg))["ARN"])
+    monkeypatch.setenv("SITE_URL", "https://radar.example")
+    sent = []
+    monkeypatch.setitem(notify.SENDERS, "slack_dm", lambda c, sub, m, thread, cache: sent.append(m["text"]) or "ts")
+    ev = {"Records": [{"Sns": {"Message": json.dumps({"AlarmName": "NoPublishedCycle", "NewStateValue": "ALARM",
+                                                       "NewStateReason": "r", "AlarmDescription": "d"})}}]}
+    assert h.alert(ev)["sent"] == 1 and "NoPublishedCycle" in sent[0] and "https://radar.example/#/ops" in sent[0]
+
+    def down(*a):
+        raise ValueError("slack: invalid_auth")
+    monkeypatch.setitem(notify.SENDERS, "slack_dm", down)
+    with pytest.raises(alert.AlertError):
+        h.alert(ev)
+
+
+def test_process_records_how_long_new_reports_took_to_arrive(env):
+    """R0.5: the fixture's report was published at 01:00 and is ingested at 04:30 — one sample of 210 minutes."""
+    from radar import latency
+    h, s3 = env
+    _put(s3, "raw/2026-10-23/2026-10-23T04:00:00Z/bleepingcomputer.jsonl", "x")
+    h.process({})
+    s = latency.summary(h._store, timeutil.now())
+    assert s["n"] == 1 and s["p50"] == 210 and list(s["tiers"]) == ["T2"]

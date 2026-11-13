@@ -12,7 +12,10 @@ const pages = [['home', '#/', '[data-testid="event-card"], article, .event-card'
   ['incident-binance', '#/events/ev_0a4e5c3e0fce8be9', '.oc-table', false, 'section:has(#dt-h-flow)'],   // element shot: the page scrolls inside main
   ['incident-binance-top', '#/events/ev_0a4e5c3e0fce8be9', '.dt-tabs'],
   // M4.1: a contract exploit — the attack-tx breakdown (Tranche Vault, $1.013M USDC to the sender)
-  ['incident-tranche', '#/events/ev_455fc4965a8fa20b', '.atx-card', false, 'section:has(#dt-h-flow)']];
+  ['incident-tranche', '#/events/ev_455fc4965a8fa20b', '.atx-card', false, 'section:has(#dt-h-flow)'],
+  // 2026-11-02: CVE published (CNA) vs radar first seen — CVE-2026-98432, published 10-15, first seen 10-29
+  ['cve-disclosure', '#/events/ev_73cf1ec6a7cf368e', '[data-testid="disclosure"]', false, '[data-testid="verdict-panel"]'],
+  ['ops', '#/ops', 'main']];
 const b = await chromium.launch();
 for (const theme of ['light', 'dark']) {
   const ctx = await b.newContext({ httpCredentials: { username: process.env.U, password: process.env.P },

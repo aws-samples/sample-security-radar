@@ -1,59 +1,74 @@
-"""scripts/destroy-stage.sh must hand its cleanup program to Python and then reach `cdk destroy`.
+"""destroy-stage.sh runs end to end with uv / npx stubbed on PATH (GitHub issue #13: a comment on the `uv run` line
+swallowed the arguments and the heredoc, the Python ran as shell, and neither the cleanup nor `cdk destroy` ran).
+Nothing leaves the machine: the stubs log what they were handed."""
+from __future__ import annotations
 
-#13: a `#` comment placed before `"$name" "$pack" "$space" <<'PY'` swallowed the arguments and the heredoc, so the
-Python lines ran as shell commands (`import: command not found`, exit 127) and the stage was never destroyed.
-Run the real script with `uv` and `npx` stubbed on PATH: no AWS call is made."""
-
-import json
-import os
+import re
 import shutil
+import stat
 import subprocess
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 
-UV_STUB = """#!/usr/bin/env bash
-# uv run -q python -I <args>: `-c` snippets (lib.sh) run for real, the stdin program (`-`) is recorded, not run
-while [ "$1" != python ]; do shift; done; shift
-if [ "$2" = - ]; then
-  shift 2
-  printf '%s\\n' "$@" > "$LOG/py-args"; cat > "$LOG/py-stdin"
-else
-  exec python3 "$@"
-fi
-"""
-NPX_STUB = """#!/usr/bin/env bash
-printf '%s\\n' "$@" > "$LOG/npx-args"
-"""
+UV = r'''#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CAP/uv"
+if [ "$*" = "run -q python -I - security-radar-t1 PACK SPACE" ]; then cat > "$CAP/heredoc"; fi
+case "$*" in *"-c"*) printf '%s' "${OUT_VALUE:-}";; esac
+exit 0
+'''
+NPX = '#!/usr/bin/env bash\nprintf \'%s\\n\' "$*" >> "$CAP/npx"\n'
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
-def test_destroy_stage_runs_the_cleanup_program_then_cdk_destroy(tmp_path):
-    repo = tmp_path / "repo"
+def _sandbox(tmp: Path) -> tuple[Path, dict[str, str]]:
+    repo, bin_, cap = tmp / "repo", tmp / "bin", tmp / "cap"
     (repo / "scripts").mkdir(parents=True)
     (repo / "infra").mkdir()
-    (repo / "build").mkdir()
-    for name in ("destroy-stage.sh", "lib.sh"):
-        shutil.copy(ROOT / "scripts" / name, repo / "scripts" / name)
-    outputs = {"SecurityRadarDemo": {"RequirementPackId": "pack-1", "AgentSpaceId": "space-1"}}
-    (repo / "build" / "outputs-demo.json").write_text(json.dumps(outputs))
+    bin_.mkdir(); cap.mkdir()
+    shutil.copy(ROOT / "scripts" / "destroy-stage.sh", repo / "scripts")
+    (repo / "scripts" / "lib.sh").write_text('SUFFIX="-$STAGE"\nout() { case "$1" in RequirementPackId) echo PACK;; '
+                                             'AgentSpaceId) echo SPACE;; esac; }\n')
+    for name, body in (("uv", UV), ("npx", NPX)):
+        f = bin_ / name
+        f.write_text(body); f.chmod(f.stat().st_mode | stat.S_IEXEC)
+    env = {"PATH": f"{bin_}:/usr/bin:/bin", "CAP": str(cap), "STAGE": "t1", "HOME": str(tmp)}
+    return repo, env
 
-    bin_dir, log = tmp_path / "bin", tmp_path / "log"
-    bin_dir.mkdir()
-    log.mkdir()
-    for name, body in (("uv", UV_STUB), ("npx", NPX_STUB)):
-        (bin_dir / name).write_text(body)
-        (bin_dir / name).chmod(0o755)
 
-    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "LOG": str(log),
-           "STAGE": "demo", "AWS_PROFILE": "test-not-used"}
-    run = subprocess.run(["bash", "scripts/destroy-stage.sh"], cwd=repo, env=env, stdin=subprocess.DEVNULL,
-                         capture_output=True, text=True, timeout=60, check=False)
+def test_destroy_stage_runs_its_cleanup_program_and_reaches_cdk_destroy(tmp_path):
+    repo, env = _sandbox(tmp_path)
+    r = subprocess.run(["bash", "scripts/destroy-stage.sh"], cwd=repo, env=env, stdin=subprocess.DEVNULL, check=False,
+                       capture_output=True, text=True, timeout=30)
+    cap = Path(env["CAP"])
+    assert r.returncode == 0, r.stderr
+    assert "command not found" not in r.stderr
+    prog = (cap / "heredoc").read_text()                       # the Python went to python's stdin, with its args
+    assert prog.startswith("import sys, boto3") and "delete_environment" in prog
+    assert "destroy SecurityRadar-t1 SecurityRadarMitigateDemo-t1 SecurityRadarContinuum-t1 -c stage=t1 --force" \
+        in (cap / "npx").read_text()
 
-    assert run.returncode == 0, run.stderr
-    assert (log / "py-args").read_text().split() == ["security-radar-demo", "pack-1", "space-1"]
-    assert (log / "py-stdin").read_text().startswith("import sys, boto3")
-    npx = (log / "npx-args").read_text().split()
-    assert "destroy" in npx and "SecurityRadarDemo" in npx and "stage=demo" in npx
+
+def test_destroy_stage_refuses_the_live_deployment(tmp_path):
+    repo, env = _sandbox(tmp_path)
+    r = subprocess.run(["bash", "scripts/destroy-stage.sh"], cwd=repo, env={**env, "STAGE": ""},
+                       stdin=subprocess.DEVNULL, check=False, capture_output=True, text=True, timeout=30)
+    assert r.returncode == 1 and "refusing" in r.stderr and not (Path(env["CAP"]) / "npx").exists()
+
+
+# a trailing comment that holds what looks like the command's own arguments or a heredoc operator: bash drops it
+_SWALLOWED = re.compile(r'^\s*[^#\s][^#]*\s#[^\n]*(<<-?\s*[\'"]?\w+|"\$\{?\w+)')
+
+
+def test_no_shell_script_hides_arguments_or_a_heredoc_inside_a_trailing_comment():
+    bad = []
+    for f in sorted([*ROOT.glob("scripts/**/*.sh"), *ROOT.glob("integrations/**/*.sh")]):
+        for n, line in enumerate(f.read_text(errors="replace").splitlines(), 1):
+            if _SWALLOWED.match(line) and "'" not in line.split("#", 1)[0][-1:]:
+                bad.append(f"{f.relative_to(ROOT)}:{n}: {line.strip()[:120]}")
+    assert not bad, "a trailing comment swallows arguments / a heredoc (issue #13):\n" + "\n".join(bad)
+
+
+def test_the_lint_catches_the_issue_13_line():
+    assert _SWALLOWED.match('''uv run -q python -I -   # boto3 env "$name" "$pack" "$space" <<'PY\'''')
+    assert not _SWALLOWED.match('''uv run -q python -I - "$name" <<'PY'   # boto3''')
+    assert not _SWALLOWED.match("# a full-line comment mentioning <<'PY' is fine")

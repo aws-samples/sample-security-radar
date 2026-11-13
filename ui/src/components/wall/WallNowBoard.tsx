@@ -8,7 +8,7 @@ import type { NowCardModel } from '@/utils/home';
 import { SeverityBadge } from '@/components/SeverityBadge';
 import { LevelBadge } from '@/components/LevelBadge';
 import { ImpactChip } from '@/components/ImpactChip';
-import { drawerHref } from '@/utils/wall';
+import { drawerHref, followupLine } from '@/utils/wall';
 import { impactView } from '@/utils/response';
 import { agoZh } from '@/utils/timeZh';
 import '@/styles/wall.css';
@@ -23,13 +23,13 @@ export function WallNowBoard({ cards }: Props) {
   if (cards.length === 0) return <p className="wn-empty">当前无必须处理事件</p>;
   return (
     <ol className="wn-list" aria-label={`必须处理 ${cards.length} 件，按紧迫度排序`}>
-      {cards.map(({ item, event }, i) => (
+      {cards.map(({ item, event }, i) => { const follow = followupLine(event); return (
         <li key={item.event_id}>
           <Link
             to={drawerHref(item.event_id)}
             className={`wn-card sev-${event?.severity ?? 'P2'}`}
             data-testid="wall-now-card"
-            aria-label={`第 ${i + 1} 件：${event?.title ?? item.event_id} · ${item.reasons.join('、')}${event && impactView(event.impact) ? ` · ${impactView(event.impact)!.sr}` : ''} · 打开判定抽屉`}
+            aria-label={`第 ${i + 1} 件：${event?.title ?? item.event_id} · ${item.reasons.join('、')}${event && impactView(event.impact) ? ` · ${impactView(event.impact)!.sr}` : ''}${follow ? ` · ${follow}` : ''} · 打开判定抽屉`}
           >
             <span className="wn-head" aria-hidden="true">
               <span className="wn-rank">#{i + 1}</span>
@@ -40,11 +40,12 @@ export function WallNowBoard({ cards }: Props) {
             <span className="wn-title" aria-hidden="true">{event?.title ?? `${item.event_id}（摘要缺失）`}</span>
             <span className="wn-reasons" aria-hidden="true">
               {item.reasons.slice(0, 3).map(r => <span key={r}>{r}</span>)}
-              {event && !item.reasons.some(r => r.startsWith('首见')) && <span className="wn-age">首见 {agoZh(event.first_seen)}</span>}
+              {event && !item.reasons.some(r => r.startsWith('首报')) && <span className="wn-age">首报 {agoZh(event.first_seen)}</span>}
             </span>
+            {follow && <span className="wn-follow" aria-hidden="true" data-testid="wall-now-follow">{follow}</span>}
           </Link>
         </li>
-      ))}
+      ); })}
     </ol>
   );
 }

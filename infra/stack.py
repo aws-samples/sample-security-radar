@@ -10,6 +10,7 @@ from aws_cdk import CfnOutput, CfnResource, Duration, RemovalPolicy, SecretValue
 from aws_cdk import aws_cloudfront as cf
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_cloudwatch as cw
+from aws_cdk import aws_cloudwatch_actions as cw_actions
 from aws_cdk import aws_dynamodb as ddb
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_events as events
@@ -22,19 +23,30 @@ from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_deployment as s3deploy
 from aws_cdk import aws_secretsmanager as sm
 from aws_cdk import aws_securityhub as securityhub
+from aws_cdk import aws_sns as sns
+from aws_cdk import aws_sns_subscriptions as subs
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
 
 ROOT = Path(__file__).resolve().parents[1]
-CYCLE_MINUTES = 10
+CYCLE_MINUTES = 5   # = radar.limits.Limits.CYCLE_MINUTES (tests/test_collect_batching.py); research/17
+# Site CSP (tests/test_site_headers.py): third-party URLs reach the page (feed links, exchange notices) and one missed
+# safeHref was stored XSS (research/action/05 #2). Fitted to the built UI: one external module script, no eval;
+# style 'unsafe-inline' because React style props / the radar's injected <style> are inline; data: images = the
+# select arrow's SVG background; data: fonts = the small Inter subsets vite inlines into the CSS (a headless run of
+# 12 routes with font-src 'self' alone blocked them on the first page); everything fetched is ./data/* on this origin.
+SITE_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+            "font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; "
+            "frame-ancestors 'self'")
 # IAM actions of the respond Lambda (R1). Kept equal to the calls in src/radar/continuum_aws.py by
 # tests/test_iam_scope.py; resource types per action from the Service Authorization Reference.
 SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "ListFindings", "BatchGetFindings"]
 SA_PACK_ACTIONS = ["ListSecurityRequirements", "BatchCreateSecurityRequirements", "BatchUpdateSecurityRequirements",
                    "BatchDeleteSecurityRequirements"]
 # mitigate station (M3): reads anywhere, writes only radar-prefixed web ACLs (B3; tests/test_iam_scope.py)
-WAF_READ_ACTIONS = ["DescribeManagedRuleGroup", "GetWebACL", "ListAvailableManagedRuleGroupVersions", "ListWebACLs"]
+# CheckCapacity (P2 rule pack): read-only WCU + syntax check of a reader's pack; no resource type ⇒ "*"
+WAF_READ_ACTIONS = ["CheckCapacity", "DescribeManagedRuleGroup", "GetWebACL", "ListAvailableManagedRuleGroupVersions", "ListWebACLs"]
 WAF_WRITE_ACTIONS = ["UpdateWebACL"]
 DNS_READ_ACTIONS = ["ListFirewallDomainLists", "ListFirewallDomains", "ListFirewallRules"]
 CN_ACTIONS = ["CreateCodeFinding", "CreateCodeScan", "CreateEnvironment", "CreateIntegration", "GetCodeFinding",
@@ -54,7 +66,11 @@ class RadarStack(Stack):
                              encryption=s3.BucketEncryption.S3_MANAGED, enforce_ssl=True,
                              removal_policy=keep, auto_delete_objects=ephemeral, **extra)
 
-        raw = bucket("RawBucket", lifecycle_rules=[s3.LifecycleRule(expiration=Duration.days(90))])
+        # raw batches are the evidence and the replay source (recluster, seed-board): kept, never expired — 30 days in
+        # Standard, then Intelligent-Tiering (research/19 B8: the 90-day expiry contradicted "keep everything"; after
+        # incremental collection raw/ grows ~25 MB/day ≈ 9 GB/year)
+        raw = bucket("RawBucket", lifecycle_rules=[s3.LifecycleRule(transitions=[s3.Transition(
+            storage_class=s3.StorageClass.INTELLIGENT_TIERING, transition_after=Duration.days(30))])])
         site = bucket("SiteBucket")
 
         table = ddb.Table(self, "Table", partition_key=ddb.Attribute(name="pk", type=ddb.AttributeType.STRING),
@@ -71,7 +87,9 @@ class RadarStack(Stack):
                            "(X_API_KEY, FIRECRAWL_API_KEYS)")
 
         code = lambda_.Code.from_asset(str(ROOT / "build" / "lambda"))
-        env = {"TABLE": table.table_name, "RAW_BUCKET": raw.bucket_name, "SITE_BUCKET": site.bucket_name}
+        # which commit is live: `aws lambda get-function-configuration` answers it (scripts/verify.sh checks it is HEAD)
+        env = {"TABLE": table.table_name, "RAW_BUCKET": raw.bucket_name, "SITE_BUCKET": site.bucket_name,
+               "RADAR_COMMIT": self.node.try_get_context("commit") or "unknown"}
 
         def fn(name: str, handler: str, timeout_s: int, memory: int = 512, **extra) -> lambda_.Function:
             f = lambda_.Function(self, name, runtime=lambda_.Runtime.PYTHON_3_12, architecture=lambda_.Architecture.ARM_64,
@@ -83,7 +101,10 @@ class RadarStack(Stack):
             return f
 
         plan_fn = fn("PlanFn", "plan", 30)
-        collect_fn = fn("CollectFn", "collect_one", 180)
+        # overlap guard: Plan lists this state machine's running executions (name pattern, no reference ⇒ no cycle)
+        plan_fn.add_to_role_policy(iam.PolicyStatement(actions=["states:ListExecutions"], resources=[
+            f"arn:aws:states:{self.region}:{self.account}:stateMachine:Cycle*"]))
+        collect_fn = fn("CollectFn", "collect_batch", 180)
         collect_fn.add_environment("SECRET_ARN", secret.secret_arn)
         secret.grant_read(collect_fn)
         raw.grant_put(collect_fn)
@@ -96,8 +117,10 @@ class RadarStack(Stack):
             actions=["bedrock:InvokeModel", "bedrock:Converse"],
             resources=[f"arn:aws:bedrock:{self.region}:{self.account}:inference-profile/global.anthropic.claude-*",
                        "arn:aws:bedrock:*::foundation-model/anthropic.claude-*"]))
-        publish_fn = fn("PublishFn", "publish_site", 300, memory=1024)
+        publish_fn = fn("PublishFn", "publish_site", 300, memory=1769)   # 1769 MB = one full vCPU: page building is CPU-bound (2026-11-11)
         site.grant_put(publish_fn)
+        site.grant_read(publish_fn, "data/search/*")     # search shards are merged, not rebuilt (radar.search)
+        site.grant_delete(publish_fn, "data/events/*")   # removed events' stale detail pages (radar.removals)
 
         # respond station: AWS Security Agent here (Tokyo) + AWS Continuum in us-east-1 (CONTINUUM-INTEGRATION.md)
         sa_code = bucket("SecurityAgentCodeBucket")
@@ -157,12 +180,15 @@ class RadarStack(Stack):
         fleet_ro = sm.Secret(self, "DemoFleetGithubRO", description="security-radar: read-only GitHub token (demo-fleet PRs)",
                              secret_string_value=SecretValue.unsafe_plain_text("placeholder"))
         fleet_ro.grant_read(respond_fn)
-        # C3 push credentials (Slack bot token + channel, Lark app + chat) as one JSON; placeholder until
-        # scripts/set-notify.sh copies them from ~/.env — the station reports not_configured per channel until then
-        notify_cfg = sm.Secret(self, "NotifyConfig", description="security-radar: Slack / Lark push credentials (JSON)",
+        # P3 notify station: its own Lambda after Publish (a message never links to a page not written yet), single
+        # writer of the push state (reserved concurrency 1), independent of the Security Agent space. NotifyConfig =
+        # bot credentials + the subscription table (radar.notify) as one JSON; placeholder until scripts/set-notify.sh
+        # writes it — the station reports not_configured until then. Only this function can read it.
+        notify_fn = fn("NotifyFn", "notify_events", 300, memory=512, reserved_concurrent_executions=1)
+        notify_cfg = sm.Secret(self, "NotifyConfig", description="security-radar: push credentials + subscriptions (JSON)",
                                secret_string_value=SecretValue.unsafe_plain_text("placeholder"))
-        notify_cfg.grant_read(respond_fn)
-        respond_fn.add_environment("NOTIFY_SECRET_ARN", notify_cfg.secret_arn)
+        notify_cfg.grant_read(notify_fn)
+        notify_fn.add_environment("NOTIFY_SECRET_ARN", notify_cfg.secret_arn)
         respond_fn.add_environment("DEMO_FLEET_RO_SECRET_ARN", fleet_ro.secret_arn)
         # R4 spend tile: Cost Explorer has no resource-level permissions (the reference lists none for this action)
         respond_fn.add_to_role_policy(iam.PolicyStatement(actions=["ce:GetCostAndUsage"], resources=["*"]))
@@ -238,22 +264,31 @@ class RadarStack(Stack):
 
         def invoke(name: str, f: lambda_.Function, **extra) -> tasks.LambdaInvoke:
             t = tasks.LambdaInvoke(self, name, lambda_function=f, payload_response_only=True, **extra)
-            t.add_retry(errors=["Lambda.ServiceException", "Lambda.TooManyRequestsException", "Lambda.SdkClientException"],
+            t.add_retry(errors=["Lambda.ServiceException", "Lambda.SdkClientException"],
                         max_attempts=3, backoff_rate=2, interval=Duration.seconds(5))
+            # the single-writer stations run with reserved concurrency 1: an overlapping cycle (5-min rate, or a manual
+            # full publish) is throttled — it waits for the other run (~15 s) instead of failing (live 2026-11-10 00:50)
+            t.add_retry(errors=["Lambda.TooManyRequestsException"], max_attempts=6, backoff_rate=2,
+                        interval=Duration.seconds(15))
             return t
 
         collect_task = invoke("Collect", collect_fn)
-        collect_failed = sfn.Pass(self, "CollectFailed", parameters={
-            "source_id.$": "$.source_id", "key": None, "count": 0, "ok": False})
+        # a batch that crashed as a whole: its sources keep their state and are due again next cycle
+        collect_failed = sfn.Pass(self, "CollectFailed", parameters={"results": [], "failed_batch.$": "$.source_ids"})
         collect_task.add_catch(collect_failed, errors=["States.ALL"], result_path=sfn.JsonPath.DISCARD)
-        fan_out = sfn.Map(self, "CollectAll", items_path="$.sources", max_concurrency=6, result_path="$.results",
-                          item_selector={"source_id.$": "$$.Map.Item.Value.source_id", "slot.$": "$.slot"})
+        # one iteration per batch of sources (collect.batches): ~15 invocations for 167 sources, not 167
+        fan_out = sfn.Map(self, "CollectAll", items_path="$.sources", max_concurrency=10, result_path="$.results",
+                          item_selector={"source_ids.$": "$$.Map.Item.Value.source_ids", "slot.$": "$.slot"})
         fan_out.item_processor(collect_task)
         # analysis failure must not block publishing: catch ⇒ publish with the process output unchanged
         publish_task = invoke("Publish", publish_fn)
         analyze_step = invoke("Analyze", analyze_fn)
         respond_step = invoke("Respond", respond_fn)
         mitigate_step = invoke("Mitigate", mitigate_fn)
+        notify_step = invoke("Notify", notify_fn)
+        # push never fails the cycle: a failed Notify is caught and the cycle still succeeds (state is per send, so the
+        # next run picks up exactly what this one did not send)
+        notify_step.add_catch(sfn.Pass(self, "NotifyFailed"), errors=["States.ALL"], result_path="$.notify_error")
         # neither station may block publishing: a failure is caught and publishing proceeds with prior state
         analyze_step.add_catch(sfn.Pass(self, "AnalyzeFailed").next(respond_step), errors=["States.ALL"],
                                result_path="$.analyze_error")
@@ -261,30 +296,82 @@ class RadarStack(Stack):
                                result_path="$.respond_error")
         mitigate_step.add_catch(sfn.Pass(self, "MitigateFailed").next(publish_task), errors=["States.ALL"],
                                 result_path="$.mitigate_error")
-        definition = (invoke("Plan", plan_fn)
-                      .next(fan_out)
-                      .next(invoke("Process", process_fn, payload=sfn.TaskInput.from_object(
-                          {"results.$": "$.results", "full.$": "$.full"})))
-                      .next(analyze_step)
-                      .next(respond_step)
-                      .next(mitigate_step)
-                      .next(publish_task))
+        plan_task = invoke("Plan", plan_fn, payload=sfn.TaskInput.from_object(
+            {"input.$": "$", "execution.$": "$$.Execution.Id", "started.$": "$$.Execution.StartTime"}))
+        # an earlier cycle still running ⇒ this one ends here (handlers.plan): no two cycles collect and process at once
+        overlap = sfn.Choice(self, "Overlap").when(sfn.Condition.boolean_equals("$.skip", True),
+                                                   sfn.Succeed(self, "SkippedOverlap"))
+        cycle = (fan_out
+                 .next(invoke("Process", process_fn, payload=sfn.TaskInput.from_object(
+                     {"results.$": "$.results", "full.$": "$.full", "slot.$": "$.slot"})))
+                 .next(analyze_step)
+                 .next(respond_step)
+                 .next(mitigate_step)
+                 .next(publish_task)
+                 .next(notify_step))
+        definition = plan_task.next(overlap.otherwise(cycle))
         # every state transition logged (no execution data: payloads carry event ids only, still kept out) + X-Ray (cdk-nag SF1/SF2)
+        cycle_logs = logs.LogGroup(self, "CycleLogs", retention=logs.RetentionDays.ONE_MONTH, removal_policy=RemovalPolicy.DESTROY)
         machine = sfn.StateMachine(self, "Cycle", definition_body=sfn.DefinitionBody.from_chainable(definition),
                                    timeout=Duration.minutes(25), tracing_enabled=True,
-                                   logs=sfn.LogOptions(destination=logs.LogGroup(self, "CycleLogs", retention=logs.RetentionDays.ONE_MONTH,
-                                                                                 removal_policy=RemovalPolicy.DESTROY),
-                                                       level=sfn.LogLevel.ALL, include_execution_data=False))
+                                   logs=sfn.LogOptions(destination=cycle_logs, level=sfn.LogLevel.ALL,
+                                                       include_execution_data=False))
         # off until the auth gate is verified (deploy order: empty origin → gate → anonymous 401 → content)
         events.Rule(self, "Every10Min", schedule=events.Schedule.rate(Duration.minutes(CYCLE_MINUTES)),
                     targets=[targets.SfnStateMachine(machine)],
                     enabled=self.node.try_get_context("schedule") == "on")
 
-        # dead-man switch: no successful cycle in 30 min ⇒ ALARM (notification wiring deferred: push is M2)
-        cw.Alarm(self, "NoSuccessfulCycle", alarm_description="security-radar: no successful cycle in 30 minutes",
-                 metric=machine.metric_succeeded(period=Duration.minutes(30), statistic="Sum"),
-                 threshold=1, evaluation_periods=1, comparison_operator=cw.ComparisonOperator.LESS_THAN_THRESHOLD,
-                 treat_missing_data=cw.TreatMissingData.BREACHING)
+        # ---- alarms (roadmap R0.2): every alarm notifies; the owner hears it through the chat that already works ----
+        # SNS → AlertFn → the owner's chat subscriptions (radar.alert). No table, no buckets: it reads one secret.
+        alerts = sns.Topic(self, "Alerts", display_name="security-radar alarms", enforce_ssl=True)
+        # enforce_ssl gives the topic a resource policy, and with one present nothing is allowed implicitly: without this
+        # statement every alarm action failed ("Failed to execute action", live 2026-11-12, found by firing a test alarm)
+        alerts.add_to_resource_policy(iam.PolicyStatement(
+            actions=["sns:Publish"], resources=[alerts.topic_arn],
+            principals=[iam.ServicePrincipal("cloudwatch.amazonaws.com")],
+            conditions={"StringEquals": {"aws:SourceAccount": self.account},
+                        "ArnLike": {"aws:SourceArn": f"arn:aws:cloudwatch:{self.region}:{self.account}:alarm:*"}}))
+        alert_fn = lambda_.Function(
+            self, "AlertFn", runtime=lambda_.Runtime.PYTHON_3_12, architecture=lambda_.Architecture.ARM_64,
+            handler="radar.handlers.alert", code=code, timeout=Duration.seconds(30), memory_size=256,
+            environment={"NOTIFY_SECRET_ARN": notify_cfg.secret_arn},
+            log_group=logs.LogGroup(self, "AlertFnLogs", retention=logs.RetentionDays.ONE_MONTH,
+                                    removal_policy=RemovalPolicy.DESTROY))
+
+        notify_cfg.grant_read(alert_fn)
+        alerts.add_subscription(subs.LambdaSubscription(alert_fn))
+
+        def alarm(name: str, description: str, metric: cw.IMetric, threshold: float, below: bool = False,
+                  missing: cw.TreatMissingData = cw.TreatMissingData.NOT_BREACHING) -> cw.Alarm:
+            a = cw.Alarm(self, name, alarm_description=f"security-radar: {description}", metric=metric,
+                         threshold=threshold, evaluation_periods=1, treat_missing_data=missing,
+                         comparison_operator=(cw.ComparisonOperator.LESS_THAN_THRESHOLD if below
+                                              else cw.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD))
+            a.add_alarm_action(cw_actions.SnsAction(alerts))
+            a.add_ok_action(cw_actions.SnsAction(alerts))
+            return a
+
+        def log_metric(name: str, group: logs.ILogGroup, pattern: logs.IFilterPattern, minutes: int) -> cw.Metric:
+            logs.MetricFilter(self, f"{name}Filter", log_group=group, filter_pattern=pattern,
+                              metric_namespace="SecurityRadar", metric_name=name, metric_value="1")
+            return cw.Metric(namespace="SecurityRadar", metric_name=name, statistic="Sum", period=Duration.minutes(minutes))
+
+        # dead-man switch on cycles that PUBLISHED: an execution skipped for overlap ends in a Succeed state too (16 % of
+        # executions, measured 2026-11-12), so "executions succeeded" stayed green while nothing reached the site
+        published = log_metric("CyclePublished", cycle_logs, logs.FilterPattern.literal(
+            '{ $.type = "TaskStateExited" && $.details.name = "Publish" }'), 30)
+        alarm("NoPublishedCycle", "no cycle published the site in 30 minutes", published, 1, below=True,
+              missing=cw.TreatMissingData.BREACHING)
+        alarm("CycleFailed", "2 or more cycles failed in 30 minutes",
+              machine.metric_failed(period=Duration.minutes(30), statistic="Sum"), 2)
+        alarm("CycleTimedOut", "a cycle hit the state machine timeout",
+              machine.metric_timed_out(period=Duration.minutes(30), statistic="Sum"), 1)
+        # an event changed shape within one cycle (radar.anomaly; the process station logs `degraded: event_anomaly`)
+        alarm("EventAnomaly", "an event changed shape within one cycle — see #/ops",
+              log_metric("EventAnomaly", process_fn.log_group, logs.FilterPattern.literal('"event_anomaly"'), 5), 1)
+        # the last hop itself: an alert that could not be delivered
+        alarm("AlertFnErrors", "an alarm could not be delivered to the owner",
+              alert_fn.metric_errors(period=Duration.minutes(30), statistic="Sum"), 1)
 
         # UI credential: generated by Secrets Manager; only its hash reaches CloudFront (scripts/set-ui-auth.sh)
         ui_secret = sm.Secret(self, "UiBasicAuth", description="security-radar UI basic auth (username/password)",
@@ -294,17 +381,31 @@ class RadarStack(Stack):
         auth_store = cf.KeyValueStore(self, "AuthStore", comment="security-radar basic auth hash")
         auth_fn = cf.Function(self, "BasicAuth", runtime=cf.FunctionRuntime.JS_2_0, key_value_store=auth_store,
                               code=cf.FunctionCode.from_file(file_path=str(ROOT / "infra" / "basic_auth.js")))
+        # = the managed SECURITY_HEADERS policy's five headers, values unchanged, plus the CSP
+        site_headers = cf.ResponseHeadersPolicy(
+            self, "SiteHeaders", comment="security-radar site: managed security headers + CSP",
+            security_headers_behavior=cf.ResponseSecurityHeadersBehavior(
+                content_security_policy=cf.ResponseHeadersContentSecurityPolicy(content_security_policy=SITE_CSP, override=True),
+                content_type_options=cf.ResponseHeadersContentTypeOptions(override=True),
+                frame_options=cf.ResponseHeadersFrameOptions(frame_option=cf.HeadersFrameOption.SAMEORIGIN, override=True),
+                referrer_policy=cf.ResponseHeadersReferrerPolicy(
+                    referrer_policy=cf.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN, override=True),
+                strict_transport_security=cf.ResponseHeadersStrictTransportSecurity(
+                    access_control_max_age=Duration.seconds(31536000), override=True),
+                xss_protection=cf.ResponseHeadersXSSProtection(protection=True, mode_block=True, override=True)))
         dist = cf.Distribution(
             self, "Site", default_root_object="index.html", price_class=cf.PriceClass.PRICE_CLASS_200,
             default_behavior=cf.BehaviorOptions(
                 origin=origins.S3BucketOrigin.with_origin_access_control(site),
                 viewer_protocol_policy=cf.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                 cache_policy=cf.CachePolicy.CACHING_OPTIMIZED,
-                response_headers_policy=cf.ResponseHeadersPolicy.SECURITY_HEADERS,
+                response_headers_policy=site_headers,
                 function_associations=[cf.FunctionAssociation(function=auth_fn,
                                                               event_type=cf.FunctionEventType.VIEWER_REQUEST)]))
 
-        respond_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")  # links in C3 messages
+        notify_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")  # links in P3 messages
+        alert_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")   # the #/ops link in an alert
+        publish_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")  # links in data/feeds/*
         mitigate_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")  # Security Hub remediation links
         for k, v in {"SiteUrl": f"https://{dist.distribution_domain_name}", "DistributionId": dist.distribution_id,
                      "SiteBucketName": site.bucket_name, "RawBucketName": raw.bucket_name, "TableName": table.table_name,

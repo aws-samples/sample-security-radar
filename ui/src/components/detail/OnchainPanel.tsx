@@ -21,6 +21,8 @@ export function OnchainPanel({ onchain }: { onchain: Onchain | null }) {
           <b className="dt-mono">{s.outflow.length ? s.outflow.map(([t, v]) => `${formatAmount(v)} ${t}`).join(' · ') : '—'}</b></div>
         <div><span className="dt-muted dt-small">链上冻结</span>
           <b className="dt-mono">{s.freezes.length ? s.freezes.map(([i, n]) => `${i} ×${n}`).join(' · ') : '—'}</b></div>
+        {s.exchanges.length > 0 && <div><span className="dt-muted dt-small">攻击方流入交易所</span>
+          <b className="dt-mono">{s.exchanges.map(([x, v]) => `${x} ${formatAmount(v)}`).join(' · ')}</b></div>}
         <div><span className="dt-muted dt-small">EIP-7702 委托（当前）</span>
           <b className="dt-mono">{s.checked ? (s.delegated ? `${s.delegated}/${s.checked} 仍被委托` : `0/${s.checked} 已无委托`) : '未查'}</b></div>
       </div>

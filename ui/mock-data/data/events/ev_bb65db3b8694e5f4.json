@@ -1016,39 +1016,25 @@
     "appliable": true,
     "web_acl": "security-radar-waf-demo",
     "promoted": false,
+    "priority_placeholder": false,
     "state": "staged",
     "rule": "radar-AWSManagedRulesPHPRuleSet",
     "version": "Version_2.5",
     "counting": [
-     "PHP2Shell_BODY",
-     "PHP2Shell_BODY_Extended"
+     "*"
     ],
-    "detail": "规则在 Count（观察期），等人确认后切 Block",
+    "detail": "整组在 Count（观察期，组内规则都不拦截），等人确认后切 Block",
     "rule_json": {
      "Name": "radar-AWSManagedRulesPHPRuleSet",
      "Priority": 0,
      "Statement": {
       "ManagedRuleGroupStatement": {
        "VendorName": "AWS",
-       "Name": "AWSManagedRulesPHPRuleSet",
-       "RuleActionOverrides": [
-        {
-         "Name": "PHP2Shell_BODY_Extended",
-         "ActionToUse": {
-          "Count": {}
-         }
-        },
-        {
-         "Name": "PHP2Shell_BODY",
-         "ActionToUse": {
-          "Count": {}
-         }
-        }
-       ]
+       "Name": "AWSManagedRulesPHPRuleSet"
       }
      },
      "OverrideAction": {
-      "None": {}
+      "Count": {}
      },
      "VisibilityConfig": {
       "SampledRequestsEnabled": true,

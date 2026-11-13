@@ -55,7 +55,7 @@ def _reasons(ev: Event, vel: int, now: datetime) -> list[str]:
     if ev.amount_usd_latest:
         out.append(f"损失 ${ev.amount_usd_latest / 1e6:.1f}M" if ev.amount_usd_latest >= 1e6 else f"损失 ${ev.amount_usd_latest / 1e3:.0f}K")
     age = _hours(ev.first_seen, now)
-    out.append(f"首见 {age:.0f}h 前" if age < 48 else f"首见 {age / 24:.0f}d 前")
+    out.append(f"首报 {age:.0f}h 前" if age < 48 else f"首报 {age / 24:.0f}d 前")
     return out
 
 
@@ -111,21 +111,22 @@ def progress(ev: Event, items: list[Item], now: datetime) -> list[dict[str, Any]
     (a historical backfill would otherwise make every stage look like "today")."""
     from radar.limits import Limits
     from radar.model import EXPLOITATION_ORDER, LEVEL_ORDER
-    from radar.pipeline import evidence_at, first_report, independent_groups, recompute
+    from radar.pipeline import evidence_at, first_report, independent_groups, recompute, title_edges
     items = sorted(items, key=lambda i: (i.published_at, i.source_id, i.item_id))
     if items:     # date-only entries take their place after the first report (pipeline.first_report decides)
         first = first_report(items)
         when = {i.item_id: evidence_at(i, first) for i in items}
         items = sorted(items, key=lambda i: (when[i.item_id], i.source_id, i.item_id))
     at: dict[str, str | None] = dict.fromkeys(STAGES)
+    pairs = title_edges(items)          # once per event, not once per prefix (exact: see title_edges)
     if items:
         at["first_report"] = when[items[0].item_id]
-        firsts = _group_firsts(items, independent_groups(items), when)
+        firsts = _group_firsts(items, independent_groups(items, pairs), when)
         at["second_source"] = firsts[1] if len(firsts) > 1 else None
     for k in range(1, len(items) + 1):
         probe = Event(event_id=ev.event_id, domain=ev.domain, title="", first_seen=items[0].published_at,
                       last_updated=items[0].published_at, item_ids=[], keys=[])
-        p = recompute(probe, items[:k], timeutil.parse(items[k - 1].published_at) or now)
+        p = recompute(probe, items[:k], timeutil.parse(items[k - 1].published_at) or now, pairs)
         t = when[items[k - 1].item_id]
         if at["corroborated"] is None and LEVEL_ORDER[p.level] >= 2:
             at["corroborated"] = t
@@ -133,6 +134,8 @@ def progress(ev: Event, items: list[Item], now: datetime) -> list[dict[str, Any]
             at["confirmed"] = t
         if at["exploited"] is None and EXPLOITATION_ORDER[p.exploitation] >= EXPLOITATION_ORDER["reported"]:
             at["exploited"] = t
+        if at["confirmed"] and at["exploited"]:   # confirmed implies corroborated; later prefixes cannot move a stage
+            break
     if ev.analysis and ev.analysis.get("status") in ("ok", "partial"):
         at["analyzed"] = ev.analysis.get("generated_at")
     if ev.level == "V4" and items:
@@ -201,3 +204,23 @@ def _remediated_step(resp: dict[str, Any] | None) -> dict[str, str]:
     if any(t["verdict"] == "affected" for t in resp["targets"]):
         return {"step": "remediated", "status": "running", "detail": "受影响，等待 Security Agent / Continuum 生成补丁"}
     return {"step": "remediated", "status": "skipped", "detail": "未受影响，无需修复"}
+
+
+# ---------------------------------------------------------------- incident follow-up (item 5: the wall's NOW cards)
+
+def followup(store: Store, event_id: str) -> dict[str, Any] | None:
+    """What following this incident has produced so far: on-chain moves (radar.onchain rows), freezes, decoded attack
+    txs (radar.attacktx) and when the latest of them happened. None when neither station has a case — the wall then
+    shows no line rather than "0 笔" (not followed is not "nothing moved")."""
+    from radar import attacktx, onchain
+    oc = store.get_source_state(onchain.case_key(event_id))
+    at = store.get_source_state(attacktx.case_key(event_id))
+    if not oc and not (at or {}).get("txs"):
+        return None
+    rows = (onchain.doc(oc) or {}).get("rows") or [] if oc else []   # the detail page's rows: freezes on followed wallets only
+    moves = [r for r in rows if r.get("kind") == "outflow"]
+    freezes = [r for r in rows if r.get("kind") == "freeze"]
+    decoded = [d for d in ((at or {}).get("txs") or {}).values() if d.get("receipt")]
+    times = [x["t"] for x in (*moves, *freezes, *decoded) if x.get("t")]
+    return {"onchain_moves": len(moves), "freezes": len(freezes), "attack_txs": len(decoded),
+            "last_at": max(times) if times else None}

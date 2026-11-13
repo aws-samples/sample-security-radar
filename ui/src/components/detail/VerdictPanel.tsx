@@ -1,4 +1,4 @@
-import type { Analysis, EventSummary, ProgressStage, Response } from '@/types/site-data';
+import type { Analysis, Disclosure, EventSummary, ProgressStage, Response, Sighting } from '@/types/site-data';
 import { SeverityBadge } from '@/components/SeverityBadge';
 import { LevelBadge } from '@/components/LevelBadge';
 import { ImpactChip } from '@/components/ImpactChip';
@@ -8,6 +8,9 @@ import { responseBluf } from '@/utils/response';
 import { corroborationMs } from '@/utils/evidence';
 import { agoZh, durationZh, utcShort } from '@/utils/timeZh';
 import { triageLine } from '@/utils/triageView';
+import { titleFix } from '@/utils/retitleView';
+import { disclosureLine, fmtDisclosureAt } from '@/utils/disclosureView';
+import { sightingLine } from '@/utils/sightingView';
 
 export const EXPLOITATION_WORD: Record<EventSummary['exploitation'], { text: string; tone: string }> = {
   none: { text: '无利用迹象', tone: 'muted' },
@@ -34,10 +37,14 @@ interface Props {
   cite: (itemId: string) => number | undefined;
   onCite: (itemId: string) => void;
   onEnv: () => void;
+  disclosure?: Disclosure | null;
+  sighting?: Sighting | null;
 }
 
 /** L2 protagonist: what is it, how sure, how bad, does it hit us — one screen, before anything else. */
-export function VerdictPanel({ event, analysis, progress, response, impact, cite, onCite, onEnv }: Props) {
+export function VerdictPanel({ event, analysis, progress, response, impact, cite, onCite, onEnv, disclosure, sighting }: Props) {
+  const sight = sightingLine(sighting);
+  const disc = disclosureLine(disclosure, fmtDisclosureAt);
   const ex = EXPLOITATION_WORD[event.exploitation];
   const env = responseBluf(response);
   const corr = corroborationMs(progress);
@@ -74,9 +81,27 @@ export function VerdictPanel({ event, analysis, progress, response, impact, cite
         </span>
       </div>
       <h1 id="dt-title">{event.title}</h1>
+      {(() => { const f = titleFix(event, iso => `${utcShort(iso)} UTC`); return f && (
+        <p className="dt-small dt-muted" data-testid="title-fix">
+          {f.text}{f.href && <> · 依据 <a href={f.href} target="_blank" rel="noopener noreferrer">{f.host || '来源'} ↗</a></>}
+          <span> · 原标题：{f.original}</span>
+        </p>); })()}
       {bluf}
       <div className="dt-timing">
-        <span>首见 <b>{agoZh(firstStage?.at ?? event.first_seen)}</b>（{utcShort(firstStage?.at ?? event.first_seen)} UTC · {event.first_report_source}）</span>
+        {disc && (
+          <span data-testid="disclosure" className={disc.late ? 'tone-warn' : undefined}
+            title="CVE 公开时间来自 CVE 记录（cveawg.mitre.org）；「首报」是第一篇报道的发布时间，「雷达采集」是雷达抓到它的时间">
+            {disc.published}{disc.lag && <> · <b>{disc.lag}</b></>}
+          </span>
+        )}
+        {sight ? (
+          <>
+            <span data-testid="first-report" title="第一篇报道由其来源发布的时间（证据时间）">{sight.report}</span>
+            <span data-testid="radar-collected" title="雷达第一次采集到这起事件任一报道的时间">{sight.collected}</span>
+          </>
+        ) : (
+          <span>首报 <b>{agoZh(firstStage?.at ?? event.first_seen)}</b>（{utcShort(firstStage?.at ?? event.first_seen)} UTC · {event.first_report_source}）</span>
+        )}
         <span>证实用时 <b>{durationZh(corr) ?? '未证实'}</b>{t1Instant ? '（T1 首报即证实）' : ''}</span>
         <span>最后更新 <b>{agoZh(event.last_updated)}</b></span>
         <span><b>{event.independent_sources}</b> 个独立来源 · <b>{event.item_count}</b> 条证据</span>

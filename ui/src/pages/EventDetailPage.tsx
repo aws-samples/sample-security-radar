@@ -15,6 +15,8 @@ import { AttackTxPanel } from '@/components/detail/AttackTxPanel';
 import { EvidenceTimeline, ChangeLog } from '@/components/detail/EvidenceTimeline';
 import { EnvSection } from '@/components/env/EnvSection';
 import { MitigationPanel } from '@/components/detail/MitigationPanel';
+import { DecisionsPanel } from '@/components/env/DecisionsPanel';
+import { RulePackPanel } from '@/components/detail/RulePackPanel';
 import { LevelBadge } from '@/components/LevelBadge';
 import { resolveImpact } from '@/utils/response';
 import { citationNumbers, groupEvidence } from '@/utils/evidence';
@@ -111,7 +113,7 @@ export function EventDetailPage() {
   const echoes = d.items.length - groups.length;
   const toggle = (g: number) => setExpanded(s => { const n = new Set(s); if (n.has(g)) n.delete(g); else n.add(g); return n; });
   const hasKeyData = d.cveDetails.length + d.amountHistory.length + d.tx.length > 0;
-  const hasFlow = showFlow(attackFlow(d.items), ev.domain === 'web3') || Boolean(ev.attribution) || Boolean(d.onchain) || Boolean(d.attackTxs);
+  const hasFlow = showFlow(attackFlow(d.items, d.chainStages), ev.domain === 'web3') || Boolean(ev.attribution) || Boolean(d.onchain) || Boolean(d.attackTxs);
   // section numbers of the incident tab follow what is shown (no gaps)
   const n = (() => {
     const order = ['an', ...(hasFlow ? ['flow'] : []), ...(hasKeyData ? ['kd'] : []), 'progress', 'why', 'ev'];
@@ -128,7 +130,7 @@ export function EventDetailPage() {
         {/* verdict (BLUF) — above both tabs */}
         <VerdictPanel
           event={ev} analysis={d.analysis} progress={d.progress} response={d.response} impact={impact}
-          cite={id => numbers.get(id)} onCite={onCite} onEnv={() => { setTab('env'); requestAnimationFrame(() => scrollTo('dt-tabs')); }}
+          disclosure={d.disclosure} sighting={d.sighting} cite={id => numbers.get(id)} onCite={onCite} onEnv={() => { setTab('env'); requestAnimationFrame(() => scrollTo('dt-tabs')); }}
         />
 
         <div className="dt-tabs" id="dt-tabs" role="tablist" aria-label="事件详情视图">
@@ -151,7 +153,7 @@ export function EventDetailPage() {
             </section>
 
             {/* attack flow (M4) — rendered when the story has ≥ 2 phases, an attribution or an on-chain reconstruction */}
-            <AttackFlow event={ev} items={d.items} onCite={onCite} step={n.flow}>
+            <AttackFlow event={ev} items={d.items} chain={d.chainStages} onCite={onCite} step={n.flow}>
               {d.attackTxs && <AttackTxPanel data={d.attackTxs} />}
               {d.onchain && <OnchainPanel onchain={d.onchain} />}
             </AttackFlow>
@@ -197,6 +199,11 @@ export function EventDetailPage() {
             </section>
             {/* mitigation fast path (M3) — absent / null ⇒ not rendered */}
             <MitigationPanel mitigation={d.mitigation} step="02" />
+            {/* 「响应决策」 (radar.decisions table) — on every event document, with or without a response; absent on
+                older documents ⇒ not rendered */}
+            <DecisionsPanel decisions={d.decisions} />
+            {/* P2 WAF rule pack — absent / null ⇒ not rendered */}
+            <RulePackPanel rulePack={d.rulePack} step="03" />
           </div>
         )}
       </div>

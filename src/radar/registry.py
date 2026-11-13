@@ -8,10 +8,12 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass, field
 
 from radar.model import Domain, Tier
+from radar.registry_feeds import EXCHANGES, FEEDS, SOCIAL
 
 
 @dataclass(frozen=True)
@@ -29,7 +31,25 @@ class Source:
     always_eventful: bool = False  # structured incident/vuln databases: every entry is an event
     handles: tuple[str, ...] = field(default_factory=tuple)  # X sources only
     url_is_identity: bool = True   # False ⇒ item URLs are synthetic/shared (no per-entry page): no url: key
+    board: str | None = None       # "exchange" ⇒ also listed on the announcement board (#/announcements)
     notes: str = ""
+
+
+# Admitted feeds whose AWS egress later stopped working: fetched through firecrawl instead (collect: via="firecrawl").
+# Each row says when and what was measured — the generated table (registry_feeds) stays as onboarding produced it.
+FEED_EGRESS_OVERRIDES: dict[str, tuple[str, int, str]] = {
+    # (via, cadence_min, evidence)
+    "ubuntu_usn": ("firecrawl", 60, ("2026-11-11 14:30Z: every IPv4 connect from the radar's Lambda egress times out "
+                                     "(probe Lambda, Errno 110); firecrawl returns the full RSS")),
+}
+
+
+def _feed(row: tuple) -> Source:
+    o = FEED_EGRESS_OVERRIDES.get(row[0])
+    if not o:
+        return Source(*row)
+    sid, name, tier, org, domain, parser, url, _cadence = row
+    return Source(sid, name, tier, org, domain, parser, url, o[1], via=o[0], notes=o[2])
 
 
 @dataclass(frozen=True)
@@ -73,14 +93,26 @@ def handle_info(handle: str) -> Handle:
 SOURCES: tuple[Source, ...] = (
     # --- vulnerabilities / exploitation (T1) ---
     Source("cisa_kev", "CISA KEV", "T1", "cisa", "vuln", "kev",
-           "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", 30,
+           "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", 5,
            always_eventful=True),
     Source("cisa_advisories", "CISA Advisories", "T1", "cisa", None, "feed",
            "https://www.cisa.gov/cybersecurity-advisories/all.xml", 30),
     Source("chrome_releases", "Chrome Releases", "T1", "google", "vuln", "feed",
-           "https://chromereleases.googleblog.com/feeds/posts/default", 30),
+           "https://chromereleases.googleblog.com/feeds/posts/default", 10),
     Source("fortinet_psirt", "Fortinet PSIRT", "T1", "fortinet", "vuln", "feed",
-           "https://filestore.fortinet.com/fortiguard/rss/ir.xml", 30),
+           "https://filestore.fortinet.com/fortiguard/rss/ir.xml", 10),
+    # CISA advisories through CISA's CSAF provider (GitHub ROLIE feeds): CISA's CDN 403s the radar's AWS egress on the
+    # RSS since 2026-11-04 (cisa_advisories below stays for whatever it still delivers). OT = ICS advisories, IT = VA-*.
+    Source("cisa_csaf_ot", "CISA ICS Advisories (CSAF)", "T1", "cisa", "vuln", "rolie",
+           "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/cisa-csaf-ot-feed-tlp-white.json", 30),
+    Source("cisa_csaf_it", "CISA Vulnerability Advisories (CSAF)", "T1", "cisa", "vuln", "rolie",
+           "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/cisa-csaf-it-feed-tlp-white.json", 30),
+    # AWS's own advisories: "is the cloud I run on affected / patched" (2026-11-02: CVE-2026-98432 bulletin 2026-160)
+    # the CVE Program's own record feed (cvelistV5 delta.json, ~7-min windows): every new CVE, critical ones as events
+    Source("cve_list", "CVE List (cvelistV5 delta)", "T1", "cve", "vuln", "cvelist_delta",
+           "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/delta.json", 5),
+    Source("aws_bulletins", "AWS Security Bulletins", "T1", "aws", "vuln", "feed",
+           "https://aws.amazon.com/security/security-bulletins/rss/feed/", 30),
     # --- media (T2) ---
     Source("bleepingcomputer", "BleepingComputer", "T2", "bleepingcomputer", None, "feed",
            "https://www.bleepingcomputer.com/feed/", 15),
@@ -107,16 +139,19 @@ SOURCES: tuple[Source, ...] = (
     Source("slowmist_medium", "SlowMist Medium", "T1", "slowmist", "web3", "feed", "https://slowmist.medium.com/feed", 60),
     # --- the victim's own channel (T1): official loss / freeze / withdrawal statements, first-hand ---
     Source("binance_announcements", "Binance 公告", "T1", "binance", "web3", "binance_cms",
-           "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=49&pageNo=1&pageSize=20", 10),
+           # every catalog (listing, delisting, wallet maintenance, 「Security Incident | Recovery Update」…), 10 each —
+           # catalog 49 alone missed the recovery updates of Binance's own incident (2026-11-10)
+           "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&pageNo=1&pageSize=10", 5,
+           board="exchange"),
     # --- web3 structured (always eventful) ---
     Source("defillama_hacks", "DeFiLlama Hacks", "T2", "defillama", "web3", "defillama",
-           "https://api.llama.fi/hacks", 30, always_eventful=True,
+           "https://api.llama.fi/hacks", 10, always_eventful=True,
            url_is_identity=False),
     Source("slowmist_hacked", "SlowMist Hacked", "T1", "slowmist", "web3", "slowmist",
-           "https://hacked.slowmist.io/", 30, always_eventful=True,
+           "https://hacked.slowmist.io/", 10, always_eventful=True,
            url_is_identity=False),
     Source("defihacklabs", "DeFiHackLabs", "T1", "defihacklabs", "web3", "defihacklabs",
-           "https://raw.githubusercontent.com/SunWeb3Sec/DeFiHackLabs/main/README.md", 60,
+           "https://raw.githubusercontent.com/SunWeb3Sec/DeFiHackLabs/main/README.md", 30,
            always_eventful=True, notes="PoC .sol headers carry Attack Tx; reproducible ⇒ T1"),
     # --- web3 quick news (T3: speed, not evidence) ---
     Source("odaily", "Odaily 快讯", "T3", "odaily", None, "feed", "https://rss.odaily.news/rss/newsflash", 10),
@@ -127,9 +162,44 @@ SOURCES: tuple[Source, ...] = (
     Source("x_security", "X · security accounts", "T1", "x", None, "twitterapi",
            "", 60, handles=tuple(HANDLES), enabled=False,
            notes="off by default: bring your own licensed X data source (X_SEARCH_URL, X_API_KEY)"),
+    # admitted by scripts/source-onboard.py — the tables live in registry_feeds (generated, one row per feed)
+    *(_feed(row) for row in FEEDS),
+    *(Source(*row, board="exchange") for row in EXCHANGES),
+    *(Source(*row) for row in SOCIAL),
 )
 
+assert len({s.source_id for s in SOURCES}) == len(SOURCES), "duplicate source_id"
 BY_ID: dict[str, Source] = {s.source_id: s for s in SOURCES}
+
+
+def _reporter_tokens() -> frozenset[str]:
+    """Words that name a *reporter*, derived from the registry: every non-exchange source's org, name words and domain
+    stem. Live 2026-11-10 (dry run of the 141 onboarded feeds): ChainCatcher's own name in every body glued 16 unrelated
+    reports — Binance, Keplr, Drift, ACryptoS — into one event through tok:chaincatcher. The hand list in
+    keys.MATCH_STOP could not keep up with 167 sources. An exchange's own board is not a reporter: an exchange is
+    often the victim (Binance)."""
+    out: set[str] = set()
+    for s in SOURCES:
+        if s.board == "exchange" or s.parser == "twitterapi":
+            continue
+        host = s.url.split("/")[2] if "://" in s.url else ""
+        stem = host.split(".")[-2] if host.count(".") >= 1 else ""
+        # identity only — org, domain stem, a one-word brand name. NOT the words of a multi-word name: 「Google News ·
+        # crypto hacks」 made tok:hack a reporter and split 9 Binance reports off the Binance event (domain replay)
+        brand = [w for w in re.findall(r"[a-z0-9]+", s.name.lower()) if len(w) >= 4]
+        out |= {w for w in (stem, s.org.replace("_", ""), *(brand if len(brand) == 1 else ())) if len(w) >= 4}
+    victims = {w for s in SOURCES if s.board == "exchange" for w in re.findall(r"[a-z0-9]{3,}", s.org.replace("_", " ").lower())}
+    return frozenset(out - victims)
+
+
+REPORTER_TOKENS = _reporter_tokens()
+# Exchange names — victims, from the announcement boards' orgs. A Title Case English headline keeps only name-shaped
+# words (keys.headline_names), so 「Binance Confirms 7,499 BTC SAFU Transfer After Hack」 carried no binance key at all
+# and had joined the Binance event only through tok:defiant (the reporter's name; domain replay 2026-11-10). Words that
+# are also plain English are left out.
+_NOT_A_NAME = frozenset({"crypto", "bullish", "gate", "bitbase", "x"})
+EXCHANGE_NAMES = frozenset(s.org.split("_")[0] for s in SOURCES
+                           if s.board == "exchange" and len(s.org.split("_")[0]) >= 3) - _NOT_A_NAME
 
 
 def explain() -> str:

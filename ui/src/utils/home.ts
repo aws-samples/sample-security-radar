@@ -127,14 +127,14 @@ export const BACKFILL_GAP_MS = 30 * DAY_MS;
 
 /**
  * Row time label. Dirty-data source: DeFiLlama batch backfills 2021 hacks with last_updated = now, so
- * "2 分钟前" alone reads as a fresh 2021 hack. When the gap is > 30 d say both: "首见 2021-05 · 更新 2 分钟前".
+ * "2 分钟前" alone reads as a fresh 2021 hack. When the gap is > 30 d say both: "首报 2021-05 · 更新 2 分钟前".
  */
 export function eventTimeLabel(ev: Pick<EventSummary, 'first_seen' | 'last_updated'>, nowMs: number = Date.now()): { text: string; longRunning: boolean } {
   const first = Date.parse(ev.first_seen);
   const last = Date.parse(ev.last_updated);
   const updated = agoZh(ev.last_updated, nowMs);
   if (Number.isFinite(first) && Number.isFinite(last) && last - first > BACKFILL_GAP_MS) {
-    return { text: `首见 ${ev.first_seen.slice(0, 7)} · 更新 ${updated}`, longRunning: true };
+    return { text: `首报 ${ev.first_seen.slice(0, 7)} · 更新 ${updated}`, longRunning: true };
   }
   return { text: `更新 ${updated}`, longRunning: false };
 }

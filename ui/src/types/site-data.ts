@@ -6,7 +6,7 @@
  */
 
 /**
- * Root documents. events.json = {kind:'events'}, events/<id>.json = {kind:'event'}, sources.json = {kind:'sources'}, mitigate.json = {kind:'mitigate'}.
+ * Root documents. events.json = {kind:'events'}, events/<id>.json = {kind:'event'}, sources.json = {kind:'sources'}, mitigate.json = {kind:'mitigate'}. feeds/index.json = {kind:'feeds'} (feeds/<name>.json are JSON Feed 1.1, feeds/<name>.atom Atom 1.0). Every root document carries schema_version.
  */
 export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
   | {
@@ -23,6 +23,7 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
       headline?: string;
       funnel?: Funnel;
       digest?: Digest;
+      schema_version?: SchemaVersion;
     }
   | {
       kind: "event";
@@ -38,14 +39,30 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
       pipeline_steps?: PipelineStep[];
       response?: Response | null;
       possible_duplicates?: PossibleDuplicate[];
+      /**
+       * P2 WAF rule pack (mitigate station row __rule_pack__#<event_id>); null = no pack for this event
+       */
+      rule_pack?: RulePack | null;
       mitigation?: Mitigation | null;
       onchain?: null | Onchain;
       attack_txs?: null | AttackTxs;
+      /**
+       * On-chain stage evidence (P1b); absent in documents published before 2026-11-11.
+       */
+      chain_stages?: ChainStage[];
+      disclosure?: Disclosure | null;
+      sighting?: Sighting | null;
+      /**
+       * 「响应决策」: every action of the radar.decisions table x its decision for this event (radar.decisions.evaluate at publish) — for every event, with or without a response state. Absent on documents published before 2026-11-11.
+       */
+      decisions?: ResponseDecision[];
+      schema_version?: SchemaVersion;
     }
   | {
       kind: "sources";
       generated_at: Timestamp;
       sources: SourceHealth[];
+      schema_version?: SchemaVersion;
     }
   | {
       kind: "continuum";
@@ -55,6 +72,7 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
       coverage: Capability[];
       recent: ContinuumRecent[];
       ledger: Ledger;
+      schema_version?: SchemaVersion;
     }
   | {
       kind: "ops";
@@ -65,6 +83,7 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
         warn: number;
         info: number;
       };
+      schema_version?: SchemaVersion;
     }
   | {
       kind: "mitigate";
@@ -82,6 +101,54 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
       errors: {}[];
       applied: {}[];
       dns: {} | null;
+      schema_version?: SchemaVersion;
+    }
+  | {
+      kind: "announcements";
+      generated_at: Timestamp;
+      counts: {
+        security: number;
+        suspension: number;
+        delisting: number;
+        maintenance: number;
+        listing: number;
+        other: number;
+      };
+      notices: Notice[];
+      boards: {
+        source_id: string;
+        exchange: string;
+        url: string;
+        last_notice: Timestamp | null;
+      }[];
+      schema_version?: SchemaVersion;
+    }
+  | {
+      kind: "search-shard";
+      generated_at: Timestamp;
+      month: string;
+      events: SearchRow[];
+      schema_version?: SchemaVersion;
+    }
+  | {
+      kind: "search-index";
+      generated_at: Timestamp;
+      total: number;
+      /**
+       * Limits.PUBLISH_MAX_EVENTS: only this many of the window's events get a detail doc. Absent in indexes written before it existed.
+       */
+      detail_cap?: number;
+      months: {
+        month: string;
+        events: number;
+      }[];
+      schema_version?: SchemaVersion;
+    }
+  | {
+      kind: "feeds";
+      schema_version: SchemaVersion;
+      generated_at: Timestamp;
+      feeds: FeedEntry[];
     };
 /**
  * ISO-8601 UTC, e.g. 2026-10-23T03:39:57Z
@@ -101,7 +168,63 @@ export type Exploitation = "none" | "poc" | "reported" | "confirmed";
  * Code-computed lifecycle word: escalating=new evidence/upgrade in 24h, active=updated in 72h, cooling=3–14d quiet, finalized=V4, dormant=>14d.
  */
 export type Lifecycle = "escalating" | "active" | "cooling" | "finalized" | "dormant";
+/**
+ * Shape version of a root document (radar.model.SITE_SCHEMA_VERSION). A breaking change bumps it; readers pin the version they were written against.
+ */
+export type SchemaVersion = "1";
 export type Tier = "T1" | "T2" | "T3";
+export type RulePackQuote =
+  | {
+      token: string;
+      repo: string;
+      sha: string;
+      path: string;
+      line: number;
+      /**
+       * rulepack.quote_href (public doc only): pinned-commit link / http(s) item URL; null = no safe link
+       */
+      href?: string | null;
+    }
+  | {
+      token: string;
+      url: string;
+      sentence: string;
+      item_id: string;
+      /**
+       * [start, end) of token in rulepack.evidence_text(item) — what --check reads back
+       *
+       * @minItems 2
+       * @maxItems 2
+       */
+      span: [number, number];
+      /**
+       * rulepack.quote_href (public doc only): pinned-commit link / http(s) item URL; null = no safe link
+       */
+      href?: string | null;
+    };
+/**
+ * Attack stage (radar.stages — generated by scripts/gen_stages.py, do not edit). Canonical ids in attack order; drain→asset_transfer, statement→disclosure are legacy M4 values still accepted in documents published before the rename, until 2027-01-15.
+ */
+export type AttackStage =
+  | "recon"
+  | "prep"
+  | "initial_access"
+  | "execution"
+  | "persistence"
+  | "credential_access"
+  | "privilege_escalation"
+  | "lateral_movement"
+  | "key_access"
+  | "asset_transfer"
+  | "laundering"
+  | "freeze"
+  | "disclosure"
+  | "attribution"
+  | "recovery"
+  | "impact"
+  | "other"
+  | "drain"
+  | "statement";
 
 export interface EventSummary {
   event_id: string;
@@ -167,14 +290,45 @@ export interface EventSummary {
     by: string;
     at: Timestamp;
   };
+  followup?: null | Followup;
+  title_override?: null | TitleOverride;
+  cve_disclosed?: CveDisclosed | null;
 }
 /**
  * Compact 'does it hit us' chip for lists and the wall (from AWS Continuum / Security Agent results).
  */
 export interface ImpactSummary {
-  status: "not_eligible" | "queued" | "running" | "affected" | "not_affected" | "failed";
+  /**
+   * unchecked = no target hit, but at least one relevant target was not actually checked (version not comparable, review blocked or failed) — never rendered as 未命中.
+   */
+  status: "not_eligible" | "queued" | "running" | "affected" | "not_affected" | "unchecked" | "failed";
   affected: number;
   checked: number;
+}
+/**
+ * Incident follow-up so far (radar.insights.followup): on-chain outflows and freezes (radar.onchain), decoded attack txs (radar.attacktx), time of the latest; absent / null when nobody follows it on chain.
+ */
+export interface Followup {
+  onchain_moves: number;
+  freezes: number;
+  attack_txs: number;
+  last_at: null | Timestamp;
+}
+/**
+ * An operator's sourced root-cause correction of the title (radar.retitle); the original title is kept.
+ */
+export interface TitleOverride {
+  title: string;
+  original: string;
+  source: string;
+  note: string;
+  by: string;
+  at: Timestamp;
+}
+export interface CveDisclosed {
+  at: Timestamp;
+  cve: string;
+  resurfaced: boolean;
 }
 export interface NowItem {
   event_id: string;
@@ -244,9 +398,40 @@ export interface ItemRef {
     amount_usd: number | null;
   };
   /**
-   * Attack phase of the report, from its title (signals.phase).
+   * Attack stage of the report, from its title (radar.stages.of_title).
    */
-  phase?: "prep" | "drain" | "laundering" | "freeze" | "statement" | "attribution" | "recovery" | "impact" | "other";
+  phase?:
+    | "recon"
+    | "prep"
+    | "initial_access"
+    | "execution"
+    | "persistence"
+    | "credential_access"
+    | "privilege_escalation"
+    | "lateral_movement"
+    | "key_access"
+    | "asset_transfer"
+    | "laundering"
+    | "freeze"
+    | "disclosure"
+    | "attribution"
+    | "recovery"
+    | "impact"
+    | "other"
+    | "drain"
+    | "statement";
+  /**
+   * ISO-8601 UTC, e.g. 2026-10-23T03:39:57Z
+   */
+  collected_at?: string;
+  /**
+   * source gave no publication time; published_at is the capture time
+   */
+  published_is_collected?: boolean;
+  /**
+   * source gave a date without a time
+   */
+  date_only?: boolean;
 }
 export interface TimelineEntry {
   at: Timestamp;
@@ -270,7 +455,7 @@ export interface AmountPoint {
   /**
    * Which measure the amount is (pipeline._amounts): only loss feeds the headline and the dispute flag; frozen feeds amount_frozen_latest.
    */
-  kind?: "loss" | "frozen" | "context";
+  kind?: "loss" | "frozen" | "context" | "outlier";
 }
 export interface CveDetail {
   cve: string;
@@ -280,6 +465,12 @@ export interface CveDetail {
   epss: number | null;
   cwes?: string[];
   epss_percentile: number | null;
+  published_at?: Timestamp | null;
+  assigner?: string | null;
+  cvss?: number | null;
+  cvss_severity?: string | null;
+  cvss_source?: string | null;
+  cve_record?: string | null;
 }
 export interface TxRef {
   chain: string;
@@ -308,7 +499,15 @@ export interface Analysis {
   unknowns: Sentence[];
 }
 export interface ProgressStage {
-  stage: "first_report" | "second_source" | "corroborated" | "confirmed" | "exploited" | "analyzed" | "finalized";
+  stage:
+    | "disclosed"
+    | "first_report"
+    | "second_source"
+    | "corroborated"
+    | "confirmed"
+    | "exploited"
+    | "analyzed"
+    | "finalized";
   /**
    * evidence publication time that made this stage true; null = not reached
    */
@@ -432,6 +631,97 @@ export interface PossibleDuplicate {
   why: string;
 }
 /**
+ * P2 WAF rule pack (radar.rulepack): one customer-owned AWS WAF RuleGroup per event — managed groups, custom rules from verbatim template / evidence features (each gated by the offline matcher), heuristic templates, and every rejected candidate with its reason. Every rule is Count.
+ */
+export interface RulePack {
+  event_id: string;
+  name: string;
+  note: string;
+  hash: string;
+  updated_at?: Timestamp | null;
+  license?: string | null;
+  managed: RulePackManaged[];
+  custom: RulePackRule[];
+  templates: RulePackRule[];
+  rejected: RulePackRejected[];
+  poc: RulePackPoc[];
+  capacity: RulePackCapacity;
+  renderings?: RulePackRendering[];
+}
+export interface RulePackManaged {
+  tier: "cve" | "product" | "cwe";
+  group: string;
+  group_label: string;
+  rules: string[];
+  min_version: string | null;
+  reason: string;
+  cves: string[];
+  appliable: boolean;
+  rule: {};
+}
+export interface RulePackRule {
+  rule_id: string;
+  kind: "byte" | "regex" | "size" | "and" | "sqli" | "ipset" | "rate" | "origin_lockdown";
+  extractor: string;
+  cve: string | null;
+  statement: {};
+  /**
+   * @minItems 1
+   */
+  source_quotes: [RulePackQuote, ...RulePackQuote[]];
+  confidence: "exact" | "heuristic";
+  false_positive_note: string;
+  action: "Count";
+  what?: string;
+  verified: {
+    offline: RulePackCheck;
+    capacity: RulePackCheck;
+  };
+  samples: {
+    positive: {}[];
+    negative: {}[];
+  };
+  ip_set?: {
+    addresses: string[];
+    version: "IPV4" | "IPV6";
+  };
+}
+export interface RulePackCheck {
+  state: "pass" | "fail" | "unchecked";
+  reason?: string;
+  detail?: string;
+  [k: string]: any;
+}
+export interface RulePackRejected {
+  cve: string | null;
+  source: "nuclei" | "evidence" | "template" | "pack";
+  extractor: string;
+  reason: string;
+  detail: string;
+}
+export interface RulePackPoc {
+  cve: string;
+  state: "found" | "no_template" | "unavailable" | "too_large" | "error";
+  path: string | null;
+  sha: string | null;
+  url: string | null;
+  error: string | null;
+}
+export interface RulePackCapacity {
+  state: "pass" | "over_budget" | "fail" | "unchecked";
+  wcu: number | null;
+  max_wcu?: number;
+  detail: string;
+  checked_on?: string;
+}
+export interface RulePackRendering {
+  id: "wafv2_json" | "cloudformation" | "terraform" | "cli" | "markdown";
+  filename: string;
+  media_type: string;
+  label: string;
+  text: string;
+}
+/**
  * M3 mitigate station: the fast path next to the patch (never a fix — note says so).
  */
 export interface Mitigation {
@@ -460,7 +750,8 @@ export interface MitigationPlan {
   appliable: boolean;
   web_acl: string | null;
   promoted: boolean;
-  state: "absent" | "too_old" | "group_counted" | "staged" | "blocking" | "no_web_acl" | "unchecked";
+  priority_placeholder: boolean;
+  state: "absent" | "too_old" | "group_counted" | "rules_counted" | "staged" | "blocking" | "no_web_acl" | "unchecked";
   detail: string;
   rule?: string;
   version?: string | null;
@@ -494,6 +785,12 @@ export interface Onchain {
       [k: string]: number;
     };
     receivers: number;
+    /**
+     * USD (stablecoins) that left the attacker's side into each exchange; absent in data published before 2026-11-01
+     */
+    exchange_inflow_by_exchange?: {
+      [k: string]: number;
+    };
   };
   delegation: {
     address: string;
@@ -534,6 +831,10 @@ export interface OnchainRow {
   from_evidence?: string;
   to_evidence?: string;
   address_evidence?: string;
+  /**
+   * Exchange the outflow went into (radar.wallets): a terminal — cash-out or deposit, not followed further
+   */
+  to_exchange?: string;
 }
 /**
  * Attack-transaction breakdown (radar.attacktx): ERC-20 transfers of each verified attack tx, per token the largest net gainer / loser.
@@ -564,6 +865,10 @@ export interface AttackTxs {
          */
         amount: number | null;
         raw: string;
+        /**
+         * amount × historical USD price at the tx's block time; null when unpriced or low-confidence
+         */
+        usd?: number | null;
       };
       loser: null | {
         address: string;
@@ -576,6 +881,10 @@ export interface AttackTxs {
          */
         amount: number | null;
         raw: string;
+        /**
+         * amount × historical USD price at the tx's block time; null when unpriced or low-confidence
+         */
+        usd?: number | null;
       };
     }[];
     /**
@@ -584,6 +893,10 @@ export interface AttackTxs {
     native?: null | {
       symbol: string;
       amount: number;
+      /**
+       * amount × historical USD price at the tx's block time; null when unpriced or low-confidence
+       */
+      usd?: number | null;
     };
   }[];
   not_decoded: string[];
@@ -592,6 +905,135 @@ export interface AttackTxs {
     tx: string;
     error: string;
   }[];
+  /**
+   * How usd values were obtained (DefiLlama historical price at the tx's block time); null when no tx is priced yet.
+   */
+  price_source?: string | null;
+}
+/**
+ * What the event's on-chain sections confirm for one attack stage (radar.stages.chain_evidence): outflow from a victim → asset_transfer, any other outflow → laundering, issuer freeze → freeze, decoded successful attack tx → asset_transfer, live EIP-7702 delegation → key_access. first_at is the earliest time of the kind's rows on the clock named by `clock`.
+ */
+export interface ChainStage {
+  stage: AttackStage;
+  /**
+   * radar.stages.CLOCK: 'chain' = first_at is the earliest row's block time (when it happened); 'checked' = first_at is when the radar checked (an EIP-7702 delegation read at check time — when it was set is not queried), never an event time
+   */
+  clock: "chain" | "checked";
+  kind: "outflow" | "freeze" | "attack_tx" | "delegation";
+  count: number;
+  first_at: Timestamp;
+  /**
+   * tx of the earliest row; null for a delegation (eth_getCode has no tx)
+   */
+  first_tx: string | null;
+}
+/**
+ * Earliest CVE-record publication among the event's CVEs; lag_hours = radar first_seen − at (≥ 0).
+ */
+export interface Disclosure {
+  at: Timestamp;
+  cve: string;
+  assigner: string | null;
+  lag_hours: number | null;
+  /**
+   * lag ≥ Limits.RESURFACED_DAYS: an old CVE back on the radar, not a late detection
+   */
+  resurfaced: boolean;
+}
+/**
+ * pipeline.sighting: first report published vs radar first capture
+ */
+export interface Sighting {
+  first_report_at: Timestamp;
+  first_report_source: string;
+  first_collected_at: Timestamp;
+  collect_lag_minutes: number | null;
+  first_collected_source: string;
+  first_report_date_only: boolean;
+}
+/**
+ * One action's decision for this event, from the radar.decisions table (first failing gate decides). not_evaluated = nobody evaluated it (station off, out of window, per-cycle cap, channel not wired) — never the same as not_fire (evaluated, condition not met / already done).
+ */
+export interface ResponseDecision {
+  action:
+    "sa_requirement" | "cn_context" | "cn_finding" | "cn_scan" | "sa_review" | "delivery" | "waf_stage" | "notify";
+  label: string;
+  service: "security_agent" | "continuum" | "waf" | "radar";
+  /**
+   * target_id (target actions), channel (s3 / github / gitlab) or null (event).
+   */
+  scope: string | null;
+  outcome: "fire" | "not_fire" | "blocked" | "not_evaluated";
+  /**
+   * Reason code of the gate that decided; null = fire (every gate passed).
+   */
+  gate:
+    | "N_STATION_OFF"
+    | "N_OUT_OF_WINDOW"
+    | "E_DOMAIN"
+    | "E_SEVERITY"
+    | "N_NOT_YET"
+    | "E_NO_PRODUCT"
+    | "E_NO_WEB3_ANCHOR"
+    | "N_CYCLE_CAP"
+    | "U_REQUIREMENT_CURRENT"
+    | "U_CONTEXT_SAME"
+    | "T_NO_CHANNEL"
+    | "N_CHANNEL_NOT_WIRED"
+    | "T_NO_LOCATION"
+    | "U_FINDING_SUBMITTED"
+    | "S_NOTHING_WAITING"
+    | "S_IN_FLIGHT"
+    | "B_SCAN_INTERVAL"
+    | "B_SCAN_THIS_CYCLE"
+    | "T_NOT_RELEVANT"
+    | "R_SEVERITY"
+    | "U_SAME_TRIGGER"
+    | "R_IN_FLIGHT"
+    | "B_REVIEWS_DAY"
+    | "D_NO_PATCH"
+    | "D_NOT_NATIVE"
+    | "D_WAITING_LINK"
+    | "M_STATION_OFF"
+    | "M_OUT_OF_WINDOW"
+    | "W_NO_PLAN"
+    | "W_NO_WEB_ACL"
+    | "W_ADVISORY"
+    | "W_UNCHECKED"
+    | "W_NOT_IN_PLACE"
+    | "N_NOTIFY_OFF"
+    | "N_NOTIFY_WINDOW"
+    | "N_NOTIFY_NOT_YET"
+    | "X_NO_SUBSCRIBER"
+    | "X_NOTHING_TO_SAY"
+    | "B_NOTIFY_PENDING"
+    | null;
+  /**
+   * Page text from the table (code-templated).
+   */
+  reason: string;
+  /**
+   * respond rows: when this outcome + gate first held (kept while unchanged); publish rows: the ledger time it was read from.
+   */
+  at: Timestamp | null;
+  paid: boolean;
+  evaluated_by: "respond" | "publish";
+  /**
+   * The limit a limit gate read (actual enforced value).
+   */
+  limit?: number | null;
+  /**
+   * fire rows: the issued call's result (respond.apply → decisions.mark_result; publish rows: the ledger's done state). Absent on a fire row = the result was never recorded.
+   */
+  result?: "ok" | "error" | null;
+  /**
+   * result=error: what failed (truncated).
+   */
+  error?: string | null;
+  /**
+   * When the result was recorded (a failing retry shows its latest attempt).
+   */
+  result_at?: Timestamp | null;
 }
 export interface SourceHealth {
   source_id: string;
@@ -604,6 +1046,10 @@ export interface SourceHealth {
   last_success: string | null;
   last_error: string | null;
   last_error_at: string | null;
+  /**
+   * Why the source is served by a fallback channel (e.g. X via firecrawl when the X data source is out of quota); null when not degraded.
+   */
+  degraded?: string | null;
   items_24h: number;
 }
 export interface ContinuumResource {
@@ -648,6 +1094,10 @@ export interface ContinuumRecent {
   title: string;
   severity: Severity;
   status: "not_eligible" | "queued" | "running" | "done" | "failed";
+  /**
+   * respond.impact() status — the same authority as the event page and the listing chip (ImpactSummary.status). The UI renders this, never a mapping of `status`: done + 0 affected used to read 未命中 for a target nobody checked.
+   */
+  impact: "not_eligible" | "queued" | "running" | "affected" | "not_affected" | "unchecked" | "failed";
   affected: number;
   checked: number;
   updated_at: Timestamp;
@@ -688,4 +1138,53 @@ export interface AttentionItem {
   detail: string;
   since: string | null;
   link: string | null;
+}
+/**
+ * One exchange announcement (radar.announcements.board_add); kind decided by code (announcements.kind).
+ */
+export interface Notice {
+  source_id: string;
+  exchange: string;
+  title: string;
+  url: string;
+  kind: "security" | "suspension" | "delisting" | "maintenance" | "listing" | "other";
+  category?: string | null;
+  published_at: Timestamp | null;
+  seen_at: Timestamp;
+}
+/**
+ * One event in the static search index (radar.search.record): id, title, domain, severity, level, first/last date, CVEs, entities, amount; p = the event has a published detail page (absent ⇒ no page, shown without a link).
+ */
+export interface SearchRow {
+  id: string;
+  t: string;
+  d: Domain;
+  s: Severity;
+  l: Level;
+  f: string;
+  u: string;
+  c: string[];
+  e: string[];
+  a: number | null;
+  p?: true;
+}
+/**
+ * One pull feed (radar.feeds.FEEDS): JSON Feed 1.1 and Atom 1.0 documents of the newest matching events, behind the site's access control.
+ */
+export interface FeedEntry {
+  name: string;
+  title: string;
+  /**
+   * Subscription filters (radar.notify.FILTER_FIELDS).
+   */
+  filters: {};
+  items: number;
+  /**
+   * Path under data/ (application/feed+json).
+   */
+  json: string;
+  /**
+   * Path under data/ (application/atom+xml).
+   */
+  atom: string;
 }

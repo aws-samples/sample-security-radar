@@ -1,24 +1,46 @@
-"""C3: what gets pushed, at most once per fact, threaded per event."""
+"""P3 push, pure parts: subscriptions parse (or are reported invalid with the four error elements), the matcher, the
+rollout gate, message planning (at most once per fact, threaded per event) and the channel adapters."""
 
-from radar import notify
+import _socket
+import dataclasses
+import hashlib
+import hmac
+import http.server
+import json
+import socket
+import threading
+import urllib.error
 
-EV = {"event_id": "ev_1", "title": "PHP2Shell", "severity": "P0", "level_reason": "T1 confirmed"}
-RESP = {"issues": [{"issue_id": "i1", "severity": "CRITICAL", "exploitable": "EXPLOITABLE", "pr_url": "https://x/pull/3"},
-                   {"issue_id": "i2", "pr_url": "https://x/pull/3"}, {"issue_id": "i3", "pr_url": None}]}
-IMP = {"status": "affected", "affected": 2, "checked": 5}
+import pytest
 
+from radar import fetch, notify
+
+ROW = {"event_id": "ev_1", "title": "PHP2Shell", "severity": "P0", "domain": "vuln", "level": "V3",
+       "level_reason": "T1 confirmed", "summary": "s", "first_seen": "t0", "last_updated": "t1", "cves": ["CVE-2026-1"],
+       "chains": [], "entities": ["PHP"], "impact": {"status": "affected", "affected": 2, "checked": 5}}
+V = notify.view(ROW, False, ["https://x/pull/3", "https://x/pull/3"])
+CFG = {"slack_bot_token": "xoxb-1", "lark_app_id": "a", "lark_app_secret": "s"}
+SECRET = "w" * 40
+
+
+def sub(**kw):
+    return {"id": "ops", "owner": True, "channel": "slack_channel", "target": "C1", **kw}
+
+
+# ---------------------------------------------------------------- planning (the existing idempotency design)
 
 def test_plan_p0_affected_and_each_pr_once():
-    ms = notify.plan(EV, RESP, IMP, {}, "https://site/")
+    ms = notify.plan(V, {}, "https://site/")
     assert [m["key"] for m in ms] == ["p0", "affected:2", "pr:https://x/pull/3"]
     assert "https://site/#/events/ev_1" in ms[0]["text"] and ms[1]["text"].endswith("?section=env")
 
 
 def test_plan_skips_sent_keys_and_a_new_fact_is_new():
     sent = {"keys": ["p0", "affected:2", "pr:https://x/pull/3"]}
-    assert notify.plan(EV, RESP, IMP, sent, "s") == []
-    assert [m["key"] for m in notify.plan(EV, RESP, {**IMP, "affected": 3}, sent, "s")] == ["affected:3"]
-    assert notify.plan({**EV, "severity": "P1"}, None, {"status": "not_affected"}, {}, "s") == []
+    assert notify.plan(V, sent, "s") == []
+    v3 = notify.view({**ROW, "impact": {"status": "affected", "affected": 3, "checked": 5}}, False, ["https://x/pull/3"])
+    assert [m["key"] for m in notify.plan(v3, sent, "s")] == ["affected:3"]
+    assert notify.plan(notify.view({**ROW, "severity": "P1", "impact": {"status": "not_affected"}}, False), {}, "s") == []
 
 
 def test_record_keeps_the_first_thread():
@@ -27,6 +49,212 @@ def test_record_keeps_the_first_thread():
     assert s == {"keys": ["p0", "affected:2"], "thread": "T1"}
 
 
-def test_configured_requires_every_field_of_a_channel():
-    assert notify.configured({"slack_bot_token": "x", "slack_channel_id": "C", "lark_app_id": "a"}) == ["slack"]
-    assert notify.configured({}) == []
+def test_the_message_uses_the_retitled_title():
+    """research/action/03 B4: the page shows the operator's sourced fix; the push showed the raw feed title."""
+    row = {**ROW, "title": "Fixed root-cause title"}     # publish._summary applies title_override
+    assert notify.plan(notify.view(row, False), {}, "s")[0]["text"].startswith("[P0] Fixed root-cause title")
+
+
+# ---------------------------------------------------------------- subscriptions
+
+def test_a_legacy_single_channel_secret_is_reported_not_translated():
+    """Contract: the hard-coded single-channel path is gone. A secret still in the old shape pushes nothing and says so."""
+    c = notify.parse_config({**CFG, "slack_channel_id": "C1"})
+    assert c.subscriptions == [] and c.legacy
+
+
+@pytest.mark.parametrize("raw,code", [
+    (sub(id="Ops"), "bad_id"), (sub(id="ops\n"), "bad_id"), (sub(channel="sms"), "unknown_channel"),
+    (sub(target=""), "no_target"), (sub(channel="webhook", target="http://h/x", secret=SECRET), "webhook_not_https"),
+    (sub(channel="webhook", target="https://h/x", secret="short"), "webhook_secret_short"),
+    (sub(filters={"severty": ["P0"]}), "unknown_filter"), (sub(filters={"severity": ["P2"]}), "filter_value"),
+    (sub(filters={"domain": []}), "filter_not_list"), (sub(filters={"has_waf_pack": "yes"}), "filter_not_bool"),
+    (sub(filters={"exchanges": ["Binanse"]}), "filter_value")])
+def test_an_invalid_subscription_is_reported_with_code_actual_and_allowed(raw, code):
+    c = notify.parse_config({**CFG, "subscriptions": [raw]})
+    assert c.subscriptions == [] and [e["error"] for e in c.invalid] == [code]
+    assert {"error", "message", "actual", "allowed"} <= set(c.invalid[0])
+
+
+def test_missing_credentials_duplicate_ids_and_a_bad_rollout_are_reported():
+    c = notify.parse_config({"rollout": "everyone", "subscriptions": [sub(), sub(channel="lark_chat")]})
+    assert [e["error"] for e in c.invalid] == ["bad_rollout", "missing_credentials", "missing_credentials"]
+    assert c.rollout == "owner_only"                               # an unreadable gate fails toward fewer recipients
+    c = notify.parse_config({**CFG, "subscriptions": [sub(), sub(target="C2")]})
+    assert [s.target for s in c.subscriptions] == ["C1"] and c.invalid[0]["error"] == "duplicate_id"
+
+
+def test_the_rollout_gate_defaults_to_owner_only():
+    c = notify.parse_config({**CFG, "subscriptions": [sub(), sub(id="team", owner=False)]})
+    assert c.rollout == "owner_only"
+    assert [s.id for s in c.subscriptions if not notify.gated(s, c.rollout)] == ["ops"]
+    assert not any(notify.gated(s, "all") for s in c.subscriptions)
+
+
+def test_a_disabled_subscription_is_listed_not_used():
+    c = notify.parse_config({**CFG, "subscriptions": [sub(enabled=False)]})
+    assert c.subscriptions == [] and c.disabled == ["ops"]
+
+
+# ---------------------------------------------------------------- the matcher
+
+@pytest.mark.parametrize("filters,hit", [
+    ({}, True), ({"severity": ["P0"]}, True), ({"severity": ["P1"]}, False), ({"domain": ["web3"]}, False),
+    ({"domain": ["web3", "vuln"]}, True), ({"products": ["php"]}, True), ({"products": ["nginx"]}, False),
+    ({"vendors": ["php"]}, True), ({"vendors": ["Ivanti"]}, False), ({"chains": ["ethereum"]}, False),
+    ({"has_waf_pack": True}, False), ({"has_waf_pack": False}, True), ({"has_verdict": True}, True),
+    ({"severity": ["P0"], "domain": ["web3"]}, False)])
+def test_matches_every_field_and_combines_fields_with_and(filters, hit):
+    assert notify.matches(filters, V) is hit
+
+
+def test_chains_and_exchanges_match_case_insensitively_from_the_registry():
+    v = notify.view({**ROW, "domain": "web3", "title": "Bybit cold wallet drained", "entities": [], "chains": ["Ethereum"],
+                     "impact": None}, True)
+    assert v["exchanges"] == ["Bybit"] and notify.matches({"exchanges": ["Bybit"], "chains": ["ethereum"]}, v)
+    assert notify.matches({"has_waf_pack": True}, v) and not notify.matches({"has_verdict": True}, v)
+    assert not notify.matches({"exchanges": ["OKX"]}, v)
+
+
+def test_the_filter_explanation_is_generated_from_the_one_table():
+    text = notify.explain()
+    assert all(f"`{k}`" in text for k in notify.FILTER_FIELDS) and text.count("\n") == len(notify.FILTER_FIELDS) + 1
+
+
+# ---------------------------------------------------------------- adapters
+
+def _capture(monkeypatch, reply):
+    sent = []
+
+    def post(url, body, headers):
+        sent.append((url, body))
+        return reply(url)
+    monkeypatch.setattr(notify, "_post", post)
+    return sent
+
+
+def _sub(**kw):
+    s, err = notify.parse_subscription(sub(**kw), CFG)
+    assert err is None, err
+    return s
+
+
+def test_slack_text_escapes_control_characters_from_feed_titles(monkeypatch):
+    """A third-party title must not ping the channel (<!channel>) or dress a phishing URL as a link (05 §3.6)."""
+    sent = _capture(monkeypatch, lambda url: {"ok": True, "ts": "1.2"})
+    notify.send_slack(CFG, _sub(), {"text": "[P0] <!channel> R&D <https://phish.example|官方补丁>"}, None, {})
+    assert sent[0][1]["text"] == "[P0] &lt;!channel&gt; R&amp;D &lt;https://phish.example|官方补丁&gt;"
+    assert sent[0][1]["channel"] == "C1"
+
+
+def test_slack_dm_posts_to_the_user_id(monkeypatch):
+    sent = _capture(monkeypatch, lambda url: {"ok": True, "ts": "1.2"})
+    assert notify.send_slack(CFG, _sub(channel="slack_dm", target="U9"), {"text": "x"}, None, {}) == "1.2"
+    assert sent[0][1]["channel"] == "U9"
+
+
+def test_lark_text_cannot_mention_everyone_and_the_token_is_fetched_once_per_run(monkeypatch):
+    """Lark text messages parse <at user_id="all"></at> as @所有人 — a title carrying it must reach the chat inert."""
+    sent = _capture(monkeypatch, lambda url: {"code": 0, "tenant_access_token": "x", "data": {"message_id": "m1"}})
+    cache: dict = {}
+    s = _sub(channel="lark_chat", target="oc_1")
+    notify.send_lark(CFG, s, {"text": '[P0] x <at user_id="all"></at> < AT  id="ou_1">y</ at> a < b'}, None, cache)
+    notify.send_lark(CFG, s, {"text": "second"}, "m1", cache)
+    text = json.loads(sent[1][1]["content"])["text"]
+    squashed = text.lower().replace(" ", "")
+    assert "<at" not in squashed and "</at" not in squashed
+    assert text.endswith("a < b")                         # an ordinary "<" is left as written
+    assert sum("tenant_access_token" in u for u, _ in sent) == 1 and sent[1][1]["receive_id"] == "oc_1"
+
+
+class _Resp:
+    status = 204
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def test_webhook_body_is_json_signed_over_timestamp_and_body(monkeypatch):
+    got = {}
+
+    def urlopen(req, timeout, allow_hosts=None):
+        got.update(req=req, allow_hosts=allow_hosts)
+        return _Resp()
+    monkeypatch.setattr(notify.fetch, "urlopen", urlopen)
+    s = _sub(channel="webhook", target="https://hooks.example/radar", secret=SECRET)
+    m = {**notify.plan(V, {}, "https://site")[0], "view": V}
+    assert notify.send_webhook(CFG, s, m, None, {}) == "ev_1:p0"
+    req = got["req"]
+    body, ts = req.data, req.get_header("X-radar-timestamp")
+    expect = "sha256=" + hmac.new(SECRET.encode(), f"{ts}.".encode() + body, hashlib.sha256).hexdigest()
+    assert req.get_header("X-radar-signature") == expect
+    assert req.get_header("X-radar-delivery") == "ev_1:p0"
+    doc = json.loads(body)
+    assert doc["event"]["event_id"] == "ev_1" and doc["key"] == "p0" and doc["url"] == "https://site/#/events/ev_1"
+    assert SECRET not in body.decode() and got["allow_hosts"] == frozenset()       # redirects refused
+
+
+@pytest.fixture
+def loopback(monkeypatch):
+    """Real HTTP servers on 127.0.0.1: /redirect answers 302 to a second server (which counts every request it gets),
+    /fail answers 500. conftest denies every connect; this re-allows loopback only. A mocked urlopen returning a
+    response with status 302 tested a path real urllib never takes: its redirect handler acts first."""
+    def connect(self, addr):
+        if addr[0] != "127.0.0.1":
+            raise RuntimeError("tests must not open network connections")
+        return _socket.socket.connect(self, addr)
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    elsewhere: list[str] = []
+
+    class Other(http.server.BaseHTTPRequestHandler):
+        def _hit(self):
+            elsewhere.append(self.command)
+            self.send_response(204)
+            self.end_headers()
+        do_GET = do_POST = _hit
+
+        def log_message(self, *a):
+            pass
+    other = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Other)
+
+    class Hook(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length") or 0))
+            if self.path == "/redirect":
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{other.server_port}/stolen")
+            else:
+                self.send_response(500)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+    hook = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Hook)
+    for srv in (other, hook):
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{hook.server_port}", elsewhere
+    finally:
+        for srv in (other, hook):
+            srv.shutdown()
+            srv.server_close()
+
+
+def webhook_to(base: str, path: str) -> notify.Subscription:
+    """A parsed webhook subscription pointed at a loopback URL (parse_subscription rightly refuses http://)."""
+    return dataclasses.replace(_sub(channel="webhook", target="https://hooks.example/radar", secret=SECRET),
+                               target=base + path)
+
+
+def test_a_webhook_answering_non_2xx_is_a_failed_send_and_a_redirect_is_never_followed(loopback):
+    base, elsewhere = loopback
+    m = {**notify.plan(V, {}, "s")[0], "view": V}
+    with pytest.raises(fetch.FetchError, match="redirect_refused"):
+        notify.send_webhook(CFG, webhook_to(base, "/redirect"), m, None, {})
+    assert elsewhere == []                    # the signed body (or a request at all) never reached the 3xx target
+    with pytest.raises(urllib.error.HTTPError, match="500"):
+        notify.send_webhook(CFG, webhook_to(base, "/fail"), m, None, {})

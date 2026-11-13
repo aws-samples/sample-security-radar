@@ -3,6 +3,7 @@ import { AmountSparkline } from '@/components/AmountSparkline';
 import { formatAmount, formatEpss, truncateHash } from '@/utils/formatters';
 import { safeHref } from '@/utils/safeHref';
 import { lossPoints, measureCounts } from '@/utils/amounts';
+import { publishedCell } from '@/utils/disclosureView';
 
 const TX_WORD: Record<TxRef['verified'], { text: string; tone: string }> = {
   confirmed: { text: '✓ 链上已证实', tone: 'ok' },
@@ -20,11 +21,15 @@ export function KeyData({ event, cves, amounts, tx }: { event: EventSummary; cve
         <>
         <h3 className="dt-h3">CVE <span className="dt-count">{cves.length}</span></h3>
         <table className="kd-table">
-          <thead><tr><th scope="col">CVE</th><th scope="col">CISA KEV</th><th scope="col">EPSS（百分位）</th><th scope="col">勒索利用</th></tr></thead>
+          <thead><tr><th scope="col">CVE</th><th scope="col">公开（CNA）</th><th scope="col">CVSS</th><th scope="col">CISA KEV</th><th scope="col">EPSS（百分位）</th><th scope="col">勒索利用</th></tr></thead>
           <tbody>
             {cves.map(c => (
               <tr key={c.cve}>
                 <td className="dt-mono">{c.cve}</td>
+                <td className={c.published_at ? 'dt-mono' : 'dt-muted'}>{publishedCell(c)}</td>
+                <td title={c.cvss_source ? `评分来源：${c.cvss_source === 'cna' ? 'CNA' : c.cvss_source.replace(/^adp:/, 'ADP ')}` : undefined}>
+                  {c.cvss == null ? <span className="dt-muted">—</span> : <span className="dt-mono">{c.cvss.toFixed(1)}{c.cvss_severity ? ` ${c.cvss_severity}` : ''}</span>}
+                </td>
                 <td>{c.kev ? <span className="kev-yes">● 已收录 {c.kev_date_added ?? ''}</span> : <span className="dt-muted">○ 未收录</span>}</td>
                 <td>
                   {c.epss === null
@@ -63,6 +68,12 @@ export function KeyData({ event, cves, amounts, tx }: { event: EventSummary; cve
           {event.amount_frozen_latest != null && (
             <p className="dt-small" style={{ marginTop: 4 }}>
               已冻结（报道中的最大值） <b className="dt-mono">{formatAmount(event.amount_frozen_latest)}</b>
+            </p>
+          )}
+          {measureCounts(amounts).outlier > 0 && (
+            <p className="dt-small" data-testid="amount-outlier" style={{ marginTop: 4, color: 'var(--p1)' }}>
+              ⚠ {measureCounts(amounts).outlier} 个离群金额未计入损失（无其他来源佐证、与其余数字差两个数量级以上，或超出合理上限）：
+              {amounts.filter(p => p.kind === 'outlier').map(p => ` ${formatAmount(p.value)}`).join(' ·')}
             </p>
           )}
           {measureCounts(amounts).context > 0 && (

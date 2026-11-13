@@ -29,6 +29,11 @@ class Product:
     title: str                          # regex: event concerns this product
     version_names: tuple[str, ...]      # how evidence spells the product right before a version
     locators: tuple[Locator, ...] = field(default=())
+    # product_ids of the runtimes this application/framework is built on (WordPress, Magento → php; Strapi → nodejs):
+    # when an event names both, the application is the more specific answer — see match(). A named relation on
+    # purpose, not "any non-runtime beats a runtime": OpenSSL / nginx are not built on Node.js or PHP, and a Node.js
+    # release fixing its bundled OpenSSL must stay a Node.js event
+    built_on: tuple[str, ...] = ()
 
 
 _IMG = r"(?:[\w.-]+(?::\d+)?/)*"  # optional registry/namespace prefix of an image reference
@@ -64,10 +69,10 @@ PRODUCTS: tuple[Product, ...] = (
     Product("nginx", "nginx", r"\bnginx\b", ("nginx",)),
     Product("wordpress", "WordPress", r"\bWordPress\b", ("WordPress",), (
         Locator("Dockerfile*", rf"^\s*FROM\s+{_IMG}wordpress:(\d+\.\d+(?:\.\d+)?)", "runtime image"),
-    )),
+    ), built_on=("php",)),
     Product("apache-struts", "Apache Struts", r"\bStruts\b", ("Struts",)),
-    Product("strapi", "Strapi", r"\bStrapi\b", ("Strapi",)),
-    Product("magento", "Adobe Commerce / Magento", r"\bMagento\b|\bAdobe Commerce\b", ("Magento",)),
+    Product("strapi", "Strapi", r"\bStrapi\b", ("Strapi",), built_on=("nodejs",)),
+    Product("magento", "Adobe Commerce / Magento", r"\bMagento\b|\bAdobe Commerce\b", ("Magento",), built_on=("php",)),
 )
 BY_PRODUCT = {p.product_id: p for p in PRODUCTS}
 
@@ -82,8 +87,14 @@ WINDOW = 80  # characters before the version list that decide fixed vs affected
 
 
 def match(title: str, entities: list[str]) -> Product | None:
+    """The most specific registered product the event names: an application/framework beats the runtime it is built
+    on (Product.built_on); any other pair keeps registry order (Node.js + OpenSSL ⇒ nodejs, PHP + nginx ⇒ php).
+    First-match made "Magento PHP deserialization" / "WordPress plugin … PHP Object Injection" a PHP event ⇒ every
+    target pinning PHP was relevant ⇒ a paid review per target for a plugin-level bug (B6)."""
     text = " ".join([title, *entities])
-    return next((p for p in PRODUCTS if re.search(p.title, text)), None)
+    hits = [p for p in PRODUCTS if re.search(p.title, text)]
+    under = {b for p in hits for b in p.built_on}   # runtimes that a named application runs on
+    return next((p for p in hits if p.product_id not in under), None)
 
 
 def versions(product: Product, texts: list[str]) -> tuple[list[str], list[str]]:

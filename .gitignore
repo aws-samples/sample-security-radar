@@ -22,4 +22,8 @@ ui/tsconfig.app.tsbuildinfo
 
 # wrangler (Cloudflare Pages deploys from docs/deck)
 .wrangler/
+
+# Claude Code agent worktrees
+.claude/worktrees/
+docs/deck/v8/src/deck.html
 /.sample-bundle

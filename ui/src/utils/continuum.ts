@@ -103,18 +103,16 @@ export function coverageSentence(s: CoverageScore): string {
 }
 
 /**
- * ContinuumRecent → the ImpactSummary chip it implies (so the shared ImpactChip wording applies).
- * Same rule as impactFromResponse() in utils/response.ts: an affected target wins even mid-run (otherwise the same
- * event reads 检查中 here and 命中 1/2 on its detail page). done + 0 affected + 0 checked is NOT "not affected" —
- * nothing was looked at — so it maps to not_affected with checked=0, which impactView renders as the muted
- * 无可检查目标 (never a green 未命中 0/0).
+ * ContinuumRecent → the ImpactSummary chip (so the shared ImpactChip wording applies). `impact` is respond.impact()'s
+ * status — the same authority as the event page and the listing chip. Deriving it from `status` here mapped done + 0
+ * affected to the green 未命中 0/N for a target nobody checked (live Node2Shell × security-radar: 未检查 on the
+ * event page, 未命中 on #/continuum).
+ * Dirty data: a continuum.json published before `impact` existed (the UI can ship before the next Publish run).
+ * Such a row keeps 命中 when it counted a hit and otherwise reads 未检查 — never a 未命中 nobody proved.
  */
 export function recentImpact(r: ContinuumRecent): ImpactSummary {
-  if (r.affected > 0 && r.status !== 'failed' && r.status !== 'not_eligible') {
-    return { status: 'affected', affected: r.affected, checked: r.checked };
-  }
-  if (r.status === 'done') return { status: 'not_affected', affected: 0, checked: r.checked };
-  return { status: r.status, affected: r.affected, checked: r.checked };
+  if (r.impact) return { status: r.impact, affected: r.affected, checked: r.checked };
+  return { status: r.affected > 0 ? 'affected' : 'unchecked', affected: r.affected, checked: r.checked };
 }
 
 /** Recent-row status word. `done` = the radar's locator finished; ContinuumRecent carries no per-service state,

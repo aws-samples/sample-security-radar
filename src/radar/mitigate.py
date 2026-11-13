@@ -160,7 +160,7 @@ class WafPlan:
     target_id: str
     tier: str                    # cve | product | cwe
     group: str
-    rules: tuple[str, ...]       # rules to stage in Count; () ⇒ the whole group is staged in Count
+    rules: tuple[str, ...]       # rules that block once a human promotes; () ⇒ the whole group (staged = whole group Count either way)
     min_version: str | None      # None ⇒ any version (product / cwe tiers)
     reason: str
     cves: tuple[str, ...] = ()
@@ -233,18 +233,80 @@ def labels_for(group: str, rules: tuple[str, ...], available: dict[str, list[str
     return tuple(lb for lb in avail if lb.rsplit(":", 1)[-1].lower() in want)
 
 
-def waf_rule(plan: WafPlan, priority: int, block: bool = False) -> dict[str, Any]:
+def merge_plans(plans: list[WafPlan]) -> WafPlan:
+    """One web ACL carries ONE radar rule per group, so every appliable plan for that ACL × group (other events, other
+    targets behind the same ACL) is rendered as one: rules = union, unless any plan is whole-group ⇒ whole group;
+    cves / labels = union; tier = the most specific. Each original plan is still checked on its own (waf_check).
+    Live bug 2026-11-11 (docs/research/action/01-waf.md Bug-2): the station kept the last plan per group instead."""
+    tiers = sorted(plans, key=lambda p: TIERS.index(p.tier))
+    rules = () if any(not p.rules for p in plans) else tuple(dict.fromkeys(r for p in tiers for r in p.rules))
+    return WafPlan(",".join(sorted({p.target_id for p in plans})), tiers[0].tier, plans[0].group, rules,
+                   max((p.min_version for p in plans if p.min_version), key=version_key, default=None),
+                   "；".join(dict.fromkeys(p.reason for p in tiers)),
+                   tuple(dict.fromkeys(c for p in tiers for c in p.cves)), tuple(dict.fromkeys(lb for p in tiers for lb in p.labels)))
+
+
+def pinned(plan: WafPlan, promotion: dict[str, Any], named: tuple[str, ...]) -> tuple[WafPlan, str | None]:
+    """What a promoted rule may block: what the human approved — `promotion["rules"]`, recorded by scripts/promote.py
+    ([] = the whole group). Returns (the plan to render as blocking, what today's plan asks for beyond it, or None).
+    The plan a rule renders is the union over the events in the window (merge_plans), so it changes without anyone
+    deciding: a later whole-group plan for the group turned a promotion of two rules into a whole-group Block (audit 04
+    §6.1; live on the demo ACL). What lies beyond the approval keeps counting and is reported, never blocked.
+    A promotion from before pinning has no "rules": the narrow reading is taken — `named`, the rules today's plans name;
+    with none named it was a whole-group plan all along."""
+    ok = tuple(promotion["rules"]) if "rules" in promotion else named
+    if not ok:
+        return plan, None
+    beyond = "whole group" if not plan.rules else ", ".join(r for r in plan.rules if r not in ok) or None
+    return WafPlan(plan.target_id, plan.tier, plan.group, ok, plan.min_version, plan.reason, plan.cves, plan.labels), beyond
+
+
+def promotion_scope(plan_rows: list[dict[str, Any]], web_acl: str, group: str) -> list[str] | None:
+    """What promoting <group> on <web_acl> approves right now, from the station's plan rows: the union of the rules
+    the appliable plans name, [] when any of them is whole-group, None when there is no appliable plan."""
+    rows = [r for r in plan_rows if r.get("web_acl") == web_acl and r.get("group") == group and r.get("appliable")]
+    if not rows:
+        return None
+    if any(not r.get("rules") for r in rows):
+        return []
+    return sorted({x for r in rows for x in r["rules"]})
+
+
+# rule_json handed to a user to paste into THEIR web ACL cannot know which priorities that ACL already uses
+# (UpdateWebACL rejects a duplicate). Bug-5: the fixed 0 collided with the rule most hand-built ACLs start at. The
+# placeholder is high and distinct per group (several radar rules pasted together never collide with each other); the
+# page tells the user to change it if their ACL already uses it. On a radar ACL the real priority is shown instead.
+PASTE_PRIORITY_BASE = 10000
+
+
+def paste_priority(group: str) -> int:
+    return PASTE_PRIORITY_BASE + list(WAF_GROUPS).index(group)
+
+
+def waf_rule(plan: WafPlan, priority: int, block: bool = False, group_rules: list[str] | tuple[str, ...] = ()) -> dict[str, Any]:
     """The web ACL rule for a plan — the ONLY renderer (the page, the PR text and apply all use this one).
-    Staged (block=False): named rules overridden to Count, or the whole group counted when the plan names no rules.
+    Staged (block=False): OverrideAction Count — EVERY rule of the group counts, the named ones included; nothing the
+      radar stages ever blocks. Live bug 2026-11-11 (01-waf.md Bug-1): staging was OverrideAction None + Count on the
+      named rules only, so the group's other rules acted at their own action — PHP2Shell staging blocked the 4
+      PHPHighRiskMethodsVariables_* rules without anyone promoting them.
+    Promoted (block=True, a human's step): OverrideAction None. A plan naming rules lets ONLY those block: every other
+      rule of the group (`group_rules`, from DescribeManagedRuleGroup) is overridden to Count — without that list the
+      render is refused (ValueError), never a blind whole-group Block. A whole-group plan blocks at the group's own actions.
     Default version on purpose (AWS: 'we recommend the default version'); check() verifies the default is new enough."""
     stmt: dict[str, Any] = {"VendorName": "AWS", "Name": plan.group}
-    override: dict[str, Any] = {"None": {}}
-    if not block:
-        if plan.rules:
-            stmt["RuleActionOverrides"] = [{"Name": r, "ActionToUse": {"Count": {}}} for r in plan.rules]
-        else:
-            override = {"Count": {}}
     name = rule_name(plan.group)
+    if not block:
+        return _acl_rule(name, priority, stmt, {"Count": {}})   # staged: the whole group counts
+    if plan.rules:
+        if not group_rules:
+            raise ValueError(f"cannot render a promoted {plan.group} rule without the group's rule list")
+        others = [r for r in group_rules if r not in plan.rules]
+        if others:
+            stmt["RuleActionOverrides"] = [{"Name": r, "ActionToUse": {"Count": {}}} for r in others]
+    return _acl_rule(name, priority, stmt, {"None": {}})
+
+
+def _acl_rule(name: str, priority: int, stmt: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     return {"Name": name, "Priority": priority, "Statement": {"ManagedRuleGroupStatement": stmt},
             "OverrideAction": override,
             "VisibilityConfig": {"SampledRequestsEnabled": True, "CloudWatchMetricsEnabled": True,
@@ -252,15 +314,17 @@ def waf_rule(plan: WafPlan, priority: int, block: bool = False) -> dict[str, Any
 
 
 # ---------------------------------------------------------------- WAF check (read-only)
-CHECK_STATES = ("absent", "too_old", "group_counted", "staged", "blocking")
+CHECK_STATES = ("absent", "too_old", "group_counted", "rules_counted", "staged", "blocking")
 
 
 def waf_check(plan: WafPlan, web_acl: dict[str, Any], default_version: str | None) -> dict[str, Any]:
     """Where a plan stands on one web ACL (the GetWebACL `WebACL` object), from the rule's own description:
       absent         the group is not in the web ACL
       too_old        pinned (or default) version below the plan's minimum — the CVE rules are not in it
-      group_counted  the whole group is overridden to Count (nothing blocks — AWS: 'confirm you haven't overridden…')
-      staged         present, the plan's rules counting (the radar's non-blocking stage — waits for a human)
+      staged         the radar's rule, whole group overridden to Count (the non-blocking stage — waits for a human)
+      group_counted  someone else's rule counts the whole group (nothing blocks — AWS: 'confirm you haven't overridden…')
+      rules_counted  the plan's rules are overridden to Count one by one while the group's OTHER rules act at their own
+                     action — not a non-blocking stage (the pre-2026-11-11 staged shape, 01-waf.md Bug-1)
       blocking       present and the plan's rules act (Block)"""
     rule = next((r for r in web_acl.get("Rules") or []
                  if (r.get("Statement") or {}).get("ManagedRuleGroupStatement", {}).get("Name") == plan.group), None)
@@ -272,27 +336,33 @@ def waf_check(plan: WafPlan, web_acl: dict[str, Any], default_version: str | Non
         return {"state": "too_old", "rule": rule["Name"], "version": version,
                 "detail": f"{plan.group} 用的是 {version or '未知版本'}，低于 {plan.min_version}"}
     if "Count" in (rule.get("OverrideAction") or {}):
-        if not plan.rules:   # a whole-group plan stages exactly like this
+        if rule["Name"].startswith(RADAR_RULE_PREFIX):   # every plan stages exactly like this (waf_rule)
             return {"state": "staged", "rule": rule["Name"], "version": version, "counting": ["*"],
-                    "detail": "整组在 Count（观察期），等人确认后切 Block"}
+                    "detail": "整组在 Count（观察期，组内规则都不拦截），等人确认后切 Block"}
         return {"state": "group_counted", "rule": rule["Name"], "version": version, "detail": "整组被设为 Count，不拦截"}
     counted = {o["Name"] for o in stmt.get("RuleActionOverrides") or [] if "Count" in (o.get("ActionToUse") or {})}
     if plan.rules and counted & set(plan.rules):
-        return {"state": "staged", "rule": rule["Name"], "version": version, "counting": sorted(counted & set(plan.rules)),
-                "detail": "规则在 Count（观察期），等人确认后切 Block"}
+        return {"state": "rules_counted", "rule": rule["Name"], "version": version, "counting": sorted(counted & set(plan.rules)),
+                "detail": "这些规则单独设为 Count，但组内其余规则按自身动作生效（可能拦截）—— 不是观察期"}
     return {"state": "blocking", "rule": rule["Name"], "version": version, "detail": "规则生效（Block）"}
 
 
 # ---------------------------------------------------------------- WAF apply (pure part)
 RADAR_RULE_PREFIX = "radar-"
 RADAR_ACL_PREFIX = "security-radar-"   # web ACLs the radar may write (IAM scopes UpdateWebACL to this prefix too)
+# UpdateWebACL resets every optional field it is not given ⇒ carried over from GetWebACL on every write — by the
+# station (mitigate_aws.put_rules) and by the rule pack's CLI steps for a reader (packrender.cli): one list for both
+ACL_CARRY_FIELDS = ("Description", "CustomResponseBodies", "CaptchaConfig", "ChallengeConfig", "TokenDomains", "AssociationConfig")
 
 
-def merge_acl_rules(rules: list[dict[str, Any]], wanted: list[tuple[WafPlan, bool]]) -> list[dict[str, Any]] | None:
+def merge_acl_rules(rules: list[dict[str, Any]], wanted: list[tuple[WafPlan, bool]],
+                    group_rules: dict[str, list[str]] | None = None) -> list[dict[str, Any]] | None:
     """The web ACL's new rule list, or None when nothing changes. Only rules named radar-* are ever written —
     every other rule is kept byte-for-byte (a web ACL may be shared). A radar rule keeps its priority; a new one goes
-    after the highest priority in use. `wanted` = (plan, block) — block=True only after a human promoted the plan.
+    after the highest priority in use. `wanted` = (plan, block) — block=True only after a human promoted the plan, one
+    plan per group (merge_plans); `group_rules` = group → its rule names (needed to render a promoted plan, waf_rule).
     Rules are never removed here: a mitigation outlives the patch as a supporting control until a human removes it."""
+    group_rules = group_rules or {}
     out = [dict(r) for r in rules]
     by_name = {r["Name"]: i for i, r in enumerate(out)}
     nxt = max((r["Priority"] for r in out), default=-1) + 1
@@ -300,7 +370,8 @@ def merge_acl_rules(rules: list[dict[str, Any]], wanted: list[tuple[WafPlan, boo
     for plan, block in wanted:
         name = rule_name(plan.group)
         i = by_name.get(name)
-        new = waf_rule(plan, out[i]["Priority"] if i is not None else nxt, block=block)
+        new = waf_rule(plan, out[i]["Priority"] if i is not None else nxt, block=block,
+                       group_rules=group_rules.get(plan.group) or ())
         if i is None:
             out.append(new)
             by_name[name] = len(out) - 1

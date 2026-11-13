@@ -1,7 +1,7 @@
 import type { AttackTxs } from '@/types/site-data';
 import { truncateHash } from '@/utils/formatters';
 import { hhmmss, txUrl } from '@/utils/onchainView';
-import { fmtAmount, senderTake, tokenName, who } from '@/utils/attackTxView';
+import { fmtAmount, fmtUsd, senderTake, senderTakeUsd, tokenName, who } from '@/utils/attackTxView';
 import { safeHref } from '@/utils/safeHref';
 import { utcShort } from '@/utils/timeZh';
 
@@ -16,6 +16,7 @@ export function AttackTxPanel({ data }: { data: AttackTxs | null }) {
       {data.txs.map(tx => {
         const url = txUrl(tx.chain, tx.tx);
         const take = senderTake(tx);
+        const takeUsd = senderTakeUsd(tx);
         return (
           <div key={tx.tx} className="atx-card">
             <p className="dt-small atx-head">
@@ -25,8 +26,8 @@ export function AttackTxPanel({ data }: { data: AttackTxs | null }) {
               <span style={{ marginLeft: 'auto' }}>{url ? <a href={safeHref(url)} target="_blank" rel="noopener noreferrer" className="dt-mono">{truncateHash(tx.tx)} ↗</a>
                 : <code className="dt-mono">{truncateHash(tx.tx)}</code>}</span>
             </p>
-            {tx.native && <p className="dt-small atx-take">交易本身转出原生币：<b className="dt-mono">{fmtAmount(tx.native.amount)} {tx.native.symbol}</b>（{truncateHash(tx.sender)} → {truncateHash(tx.target)}）</p>}
-            {take.length > 0 && <p className="dt-small atx-take">发起地址 {truncateHash(tx.sender)} 在这笔交易中净得：<b className="dt-mono">{take.join(' · ')}</b></p>}
+            {tx.native && <p className="dt-small atx-take">交易本身转出原生币：<b className="dt-mono">{fmtAmount(tx.native.amount)} {tx.native.symbol}</b>{tx.native.usd != null && <span className="dt-muted"> ≈ {fmtUsd(tx.native.usd)}</span>}（{truncateHash(tx.sender)} → {truncateHash(tx.target)}）</p>}
+            {take.length > 0 && <p className="dt-small atx-take">发起地址 {truncateHash(tx.sender)} 在这笔交易中净得：<b className="dt-mono">{take.join(' · ')}</b>{takeUsd && <span className="dt-muted">（{takeUsd.partial ? '其中可定价部分' : '合计'} ≈ {fmtUsd(takeUsd.usd)}）</span>}</p>}
             {tx.tokens.length > 0 && (
               <div className="oc-scroll" tabIndex={0} role="region" aria-label={`攻击交易 ${truncateHash(tx.tx)} 的代币流向`}>
                 <table className="kd-table oc-table">
@@ -38,9 +39,9 @@ export function AttackTxPanel({ data }: { data: AttackTxs | null }) {
                         <td className="dt-mono" title={t.token}>{tokenName(t)}</td>
                         <td className="dt-mono dt-muted">{t.transfers}</td>
                         <td className="dt-small" title={t.gainer?.address}>{who(t.gainer)}</td>
-                        <td className="dt-mono" title={t.gainer?.raw}>{fmtAmount(t.gainer?.amount)}</td>
+                        <td className="dt-mono" title={t.gainer?.raw}>{fmtAmount(t.gainer?.amount)}{t.gainer?.usd != null && <span className="dt-muted"> ≈ {fmtUsd(t.gainer.usd)}</span>}</td>
                         <td className="dt-small" title={t.loser?.address}>{who(t.loser)}</td>
-                        <td className="dt-mono" title={t.loser?.raw}>{fmtAmount(t.loser?.amount)}</td>
+                        <td className="dt-mono" title={t.loser?.raw}>{fmtAmount(t.loser?.amount)}{t.loser?.usd != null && <span className="dt-muted"> ≈ {fmtUsd(t.loser.usd)}</span>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -51,6 +52,7 @@ export function AttackTxPanel({ data }: { data: AttackTxs | null }) {
           </div>
         );
       })}
+      {data.price_source && <p className="dt-small dt-muted" style={{ marginTop: 8 }}>美元价：{data.price_source}</p>}
       <p className="dt-small dt-muted" style={{ marginTop: 8 }}>未解码：{data.not_decoded.join('；')}</p>
       {data.errors.length > 0 && (
         <p className="dt-small" style={{ color: 'var(--p1)', marginTop: 4 }}>⚠ 最近 {data.errors.length} 笔交易读取失败，下一轮重试</p>

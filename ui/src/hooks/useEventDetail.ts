@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { AmountPoint, Analysis, CveDetail, EventSummary, ItemRef, Mitigation, AttackTxs, Onchain, PipelineStep, PossibleDuplicate, ProgressStage, Response, TimelineEntry, TxRef } from '@/types/site-data';
+import type { AmountPoint, Analysis, CveDetail, Disclosure, Sighting, EventSummary, ItemRef, Mitigation, RulePack, AttackTxs, ChainStage, Onchain, PipelineStep, PossibleDuplicate, ProgressStage, Response, ResponseDecision, TimelineEntry, TxRef } from '@/types/site-data';
 
 export interface EventDetailState {
   event: EventSummary | null;
@@ -7,10 +7,16 @@ export interface EventDetailState {
   timeline: TimelineEntry[];
   amountHistory: AmountPoint[];
   cveDetails: CveDetail[];
+  /** CVE published vs radar first seen (radar.cvemeta); null = no CVE record known / older publisher. */
+  disclosure: Disclosure | null;
+  /** first report published vs radar first capture (radar.pipeline.sighting); null = older publisher. */
+  sighting: Sighting | null;
   tx: TxRef[];
   /** M4 D6 on-chain reconstruction (web3 P0); null when not traced / not web3 / older backend. */
   onchain: Onchain | null;
   attackTxs: AttackTxs | null;
+  /** P1b: attack stages the chain rows confirm (radar.stages.chain_evidence); [] for documents published before it. */
+  chainStages: ChainStage[];
   /** C4: events the model judged to be the same incident (advisory, not merged). */
   possibleDuplicates: PossibleDuplicate[];
   /** undefined = key absent (older publisher); null = not generated for this event. */
@@ -25,14 +31,19 @@ export interface EventDetailState {
   response: Response | null | undefined;
   /** M3 mitigate station. undefined = key absent (older publisher); null = nothing for this event. Both ⇒ no block. */
   mitigation: Mitigation | null | undefined;
+  /** 「响应决策」 (radar.decisions), on every event document. undefined = older publisher ⇒ no block. */
+  decisions: ResponseDecision[] | undefined;
+  /** P2 WAF rule pack. undefined = key absent (older publisher); null = no pack for this event. Both ⇒ no block. */
+  rulePack: RulePack | null | undefined;
   loading: boolean;
   /** 'not_found' for a missing event file; any other string = transport/parse error (shown verbatim). */
   error: string | null;
 }
 
 const EMPTY: Omit<EventDetailState, 'loading' | 'error'> = {
-  event: null, items: [], timeline: [], amountHistory: [], cveDetails: [], tx: [], onchain: null, attackTxs: null, possibleDuplicates: [],
-  analysis: undefined, progress: undefined, pipelineSteps: undefined, response: undefined, mitigation: undefined,
+  event: null, items: [], timeline: [], amountHistory: [], cveDetails: [], disclosure: null, sighting: null, tx: [], onchain: null, attackTxs: null, chainStages: [], possibleDuplicates: [],
+  analysis: undefined, progress: undefined, pipelineSteps: undefined, response: undefined, mitigation: undefined, rulePack: undefined,
+  decisions: undefined,
 };
 
 export function useEventDetail(eventId: string): EventDetailState {
@@ -62,15 +73,20 @@ export function useEventDetail(eventId: string): EventDetailState {
           timeline: data.timeline ?? [],
           amountHistory: data.amount_history ?? [],
           cveDetails: data.cve_details ?? [],
+          disclosure: data.disclosure ?? null,
+          sighting: data.sighting ?? null,
           tx: data.tx ?? [],
           onchain: data.onchain ?? null,
           attackTxs: data.attack_txs ?? null,
+          chainStages: data.chain_stages ?? [],
           possibleDuplicates: data.possible_duplicates ?? [],
           analysis: 'analysis' in data ? data.analysis : undefined,
           progress: data.progress,
           pipelineSteps: data.pipeline_steps,
           response: 'response' in data ? data.response : undefined,
           mitigation: 'mitigation' in data ? data.mitigation : undefined,
+          decisions: data.decisions,
+          rulePack: 'rule_pack' in data ? data.rule_pack : undefined,
           loading: false,
           error: null,
         });

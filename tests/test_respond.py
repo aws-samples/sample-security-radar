@@ -149,7 +149,8 @@ def test_second_cycle_scans_the_submitted_findings_once_then_only_polls(targets)
 def test_escalation_reruns_review_only_after_previous_finished(targets):
     ev, items, an = _doc("php2shell")
     st, _ = _run(ev, items, an, None, targets, respond.Budget(4, True, today=NOW[:10]))
-    hot = {**ev, "exploitation": "confirmed" if ev["exploitation"] != "confirmed" else "poc"}
+    assert ev["exploitation"] == "reported"
+    hot = {**ev, "exploitation": "confirmed"}                        # a rise
     _, ops = respond.decide(hot, items, an, st, targets, respond.Budget(4, False, today=NOW[:10]))
     assert "start_review" not in {o.kind for o in ops}             # still running
     st["targets"]["demo-shop"]["review"]["status"] = "COMPLETED"
@@ -168,7 +169,7 @@ def test_reviews_are_batched_per_target_and_budget_is_per_review():
 
 
 def test_exhausted_budget_blocks_review_visibly(targets):
-    st = respond.block_review({}, "demo-shop")
+    st = respond.block_review({}, "demo-shop", 6)
     assert "额度" in st["targets"]["demo-shop"]["review_blocked"]
 
 
@@ -548,12 +549,12 @@ def test_merge_states_rekeys_findings_and_keeps_survivor_records():
                 "issues": [{"issue_id": "i1", "mine": True}], "scan": {"scan_run_id": "s-old", "requested_at": "2026-10-23T00:00:00Z"}}
     out = respond.merge_states("ev_b", survivor, "ev_a", absorbed)
     uid = respond.finding_uid({"event_id": "ev_b"}, loc)
-    assert list(out["targets"]["demo-shop"]["cn_findings"]) == [uid]
+    assert list(out["s3"]["findings"]) == [uid]
     assert out["targets"]["demo-shop"]["review"] == {"job_id": "mine"} and out["actions"]["code_scan"]["status"] == "running"
-    assert out["issues"] == [{"issue_id": "i1", "mine": True}, {"issue_id": "i2"}] and out["delivered_prs"] == {"i1": "u1"}
-    assert out["scan"]["scan_run_id"] == "s-new" and out["merged_from"] == ["ev_a"]
+    assert out["s3"]["issues"] == [{"issue_id": "i1", "mine": True}, {"issue_id": "i2"}] and out["delivered_prs"] == {"i1": "u1"}
+    assert out["s3"]["scan"]["scan_run_id"] == "s-new" and out["merged_from"] == ["ev_a"]
     alone = respond.merge_states("ev_b", None, "ev_a", absorbed)
-    assert alone["targets"]["demo-shop"]["review"] == {"job_id": "old"} and alone["issues"] == absorbed["issues"]
+    assert alone["targets"]["demo-shop"]["review"] == {"job_id": "old"} and alone["s3"]["issues"] == absorbed["issues"]
 
 
 def test_finding_whose_location_disappeared_is_kept_as_resolved(targets):
@@ -562,9 +563,9 @@ def test_finding_whose_location_disappeared_is_kept_as_resolved(targets):
     st = {"targets": {"demo-shop": {"cn_findings": {"radar-gone": {"finding_id": "f9", "status": "CONFIRMED",
                                                                        "file": "old/Dockerfile", "line": 1}}}}}
     st2, _ = respond.decide(ev, items, an, st, targets, respond.Budget(6, True, today="2026-10-27"))
-    ts = st2["targets"]["demo-shop"]
-    assert "radar-gone" not in (ts.get("cn_findings") or {})
-    assert ts["resolved_findings"]["radar-gone"]["resolved_on"] == "2026-10-27"
+    s3 = st2["s3"]
+    assert "radar-gone" not in (s3.get("findings") or {})
+    assert s3["resolved_findings"]["radar-gone"]["resolved_on"] == "2026-10-27"
     r = respond.to_response(st2, NAMES, NOW)
     _validate("Response", r)
     assert any(f["finding_id"] == "f9" and "代码中已移除" in f["status"] for f in r["findings"])
@@ -582,9 +583,9 @@ def test_findings_keyed_by_continuum_id_are_rekeyed_not_resolved_or_resubmitted(
     st = {"targets": {"demo-shop": {"cn_findings": dict(rest), "resolved_findings": {first[0]: {**first[1], "resolved_on": "2026-10-26"}}}},
           "scan": {"scan_run_id": "s", "status": "SUCCEEDED", "requested_at": "2026-10-23T10:00:00Z"}}
     st2, ops = respond.decide(ev, items, an, st, targets, respond.Budget(6, True, today="2026-10-27"))
-    ts = st2["targets"]["demo-shop"]
-    assert set(ts["cn_findings"]) == {respond.finding_uid(ev, loc) for loc in locs}
-    assert "resolved_findings" not in ts and all("resolved_on" not in f for f in ts["cn_findings"].values())
+    s3 = st2["s3"]
+    assert set(s3["findings"]) == {respond.finding_uid(ev, loc) for loc in locs}
+    assert "resolved_findings" not in s3 and all("resolved_on" not in f for f in s3["findings"].values())
     assert not {"submit_finding", "request_scan"} & {o.kind for o in ops}
 
 
@@ -592,9 +593,9 @@ def test_a_poll_without_issues_does_not_erase_known_issues():
     st = {"issues": [{"issue_id": "i1", "status": "OLD"}, {"issue_id": "i2"}]}
     st = respond.apply(st, respond.Op("poll_continuum"), {"findings": [], "issues": [{"issue_id": "i1", "status": "NEW"}, {"issue_id": "i3"}],
                                                           "issues_complete": True}, NOW)
-    assert st["issues"] == [{"issue_id": "i1", "status": "NEW"}, {"issue_id": "i2"}, {"issue_id": "i3"}]
+    assert st["s3"]["issues"] == [{"issue_id": "i1", "status": "NEW"}, {"issue_id": "i2"}, {"issue_id": "i3"}]
     st = respond.apply(st, respond.Op("poll_continuum"), {"findings": [], "issues": [], "issues_complete": True}, NOW)
-    assert [i["issue_id"] for i in st["issues"]] == ["i1", "i2", "i3"]
+    assert [i["issue_id"] for i in st["s3"]["issues"]] == ["i1", "i2", "i3"]
 
 
 def test_a_failing_submit_never_buys_a_scan(targets):
@@ -730,7 +731,7 @@ def test_line_drift_on_the_s3_path_too(targets):
             st = respond.apply(st, op, {"finding_id": f"f-{op.payload['uid'][-4:]}", "status": "CONFIRMED"}, NOW)
     st2, ops2 = respond.decide(ev, items, an, st, _shift(targets, "demo-shop", "Dockerfile"), b)
     assert "submit_finding" not in {o.kind for o in ops2}
-    assert not st2["targets"]["demo-shop"].get("resolved_findings")
+    assert st2["s3"]["findings"] and not st2["s3"].get("resolved_findings")
 
 
 def test_an_ambiguous_drift_is_not_guessed(fleet):
@@ -766,3 +767,137 @@ def test_a_stolen_production_key_is_not_the_public_dev_key_class(title):
 def test_the_hardhat_default_account_story_still_is_the_public_dev_key_class():
     title = "AlpsCon — AlpsCon AI Trade Hub still trusts the canonical Hardhat default account"
     assert "public-dev-key" in [c.class_id for c in patterns.classes_for([title])]
+
+
+# ---------------------------------------------------------------- P0 respond fixes (docs/research/action/02 B1/B2/B3/B6)
+
+def _wp(fleet):
+    """wp-storefront alone: PHP2Shell makes it relevant (PHP image) with nothing locatable ⇒ only the paid review
+    decides — no submitted finding keeps the event 'running' and hides what the review did."""
+    return [t for t in fleet if t.target_id == "wp-storefront"]
+
+
+def test_unknown_target_is_unchecked_never_not_affected(targets):
+    """B1 (live repro 2026-11-11): Node2Shell × security-radar (node:24 not pinned) ⇒ verdict unknown, and the chip
+    said 未命中 0/2 — "never looked" rendered as "looked, clean"."""
+    ev, items, an = _doc("node2shell")
+    st, _ = _run(ev, items, an, None, targets, respond.Budget(4, True, today=NOW[:10]))
+    r = respond.to_response(st, NAMES, NOW)
+    assert [t["verdict"] for t in r["targets"] if t["target_id"] == "security-radar"] == ["unknown"]
+    imp = respond.impact(r)
+    assert imp == {"status": "unchecked", "affected": 0, "checked": 2}
+    _validate("ImpactSummary", imp)
+
+
+def test_a_failed_review_start_on_an_event_with_targets_is_failed_not_done(fleet):
+    """B2: `failed if failed and not out_targets` ⇒ a Throttled start_review rendered done / 未命中."""
+    ev, items, an = _doc("php2shell")
+    fail = lambda op: {"error": "ThrottlingException: Rate exceeded"} if op.kind == "start_review" else _ok(op)
+    st, ops = _run(ev, items, an, None, _wp(fleet), respond.Budget(4, True, today=NOW[:10]), fail)
+    assert ("start_review", "wp-storefront") in [(o.kind, o.target_id) for o in ops]
+    r = respond.to_response(st, NAMES, NOW)
+    assert r["status"] == "failed" and respond.impact(r)["status"] == "failed"
+    assert "Throttling" in r["targets"][0]["detail"]
+
+
+def test_review_block_says_the_enforced_budget_and_is_cleared_when_no_longer_true(fleet):
+    """B3: the message used Limits (6) while the station enforced env SA_REVIEWS_PER_DAY; and a block set once was never
+    cleared, so a later Throttled start still read 额度已用完."""
+    ev, items, an = _doc("php2shell")
+    st, ops = respond.decide(ev, items, an, None, _wp(fleet), respond.Budget(0, True, today=NOW[:10]))
+    for op in ops:
+        if op.kind != "start_review":   # the station would plan it, find no budget, and block it
+            st = respond.apply(st, op, _ok(op), NOW)
+    st = respond.block_review(st, "wp-storefront", 2)
+    t = respond.to_response(st, NAMES, NOW)["targets"][0]
+    assert t["verdict"] == "unknown" and "2/天" in t["detail"]
+    fail = lambda op: {"error": "ThrottlingException: Rate exceeded"} if op.kind == "start_review" else _ok(op)
+    st, _ = _run(ev, items, an, st, _wp(fleet), respond.Budget(4, True, today=NOW[:10]), fail)
+    t = respond.to_response(st, NAMES, NOW)["targets"][0]
+    assert "额度" not in t["detail"] and "Throttling" in t["detail"]
+
+
+@pytest.mark.parametrize("later", [{"severity": "P1", "exploitation": "poc"}, {"severity": "P2"}],
+                         ids=["no-longer-wants-review", "cooled-down"])
+def test_a_review_error_is_cleared_when_no_retry_is_planned(fleet, later):
+    """Review of ff24559: review_error was popped only by a later successful start. An event that stops wanting a
+    review (P0 → P1/poc) or cools down after a failed start kept 代码评审发起失败（…），下一轮重试 with no retry ever
+    coming, and its failed code_review action pinned the event to 环境检查失败 forever."""
+    ev, items, an = _doc("php2shell")
+    fail = lambda op: {"error": "ThrottlingException: Rate exceeded"} if op.kind == "start_review" else _ok(op)
+    st, _ = _run(ev, items, an, None, _wp(fleet), respond.Budget(4, True, today=NOW[:10]), fail)
+    assert respond.to_response(st, NAMES, NOW)["status"] == "failed"
+    st, ops = _run({**ev, **later}, items, an, st, _wp(fleet), respond.Budget(4, True, today=NOW[:10]))
+    assert "start_review" not in {o.kind for o in ops}
+    r = respond.to_response(st, NAMES, NOW)
+    assert "下一轮重试" not in r["targets"][0]["detail"] and r["status"] != "failed"
+
+
+def _reviewed_wp(fleet):
+    """wp-storefront with its review finished clean: the event is done, nothing else pending."""
+    ev, items, an = _doc("php2shell")
+    st, _ = _run(ev, items, an, None, _wp(fleet), respond.Budget(4, True, today=NOW[:10]))
+    st, _ = _run(ev, items, an, st, _wp(fleet), respond.Budget(4, True, today=NOW[:10]),
+                 lambda op: {"status": "COMPLETED", "findings": []} if op.kind == "poll_review" else _ok(op))
+    assert respond.to_response(st, NAMES, NOW)["status"] == "done"
+    return st
+
+
+def test_a_continuum_outage_or_failed_environment_scan_does_not_fail_a_reviewed_event(fleet):
+    """Review of ff24559: failed_check also counted code_scan actions ⇒ the documented Security-Agent-only mode
+    (Continuum down / too_many_targets ⇒ every request_scan records continuum_unavailable) and a scan run ending FAILED
+    turned every event with targets into 环境检查失败. The scan failure stays visible on its action row; only a
+    review start that failed (and is still current) is the event's answer."""
+    st = respond.apply(_reviewed_wp(fleet), respond.Op("request_scan", payload={"token": "t"}),
+                       {"error": "continuum_unavailable: too many targets"}, NOW)
+    r = respond.to_response(st, NAMES, NOW)
+    assert r["status"] == "done" and [a["status"] for a in r["actions"] if a["kind"] == "code_scan"] == ["failed"]
+    st = respond.apply(_reviewed_wp(fleet), respond.Op("request_scan", payload={"token": "t"}),
+                       {"scan_run_id": "scan-1", "status": "SUBMITTED"}, NOW)
+    st = respond.apply(st, respond.Op("poll_continuum"), {"findings": [], "issues": [], "issues_complete": True,
+                                                         "scan": {"status": "FAILED", "failureMessage": "x"}}, NOW)
+    r = respond.to_response(st, NAMES, NOW)
+    assert r["status"] == "done" and [a["status"] for a in r["actions"] if a["kind"] == "code_scan"] == ["failed"]
+
+
+@pytest.mark.parametrize("title,want", [
+    ("Magento PHP deserialization flaw exploited", "magento"),
+    ("WordPress plugin Foo PHP Object Injection", "wordpress"),
+    ("Strapi CMS RCE via Node.js prototype pollution", "strapi"),
+    ("PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-2026-109619)", "php"),
+])
+def test_the_most_specific_product_wins_over_the_runtime(title, want):
+    """B6: first-match made application-level bugs PHP / Node.js events ⇒ every PHP-pinning target relevant ⇒ a paid
+    review each. The application (WordPress / Magento / Strapi) is the answer; the runtime only when alone."""
+    assert products.match(title, []).product_id == want
+
+
+@pytest.mark.parametrize("title,entities,want", [
+    ("Node.js security release fixes OpenSSL and HTTP/2 flaws", [], "nodejs"),
+    ("PHP 8.4 RCE in openssl_* functions (OpenSSL)", [], "php"),
+    ("Node2Shell RCE in Node.js", ["nginx"], "nodejs"),
+])
+def test_a_library_or_server_the_event_mentions_does_not_take_over_a_runtime_event(title, entities, want):
+    """Review of ff24559: "any non-runtime beats the runtime" made these openssl / nginx events — products with no
+    locators ⇒ every target irrelevant ⇒ no review and a 'not in our code' answer for a real runtime bug. Only an
+    application BUILT ON the runtime (Product.built_on) is more specific; anything else keeps registry order."""
+    assert products.match(title, entities).product_id == want
+
+
+def test_an_event_that_steps_down_does_not_buy_another_review(targets):
+    """Audit 04 §3.2: the gate said "escalated" and tested "the key differs" — the 72-hour cool-down P0 → P1 of an
+    exploited event bought another review of the same code against the same rule."""
+    ev, items, an = _doc("php2shell")
+    st, _ = _run(ev, items, an, None, targets, respond.Budget(4, True, today=NOW[:10]))
+    st["targets"]["demo-shop"]["review"].update(status="COMPLETED", findings_fetched=True)
+    for down in ({**ev, "level": "V2"}, {**ev, "exploitation": "poc"}):          # a step down, still P0
+        _, ops = respond.decide(down, items, an, st, targets, respond.Budget(4, False, today=NOW[:10]))
+        assert "start_review" not in {o.kind for o in ops}, down
+    assert not respond.escalated("P0|V3|reported", {"severity": "P1", "level": "V3", "exploitation": "reported"})
+    assert not respond.escalated("P0|V3|reported", {"severity": "P0", "level": "V2", "exploitation": "poc"})
+    assert respond.escalated("P1|V3|reported", {"severity": "P0", "level": "V3", "exploitation": "reported"})
+    assert respond.escalated("P0|V2|reported", {"severity": "P0", "level": "V3", "exploitation": "reported"})
+    assert respond.escalated(None, ev) and respond.escalated("garbage", ev)
+    _, ops = respond.decide({**ev, "severity": "P1", "exploitation": "confirmed"}, items, an, st, targets,
+                            respond.Budget(4, False, today=NOW[:10]))
+    assert "start_review" in {o.kind for o in ops}                   # P0 → P1 but now confirmed in the wild: that is a rise

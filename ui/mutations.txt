@@ -250,10 +250,10 @@ find = return { service: HERO_SERVICE, score: own.score,
 replace = return { service: HERO_SERVICE, score: coverageScore(coverage),
 expect = src/test/continuum.test.ts
 
-[UK6 continuum: running check hides an affected target]
+[UK6 continuum: a row published before `impact` hides an affected target]
 file = src/utils/continuum.ts
-find = if (r.affected > 0 && r.status !== 'failed'
-replace = if (r.affected > 99 && r.status !== 'failed'
+find = return { status: r.affected > 0 ? 'affected' : 'unchecked'
+replace = return { status: r.affected > 99 ? 'affected' : 'unchecked'
 expect = src/test/continuum.test.ts
 
 [UK7 continuum: 5xx HTML error page read as "unpublished"]
@@ -398,15 +398,15 @@ expect = src/test/amounts.test.ts
 
 [UW11 detail: attack flow loses its order (phases drawn in report order)]
 file = src/utils/attackFlow.ts
-find = return PHASE_ORDER.filter(p => by.has(p)).map(p => {
-replace = return [...by.keys()].map(p => {
-expect = src/test/attackFlow.test.ts
+find = return STAGES.filter(s => by.has(s.id) || onChain.has(s.id)).map(s => {
+replace = return [...by.keys()].map(id => STAGES.find(s => s.id === id)!).map(s => {
+expect = src/test/attackFlow.test.tsx
 
 [UW12 detail: a one-phase story still draws a flow]
 file = src/utils/attackFlow.ts
 find = export const showFlow = (steps: PhaseStep[], web3 = false) => steps.length >= (web3 ? 1 : 2);
 replace = export const showFlow = (steps: PhaseStep[], web3 = false) => steps.length >= 1;
-expect = src/test/attackFlow.test.ts
+expect = src/test/attackFlow.test.tsx
 
 [UW13 detail: a malformed tx hash still gets an explorer link]
 file = src/utils/onchainView.ts
@@ -418,7 +418,7 @@ expect = src/test/onchainView.test.ts
 file = src/utils/attackFlow.ts
 find = const at = (it: ItemRef) => it.evidence_at ?? it.published_at;
 replace = const at = (it: ItemRef) => it.published_at;
-expect = src/test/attackFlow.test.ts
+expect = src/test/attackFlow.test.tsx
 
 [UW15 detail: the older ?section=env deep link no longer opens the environment tab]
 file = src/utils/detailTabs.ts
@@ -436,13 +436,13 @@ expect = src/test/detailTabs.test.ts
 file = src/utils/attackFlow.ts
 find = export const showFlow = (steps: PhaseStep[], web3 = false) => steps.length >= (web3 ? 1 : 2);
 replace = export const showFlow = (steps: PhaseStep[], web3 = false) => steps.length >= 2;
-expect = src/test/attackFlow.test.ts
+expect = src/test/attackFlow.test.tsx
 
 [UW18 detail: unreported attack phases are hidden instead of listed]
 file = src/utils/attackFlow.ts
-find = export const missingPhases = (steps: PhaseStep[]) => CORE.filter(p => !steps.some(s => s.phase === p)).map(p => PHASE_LABEL[p]);
-replace = export const missingPhases = (steps: PhaseStep[]) => [] as string[];
-expect = src/test/attackFlow.test.ts
+find = STAGES.filter(s => s.expected.includes(domain) && !steps.some(st => st.phase === s.id)).map(s => s.zh);
+replace = ([] as string[]);
+expect = src/test/attackFlow.test.tsx
 
 [UW19 detail: the sender's take lists every gainer (the victim's own refunds read as the attacker's take)]
 file = src/utils/attackTxView.ts
@@ -461,3 +461,430 @@ file = src/utils/triageView.ts
 find = if (!t) return '未处置';
 replace = if (!t) return '';
 expect = src/test/triageView.test.ts
+
+[UW22 detail: an unpriced token reads as $0]
+file = src/utils/attackTxView.ts
+find = if (v === null || v === undefined) return '';
+replace = if (v === null || v === undefined) return '$0';
+expect = src/test/attackTxView.test.ts
+
+[UW23 detail: the USD take counts tokens the sender did not end up with]
+file = src/utils/attackTxView.ts
+find = const take = tx.tokens.filter(t => t.gainer?.role === '发起地址');
+replace = const take = tx.tokens.filter(t => t.gainer);
+expect = src/test/attackTxView.test.ts
+
+[UW24 wall: a follow-up count of 0 is listed ("链上 0 笔转出")]
+file = src/utils/wall.ts
+find = if (f?.onchain_moves) parts.push(`链上 ${f.onchain_moves} 笔转出`);
+replace = if (f) parts.push(`链上 ${f.onchain_moves} 笔转出`);
+expect = src/test/wall.test.ts
+
+[UW25 wall: an event nobody follows gets an empty "跟进 ·" line]
+file = src/utils/wall.ts
+find = if (parts.length === 0) return null;
+replace = if (parts.length < 0) return null;
+expect = src/test/wall.test.ts
+
+[UW40 detail: a flow into an exchange reads as a plain outflow]
+file = src/utils/onchainView.ts
+find = const kind = r.to_exchange ? `转出 · 进入交易所 ${r.to_exchange}` : '转出';
+replace = const kind = '转出';
+expect = src/test/onchainView.test.ts
+
+[UW41 detail: the attacker's cash-out per exchange is not summarised]
+file = src/utils/onchainView.ts
+find = exchanges: Object.entries(o.totals.exchange_inflow_by_exchange ?? {}).sort((a, b) => b[1] - a[1]),
+replace = exchanges: [] as [string, number][],
+expect = src/test/onchainView.test.ts
+
+[UW42 detail: an unsafe source URL becomes a link under the corrected title]
+file = src/utils/retitleView.ts
+find = const href = safeHref(f.source);
+replace = const href = f.source;
+expect = src/test/retitleView.test.ts
+
+[UW43 detail: a two-week-late sighting is not flagged late]
+file = src/utils/disclosureView.ts
+find = return { published, lag, late: d.lag_hours >= 72 };
+replace = return { published, lag, late: false };
+expect = src/test/disclosureView.test.ts
+
+[UW44 detail: the lag reads as same-day regardless of hours]
+file = src/utils/disclosureView.ts
+find = const lag = d.lag_hours < 24 ? '公开当天即有报道' : `首篇报道晚于公开 ${days} 天`;
+replace = const lag = '公开当天即有报道';
+expect = src/test/disclosureView.test.ts
+
+[UW45 detail: a resurfaced CVE reads as "N days late"]
+file = src/utils/disclosureView.ts
+find = if (d.resurfaced) return { published, lag: `旧漏洞，公开 ${days} 天后因新的利用/通报再次被报道`, late: false };
+replace = // removed
+expect = src/test/disclosureView.test.ts
+
+[UW46 detail: the disclosure date drops its year]
+file = src/utils/disclosureView.ts
+find = export const fmtDisclosureAt = (iso: string): string => `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
+replace = export const fmtDisclosureAt = (iso: string): string => `${iso.slice(5, 10)} ${iso.slice(11, 16)} UTC`;
+expect = src/test/disclosureView.test.ts
+
+[UW47 detail: the radar's capture time is shown as the first report's publication]
+file = src/utils/sightingView.ts
+find = collected: `雷达采集 ${utcShort(s.first_collected_at)} UTC（
+replace = collected: `雷达采集 ${utcShort(s.first_report_at)} UTC（
+expect = src/test/sightingView.test.ts
+
+[UW48 detail: an undated source's capture time reads as a publication time]
+file = src/utils/sightingView.ts
+find = if (it.published_is_collected) return `采集 ${utcShort(it.collected_at)} UTC（来源未标发布时间）`;
+replace = // removed
+expect = src/test/sightingView.test.ts
+
+[UW49 detail: the first capture does not say which report it was]
+file = src/utils/sightingView.ts
+find = ${s.first_collected_source && s.first_collected_source !== s.first_report_source ? `经 ${s.first_collected_source}，` : ''}
+replace = ${''}
+expect = src/test/sightingView.test.ts
+
+[UW50 detail: a date-only source shows a made-up 00:00]
+file = src/utils/sightingView.ts
+find = const pub = it.date_only ? `${it.published_at.slice(5, 10)}（来源只给日期）` : `${utcShort(it.published_at)} UTC`;
+replace = const pub = `${utcShort(it.published_at)} UTC`;
+expect = src/test/sightingView.test.ts
+
+[UW51 detail: a date-only first report shows a made-up 00:00]
+file = src/utils/sightingView.ts
+find = const at = s.first_report_date_only ?
+replace = const at = false ?
+expect = src/test/sightingView.test.ts
+
+[UW52 detail: a CVE missing from the CVE List shows a bare dash]
+file = src/utils/disclosureView.ts
+find = if (c.cve_record === 'NOT_FOUND') return 'CVE 列表中暂无记录（预留或编号有误），每天复查';
+replace = if (c.cve_record === 'NOT_FOUND') return '—';
+expect = src/test/disclosureView.test.ts
+
+[UW53 cards: an old CVE's date drops its year]
+file = src/utils/disclosureView.ts
+find = const date = cd.at.slice(0, 4) === firstSeen.slice(0, 4) ? cd.at.slice(5, 10) : cd.at.slice(0, 10);
+replace = const date = cd.at.slice(5, 10);
+expect = src/test/disclosureView.test.ts
+
+[UW54 progress: the CVE publication is not shown as stage 0]
+file = src/utils/evidence.ts
+find = return by.get('disclosed') ? [{ stage: 'disclosed' as const, label: STAGE_LABEL.disclosed, at: by.get('disclosed') ?? null }, ...rows] : rows;
+replace = return rows;
+expect = src/test/evidence.test.ts
+
+[UM95 announcements: security notices are not pinned]
+file = src/utils/announcements.ts
+find = return out.sort((a, b) => Number(pinned(b)) - Number(pinned(a)) || at(b) - at(a));
+replace = return out.sort((a, b) => at(b) - at(a));
+expect = src/test/announcements.test.ts
+
+[UM96 announcements: the kind filter is ignored]
+file = src/utils/announcements.ts
+find = (f.kinds.length === 0 || f.kinds.includes(r.kind as NoticeKind)) &&
+replace = true &&
+expect = src/test/announcements.test.ts
+
+[UM97 search: one matching term is enough]
+file = src/utils/search.ts
+find = return rows.filter(r => { const h = hay(r); return terms.every(t => h.includes(t)); })
+replace = return rows.filter(r => { const h = hay(r); return terms.some(t => h.includes(t)); })
+expect = src/test/search.test.ts
+
+
+[M516 placeholder-Priority note keyed on web_acl again: a cwe plan behind a radar ACL shows 10000+ with no note (W4)]
+file = src/components/detail/MitigationPanel.tsx
+find = {p.priority_placeholder && <p className="dt-small dt-muted" data-testid="priority-note">
+replace = {!p.web_acl && <p className="dt-small dt-muted" data-testid="priority-note">
+expect = src/test/mitigate.test.tsx
+
+[M517 staged copy hides that the whole group counts (W1)]
+file = src/utils/mitigate.ts
+find = hint: '整个规则组以 Count 暂存（组内规则都不拦截），确认无误报后只让点名的规则切 Block'
+replace = hint: '规则以 Count 暂存，确认无误报后切 Block'
+expect = src/test/mitigate.test.tsx
+
+[M533 UI response: an unknown target derives not_affected]
+file = src/utils/response.ts
+find = : r.targets.some(t => t.verdict === 'unknown') ? 'unchecked' : 'not_affected';
+replace = : 'not_affected';
+expect = src/test/response.test.ts
+
+[M534 UI response: the unchecked chip reads 未命中]
+file = src/utils/response.ts
+find = label: `未检查 ·/${checked}`
+replace = label: `未命中 0/${checked}`
+expect = src/test/response.test.ts
+
+[M535 UI response: the BLUF says 均未命中 for a target nobody checked]
+file = src/utils/response.ts
+find = if (unknown.length > 0) {
+replace = if (false) {
+expect = src/test/response.test.ts
+
+[M536 UI response: a failed check hides a located hit behind 环境检查失败]
+file = src/utils/response.ts
+find = if (t) {
+replace = if (false) {
+expect = src/test/response.test.ts
+
+[M541 UI continuum: a recent row maps done to 未命中 instead of rendering the published impact]
+file = src/utils/continuum.ts
+find = if (r.impact) return { status: r.impact, affected: r.affected, checked: r.checked };
+replace = if (r.impact) return { status: r.status === 'done' ? 'not_affected' : r.impact, affected: r.affected, checked: r.checked };
+expect = src/test/continuum.test.ts
+
+[M542 UI continuum: a row published before `impact` claims 未命中 nobody proved]
+file = src/utils/continuum.ts
+find = return { status: r.affected > 0 ? 'affected' : 'unchecked'
+replace = return { status: r.affected > 0 ? 'affected' : 'not_affected'
+expect = src/test/continuum.test.ts
+
+[UM100 search: index kind not checked]
+file = src/utils/search.ts
+find = if (idx?.kind !== 'search-index' || !Array.isArray(idx.months)) throw new Error('unexpected data kind');
+replace = if (!idx) throw new Error('unexpected data kind');
+expect = src/test/searchPage.test.tsx
+
+[UM101 search: a failed shard silently counts as an empty month]
+file = src/utils/search.ts
+find = if (!r.ok) return null;
+replace = if (!r.ok) return [];
+expect = src/test/searchPage.test.tsx
+
+[UM102 search: a non-shard document accepted as a shard]
+file = src/utils/search.ts
+find = if (d?.kind !== 'search-shard' || !Array.isArray(d.events)) return null;
+replace = if (!Array.isArray(d?.events)) return null;
+expect = src/test/searchPage.test.tsx
+
+[UM103 search: error reported after unmount]
+file = src/utils/search.ts
+find = if (live()) sink.error(String(e));
+replace = sink.error(String(e));
+expect = src/test/searchPage.test.tsx
+
+[UM104 search: failed months never handed to the page]
+file = src/utils/search.ts
+find = batch.filter((_, k) => got[k] === null).map(m => m.month)
+replace = []
+expect = src/test/searchPage.test.tsx
+
+[UM105 search: failed months not shown]
+file = src/pages/SearchPage.tsx
+find = {failed.length > 0 && (
+replace = {false && (
+expect = src/test/searchPage.test.tsx
+
+[UM106 search: every hit links to a detail page, published or not]
+file = src/pages/SearchPage.tsx
+find = {r.p ? (
+replace = {true ? (
+expect = src/test/searchPage.test.tsx
+
+[UM107 announcements: notice URL rendered without safeHref]
+file = src/pages/AnnouncementsPage.tsx
+find = <a href={safeHref(r.url)} target="_blank"
+replace = <a href={r.url} target="_blank"
+expect = src/test/announcementsPage.test.tsx
+
+[UM108 document language back to English]
+file = index.html
+find = <html lang="zh-CN">
+replace = <html lang="en">
+expect = src/test/searchPage.test.tsx
+
+[UM109 search: the index's publish cap never reaches the page]
+file = src/utils/search.ts
+find = sink.index(ms, Number.isInteger(idx.detail_cap) ? idx.detail_cap : null);
+replace = sink.index(ms, null);
+expect = src/test/searchPage.test.tsx
+
+[UM110 search: publish cap hardcoded in the page again]
+file = src/pages/SearchPage.tsx
+find = const noPage = detailCap !== null ? `无详情页（未进入发布的前 ${detailCap} 条）` : '无详情页（未进入发布）';
+replace = const noPage = `无详情页（未进入发布的前 500 条）`;
+expect = src/test/searchPage.test.tsx
+
+[UM130 decisions: not evaluated looks like not fired]
+file = src/utils/decisions.ts
+find = not_evaluated: { glyph: '○', word: '未评估', tone: 'unevaluated' },
+replace = not_evaluated: { glyph: '–', word: '未触发', tone: 'muted' },
+expect = src/test/decisions.test.tsx
+
+[UM131 decisions: an older document without decisions yields an empty group list instead of no block]
+file = src/utils/decisions.ts
+find = if (!rows) return null;
+replace = if (!rows) return [];
+expect = src/test/decisions.test.tsx
+
+[UM132 decisions: rows lose their outcome class (dashed not-evaluated edge gone)]
+file = src/components/env/DecisionsPanel.tsx
+find = className={`dec-row is-${r.outcome}${o.failed ? ' is-failed' : ''}`}
+replace = className="dec-row"
+expect = src/test/decisions.test.tsx
+
+[UM133 decisions: scoped rows of one action are split into separate groups]
+file = src/utils/decisions.ts
+find = if (g) g.rows.push(r);
+replace = if (g && false) g.rows.push(r);
+expect = src/test/decisions.test.tsx
+
+[UM134 decisions: the action label repeats on every scoped row]
+file = src/components/env/DecisionsPanel.tsx
+find = {i === 0 ? <>{g.label}
+replace = {i >= 0 ? <>{g.label}
+expect = src/test/decisions.test.tsx
+
+[UM135 decisions: a failed call reads 已触发 in the ok tone]
+file = src/utils/decisions.ts
+find = if (r.result === 'error') return { glyph: '✕', word: '已触发 · 执行失败', tone: 'loss', failed: true };
+replace = if (r.result === 'error') return { ...o, failed: false };
+expect = src/test/decisions.test.tsx
+
+[UM136 decisions: a fire whose result was never recorded reads as a success]
+file = src/utils/decisions.ts
+find = if (r.result !== 'ok') return { glyph: '●', word: '已触发 · 结果未记录', tone: 'warn', failed: false };
+replace = if (r.result !== 'ok') return { ...o, failed: false };
+expect = src/test/decisions.test.tsx
+
+[UM137 decisions: a failing retry shows the first fire time (looks like one success from yesterday)]
+file = src/utils/decisions.ts
+find = return r.result === 'error' && r.result_at ? r.result_at : r.at;
+replace = return r.at;
+expect = src/test/decisions.test.tsx
+
+[UM138 decisions: the failure text is not shown]
+file = src/components/env/DecisionsPanel.tsx
+find = {o.failed && <span className="dec-error">（失败：{r.error ?? '未知错误'}）</span>}
+replace = {false && <span className="dec-error">（失败：{r.error ?? '未知错误'}）</span>}
+expect = src/test/decisions.test.tsx
+
+[UM140 detail: legacy drain / statement values are not mapped on read (old documents lose their flow)]
+file = src/utils/attackFlow.ts
+find = const v = (p && STAGE_ALIASES[p]) ?? p ?? 'other';
+replace = const v = p ?? 'other';
+expect = src/test/attackFlow.test.tsx
+
+[UM141 detail: chain-confirmed stages ignored by the attack flow (B8)]
+file = src/utils/attackFlow.ts
+find = for (const c of chain) {
+replace = for (const c of [] as ChainStage[]) {
+expect = src/test/attackFlow.test.tsx
+
+[UM142 detail: a stage only the chain proves gets no step (freeze listed as no evidence)]
+file = src/utils/attackFlow.ts
+find = return STAGES.filter(s => by.has(s.id) || onChain.has(s.id)).map(s => {
+replace = return STAGES.filter(s => by.has(s.id)).map(s => {
+expect = src/test/attackFlow.test.tsx
+
+[UM143 detail: chain-only steps have no anchor to jump to]
+file = src/components/detail/AttackFlow.tsx
+find = {children && <div id={CHAIN_ANCHOR}>{children}</div>}
+replace = {children}
+expect = src/test/attackFlow.test.tsx
+
+[UM144 detail: the AWS controls of evidenced stages are not shown]
+file = src/components/detail/AttackFlow.tsx
+find = {shown && <Controls steps={steps} />}
+replace = {null}
+expect = src/test/attackFlow.test.tsx
+
+[UM145 detail: the chain clock is the last row, not the earliest]
+file = src/utils/attackFlow.ts
+find = const chainAt = cs.length ? cs.map(c => c.first_at).sort()[0] : null;
+replace = const chainAt = cs.length ? cs[cs.length - 1].first_at : null;
+expect = src/test/attackFlow.test.tsx
+
+[UM146 detail: chain evidence counted per kind, not per row]
+file = src/utils/attackFlow.ts
+find = chain: cs.reduce((n, c) => n + c.count, 0), chainAt,
+replace = chain: cs.length, chainAt,
+expect = src/test/attackFlow.test.tsx
+
+[UM147 detail: missing stages listed even when evidenced]
+file = src/utils/attackFlow.ts
+find = STAGES.filter(s => s.expected.includes(domain) && !steps.some(st => st.phase === s.id)).map(s => s.zh);
+replace = STAGES.filter(s => s.expected.includes(domain)).map(s => s.zh);
+expect = src/test/attackFlow.test.tsx
+
+[UM148 detail: an EIP-7702 check time is drawn as the on-chain time of key access (after the theft)]
+file = src/utils/attackFlow.ts
+find = const cs = all.filter(c => c.clock === 'chain');
+replace = const cs = all;
+expect = src/test/attackFlow.test.tsx
+
+[UM149 detail: a check-only step gives no check time and no 「发生时间未查询」 label]
+file = src/components/detail/AttackFlow.tsx
+find = if (s.checkedAt) parts.push(`${CHECKED} ${utcShort(s.checkedAt)} · ${s.checked} 个钱包（发生时间未查询）`);
+replace = if (s.checkedAt) parts.push(`链上 ${utcShort(s.checkedAt)} · ${s.checked} 笔`);
+expect = src/test/attackFlow.test.tsx
+
+[UM150 rule pack: an unchecked CheckCapacity reads as a WCU number]
+file = src/utils/rulePack.ts
+find = if (c.wcu === null || c.wcu === undefined) return `${CAPACITY_STATE[c.state].label}：${c.detail}`;
+replace = if (false) return `${CAPACITY_STATE[c.state].label}：${c.detail}`;
+expect = src/test/rulePack.test.tsx
+
+[UM151 rule pack: a PoC outage is worded as 「暂无模板」]
+file = src/utils/rulePack.ts
+find = unavailable: { label: 'PoC 来源暂不可用',   tone: 'warn',
+replace = unavailable: { label: '暂无模板',   tone: 'warn',
+expect = src/test/rulePack.test.tsx
+
+[UM152 rule pack: 缓解 ≠ 修复 note not shown]
+file = src/components/detail/RulePackPanel.tsx
+find = <p className="mt-note" role="note">{p.note}</p>
+replace = <p className="mt-note" role="note"></p>
+expect = src/test/rulePack.test.tsx
+
+[UM153 rule pack: rejected candidates hidden]
+file = src/components/detail/RulePackPanel.tsx
+find = {p.rejected.length > 0 && (
+replace = {false && (
+expect = src/test/rulePack.test.tsx
+
+[UM154 rule pack: a null pack renders an (empty) block]
+file = src/components/detail/RulePackPanel.tsx
+find = if (!rulePack) return null;
+replace = if (!rulePack) return <section />;
+expect = src/test/rulePack.test.tsx
+
+[UM155 rule pack: no download button]
+file = src/components/detail/RulePackPanel.tsx
+find = <DownloadButton r={cur} />
+replace = <span />
+expect = src/test/rulePack.test.tsx
+
+[UM156 rule pack: source quotes lose their pinned links]
+file = src/components/detail/RulePackPanel.tsx
+find = return <li key={i}>{href ? <a href={href} target="_blank" rel="noopener noreferrer">{v.text}</a> : v.text}</li>;
+replace = return <li key={i}>{v.text}</li>;
+expect = src/test/rulePack.test.tsx
+
+[UM157 rule pack: only the first rendering offered]
+file = src/components/detail/RulePackPanel.tsx
+find = {renderings.map((r, i) => (
+replace = {renderings.slice(0, 1).map((r, i) => (
+expect = src/test/rulePack.test.tsx
+
+[UM158 rule pack: the page rebuilds a quote link from feed fields (an item's javascript: url becomes a link)]
+file = src/utils/rulePack.ts
+find = const href = q.href ?? undefined;
+replace = const href = 'repo' in q ? q.href ?? undefined : q.url;
+expect = src/test/rulePack.test.tsx
+
+[UM900 sources: a recovered error is shown as a live failure again]
+file = src/utils/health.ts
+find = if (!Number.isNaN(err) && !Number.isNaN(ok) && ok > err) {
+replace = if (false) {
+expect = src/test/errorView.test.ts
+
+[UM901 sources: an error with a missing timestamp is assumed recovered]
+file = src/utils/health.ts
+find = return { kind: 'current', text: src.last_error };   // no timestamps to compare ⇒ never assumed recovered
+replace = return { kind: 'recovered', text: src.last_error, at: src.last_error_at ?? '' };
+expect = src/test/errorView.test.ts

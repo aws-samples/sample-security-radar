@@ -1,0 +1,130 @@
+{
+ "kind": "flowchart",
+ "title": "Security Radar · 一轮周期（每 5 分钟）",
+ "subtitle": "判定归代码，LLM 只给带引用的建议；慢的那一页顺延一轮，不拖垮整轮",
+ "theme": "aws",
+ "direction": "TB",
+ "nodes": [
+  {
+   "id": "tick",
+   "label": "EventBridge 触发",
+   "shape": "pill"
+  },
+  {
+   "id": "collect",
+   "label": "Collect ×6",
+   "sub": "25 个源 · 失败留痕"
+  },
+  {
+   "id": "process",
+   "label": "Process",
+   "sub": "聚合（滚动窗口）· 判定 V0–V4"
+  },
+  {
+   "id": "analyze",
+   "label": "Analyze",
+   "sub": "分析卡 · 疑似重复 · 标题建议（影子）"
+  },
+  {
+   "id": "respond",
+   "label": "Respond → Mitigate",
+   "sub": "Security Agent · Continuum · WAF / DNS"
+  },
+  {
+   "id": "enrich",
+   "label": "补齐 EPSS / CVE 记录",
+   "sub": "按剩余时间限额 · 失败进 #/ops"
+  },
+  {
+   "id": "deadline",
+   "label": "剩余时间 ≥ 45 s？",
+   "shape": "diamond"
+  },
+  {
+   "id": "page",
+   "label": "发布事件页",
+   "sub": "P0 → P2，新的先发"
+  },
+  {
+   "id": "defer",
+   "label": "顺延到下一轮",
+   "sub": "__publish_pending__ · 下一轮优先"
+  },
+  {
+   "id": "ops",
+   "label": "#/ops 需要人处理的事",
+   "sub": "拆分 · 晚于公开 · 站点变慢 · 标题建议",
+   "pulse": true
+  },
+  {
+   "id": "site",
+   "label": "S3 + CloudFront",
+   "sub": "事件页 · ops.json",
+   "shape": "pill"
+  }
+ ],
+ "edges": [
+  {
+   "from": "tick",
+   "to": "collect",
+   "flow": "event"
+  },
+  {
+   "from": "collect",
+   "to": "process",
+   "flow": "data"
+  },
+  {
+   "from": "process",
+   "to": "analyze",
+   "flow": "data"
+  },
+  {
+   "from": "analyze",
+   "to": "respond",
+   "flow": "control"
+  },
+  {
+   "from": "respond",
+   "to": "enrich",
+   "flow": "control"
+  },
+  {
+   "from": "enrich",
+   "to": "deadline",
+   "flow": "control"
+  },
+  {
+   "from": "deadline",
+   "to": "page",
+   "flow": "request",
+   "label": "是"
+  },
+  {
+   "from": "deadline",
+   "to": "defer",
+   "flow": "error",
+   "label": "否"
+  },
+  {
+   "from": "page",
+   "to": "site",
+   "flow": "write"
+  },
+  {
+   "from": "defer",
+   "to": "ops",
+   "flow": "aux"
+  },
+  {
+   "from": "enrich",
+   "to": "ops",
+   "flow": "aux"
+  },
+  {
+   "from": "ops",
+   "to": "site",
+   "flow": "write"
+  }
+ ]
+}

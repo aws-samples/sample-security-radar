@@ -3,6 +3,7 @@ import { NoData } from '@/components/NoData';
 import { progressRows } from '@/utils/evidence';
 import { pipelineRows, type PipelineRow } from '@/utils/response';
 import { utcShort } from '@/utils/timeZh';
+import { fmtDisclosureAt } from '@/utils/disclosureView';
 
 const STEP_STATUS: Record<PipelineRow['status'], { glyph: string; word: string; tone: string }> = {
   done: { glyph: '✓', word: '完成', tone: 'ok' },
@@ -23,12 +24,12 @@ export function ProgressPanel({ progress, steps, response }: { progress: Progres
     <>
       {rows
         ? (
-          <ol className="stepper" aria-label={`事件进展：7 个阶段，已到达 ${reached} 个`}>
+          <ol className="stepper" aria-label={`事件进展：${rows.length} 个阶段，已到达 ${reached} 个`}>
             {rows.map((r, i) => (
               <li key={r.stage} className={`${r.at ? 'is-reached' : ''}${r.stage === 'exploited' ? ' is-exploited' : ''}`}>
                 <span className="node" aria-hidden="true">{r.at ? (r.stage === 'exploited' ? '!' : '✓') : i + 1}</span>
                 <span className="lbl">{r.label}</span>
-                <span className="at">{r.at ? `${utcShort(r.at)} UTC` : '未到达'}</span>
+                <span className="at">{r.at ? (r.stage === 'disclosed' ? fmtDisclosureAt(r.at) : `${utcShort(r.at)} UTC`) : '未到达'}</span>
               </li>
             ))}
           </ol>

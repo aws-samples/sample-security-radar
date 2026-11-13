@@ -1,0 +1,34 @@
+{
+ "code": 200,
+ "msg": "success",
+ "msgId": null,
+ "data": {
+  "currPage": 1,
+  "totalPage": 142,
+  "pageSize": 20,
+  "totalCount": 2822,
+  "list": [
+   {
+    "orderNo": 0,
+    "showTime": 1794219869969,
+    "title": "HTX to Open Trading for SPCX (SpaceX) and CRCL (Circle) from 10:30 (UTC) on November 9, 2026",
+    "dealPair": "spot_SPCX/USDT,spot_CRCL/USDT",
+    "id": 35048537921784
+   },
+   {
+    "orderNo": 0,
+    "showTime": 1794207665881,
+    "title": "HTX to Open Trading for SPCX (SpaceX) and CRCL (Circle) from 09:00 (UTC) on November 9, 2026",
+    "dealPair": "spot_SPCX/USDT,spot_CRCL/USDT",
+    "id": 95048518143937
+   },
+   {
+    "orderNo": 0,
+    "showTime": 1794197828801,
+    "title": "HTX Launches XLV/USDT and XP/USDT Perpetual Futures",
+    "dealPair": null,
+    "id": 95048518865466
+   }
+  ]
+ }
+}

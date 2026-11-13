@@ -6,15 +6,34 @@ from __future__ import annotations
 import json
 import logging
 import os
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
-from radar import attacktx, chain, collect, cost, keys, notify, pipeline, prsync, publish, timeutil, triage
+from radar import (
+    announcements,
+    anomaly,
+    attacktx,
+    chain,
+    collect,
+    cost,
+    keys,
+    latency,
+    pipeline,
+    prsync,
+    publish,
+    removals,
+    retitle,
+    search,
+    timeutil,
+    triage,
+)
 from radar import onchain as onchain_station
 from radar.dynamo import DynamoStore
+from radar.limits import Limits
 from radar.model import RawItem
 from radar.registry import BY_ID
 
@@ -28,67 +47,214 @@ FUNNEL_KEY = "__funnel__"  # not a registered source; sources_doc only iterates 
 MAX_ANALYSES_PER_CYCLE = 6  # ~30 s each (2026-10-23 probe) ⇒ bounded station time
 
 
+def _timed(station: str):
+    """Record each run of a single-writer station in its run-time ledger (radar.stationtime ⇒ #/ops station_slow).
+    Recording never breaks the station: a failed write is logged as degraded."""
+    import functools
+    import time
+
+    def wrap(fn):
+        @functools.wraps(fn)
+        def run(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
+            t0 = time.monotonic()
+            if _store is not None and hasattr(_store, "begin_run"):
+                _store.begin_run()                  # a warm container must not serve last run's event window
+            left = _time_left(_ctx)
+            limit = round(left()) if left else None    # remaining at the start ≈ the function's timeout
+            ok = False
+            try:
+                out = fn(event, _ctx)
+                ok = True
+                return out
+            finally:
+                from radar import stationtime
+                el = time.monotonic() - t0
+                if _store is not None and hasattr(_store, "window_queries"):
+                    log.info(json.dumps({"station": station, "window_queries": _store.window_queries,
+                                         "window_hits": _store.window_hits}))
+                try:
+                    if _store is not None:
+                        stationtime.record(_store, station, el, limit, timeutil.now(), ok=ok)
+                except (BotoCoreError, ClientError) as e:
+                    log.warning(json.dumps({"station": station, "degraded": "timing_not_recorded", "error": str(e)[:200]}))
+        return run
+    return wrap
+
+
+def _earlier_cycle_running(execution: str | None, started: str | None) -> bool:
+    """Is an earlier execution of this state machine still running? Live 2026-11-10 00:50: a scheduled cycle and a
+    deploy-check cycle started 6 s apart; the second's Process was throttled (reserved concurrency 1) and failed. The
+    state machine ARN is derived from the execution ARN (no env var, no CDK reference cycle). A failed check is logged
+    and the cycle runs — the stations' throttle retry is the second line."""
+    if not execution or not started:
+        return False
+    sm = execution.replace(":execution:", ":stateMachine:").rsplit(":", 1)[0]
+    try:
+        running = boto3.client("stepfunctions").list_executions(stateMachineArn=sm, statusFilter="RUNNING",
+                                                                 maxResults=20)["executions"]
+    except (BotoCoreError, ClientError) as e:
+        log.warning(json.dumps({"station": "plan", "degraded": "overlap_check_unavailable", "error": str(e)[:200]}))
+        return False
+    me = timeutil.parse(started)
+    return any(x["executionArn"] != execution and x["startDate"] < me for x in running)
+
+
 def plan(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     now = timeutil.now()
-    states = {sid: _store.get_source_state(sid) for sid in BY_ID}
+    inp = event.get("input", event) or {}            # the cycle passes {input, execution, started}; manual calls the input
+    full = bool(inp.get("full", False))
+    if not full and _earlier_cycle_running(event.get("execution"), event.get("started")):
+        log.info(json.dumps({"station": "plan", "skipped": "earlier_cycle_running"}))
+        return {"skip": True, "slot": timeutil.iso(now), "sources": [], "full": False}
+    states = _store.get_source_states(list(BY_ID))           # one BatchGetItem per 100 sources (research/17 §0)
     # `full` (manual full republish) must survive to Publish: Plan's output is the state every later step reads
-    return {"slot": timeutil.iso(now), "sources": [{"source_id": s} for s in collect.due(states, now)],
-            "full": bool(event.get("full", False))}
+    return {"skip": False, "slot": timeutil.iso(now),
+            "sources": [{"source_ids": b} for b in collect.batches(collect.due(states, now))], "full": full}
 
 
-def collect_one(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
-    sid, slot = event["source_id"], event["slot"]
+SEEN_PREFIX = "__seen__#"          # per-source SEEN record (collect.incremental) — its own item, not read by Plan
+
+
+def _collect_source(store: Any, sid: str, slot: str) -> dict[str, Any]:
     now = timeutil.now()
     source = BY_ID[sid]
-    raws, state = collect.collect(source, _store.get_source_state(sid), now,
-                                  known_item=lambda s, g: _store.get_item(keys.item_id(s, g)) is not None)
-    _store.put_source_state(sid, state)
+    state = store.get_source_state(sid)
+    seen = dict((store.get_source_state(SEEN_PREFIX + sid) or {}).get("h") or {})
+    before = dict(seen)
+    raws, state = collect.collect(source, state, now, seen=seen,
+                                  known_item=lambda s, g: store.get_item(keys.item_id(s, g)) is not None)
     key = None
     if raws:
         key = f"raw/{slot[:10]}/{slot}/{sid}.jsonl"
         _s3.put_object(Bucket=os.environ["RAW_BUCKET"], Key=key, ContentType="application/x-ndjson",
                        Body="\n".join(json.dumps(r.to_dict(), ensure_ascii=False) for r in raws).encode())
+    if seen != before:              # only after the batch is safely in S3: a SEEN ahead of S3 would lose entries forever
+        store.put_source_state(SEEN_PREFIX + sid, {"h": seen})
+    store.put_source_state(sid, state)
     ok = state.get("consecutive_failures", 0) == 0
     log.info(json.dumps({"station": "collect", "source": sid, "items": len(raws), "ok": ok,
                          "error": None if ok else state.get("last_error")}))
     return {"source_id": sid, "key": key, "count": len(raws), "ok": ok}
 
 
-def _pending_raw_keys(now: Any) -> list[str]:
-    """Every raw batch from today/yesterday not yet marked processed — not just this cycle's. A failed
-    process run therefore loses nothing: collectors already advanced their cursors, the batches wait in S3."""
+def collect_batch(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
+    """One Map iteration = a batch of sources (collect.batches). Host groups run concurrently, a host's sources
+    serially; a source not started before COLLECT_DEADLINE_S is skipped — logged, its state untouched, so it is due
+    again next cycle — instead of the whole invocation timing out and losing every result of the batch."""
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    t_end = time.monotonic() + Limits.COLLECT_DEADLINE_S
+    slot, local = event["slot"], threading.local()
+
+    def store() -> Any:      # boto3 resources are not thread-safe: one per worker thread
+        if not hasattr(local, "s"):
+            local.s = DynamoStore(boto3.session.Session().resource("dynamodb").Table(os.environ["TABLE"])) \
+                if os.environ.get("TABLE") else _store
+        return local.s
+
+    def run_group(ids: list[str]) -> list[dict[str, Any]]:
+        out = []
+        for sid in ids:
+            if time.monotonic() > t_end:
+                log.warning(json.dumps({"station": "collect", "source": sid, "skipped": "batch_deadline"}))
+                out.append({"source_id": sid, "key": None, "count": 0, "ok": False, "skipped": "batch_deadline"})
+                continue
+            try:
+                out.append(_collect_source(store(), sid, slot))
+            except Exception as e:  # noqa: BLE001 — logged + reported per source; batch-mates' results must survive
+                log.error(json.dumps({"station": "collect", "source": sid, "error": f"{type(e).__name__}: {e}"[:300]}))
+                try:      # the failure goes on the source's record, or #/sources keeps saying ok
+                    s = store()
+                    s.put_source_state(sid, collect.crashed(s.get_source_state(sid), timeutil.now(), e))
+                except (BotoCoreError, ClientError) as e2:
+                    log.error(json.dumps({"station": "collect", "source": sid, "degraded": "crash_not_recorded",
+                                          "error": str(e2)[:200]}))
+                out.append({"source_id": sid, "key": None, "count": 0, "ok": False, "error": type(e).__name__})
+        return out
+    groups: dict[str, list[str]] = {}
+    for sid in event["source_ids"]:
+        groups.setdefault(collect._host(BY_ID[sid]), []).append(sid)
+    with ThreadPoolExecutor(min(Limits.COLLECT_THREADS, len(groups) or 1)) as ex:
+        results = [r for rs in ex.map(run_group, groups.values()) for r in rs]
+    return {"results": results}
+
+
+def collect_one(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
+    """One source (manual invocation, scripts)."""
+    return _collect_source(_store, event["source_id"], event["slot"])
+
+
+WATERMARK_KEY = "__raw_watermark__"
+REFRESH_KEY = "__refresh__"  # {"at": the last time-driven refresh} — single writer: the process station
+
+
+def _refresh_due(now: datetime) -> bool:
+    """Hourly by ledger, not by clock phase: `now.minute < CYCLE_MINUTES` gave an hour two refreshes or none, since
+    rate(5 min) is not aligned to the hour, Process's `now` drifts with Collect's duration and an overlap-skipped cycle
+    takes its slot (research 07 B8). No ledger yet (first run) ⇒ due."""
+    last = timeutil.parse((_store.get_source_state(REFRESH_KEY) or {}).get("at"))
+    return last is None or now - last >= timedelta(minutes=Limits.REFRESH_EVERY_MINUTES)
+
+
+def _pending_raw_keys(now: Any, slot: str | None = None) -> list[str]:
+    """Raw batches not yet processed. With a cycle slot: only keys after the watermark (the last processed slot) and
+    not later than this slot — O(batches since the last successful run), not O(two days of batches) (research/17 §4.1:
+    the old listing grows linearly, ~43k GetItems per run at 150 sources). A failed run leaves the watermark behind, so
+    the next run picks its batches up. Without a slot (manual runs): every unprocessed key of today and yesterday."""
     bucket, keys_ = os.environ["RAW_BUCKET"], []
+    wm = (_store.get_source_state(WATERMARK_KEY) or {}).get("key", "") if slot else ""
     for day in sorted({timeutil.iso(now)[:10], timeutil.iso(now - timedelta(days=1))[:10]}):
-        for page in _s3.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=f"raw/{day}/"):
+        kw = {"Bucket": bucket, "Prefix": f"raw/{day}/", **({"StartAfter": wm} if wm else {})}
+        for page in _s3.get_paginator("list_objects_v2").paginate(**kw):
             keys_ += [o["Key"] for o in page.get("Contents", [])]
+    if slot:
+        cap = f"raw/{slot[:10]}/{slot}/~"
+        keys_ = [k for k in keys_ if k <= cap]
     return sorted(k for k in keys_ if not _store.is_raw_processed(k))
 
 
+@_timed("process")
 def process(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     now = timeutil.now()
-    pending = _pending_raw_keys(now)
+    slot = event.get("slot")
+    pending = _pending_raw_keys(now, slot)
     raws: list[RawItem] = []
     for key in pending:
         body = _s3.get_object(Bucket=os.environ["RAW_BUCKET"], Key=key)["Body"].read().decode()
         raws += [RawItem.from_dict(json.loads(line)) for line in body.splitlines() if line.strip()]
     raws.sort(key=lambda x: x.published_at or now)
     res = pipeline.ingest(raws, _store, now)
+    latency.record(_store, res.held, now)     # published → held, for #/ops collect_latency (roadmap R0.5)
+    if res.anomalies:     # an event changed shape this cycle (radar.anomaly): #/ops error + the owner's ops push
+        anomaly.record(_store, res.anomalies, now)
+        log.error(json.dumps({"station": "process", "degraded": "event_anomaly", "count": len(res.anomalies),
+                              "first": res.anomalies[0]}, ensure_ascii=False))
+    if any(BY_ID.get(r.source_id) and BY_ID[r.source_id].board for r in raws):     # exchange notices ⇒ the board
+        _store.put_source_state(announcements.BOARD_KEY, announcements.board_add(
+            _store.get_source_state(announcements.BOARD_KEY), raws, BY_ID, timeutil.iso(now)))
     for key in pending:  # only after a successful ingest
         _store.mark_raw_processed(key, timeutil.iso(now))
+    if slot:
+        _store.put_source_state(WATERMARK_KEY, {"key": f"raw/{slot[:10]}/{slot}/~", "at": timeutil.iso(now)})
     # rolling counters for the funnel ("how much work the system did"); kept beside source states
     st = _store.get_source_state(FUNNEL_KEY)
     day_ago = timeutil.iso(now - timedelta(days=1))
     st["runs"] = [r for r in st.get("runs", []) if r[0] >= day_ago] + \
         [[timeutil.iso(now), len(raws), res.new_items + res.updated_items]]
     _store.put_source_state(FUNNEL_KEY, st)
-    # age-driven recompute (V4 finalization) only needs to run hourly, not every 10-minute cycle
-    refreshed = pipeline.refresh(_store, now) if now.minute < 10 or event.get("full") else []
+    # age-driven recompute (V4 finalization) only needs to run hourly, not every cycle
+    refreshed = []
+    if event.get("full") or _refresh_due(now):
+        refreshed = pipeline.refresh(_store, now)
+        _store.put_source_state(REFRESH_KEY, {"at": timeutil.iso(now)})      # only after it ran
     chain.start_cycle()                              # one wall-clock RPC budget for the three on-chain steps below
     onchain = pipeline.verify_onchain(_store, now)   # C6: ≤ CHAIN_CHECKS_PER_CYCLE public-RPC calls, never raises
     traced = onchain_station.cycle(_store, now)       # M4 D6: P0 web3 reconstruction, ≤ ONCHAIN_CALLS_PER_CYCLE calls
     decoded = attacktx.cycle(_store, now)            # M4.1 E3: attack-tx breakdown, ≤ ATTACKTX_CALLS_PER_CYCLE calls
     disposed = triage.changed(_store)                 # D: operator dispositions (scripts/triage.py) ⇒ republish
-    changed = set(res.changes) | set(refreshed) | set(onchain) | set(traced) | set(decoded) | set(disposed)
+    retitled = retitle.changed(_store)                # root-cause title corrections (scripts/retitle.py) ⇒ republish
+    changed = set(res.changes) | set(refreshed) | set(onchain) | set(traced) | set(decoded) | set(disposed) | set(retitled)
     log.info(json.dumps({"station": "process", "batches": len(pending), "raw": len(raws), "new": res.new_items,
                          "updated": res.updated_items, "unchanged": res.unchanged_items,
                          "events_changed": len(changed)}))
@@ -102,6 +268,7 @@ def _evidence(ev: Any) -> list[dict[str, Any]]:
              "tier": i.tier, "published_at": i.published_at, "title": i.title, "text": i.text} for i in items]
 
 
+@_timed("analyze")
 def analyze_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     """Analyst station: P0/P1 events whose evidence changed get a (re)generated, code-validated brief."""
     from radar import analyst
@@ -124,6 +291,7 @@ def analyze_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
                              "reason": ev.analysis.get("reason")}))
     _daily_digest(now)
     dup = _cluster_judge(now)
+    _retitle_shadow(now)
     changed = sorted(set(event.get("changed") or []) | set(done) | set(dup))
     return {"changed": changed[:MAX_CHANGED_IDS], "full": bool(event.get("full")), "analysis_backlog": len(todo) - len(done)}
 
@@ -136,16 +304,29 @@ def _cluster_judge(now: datetime) -> list[str]:
     """C4: judge new candidate pairs (≤ MAX_PAIRS_PER_CYCLE Haiku calls); returns the events whose possible-duplicate
     list changed, so publish rebuilds their pages. Advisory only — nothing is merged."""
     from radar import cluster_judge
-    st = _store.get_source_state(DUP_KEY)
-    before = {k: v.get("verdict") for k, v in (st.get("pairs") or {}).items()}
+    held = cluster_judge.load(_store, DUP_KEY)
+    before = {k: v.get("verdict") for k, v in held.items()}
     evs = _store.events_updated_since(timeutil.iso(now - timedelta(days=publish.Limits.PUBLISH_WINDOW_DAYS)))
-    pairs, calls = cluster_judge.run(evs, st.get("pairs") or {}, timeutil.iso(now))
-    _store.put_source_state(DUP_KEY, {"pairs": pairs})
+    pairs, calls = cluster_judge.run(evs, held, timeutil.iso(now))
+    cluster_judge.save(_store, DUP_KEY, pairs)
     touched = sorted({e for k, v in pairs.items() if v.get("verdict") == "same" and before.get(k) != "same"
                       for e in (v["a"], v["b"])})
     if calls or touched:
         log.info(json.dumps({"station": "analyze", "cluster_judge_calls": calls, "possible_duplicates_new": len(touched) // 2}))
     return touched
+
+
+def _retitle_shadow(now: datetime) -> None:
+    """Root-cause title proposals (≤ 2 Sonnet calls/cycle), shadow only: rows land in #/ops for an operator to adopt
+    with scripts/retitle.py; no published title changes here."""
+    from radar import retitle, retitle_judge
+    evs = _store.events_updated_since(timeutil.iso(now - timedelta(days=retitle_judge.RECENT_DAYS)))
+    st, calls = retitle_judge.run(evs, _store.get_items, _store.get_source_state(retitle_judge.KEY),
+                                  _store.get_source_state(retitle.KEY), now)
+    if calls:
+        _store.put_source_state(retitle_judge.KEY, st)
+        log.info(json.dumps({"station": "analyze", "retitle_shadow_calls": calls,
+                             "proposals": sum(1 for v in st.values() if v.get("verdict") == "propose")}))
 
 
 def _daily_digest(now: datetime) -> None:
@@ -167,32 +348,146 @@ def _ts(iso: str) -> float:
     return t.timestamp() if t else 0.0
 
 
-def _epss(cves: list[str]) -> dict[str, dict[str, float]]:
-    """FIRST EPSS for the CVEs we publish. Failure ⇒ empty (UI shows '—'), logged as degraded, never fatal."""
-    from radar import fetch
-    out: dict[str, dict[str, float]] = {}
-    for i in range(0, len(cves), 100):
-        try:
-            d = json.loads(fetch.http_get("https://api.first.org/data/v1/epss?cve=" + ",".join(cves[i:i + 100])).body)
-            for row in d.get("data", []):
-                out[row["cve"]] = {"epss": float(row["epss"]), "percentile": float(row["percentile"])}
-        except (fetch.FetchError, ValueError, KeyError) as e:
-            log.warning(json.dumps({"station": "publish", "degraded": "epss_unavailable", "error": str(e)[:200]}))
-    return out
+def _enrich(cves: list[str], now: datetime, left: Any = None) -> tuple[dict[str, dict[str, float]], set[str]]:
+    """radar.enrich over every published CVE: CVE records (budget shrinks with the invocation's remaining time: pages
+    first, backfill with spare time) + daily EPSS; returns (EPSS, touched CVEs ⇒ their pages are rebuilt)."""
+    from radar import enrich, fetch
+    lim = publish.Limits
+    budget = lim.CVE_META_BUDGET_S if left is None else min(lim.CVE_META_BUDGET_S, max(0.0, left() - 180))
+    epss, touched, stats = enrich.run(_store, cves, now, lambda url: fetch.http_get(url, {"Accept": "application/json"}).body,
+                                      budget)
+    _store.put_source_state(publish.ENRICH_KEY, stats)    # before ops.json is built ⇒ this run's health is shown
+    return epss, touched
 
 
+def _timeout_watchdog(station: str, left: Any, timings: dict[str, Any]) -> Callable[[], None]:
+    """Live 2026-11-11: Publish hit the Lambda timeout with nothing logged after its first line — which phase hung was
+    unknowable. Shortly before the deadline, log the phase timings so far and the main thread's stack; returns stop()."""
+    import sys
+    import threading
+    import traceback
+    if left is None:
+        return lambda: None
+    done = threading.Event()
+    main = threading.get_ident()
+
+    def watch() -> None:
+        if done.wait(max(0.0, left() - Limits.TIMEOUT_WATCHDOG_S)):
+            return
+        frame = sys._current_frames().get(main)
+        stack = traceback.format_stack(frame)[-12:] if frame else []
+        log.error(json.dumps({"station": station, "degraded": "about_to_time_out", "phases": dict(timings),
+                              "seconds_left": round(left(), 1), "stack": [ln.strip() for ln in stack]}))
+    threading.Thread(target=watch, daemon=True).start()
+    return done.set
+
+
+def _time_left(ctx: Any):
+    """Seconds left in this invocation (None outside Lambda: tests and scripts have no deadline)."""
+    if ctx is None or not hasattr(ctx, "get_remaining_time_in_millis"):
+        return None
+    return lambda: ctx.get_remaining_time_in_millis() / 1000
+
+
+PENDING_KEY = publish.PENDING_KEY
+
+
+def _read_site_json(bucket: str, key: str) -> dict[str, Any] | None:
+    try:
+        return json.loads(_s3.get_object(Bucket=bucket, Key=key)["Body"].read())
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") in ("NoSuchKey", "404"):
+            return None
+        raise
+
+
+def _publish_search(bucket: str, now: Any, events: list[Any] | None = None, published: set[str] | None = None) -> int:
+    """Merge the window's events (or `events`, for a backfill) into their month shards and refresh the index
+    (radar.search). The window read is the station's cached one (DynamoStore.events_updated_since).
+    published = ids whose detail doc this run wrote: their rows are marked linkable (search.record "p").
+    Events that stopped existing (radar.removals) leave their shard and their detail page here."""
+    if events is None:
+        events = _store.events_updated_since(timeutil.iso(now - timedelta(days=Limits.PUBLISH_WINDOW_DAYS)))
+    at = timeutil.iso(now)
+    fixes = _store.get_source_state(retitle.KEY)
+    titles = {e.event_id: f["title"] for e in events if (f := retitle.public(fixes.get(e.event_id), e.title))}
+    # an id the ledger lists may be live again (a repair re-seeds ids) — that one keeps its row and page
+    gone = {eid: r for eid, r in removals.pending(_store).items() if _store.get_event(eid) is None}
+    idx = _read_site_json(bucket, "data/search/index.json") or {"months": []}
+    counts = {m["month"]: m["events"] for m in idx.get("months") or []}
+    fresh_by_month = search.shards(events, published or set(), titles)
+    for m in sorted(set(fresh_by_month) | {r.get("m") for r in gone.values() if r.get("m")}):
+        old = (_read_site_json(bucket, f"data/search/{m}.json") or {}).get("events") or []
+        if m not in fresh_by_month and not {r["id"] for r in old} & gone.keys():
+            continue                                  # a removed event's month that never had its row
+        rows = search.merge(old, fresh_by_month.get(m, []), drop=gone.keys())
+        counts[m] = len(rows)
+        _s3.put_object(Bucket=bucket, Key=f"data/search/{m}.json", ContentType="application/json",
+                       CacheControl="max-age=300", Body=json.dumps(search.shard_doc(m, rows, at), ensure_ascii=False).encode())
+    _s3.put_object(Bucket=bucket, Key="data/search/index.json", ContentType="application/json", CacheControl="max-age=60",
+                   Body=json.dumps(search.index_doc(counts, at)).encode())
+    ids, failed = sorted(gone), []
+    for i in range(0, len(ids), 1000):                # an old link to a removed event must not open its stale page
+        r = _s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": f"data/events/{e}.json"} for e in ids[i:i + 1000]],
+                                                      "Quiet": True})
+        failed += r.get("Errors") or []               # per-key failures (AccessDenied …) come back here, not as raises
+    if failed:
+        # not marked pruned ⇒ retried next run; the rows are already gone, only the pages remain
+        log.error(json.dumps({"station": "publish", "degraded": "removed_event_pages_not_deleted", "count": len(failed),
+                              "first": failed[0]}))
+    else:
+        removals.mark_pruned(_store, list(removals.pending(_store)), at)
+    if ids:
+        log.info(json.dumps({"station": "publish", "pruned_removed_events": len(ids), "page_delete_errors": len(failed)}))
+    return len(counts)
+
+
+def _publish_feeds(bucket: str, rows: list[dict[str, Any]], now: datetime, deferred: set[str]) -> None:
+    """P3 pull: JSON Feed + Atom per radar.feeds.FEEDS filter, under data/ (behind the site's Basic Auth)."""
+    from radar import feeds
+    mit = _store.get_source_state("__mitigate__").get("events") or {}
+    for path, (body, ctype) in feeds.documents(rows, mit, now, os.environ.get("SITE_URL", ""), deferred).items():
+        _s3.put_object(Bucket=bucket, Key=f"data/{path}", Body=body, ContentType=ctype, CacheControl="max-age=60")
+
+
+@_timed("publish")
 def publish_site(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     now = timeutil.now()
-    changed = None if event.get("full") else set(event.get("changed") or [])
-    evs = [e for e in (_store.get_event(x) for x in (changed or [])) if e]
-    cves = sorted({c for e in evs for c in e.cves})
-    docs = publish.build(_store, now, changed, _epss(cves) if cves else {})
+    left = _time_left(_ctx)
+    pending = set(_store.get_source_state(PENDING_KEY).get("ids") or [])
+    changed = None if event.get("full") else set(event.get("changed") or []) | pending
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    deferred: list[str] = []
+    timings: dict[str, float] = {}
+    stop = _timeout_watchdog("publish", left, timings)
+    t = [time.monotonic()]
+    try:
+        docs = publish.build(_store, now, changed, enrich=lambda cves: _enrich(cves, now, left), time_left=left,
+                             deferred=deferred, timings=timings)
+    finally:
+        stop()
+    t.append(time.monotonic())
     bucket = os.environ["SITE_BUCKET"]
-    for path, doc in docs.items():
-        _s3.put_object(Bucket=bucket, Key=f"data/{path}", Body=json.dumps(doc, ensure_ascii=False).encode(),
+
+    def put(item: tuple[str, Any]) -> None:
+        _s3.put_object(Bucket=bucket, Key=f"data/{item[0]}", Body=json.dumps(item[1], ensure_ascii=False).encode(),
                        ContentType="application/json", CacheControl="max-age=60")
-    log.info(json.dumps({"station": "publish", "docs": len(docs)}))
-    return {"docs": len(docs)}
+    # one at a time, ~400 pages took tens of seconds after the build had already used its time (live 2026-11-11:
+    # publish timed out at 300 s every 15 min); the S3 client is thread-safe, a failed put still raises here
+    with ThreadPoolExecutor(16) as ex:
+        list(ex.map(put, docs.items()))
+    t.append(time.monotonic())
+    if deferred or pending:
+        _store.put_source_state(PENDING_KEY, {"ids": deferred, "at": timeutil.iso(now)})
+    _publish_feeds(bucket, docs["events.json"]["events"], now, set(deferred))
+    # only these events have a page; the shards hold the whole window (live: most search hits were 「事件不存在」)
+    months = _publish_search(bucket, now, published={p[len("events/"):-len(".json")] for p in docs if p.startswith("events/")})
+    t.append(time.monotonic())
+    log.info(json.dumps({"station": "publish", "docs": len(docs), "deferred": len(deferred), "search_months": months,
+                         "seconds": {"build": round(t[1] - t[0], 1), "write": round(t[2] - t[1], 1),
+                                     "search": round(t[3] - t[2], 1)}, "build_phases": timings}))
+    return {"docs": len(docs), "deferred": len(deferred)}
 
 
 CONTINUUM_KEY = "__continuum__"  # respond ledger (counters, review timestamps, inventory, resources)
@@ -208,6 +503,19 @@ def _scan_open(led: dict[str, Any], channel: str, now: datetime) -> bool:
     """≤ 1 paid scan per environment per CONTINUUM_SCAN_MIN_INTERVAL_H — the same rule for every channel."""
     last = led.get(SCAN_CLOCK[channel])
     return not last or last < timeutil.iso(now - timedelta(hours=publish.Limits.CONTINUUM_SCAN_MIN_INTERVAL_H))
+
+
+def _open_job_ids(led: dict[str, Any], now: datetime, in_window: set[str]) -> list[str]:
+    """Events whose response still has open jobs (respond.has_open_jobs), kept in the ledger by respond_events.
+    A ledger written before the list existed is bootstrapped once from the last RESPOND_OPEN_JOBS_BOOTSTRAP_DAYS —
+    the live rows already stuck outside the window would otherwise never be found again."""
+    if "open_jobs" in led:
+        return list(led["open_jobs"])
+    from radar import respond
+    since = timeutil.iso(now - timedelta(days=publish.Limits.RESPOND_OPEN_JOBS_BOOTSTRAP_DAYS))
+    return [e.event_id for e in _store.events_updated_since(since)
+            if e.event_id not in in_window and e.domain in ("vuln", "web3") and e.severity in ("P0", "P1")
+            and respond.has_open_jobs(_store.get_response(e.event_id))]
 
 
 def _respond_view(ev: Any) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -249,62 +557,6 @@ def _tally(led: dict[str, Any], op: Any, res: dict[str, Any], nowi: str) -> None
         c["issues_seen"] = max(c.get("issues_seen", 0), len(res.get("issues") or []))
 
 
-NOTIFY_KEY = "__notify__"  # {event_id: {channel: {keys, thread}}} — single writer: this station
-
-
-def _notify(led: dict[str, Any], now: datetime) -> None:
-    """C3: P0 / affected / PR-link messages to Slack and Lark, one thread per event. Status per channel goes to the
-    ledger (not_configured / baseline / ok / error) — a broken channel never blocks the station or the other channel.
-    The first configured run only records what already exists (baseline): enabling push must not replay a week."""
-    arn = os.environ.get("NOTIFY_SECRET_ARN")
-    if not arn:
-        return
-    from radar import respond
-    nowi = timeutil.iso(now)
-    status = led.setdefault("notify", {})
-    try:
-        raw = boto3.client("secretsmanager").get_secret_value(SecretId=arn)["SecretString"]
-        cfg = json.loads(raw) if raw.strip().startswith("{") else {}
-    except (ClientError, BotoCoreError, ValueError) as e:
-        status["error"] = str(e)[:300]
-        return
-    channels = notify.configured(cfg)
-    for c in notify.CHANNELS:
-        if c not in channels:
-            status[c] = {"status": "not_configured", "at": nowi}
-    if not channels:
-        return
-    site = os.environ.get("SITE_URL", "")
-    state = _store.get_source_state(NOTIFY_KEY)
-    since = timeutil.iso(now - timedelta(days=publish.Limits.RESPOND_WINDOW_DAYS))
-    evs = [e for e in _store.events_updated_since(since) if e.severity in ("P0", "P1")]
-    state = {e.event_id: state[e.event_id] for e in evs if e.event_id in state}  # prune to the window
-    for c in channels:
-        baseline = not (status.get(c) or {}).get("baselined")
-        sent_n, err = 0, None
-        for e in sorted(evs, key=lambda x: (x.severity != "P0", x.first_seen)):
-            resp = publish._response(e, _store, now)
-            row = {"event_id": e.event_id, "title": e.title, "severity": e.severity, "level_reason": e.level_reason}
-            mine = state.setdefault(e.event_id, {}).setdefault(c, {})
-            for m in notify.plan(row, resp, respond.impact(resp), mine, site):
-                if baseline:
-                    mine = notify.record(mine, m["key"], None)
-                    continue
-                if err or sent_n >= publish.Limits.NOTIFY_MAX_PER_CYCLE:
-                    break
-                try:
-                    mine = notify.record(mine, m["key"], notify.SENDERS[c](cfg, m["text"], mine.get("thread")))
-                    sent_n += 1
-                except (OSError, ValueError, KeyError) as ex:  # urllib errors are OSError; in-band API errors ValueError
-                    err = str(ex)[:300]
-            state[e.event_id][c] = mine
-        status[c] = {"status": "error" if err else ("baseline" if baseline else "ok"), "at": nowi, "sent": sent_n,
-                     "baselined": True, **({"error": err} if err else {})}
-        if err:
-            log.warning(json.dumps({"station": "respond", "degraded": f"notify_{c}", "error": err}))
-    _store.put_source_state(NOTIFY_KEY, state)
-
-
 def _sync_prs(led: dict[str, Any], now: datetime) -> list[str]:
     """C2c: links of the PRs opened by the scheduled deliver_prs.py → delivered_prs of their events (single writer).
     Not configured / failing ⇒ recorded in the ledger (pr_sync), never raised: the station must still publish."""
@@ -313,17 +565,18 @@ def _sync_prs(led: dict[str, Any], now: datetime) -> list[str]:
     if not arn or (last and now - last < timedelta(hours=publish.Limits.PR_SYNC_H)):
         return []
     nowi = timeutil.iso(now)
+    repo = os.environ.get("FLEET_REPO", "your-org/security-radar-demo-fleet")
     try:
         token = boto3.client("secretsmanager").get_secret_value(SecretId=arn)["SecretString"].strip()
         if not token.startswith(("github_pat_", "ghp_")):  # CDK creates a placeholder; the value is set out of band
             led["pr_sync"] = {"at": nowi, "status": "not_configured"}
             return []
-        pulls = prsync.fetch_pulls(os.environ.get("FLEET_REPO", "your-org/security-radar-demo-fleet"), token)
+        pulls = prsync.fetch_pulls(repo, token)
     except (ClientError, BotoCoreError, OSError, ValueError) as e:  # OSError covers urllib's HTTPError / URLError
         led["pr_sync"] = {"at": nowi, "status": "error", "error": str(e)[:300]}
         log.warning(json.dumps({"station": "respond", "degraded": "pr_sync", "error": str(e)[:300]}))
         return []
-    by_prefix = prsync.links(pulls)
+    by_prefix = prsync.links(pulls, repo)
     touched = []
     since = timeutil.iso(now - timedelta(days=publish.Limits.PUBLISH_WINDOW_DAYS))
     for ev in _store.events_updated_since(since):
@@ -332,27 +585,46 @@ def _sync_prs(led: dict[str, Any], now: datetime) -> list[str]:
         if st is not None and prsync.apply(st, urls):
             _store.put_response(ev.event_id, st)
             touched.append(ev.event_id)
-    prs = sorted(p["html_url"] for p in pulls if prsync.BRANCH.match((p.get("head") or {}).get("ref", "")))
+    prs = sorted(p["html_url"] for p in pulls if prsync.ours(p, repo))
     led["prs"] = prs
     led.setdefault("counters", {})["github_prs"] = len(prs)
     led["pr_sync"] = {"at": nowi, "status": "ok", "prs": len(prs), "events_updated": len(touched)}
     return touched
 
 
+def reason_changed(prev: dict[str, Any] | None, elig: dict[str, Any]) -> bool:
+    """An ineligible event's reason is re-recorded whenever it changes, not once: an event that escalated P1 → P0 but
+    stays ineligible for another reason kept showing "P1/reported：只对 P0…" on a P0 page (live 2026-11-01: Polymarket,
+    PHP2Shell). Unchanged ⇒ no write, so a quiet event is not republished every cycle."""
+    return (prev or {}).get("eligibility") != elig
+
+
+@_timed("respond")
 def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     """Respond station: eligible events → AWS Security Agent (rule + code review + auto-fix) and AWS Continuum
     (context, located finding, scan); running jobs are polled every cycle. Waiting is a data row, not a sleep."""
     from radar import continuum_aws as aws
-    from radar import respond
+    from radar import decisions, respond
     from radar import targets as targets_mod
     from radar.targets import TARGETS
     passthrough = {"changed": event.get("changed") or [], "full": bool(event.get("full"))}
-    if not os.environ.get("SA_AGENT_SPACE_ID"):
-        log.warning(json.dumps({"station": "respond", "degraded": "not_configured"}))
-        return passthrough
     now = timeutil.now()
     nowi = timeutil.iso(now)
+    if not os.environ.get("SA_AGENT_SPACE_ID"):
+        log.warning(json.dumps({"station": "respond", "degraded": "not_configured"}))
+        # recorded in the ledger (N_STATION_OFF reads it): an existing ledger must not keep last cycle's rows looking
+        # live. Written on the change only; the change republishes every page once (full), so no page keeps them
+        off = _store.get_source_state(CONTINUUM_KEY)
+        if (off.get(decisions.STATION_KEY) or {}).get("status") != decisions.STATION_OFF_STATUS:
+            off[decisions.STATION_KEY] = {"status": decisions.STATION_OFF_STATUS, "at": nowi}
+            _store.put_source_state(CONTINUUM_KEY, off)
+            return {**passthrough, "full": True}
+        return passthrough
     led = _store.get_source_state(CONTINUUM_KEY)
+    # configured: the same flip back republishes every page once, the not-evaluated rows must not linger either
+    flipped = (led.get(decisions.STATION_KEY) or {}).get("status") != decisions.STATION_ON
+    led[decisions.STATION_KEY] = {"status": decisions.STATION_ON, "at": nowi}
+    led.pop("notify", None)   # pre-P3 push status (handlers._notify); push status is radar.notify_station.STATUS_KEY now
     counters = led.setdefault("counters", {})
     day_ago = timeutil.iso(now - timedelta(days=1))
     led["reviews"] = [t for t in led.get("reviews", []) if t >= day_ago]
@@ -368,7 +640,9 @@ def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     else:
         led.pop("over_budget", None)
     led.pop("spend_cap", None)
-    budget = respond.Budget(per_day - len(led["reviews"]), scan_ok, nowi[:10], s3_targets=targets_mod.on("s3"))
+    budget = respond.Budget(per_day - len(led["reviews"]), scan_ok, nowi[:10], s3_targets=targets_mod.on("s3"),
+                            routes=dict(targets_mod.CHANNEL), now=nowi)
+    cn_down = "continuum_unavailable"   # the error every Continuum op records while env is None
     try:
         # GitHub environment failures back off to hourly (a service-side 500 must not be retried every cycle)
         gh_retry = not led.get("github_retry_at") or led["github_retry_at"] <= nowi
@@ -391,6 +665,10 @@ def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     except (ClientError, BotoCoreError, KeyError) as e:  # Continuum outage ⇒ Security-Agent-only, visibly
         log.warning(json.dumps({"station": "respond", "degraded": "continuum_unavailable", "error": str(e)[:300]}))
         env = None
+    except aws.TooManyTargets as e:  # config outgrew one environment ⇒ same degradation, with the numbers (B8)
+        log.warning(json.dumps({"station": "respond", "degraded": "too_many_targets", "message": str(e),
+                                "actual": e.actual, "max": e.limit}))
+        env, cn_down = None, f"continuum_unavailable: {e}"
     for ch in respond.REPO_CHANNELS:  # a repository channel is live once its integration + environment exist
         if env and env.get(f"{ch}_environment_id"):
             setattr(budget, f"{ch}_targets", targets_mod.on(ch))
@@ -405,16 +683,22 @@ def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
                                "inventory": [{"product": p.product_id, "version": p.version, "file": p.file, "line": p.line}
                                              for p in t.pins()]})
     counters["inventory_scans"] = counters.get("inventory_scans", 0) + 1
-    since = timeutil.iso(now - timedelta(days=publish.Limits.RESPOND_WINDOW_DAYS))
+    since = decisions.window_start("sa_requirement", "N_OUT_OF_WINDOW", now)   # the table's window (page reads it too)
     cands = [e for e in _store.events_updated_since(since) if e.domain in ("vuln", "web3") and e.severity in ("P0", "P1")]
-    cands.sort(key=lambda e: (e.severity != "P0", -_ts(e.last_updated)))
+    # B4: put_response never moves last_updated, so an event quiet for 7 days left the window with a review / finding /
+    # scan still open and stayed 检查中 forever. The ledger keeps every event with open jobs; those are polled too.
+    open_ids = set(_open_job_ids(led, now, {e.event_id for e in cands}))
+    seen_ids = {e.event_id for e in cands}
+    cands += [e for e in (_store.get_event(i) for i in sorted(open_ids - seen_ids)) if e]
+    evaluated = {k: v for k, v in (led.get("evaluated") or {}).items() if k in {e.event_id for e in cands}}
+    cands = respond.order(cands, evaluated)      # a queue, not a fixed order: the cap must not starve the tail
     touched, acted = [], 0
     work = []  # (ev, view, refs, prev, st) — phase 1 runs everything except review starts
     review_requests: list[tuple[str, Any]] = []
 
     def run(op: Any, view: dict[str, Any], refs: list[dict[str, Any]], st: dict[str, Any]) -> dict[str, Any]:
         if env is None and op.kind in respond.CONTINUUM_OPS:
-            res: dict[str, Any] = {"error": "continuum_unavailable"}
+            res: dict[str, Any] = {"error": cn_down}
         else:
             res = aws.execute(op, view, refs, st, env or {})
         st = respond.apply(st, op, res, nowi)
@@ -422,20 +706,29 @@ def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
             _tally(led, op, res, nowi)
         return st
 
+    cap = publish.Limits.RESPOND_MAX_EVENTS
     for ev in cands:
-        if acted >= publish.Limits.RESPOND_MAX_EVENTS:
-            break
         view, refs = _respond_view(ev)
         prev = _store.get_response(ev.event_id)
         # an event that cools down (P0 → P1 after 72 h) keeps its results: only never-acted-on events are short-cut
         # (live 2026-10-25: the PHP2Shell response — reviews, Continuum issues, patches — was overwritten here)
-        if not respond.eligibility(view, refs)["eligible"] and not respond.has_open_jobs(prev) \
-                and not (prev or {}).get("targets"):
-            if (prev or {}).get("eligibility", {}).get("eligible") is not False:  # record the reason once
-                _store.put_response(ev.event_id, {"eligibility": respond.eligibility(view, refs)})
+        elig = respond.eligibility(view, refs)
+        if not elig["eligible"] and not respond.has_open_jobs(prev) and not (prev or {}).get("targets"):
+            open_ids.discard(ev.event_id)
+            if reason_changed(prev, elig):
+                _store.put_response(ev.event_id, {"eligibility": elig})
                 touched.append(ev.event_id)
             continue
+        if acted >= cap:   # B5: the cap used to `break` — the rest left no trace (未轮到 looked like 不合格)
+            note = respond.cycle_cap_note(cap, nowi)
+            counters["events_not_evaluated"] = counters.get("events_not_evaluated", 0) + 1
+            if ((prev or {}).get("not_evaluated") or {}).get("code") != note["code"]:   # written once, not every cycle
+                _store.put_response(ev.event_id, {**(prev or {"eligibility": elig}), "not_evaluated": note})
+                touched.append(ev.event_id)
+            log.info(json.dumps({"station": "respond", "event": ev.event_id, "not_evaluated": note["code"], "max": cap}))
+            continue
         acted += 1
+        evaluated[ev.event_id] = nowi
         st, ops = respond.decide(view, refs, ev.analysis, prev, targets, budget)
         counters["events_considered"] = counters.get("events_considered", 0) + 1
         for op in ops:
@@ -463,11 +756,17 @@ def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
         log.info(json.dumps({"station": "respond", "review": tid, "events": event_ids, "error": res.get("error")}))
     for eid, tid in blocked:
         i = by_id[eid]
-        work[i] = (*work[i][:4], respond.block_review(work[i][4], tid))
+        work[i] = (*work[i][:4], respond.block_review(work[i][4], tid, per_day, nowi, work[i][3]))
     for ev, _view, _refs, prev, st in work:
         if st != prev:
             _store.put_response(ev.event_id, st)
             touched.append(ev.event_id)
+    # an event the cap skipped keeps its entry; an evaluated one is in iff it still has open jobs; a deleted one leaves
+    open_ids &= {e.event_id for e in cands}
+    for ev, *_rest, st in work:
+        (open_ids.add if respond.has_open_jobs(st) else open_ids.discard)(ev.event_id)
+    led["open_jobs"] = sorted(open_ids)
+    led["evaluated"] = evaluated
     if env:
         led["resources"] = aws.resources(env)
     if led.get("requirements_pruned_on") != nowi[:10]:  # R6, once a day
@@ -485,7 +784,6 @@ def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
         except (ClientError, BotoCoreError, KeyError) as e:   # never blocks the station; retried next cycle
             log.warning(json.dumps({"station": "respond", "degraded": "requirement_prune_failed", "error": str(e)[:300]}))
     touched += _sync_prs(led, now)
-    _notify(led, now)
     if cost.due(led, now):  # R4: spend on #/continuum; a failed read keeps the last numbers, visibly
         try:
             led["cost"] = cost.summarize(aws.fetch_costs(*cost.window(now)), now)
@@ -495,9 +793,39 @@ def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
             log.warning(json.dumps({"station": "respond", "degraded": "cost_unavailable", "error": str(e)[:300]}))
     _store.put_source_state(CONTINUUM_KEY, led)
     changed = sorted(set(passthrough["changed"]) | set(touched))
-    return {"changed": changed[:MAX_CHANGED_IDS], "full": passthrough["full"], "responded": len(touched)}
+    return {"changed": changed[:MAX_CHANGED_IDS], "full": passthrough["full"] or flipped, "responded": len(touched)}
 
 
+@_timed("notify")
+def notify_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
+    """Notify station (P3, radar.notify_station): after Publish, so a message never links to a page not written yet.
+    Not configured / unreadable secret ⇒ a status row #/ops shows, never raised: push must not fail the cycle."""
+    from radar import notify_station
+    now = timeutil.now()
+    arn = os.environ.get("NOTIFY_SECRET_ARN")
+    if not arn:
+        st = {"at": timeutil.iso(now), "status": "not_configured", "invalid": [], "subscriptions": {}}
+        _store.put_source_state(notify_station.STATUS_KEY, st)
+        return {"status": st["status"]}
+    try:
+        raw = boto3.client("secretsmanager").get_secret_value(SecretId=arn)["SecretString"]
+        cfg = json.loads(raw) if raw.strip().startswith("{") else {}   # CDK's placeholder is not JSON ⇒ not configured
+    except (ClientError, BotoCoreError, ValueError) as e:
+        st = {"at": timeutil.iso(now), "status": "error", "invalid": [], "subscriptions": {},
+              "error": {"error": "secret_unreadable", "message": str(e)[:300]}}
+        _store.put_source_state(notify_station.STATUS_KEY, st)
+        log.warning(json.dumps({"station": "notify", "degraded": "secret_unreadable", "error": str(e)[:300]}))
+        return {"status": "error"}
+    st = notify_station.run(_store, cfg, now, os.environ.get("SITE_URL", ""), time_left=_time_left(_ctx))
+    sent = {k: v.get("sent", 0) for k, v in st["subscriptions"].items()}
+    log.info(json.dumps({"station": "notify", "status": st["status"], "sent": sent, "invalid": len(st["invalid"])}))
+    if st["status"] == "degraded":
+        log.warning(json.dumps({"station": "notify", "degraded": "send_failed",
+                                "subscriptions": sorted(k for k, v in st["subscriptions"].items() if v["status"] == "error")}))
+    return {"status": st["status"], "sent": sum(sent.values())}
+
+
+@_timed("mitigate")
 def mitigate_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     """Mitigate station (M3): affected targets → WAF plans → read-only check → staged apply on radar-owned web ACLs.
     Its own Lambda and role (UpdateWebACL scoped to the radar prefix); a failure never blocks publish."""
@@ -521,3 +849,17 @@ def dns_probe(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
         return {"name": name, "answers": sorted({a[4][0] for a in socket.getaddrinfo(name, 443)})}
     except OSError as e:   # NXDOMAIN for .invalid (and a BLOCK rule) — live it surfaces as gaierror OR OSError(EBUSY)
         return {"name": name, "error": f"{type(e).__name__} {e.errno}: {e.strerror}"}
+
+
+def alert(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
+    """AlertFn (roadmap R0.2): a CloudWatch alarm's SNS record → the owner's chat subscriptions (radar.alert). Outside
+    the cycle on purpose — the cycle may be what is down. An unreadable secret or a delivery that reached nobody raises:
+    the invocation is retried by Lambda and counted by the AlertFnErrors alarm."""
+    from radar import alert as alert_
+    raw = boto3.client("secretsmanager").get_secret_value(SecretId=os.environ["NOTIFY_SECRET_ARN"])["SecretString"]
+    cfg = json.loads(raw) if raw.strip().startswith("{") else {}
+    out = alert_.deliver(cfg, alert_.messages(event), os.environ.get("SITE_URL", ""))
+    if out.get("degraded"):
+        log.error(json.dumps({"station": "alert", "degraded": out["degraded"], "messages": out["messages"]}))
+    log.info(json.dumps({"station": "alert", **{k: out[k] for k in ("messages", "sent", "errors")}}))
+    return out

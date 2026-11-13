@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from radar import collect, fetch
+from radar import collect, fetch, timeutil
 from radar.registry import BY_ID
 
 NOW = datetime(2026, 10, 23, 4, 0, tzinfo=UTC)
@@ -11,9 +11,9 @@ SNAP = Path(__file__).parent / "fixtures" / "snapshots" / "2026-10-23"
 
 
 def test_due_respects_cadence_and_never_run():
-    states = {"cisa_kev": {"last_run": "2026-10-23T03:45:00Z"}, "bleepingcomputer": {"last_run": "2026-10-23T03:45:00Z"}}
+    states = {"cisa_advisories": {"last_run": "2026-10-23T03:45:00Z"}, "bleepingcomputer": {"last_run": "2026-10-23T03:45:00Z"}}
     d = collect.due(states, NOW)
-    assert "cisa_kev" not in d          # 30-min cadence, ran 15 min ago
+    assert "cisa_advisories" not in d   # 30-min cadence, ran 15 min ago
     assert "bleepingcomputer" in d      # 15-min cadence
     assert "defillama_hacks" in d       # never ran
 
@@ -61,8 +61,10 @@ def test_runs_window_drops_entries_older_than_a_day(monkeypatch):
 def test_empty_parse_of_a_200_is_a_failure_not_silence(monkeypatch):
     """Regression (live 2026-10-23): FreeBuf served a WAF page; 0 items was reported as ok."""
     monkeypatch.setattr(fetch, "http_get", lambda *a, **k: fetch.Response(200, "<html>blocked</html>"))
+    monkeypatch.setattr(fetch, "firecrawl_raw", lambda url: "<html>blocked too</html>")   # the fallback is blocked too
     raws, st = collect.collect(BY_ID["bleepingcomputer"], {}, NOW)
     assert raws == [] and st["consecutive_failures"] == 1 and "parse_empty" in st["last_error"]
+    assert "firecrawl fallback also failed" in st["last_error"]
 
 
 def test_firecrawl_upstream_error_page_is_an_error(monkeypatch):
@@ -104,3 +106,76 @@ def test_urlopen_refuses_every_scheme_but_http_and_https():
     for bad in ("file:///etc/passwd", "ftp://x/y", "gopher://x", "jar:file:/x!/y", "/relative"):
         with pytest.raises(urllib.error.URLError, match="http/https only"):
             fetch.urlopen(bad, timeout=1)
+
+
+# ---- firecrawl fallback for direct feeds (live 2026-11-11: anquanke 26 timeouts / 3 days, netsec "Blocked", …)
+
+RSS = ("<?xml version='1.0'?><rss><channel><item><title>Fresh advisory CVE-2026-1234</title>"
+       "<link>https://e.example/a</link><pubDate>Tue, 10 Nov 2026 10:00:00 GMT</pubDate></item></channel></rss>")
+
+
+def _boom(code, status=None, msg="x"):
+    def f(*a, **k):
+        raise fetch.FetchError(code, msg, status, "https://feed.example")
+    return f
+
+
+def test_a_timed_out_feed_is_served_by_firecrawl_and_marked_degraded(monkeypatch):
+    monkeypatch.setattr(fetch, "http_get", _boom("network_error", None, "[Errno 110] Connection timed out"))
+    monkeypatch.setattr(fetch, "firecrawl_raw", lambda url: RSS)
+    raws, st = collect.collect(BY_ID["bleepingcomputer"], {}, NOW)
+    assert len(raws) == 1 and st["consecutive_failures"] == 0
+    assert st["degraded"].startswith("direct network_error") and st["fc_fallbacks"] == 1
+
+
+def test_a_rate_limited_or_missing_feed_is_not_retried_elsewhere(monkeypatch):
+    called = []
+    monkeypatch.setattr(fetch, "firecrawl_raw", lambda url: called.append(url) or RSS)
+    for code, status in (("http_error", 429), ("http_error", 404)):
+        monkeypatch.setattr(fetch, "http_get", _boom(code, status))
+        raws, st = collect.collect(BY_ID["bleepingcomputer"], {}, NOW)
+        assert raws == [] and st["consecutive_failures"] == 1
+    assert called == []
+
+
+def test_a_blocked_feed_is_retried_but_a_json_api_never_is(monkeypatch):
+    called = []
+    monkeypatch.setattr(fetch, "firecrawl_raw", lambda url: called.append(url) or RSS)
+    monkeypatch.setattr(fetch, "http_get", _boom("http_error", 403, "Blocked"))
+    raws, _ = collect.collect(BY_ID["bleepingcomputer"], {}, NOW)
+    assert len(raws) == 1 and len(called) == 1
+    zd = next(s for s in collect.SOURCES if s.parser == "zendesk")     # JSON: rawHtml would corrupt it
+    raws, st = collect.collect(zd, {}, NOW)
+    assert raws == [] and len(called) == 1 and "403" in st["last_error"]
+
+
+def test_fallbacks_stop_at_the_daily_cap_and_a_direct_success_clears_degraded(monkeypatch):
+    from radar.limits import Limits
+    monkeypatch.setattr(fetch, "firecrawl_raw", lambda url: RSS)
+    monkeypatch.setattr(fetch, "http_get", _boom("network_error"))
+    full = {"fc_fallback_day": NOW.date().isoformat(), "fc_fallbacks": Limits.FEED_FIRECRAWL_FALLBACKS_PER_DAY}
+    raws, st = collect.collect(BY_ID["bleepingcomputer"], full, NOW)
+    assert raws == [] and st["consecutive_failures"] == 1
+    monkeypatch.setattr(fetch, "http_get", lambda *a, **k: fetch.Response(200, RSS))
+    raws, st = collect.collect(BY_ID["bleepingcomputer"], {"degraded": "direct network_error/None; served by firecrawl"}, NOW)
+    assert len(raws) == 1 and "degraded" not in st
+
+
+def test_a_source_collected_late_in_its_cycle_is_still_due_one_cadence_later():
+    """Audit 01 #12: `last_run` is the collect time, up to minutes into the cycle; with a one-minute slack a 15-minute
+    source collected 90 s in was not due at the next 15-minute slot and effectively ran every 20."""
+    from datetime import timedelta
+    slot = NOW - timedelta(minutes=15)
+    late = {"bleepingcomputer": {"last_run": timeutil.iso(slot + timedelta(seconds=90))}}
+    assert "bleepingcomputer" in collect.due(late, NOW)
+    early = {"bleepingcomputer": {"last_run": timeutil.iso(NOW - timedelta(minutes=10))}}
+    assert "bleepingcomputer" not in collect.due(early, NOW)          # still a cadence, not every cycle
+
+
+def test_first_hand_structured_records_are_polled_within_minutes():
+    """R2.3 (measured 2026-11-12: published → held median 48 min). These lists are the first-hand record of an event
+    and cheap to poll (one request, 304 when unchanged) — they were at 30 / 60 minutes."""
+    most = {"cisa_kev": 5, "chrome_releases": 10, "fortinet_psirt": 10, "defillama_hacks": 10, "slowmist_hacked": 10,
+            "cisa_csaf_ot": 30, "cisa_csaf_it": 30, "defihacklabs": 30, "cve_list": 5}
+    slow = {sid: BY_ID[sid].cadence_min for sid, m in most.items() if BY_ID[sid].cadence_min > m}
+    assert not slow, slow

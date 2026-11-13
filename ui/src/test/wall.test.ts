@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { nowLabels, drawerEventId, drawerHref } from '@/utils/wall';
+import { followupLine } from '@/utils/wall';
 import { computeRadarLayout, scopePointPx, SCOPE } from '@/utils/radarLayout';
 import { impactView } from '@/utils/response';
 
@@ -72,5 +73,20 @@ describe('scopePointPx (2D label anchors use RadarScope geometry)', () => {
     const e = scopePointPx(90, 1, SCOPE.viewBox);
     expect(e.x).toBeCloseTo(SCOPE.cx + SCOPE.rMax);
     expect(e.y).toBeCloseTo(SCOPE.cy);
+  });
+});
+
+describe('followupLine (item 5)', () => {
+  const NOW = Date.parse('2026-10-30T02:29:20Z');
+  const base = { event_id: 'ev_0a4e5c3e0fce8be9', triage: null, followup: null } as unknown as EventSummary;
+  it('lists only the follow-up facts that exist, freshest move last', () => {
+    const ev = { ...base, triage: { status: 'tracking', label: '跟进中', note: '', by: 'ops', at: '2026-10-30T00:00:00Z' },
+      followup: { onchain_moves: 37, freezes: 0, attack_txs: 2, last_at: '2026-10-30T01:29:20Z' } } as unknown as EventSummary;
+    expect(followupLine(ev, NOW)).toBe('跟进 · 链上 37 笔转出 · 攻击交易 2 笔已拆解 · 处置：跟进中 · 最新 1 小时前');
+  });
+  it('shows nothing for an event nobody follows (not "0 笔")', () => {
+    expect(followupLine(base, NOW)).toBeNull();
+    expect(followupLine({ ...base, followup: { onchain_moves: 0, freezes: 0, attack_txs: 0, last_at: null } } as unknown as EventSummary, NOW)).toBeNull();
+    expect(followupLine(undefined, NOW)).toBeNull();
   });
 });

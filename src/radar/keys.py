@@ -7,8 +7,15 @@ import hashlib
 import re
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-CVE_RE = re.compile(r"\bCVE-(\d{4})-(\d{4,7})\b", re.IGNORECASE)
+# ASCII lookarounds, not \b: a CJK neighbour is a word character, so 「微软修复CVE-2026-12345漏洞」 had no cve: key
+CVE_RE = re.compile(r"(?<![A-Za-z0-9])CVE-(\d{4})-(\d{4,7})(?![A-Za-z0-9])", re.IGNORECASE)
 TX_URL_RE = re.compile(r"https?://(?:www\.)?([a-z0-9.-]+)/tx/(0x[0-9a-fA-F]{64})")
+# BlockSec Phalcon names the chain in the path, not the host: …/phalcon/explorer/tx/<chain>/<hash> (docs/research/16:
+# the only tx form live posts used that TX_URL_RE missed — X100 "Attack TX", the Binance sweeper call)
+PHALCON_TX_RE = re.compile(r"https?://(?:app|phalcon)\.blocksec\.com/(?:phalcon/)?explorer/tx/([a-z0-9-]+)/(0x[0-9a-fA-F]{64})")
+PHALCON_CHAIN = {"eth": "ethereum", "bsc": "bsc", "arbitrum": "arbitrum", "base": "base", "polygon": "polygon",
+                 "avax": "avalanche", "optimism": "optimism", "linea": "linea", "blast": "blast", "scroll": "scroll",
+                 "sonic": "sonic", "gnosis": "gnosis", "fantom": "fantom", "cronos": "cronos"}
 X_STATUS_RE = re.compile(r"https?://(?:www\.|mobile\.)?(?:x|twitter)\.com/([A-Za-z0-9_]{1,15})/status(?:es)?/(\d{6,25})")
 
 # explorer host → chain name (only hosts we have seen in sources; unknown hosts keep the host as chain)
@@ -66,6 +73,10 @@ def tx_refs(text: str) -> list[dict[str, str]]:
         host = host.lower()
         out[h.lower()] = {"chain": EXPLORERS.get(host, host), "hash": h.lower(),
                           "explorer_url": f"https://{host}/tx/{h}"}
+    for m in PHALCON_TX_RE.finditer(text or ""):
+        ch = PHALCON_CHAIN.get(m.group(1))
+        if ch:  # an unknown chain segment is skipped, never guessed (verification would query the wrong node)
+            out.setdefault(m.group(2).lower(), {"chain": ch, "hash": m.group(2).lower(), "explorer_url": m.group(0)})
     return list(out.values())
 
 
@@ -114,7 +125,34 @@ MATCH_STOP = frozenset(
      "report", "dashboard", "read", "stay", "cause", "root", "powered", "confirmed", "attention", "watch", "more",
      "over", "our", "your", "that", "this", "another", "same", "someone", "data", "ceo", "founder", "news", "market",
      "digital", "oct", "today", "loss", "total", "approximately", "approx", "appreci", "appreciate", "thanks", "please",
-     "beware", "warning", "suspected", "potential", "possible"])
+     "beware", "warning", "suspected", "potential", "possible",
+     # time zones / clock words: 「… reported at 03:14 UTC」 glued SlowMist's TranchePool alert to the Initia event
+     # (live 2026-11-11, tok:utc), and its attack tx then pulled the FenceTranchePool records in
+     "utc", "gmt", "est", "edt", "pst", "pdt", "cet", "cest", "bst", "ist", "hkt", "sgt", "jst", "kst", "aest",
+     # incident vocabulary every alert template capitalises (SlowMist TI 「Root Cause: … Vulnerable …」 glued the
+     # TranchePool alert to Yapeswap through tok:vulnerable, live 2026-11-11) — it names what happened, never who
+     "vulnerable", "vulnerability", "vulnerabilities", "exploit", "exploits", "exploited", "attack", "attacks",
+     "attacked", "attacker", "attackers", "hack", "hacks", "hacked", "hacker", "hackers", "alert", "alerts", "contract",
+     "contracts", "flash", "loan", "loans", "governance", "proposal", "malicious", "compromised", "drained", "incident"])
+
+# Common English words that title case or a sentence start capitalises ("One Fish, Multiple Meals", "After the attack",
+# "On October 29") — never a name; live 2026-11-02 they glued SlowMist's zkLink analysis to the Binance event. Months,
+# weekdays, function words, report vocabulary, generic token standards.
+COMMON_WORDS = frozenset(
+    ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november",
+     "december", "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "nov", "dec",
+     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+     "one", "two", "three", "four", "five", "first", "second", "third", "last", "next", "every", "each", "all", "any",
+     "some", "many", "multiple", "several", "most", "other", "others", "these", "those", "such", "both", "either",
+     "after", "before", "during", "while", "when", "where", "what", "which", "who", "why", "how", "then", "than",
+     "since", "until", "into", "onto", "upon", "about", "above", "below", "between", "through", "across", "against",
+     "instead", "however", "also", "still", "just", "only", "even", "very", "now", "here", "there", "its", "their",
+     "his", "her", "they", "them", "we", "you", "not", "but", "yet", "was", "were", "has", "had", "have", "are", "will",
+     "can", "could", "would", "should", "may", "might", "must", "did", "does", "been", "being",
+     "analysis", "background", "summary", "overview", "conclusion", "recommendations", "prerequisites", "point",
+     "points", "full", "used", "using", "use", "team", "official", "independently", "combined", "executed", "check",
+     "reset", "reused", "flow", "bind", "queried", "exploitation", "transient", "solidity", "merkle", "cross",
+     "erc", "bep20", "trc20", "spl"])
 
 # Chinese names of exchanges ⇒ the token their English reports carry (Chinese titles otherwise yield no token at all,
 # so 「Tether在疑似币安黑客攻击中冻结…」 could only attach through tok:usdt).
@@ -142,10 +180,49 @@ def entity_tokens(text: str) -> set[str]:
         if t not in _ENTITY_STOP:
             toks.add(t)
     toks |= {v for zh, v in CEX_ZH.items() if zh in text}
-    return toks - MATCH_STOP
+    return toks - MATCH_STOP - COMMON_WORDS
 
 
-_NAMED = re.compile(r"\b(?:[A-Za-z]+\d[A-Za-z0-9]*|[A-Z][a-z]+[A-Z][A-Za-z]+|[A-Z]{2,}[a-z]{2,}[A-Za-z]*)\b")
+# ASCII lookarounds for the same reason (「PHP2Shell漏洞遭利用」 yielded no token)
+_NAMED = re.compile(r"(?<![A-Za-z0-9])(?:[A-Za-z]+\d[A-Za-z0-9]*|[A-Z][a-z]+[A-Z][A-Za-z]+|[A-Z]{2,}[a-z]{2,}[A-Za-z]*)"
+                    r"(?![A-Za-z0-9])")
+_WORD = re.compile(r"(?<![A-Za-z0-9])[A-Za-z][A-Za-z0-9]{2,}(?![A-Za-z0-9])")
+
+
+def is_title_case(title: str) -> bool:
+    """A headline in Title Case (most of its ASCII words capitalised): there capitalisation says nothing about names."""
+    t = _URL_RE.sub(" ", title or "")
+    # only an English headline: in 「Liquid Network跨链桥被盗3.2亿美元，手法与Bitget事件相似」 every ASCII word IS a name
+    letters = [c for c in t if not c.isspace() and not c.isdigit()]
+    if not letters or sum(c.isascii() for c in letters) / len(letters) < 0.7:
+        return False
+    words = _WORD.findall(t)
+    return len(words) >= 4 and sum(w[0].isupper() for w in words) / len(words) >= 0.7
+
+
+def _capitalised_mid_sentence(word: str, body: str) -> bool:
+    for m in re.finditer(rf"(?<![A-Za-z0-9]){re.escape(word)}(?![A-Za-z0-9])", body):
+        before = body[:m.start()].rstrip(" \t\"'“‘(")
+        if before and before[-1] not in ".!?\n:：。！？":
+            return True
+    return False
+
+
+def headline_names(title: str, body: str) -> set[str]:
+    """entity_tokens of a headline — in a Title Case headline only words that look like names: a name-like shape
+    (zkLink, X100), a handle / $ticker / Chinese exchange name, or capitalised mid-sentence in the body too. Live
+    2026-11-04: Decrypt's 「Mystery $106 Million Crypto Theft Hits EU Entity Days After Binance Hack」 made mystery /
+    million / theft / hits / entity / days "names"; filed under Binance, they became its words and the report kept
+    returning there instead of to its own 1.06亿 story."""
+    toks = entity_tokens(title)
+    if not is_title_case(title):
+        return toks
+    keep = {entity_key(m) for m in re.findall(r"[@$]([A-Za-z0-9_]{2,30})", title or "")} | {
+        v for zh, v in CEX_ZH.items() if zh in (title or "")}
+    for w in _CAP_WORD.findall(_URL_RE.sub(" ", title or "")):
+        if w.lower() in toks and (w[0].islower() or _NAMED.fullmatch(w) or _capitalised_mid_sentence(w, body or "")):
+            keep.add(w.lower())
+    return toks & keep
 
 
 def named_tokens(text: str) -> set[str]:
@@ -153,8 +230,13 @@ def named_tokens(text: str) -> set[str]:
     case, ≥5 chars. Plain capitalised vendor names ('Microsoft') are excluded on purpose — they would merge
     unrelated stories about the same vendor."""
     out = set()
-    for m in _NAMED.findall(text or ""):
-        t = m.lower()
+    text = text or ""
+    for mm in _NAMED.finditer(text):
+        # an advisory number's prefix is not a name: 「ALAS2023-2026-3389」, 「AV26-1135」 — corpus 2026-11-13: 18 Amazon
+        # Linux advisories for 18 packages were one event through tok:alas2023
+        if re.match(r"-\d", text[mm.end():mm.end() + 2]):
+            continue
+        t = mm.group(0).lower()
         if len(t) >= 5 and not t.startswith(("cve", "ghsa", "0x")) and not t.isdigit():
             out.add(t)
     return out

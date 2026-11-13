@@ -1,6 +1,6 @@
 /** Attack-tx breakdown on the event page (M4.1 E3): amounts as a reader counts them, roles named, the sender's take. */
 import { describe, it, expect } from 'vitest';
-import { fmtAmount, senderTake, who } from '@/utils/attackTxView';
+import { fmtAmount, fmtUsd, senderTake, senderTakeUsd, who } from '@/utils/attackTxView';
 import type { AttackTxs } from '@/types/site-data';
 
 const tx = {
@@ -26,5 +26,16 @@ describe('attackTxView', () => {
   });
   it("sums up the sender's take (the attacker's, in a typical exploit)", () => {
     expect(senderTake(tx)).toEqual(['1,013,353.61 USDC']);
+  });
+  it('values amounts in USD only when priced, never as $0', () => {
+    expect(fmtUsd(1012690.04)).toBe('$1.01M');
+    expect(fmtUsd(5_780_000_000)).toBe('$5.78B');
+    expect(fmtUsd(12_345)).toBe('$12.3K');
+    expect(fmtUsd(null)).toBe('');
+    expect(senderTakeUsd(tx)).toBeNull();                                   // nothing priced
+    const priced = { ...tx, tokens: [{ ...tx.tokens[0], gainer: { ...tx.tokens[0].gainer!, usd: 1012690.04 } }, tx.tokens[1]] };
+    expect(senderTakeUsd(priced)).toEqual({ usd: 1012690.04, partial: false });   // the pool's WAVAX is not the take
+    const two = { ...priced, tokens: [...priced.tokens, { ...tx.tokens[0], token: '0xbbbb', symbol: 'JUNK' }] };
+    expect(senderTakeUsd(two)).toEqual({ usd: 1012690.04, partial: true });
   });
 });

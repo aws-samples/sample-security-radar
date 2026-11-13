@@ -1,0 +1,102 @@
+{
+ "1793145603": {
+  "avax:0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e": {
+   "confidence": 0.99,
+   "decimals": 6,
+   "price": 0.9993450547508778,
+   "symbol": "AvalancheUSDC",
+   "timestamp": 1793145600
+  },
+  "coingecko:avalanche-2": {
+   "confidence": 0.99,
+   "price": 8.947645436079554,
+   "symbol": "AVAX",
+   "timestamp": 1793145600
+  }
+ },
+ "1793226095": {
+  "coingecko:ethereum": {
+   "confidence": 0.99,
+   "price": 2355.3038787844534,
+   "symbol": "ETH",
+   "timestamp": 1793226122
+  },
+  "ethereum:0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
+   "confidence": 0.99,
+   "decimals": 8,
+   "price": 81012.47171044677,
+   "symbol": "WBTC",
+   "timestamp": 1793226122
+  },
+  "ethereum:0x32bd822d615a3658a68b6fdd30c2fcb2c996d678": {
+   "confidence": 0.98,
+   "decimals": 18,
+   "price": 2534.4788975501065,
+   "symbol": "mswETH",
+   "timestamp": 1793226093
+  },
+  "ethereum:0x49446a0874197839d15395b908328a74ccc96bc0": {
+   "confidence": 0.98,
+   "decimals": 18,
+   "price": 2553.759711919551,
+   "symbol": "mstETH",
+   "timestamp": 1793226093
+  },
+  "ethereum:0x7122985656e38bdc0302db86685bb972b145bd3c": {
+   "confidence": 0.99,
+   "decimals": 18,
+   "price": 2526.2849549579973,
+   "symbol": "STONE",
+   "timestamp": 1793232484
+  },
+  "ethereum:0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0": {
+   "confidence": 0.99,
+   "decimals": 18,
+   "price": 2937.6015468053274,
+   "symbol": "wstETH",
+   "timestamp": 1793226179
+  },
+  "ethereum:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+   "confidence": 0.99,
+   "decimals": 6,
+   "price": 0.9995467074350506,
+   "symbol": "USDC",
+   "timestamp": 1793226122
+  },
+  "ethereum:0xa1290d69c65a6fe4df752f95823fae25cb99e5a7": {
+   "confidence": 0.99,
+   "decimals": 18,
+   "price": 2567.670517718749,
+   "symbol": "rsETH",
+   "timestamp": 1793226179
+  },
+  "ethereum:0xbf5495efe5db9ce00f80364c8b423567e58d2110": {
+   "confidence": 0.99,
+   "decimals": 18,
+   "price": 2556.098598108406,
+   "symbol": "ezETH",
+   "timestamp": 1793226179
+  },
+  "ethereum:0xd9a442856c234a39a81a089c06451ebaa4306a72": {
+   "confidence": 0.99,
+   "decimals": 18,
+   "price": 2552.501401727097,
+   "symbol": "pufETH",
+   "timestamp": 1793232484
+  },
+  "ethereum:0xdac17f958d2ee523a2206206994597c13d831ec7": {
+   "confidence": 0.99,
+   "decimals": 6,
+   "price": 0.9991359537594116,
+   "symbol": "USDT",
+   "timestamp": 1793226122
+  },
+  "ethereum:0xfae103dc9cf190ed75350761e95403b7b8afa6c0": {
+   "confidence": 0.995,
+   "decimals": 18,
+   "price": 2681.382431802273,
+   "symbol": "rswETH",
+   "timestamp": 1793226134
+  }
+ }
+}

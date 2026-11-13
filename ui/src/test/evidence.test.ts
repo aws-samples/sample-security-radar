@@ -48,6 +48,12 @@ describe('progress', () => {
     expect(rows.map(r => r.stage)).toEqual(['first_report', 'second_source', 'corroborated', 'confirmed', 'exploited', 'analyzed', 'finalized']);
     expect(rows[6].at).toBeNull();
     expect(progressRows([]).every(r => r.at === null)).toBe(true);
+    expect(progressRows([]).length).toBe(7);                                     // no CVE record ⇒ no stage 0
+  });
+  it('a CVE event starts with its publication (CVE-2026-98432: 10-15, first report 10-29)', () => {
+    const rows = progressRows([{ stage: 'disclosed', at: '2026-10-15T12:08:22Z' }, { stage: 'first_report', at: '2026-10-29T15:57:05Z' }]);
+    expect(rows.map(r => r.label).slice(0, 2)).toEqual(['CVE 公开', '首报']);
+    expect(rows[0].at).toBe('2026-10-15T12:08:22Z');
   });
   it('time-to-corroborate = corroborated − first_report (T1 ⇒ 0), null when unknown', () => {
     expect(corroborationMs(PROGRESS)).toBe(0);

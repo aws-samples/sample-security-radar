@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { Mitigation, MitigationPlan } from '@/types/mitigate';
 import { CopyButton } from '@/components/CopyButton';
-import { ADVISORY_NOTE, DNS_ACTION, DNS_STATE, PLAN_STATE, SEVERITY, TIER, purlName } from '@/utils/mitigate';
+import { ADVISORY_NOTE, DNS_ACTION, DNS_STATE, PASTE_PRIORITY_NOTE, PLAN_STATE, SEVERITY, TIER, purlName } from '@/utils/mitigate';
 import { utcShort } from '@/utils/timeZh';
 
 function PlanRow({ p }: { p: MitigationPlan }) {
@@ -27,6 +27,8 @@ function PlanRow({ p }: { p: MitigationPlan }) {
       <details className="env-fold mt-json">
         <summary>规则 JSON（<span className="dt-mono">{p.rule ?? p.key}</span>）</summary>
         <div className="mt-json-bar"><CopyButton value={json} label="规则 JSON" /></div>
+        {/* W4: the backend's flag, not web_acl — cwe plans / a group someone else runs / an unwritten rule carry web_acl too */}
+        {p.priority_placeholder && <p className="dt-small dt-muted" data-testid="priority-note">{PASTE_PRIORITY_NOTE}</p>}
         <pre className="mt-pre" tabIndex={0} aria-label="规则 JSON">{json}</pre>
       </details>
     </li>

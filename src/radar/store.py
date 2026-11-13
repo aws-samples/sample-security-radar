@@ -19,9 +19,12 @@ class Store(Protocol):
     def delete_event(self, event_id: str) -> None: ...
     def event_ids_for_key(self, key: str) -> list[str]: ...
     def add_keys(self, event_id: str, keys: list[str]) -> None: ...
+    def remove_keys(self, event_id: str, keys: list[str]) -> None: ...
     def events_updated_since(self, iso: str) -> list[Event]: ...
     def get_source_state(self, source_id: str) -> dict[str, Any]: ...
     def put_source_state(self, source_id: str, state: dict[str, Any]) -> None: ...
+    def delete_source_state(self, source_id: str) -> None: ...
+    def get_source_states(self, source_ids: list[str]) -> dict[str, dict[str, Any]]: ...
     # respond-station state lives beside the event, not in it: the process station rewrites events every
     # cycle and must never race with (or erase) an AWS job record
     def get_response(self, event_id: str) -> dict[str, Any] | None: ...
@@ -56,7 +59,7 @@ class MemoryStore:
         self.events[event.event_id] = json.loads(json.dumps(event.to_dict()))
 
     def delete_event(self, event_id: str) -> None:
-        # key index entries pointing here go stale; readers skip ids whose event is gone
+        # the caller drops the event's key-index rows (remove_keys); readers still skip ids whose event is gone
         self.events.pop(event_id, None)
 
     def event_ids_for_key(self, key: str) -> list[str]:
@@ -67,6 +70,11 @@ class MemoryStore:
             if event_id not in self.keys[k]:
                 self.keys[k].append(event_id)
 
+    def remove_keys(self, event_id: str, keys: list[str]) -> None:
+        for k in keys:
+            if event_id in self.keys.get(k, []):
+                self.keys[k].remove(event_id)
+
     def events_updated_since(self, iso: str) -> list[Event]:
         return [Event.from_dict(d) for d in self.events.values() if d["last_updated"] >= iso]
 
@@ -75,6 +83,15 @@ class MemoryStore:
 
     def put_source_state(self, source_id: str, state: dict[str, Any]) -> None:
         self.sources[source_id] = json.loads(json.dumps(state))
+
+    def delete_source_state(self, source_id: str) -> None:
+        self.sources.pop(source_id, None)
+
+    def get_source_states(self, source_ids: list[str]) -> dict[str, dict[str, Any]]:
+        return {x: self.get_source_state(x) for x in source_ids}
+
+    def get_responses(self, event_ids: list[str]) -> None:
+        return None          # a dict lookup already; the batched warm-up only matters for DynamoDB
 
     def get_response(self, event_id: str) -> dict[str, Any] | None:
         d = self.responses.get(event_id)

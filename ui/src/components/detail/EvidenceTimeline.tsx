@@ -1,9 +1,10 @@
 import type { ItemRef, TimelineEntry } from '@/types/site-data';
 import type { EvidenceGroup } from '@/utils/evidence';
 import { formatAmount } from '@/utils/formatters';
+import { itemTime } from '@/utils/sightingView';
 import { utcShort } from '@/utils/timeZh';
 import { safeHref } from '@/utils/safeHref';
-import { PHASE_LABEL } from '@/utils/attackFlow';
+import { canonicalStage, stageDef, stageLabel } from '@/utils/attackFlow';
 
 const TIER: Record<ItemRef['tier'], { shape: string; word: string; tone: string }> = {
   T1: { shape: '◆', word: 'T1 一手/官方', tone: 'ok' },
@@ -20,12 +21,12 @@ function Item({ it, n, flash, echo }: { it: ItemRef; n: number; flash: boolean; 
         <div className="ev-src">
           <span className={`ev-tier tone-${t.tone}`}><span aria-hidden="true">{t.shape} </span>{t.word}</span>
           <span>{it.source_name}</span>
-          <time className="dt-mono dt-muted" dateTime={it.published_at}>{utcShort(it.published_at)} UTC</time>
+          <time className="dt-mono dt-muted" dateTime={it.published_at} title="发布 = 来源发布时间（证据时间）· 采集 = 雷达抓到它的时间">{itemTime(it)}</time>
         </div>
         <div className="ev-title">{it.title}</div>
         {!echo && <div className="ev-excerpt">{it.excerpt}</div>}
         <div className="ev-sig">
-          {it.phase && it.phase !== 'other' && <span className={`chip af-chip af-${it.phase}`}>{PHASE_LABEL[it.phase]}</span>}
+          {canonicalStage(it.phase) !== 'other' && <span className={`chip af-chip af-seg-${stageDef(canonicalStage(it.phase)).segment} af-${canonicalStage(it.phase)}`}>{stageLabel(it.phase)}</span>}
           {it.signals.kev && <span className="chip" style={{ color: 'var(--p0)' }}>KEV</span>}
           {it.signals.poc && <span className="chip" style={{ color: 'var(--p1)' }}>PoC</span>}
           {it.signals.exploited === 'yes' && <span className="chip" style={{ color: 'var(--p0)' }}>在野利用</span>}

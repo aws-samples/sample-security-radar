@@ -15,11 +15,19 @@ BRANCH = re.compile(r"^continuum/([0-9a-f]{8})-")
 ISSUE = re.compile(r"\*\*AWS Continuum\*\* issue `([^`]+)`")  # first line of deliver_prs.pr_body — keep in sync
 
 
-def links(pulls: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+def ours(p: dict[str, Any], repo: str) -> re.Match[str] | None:
+    """A radar PR: a continuum/<event> branch that lives in the fleet repository itself. Anyone can open a PR from a
+    fork with that branch name and a body that names an issue; its link was shown on the event page and pushed as
+    「补丁 PR 待人审核合并」 (audit 05 W18 / 04 §2.7). A PR whose head repository is gone (deleted fork) is not ours."""
+    head = p.get("head") or {}
+    return BRANCH.match(head.get("ref", "")) if (head.get("repo") or {}).get("full_name") == repo else None
+
+
+def links(pulls: list[dict[str, Any]], repo: str) -> dict[str, dict[str, str]]:
     """{'ev_<8 hex>': {issue_id: html_url}} for radar PRs whose body names the Continuum issue they deliver."""
     out: dict[str, dict[str, str]] = {}
     for p in pulls:
-        b, m = BRANCH.match((p.get("head") or {}).get("ref", "")), ISSUE.search(p.get("body") or "")
+        b, m = ours(p, repo), ISSUE.search(p.get("body") or "")
         if b and m:
             out.setdefault(f"ev_{b.group(1)}", {})[m.group(1)] = p["html_url"]
     return out

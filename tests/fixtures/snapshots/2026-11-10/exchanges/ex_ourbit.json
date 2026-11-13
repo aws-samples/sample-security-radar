@@ -1,0 +1,55 @@
+{
+ "data": {
+  "results": [
+   {
+    "id": 17827791511284,
+    "title": "$PUSS CATnival: 3,000 USDT Up for Grabs 😼💸",
+    "sectionId": 15425930840731,
+    "thumbnail": "",
+    "tags": [],
+    "createdAt": "2025-05-21T10:20:56Z",
+    "parentSections": [
+     {
+      "id": 15425930840731,
+      "name": "Latest Events"
+     }
+    ]
+   },
+   {
+    "id": 17827791513963,
+    "title": "4 Futures Pairs to be Delisted on Ourbit Futures (November 11)",
+    "sectionId": 15425930840736,
+    "thumbnail": "",
+    "tags": [],
+    "createdAt": "2026-11-09T06:14:22Z",
+    "parentSections": [
+     {
+      "id": 15425930840736,
+      "name": "Crypto Delisting"
+     }
+    ]
+   },
+   {
+    "id": 17827791513962,
+    "title": "Ourbit Will Delist 17 Spot Trading Pairs (November 11)",
+    "sectionId": 15425930840736,
+    "thumbnail": "",
+    "tags": [],
+    "createdAt": "2026-11-09T06:12:59Z",
+    "parentSections": [
+     {
+      "id": 15425930840736,
+      "name": "Crypto Delisting"
+     }
+    ]
+   }
+  ],
+  "count": 4055,
+  "page": 1,
+  "perPage": 10,
+  "pageCount": 406
+ },
+ "code": 0,
+ "msg": "success",
+ "timestamp": 1794241225645
+}

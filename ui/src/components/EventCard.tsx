@@ -7,6 +7,7 @@ import { EXPLOITATION_WORD } from './detail/VerdictPanel';
 import { formatAmount } from '@/utils/formatters';
 import { eventTimeLabel } from '@/utils/home';
 import '@/styles/home.css';
+import { cardDisclosure } from '@/utils/disclosureView';
 
 interface Props {
   event: EventSummary;
@@ -33,7 +34,7 @@ export function EventCard({ event, showSummary = true }: Props) {
       </div>
       <span className="row-right">
         <ImpactChip impact={event.impact} eventId={event.event_id} />
-        <span className={`row-time${time.longRunning ? ' is-long' : ''}`} title={`首见 ${event.first_seen} · 最后更新 ${event.last_updated}`}>{time.text}</span>
+        <span className={`row-time${time.longRunning ? ' is-long' : ''}`} title={`首报 ${event.first_seen} · 最后更新 ${event.last_updated}`}>{time.text}</span>
         <span className="row-go" aria-hidden="true">→</span>
       </span>
       <div className="row-meta">
@@ -46,6 +47,8 @@ export function EventCard({ event, showSummary = true }: Props) {
           </span>
         )}
         {event.cves.length > 0 && <code className="row-cve">{event.cves[0]}{event.cves.length > 1 ? ` +${event.cves.length - 1}` : ''}</code>}
+        {(() => { const c = cardDisclosure(event.cve_disclosed, event.first_seen); return c && (
+          <span className="row-disc" data-testid="card-disclosure" title={`${event.cve_disclosed?.cve} 的 CVE 记录发布时间（CNA）；首报是第一篇报道的时间`}>{c}</span>); })()}
         <span className="row-src">首报 {event.first_report_source}</span>
       </div>
       {showSummary && event.summary && <p className="row-sum">{event.summary}</p>}

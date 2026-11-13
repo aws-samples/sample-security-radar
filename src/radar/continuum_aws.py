@@ -15,6 +15,7 @@ import re
 import time
 import zipfile
 from typing import Any
+from urllib.parse import urlsplit
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -95,6 +96,19 @@ def load_targets(target_ids: list[tuple[str, str, str]]) -> list[respond.Target]
 
 # ---------------------------------------------------------------- Continuum environment (no CFN type ⇒ reconcile)
 
+REPOS_PER_ENVIRONMENT = 10   # live Continuum quota (2026-10-23): repositories (zips under the one s3Source) per environment
+
+
+class TooManyTargets(ValueError):
+    """More targets than one Continuum environment holds. Its own type so the station catches exactly this (a
+    visible degradation: Security-Agent-only, every Continuum op recorded as failed with this text) — as a bare
+    ValueError it escaped handlers' ClientError/BotoCoreError/KeyError catch and took the whole Respond station down."""
+
+    def __init__(self, actual: int, limit: int) -> None:
+        self.actual, self.limit = actual, limit
+        super().__init__(f"too_many_targets: {actual} > {limit} repositories per Continuum environment")
+
+
 def ensure_environment(target_ids: list[str], github_retry: bool = True) -> dict[str, Any]:
     """Find-or-create the S3 integration and the environment (one S3 source = code/, every target zip under it)."""
     cn = _cn()
@@ -110,8 +124,8 @@ def ensure_environment(target_ids: list[str], github_retry: bool = True) -> dict
     envs = [e for e in cn.list_environments().get("items", []) if e.get("name") == ENV_NAME]
     # live constraint (2026-10-23): exactly ONE s3Source per environment ⇒ one prefix holding every target zip;
     # each zip under it is one repository (quota 10 per environment)
-    if len(target_ids) > 10:
-        raise ValueError(f"too_many_targets: {len(target_ids)} > 10 repositories per Continuum environment")
+    if len(target_ids) > REPOS_PER_ENVIRONMENT:
+        raise TooManyTargets(len(target_ids), REPOS_PER_ENVIRONMENT)
     sources = [{"integrationId": integ, "codePrefix": "code/", "contextPrefix": "context/"}]
     if envs:
         env = envs[0]["environmentId"]
@@ -302,8 +316,11 @@ def _poll_review(op: respond.Op, ev: dict[str, Any], *_: Any) -> dict[str, Any]:
 
 
 def _capture_diff(url: str, rel: str) -> dict[str, Any] | None:
-    if not url.startswith("https://") or ".amazonaws.com/" not in url:
-        return None  # only AWS-hosted presigned links
+    # only AWS-hosted presigned links: the HOST must be *.amazonaws.com — a substring test let
+    # https://evil.example/?.amazonaws.com/ through and its body would land in the site bucket
+    u = urlsplit(url)
+    if u.scheme != "https" or not (u.hostname or "").endswith(".amazonaws.com"):
+        return None
     with fetch.urlopen(url, timeout=20) as r:
         body = r.read(PATCH_MAX_BYTES + 1)[:PATCH_MAX_BYTES]
     files = sorted(set(re.findall(r"^\+\+\+ b/(.+)$", body.decode("utf-8", "ignore"), re.MULTILINE)))
@@ -368,11 +385,6 @@ def _read_env(eid: str, finding_ids: set[str], scan_run_id: str | None, event_id
     return out
 
 
-def _poll_continuum(op: respond.Op, ev: dict[str, Any], _items: Any, st: dict[str, Any], env: dict[str, Any]) -> dict[str, Any]:
-    mine = {f["finding_id"] for t in (st.get("targets") or {}).values() for f in (t.get("cn_findings") or {}).values()}
-    return _read_env(env["environment_id"], mine, (st.get("scan") or {}).get("scan_run_id"), ev["event_id"], "")
-
-
 def _gitlab_mr_url(gl: dict[str, Any]) -> str | None:
     """GitLab delivery target → merge request URL. Field names are not documented (gitlab shape seen only on a live
     artifact); accept an explicit URL, else build it from instance + project path + MR iid."""
@@ -387,22 +399,22 @@ def _gitlab_mr_url(gl: dict[str, Any]) -> str | None:
     return None
 
 
-def _repo_ops(ch: str) -> dict[str, Any]:
-    """submit / scan / poll for one repository channel = the S3 operations pointed at that channel's environment and
-    reading that channel's state (respond keeps it under st[<channel>])."""
-    op_tag = respond.REPO_CHANNELS[ch]["op"]
+def _channel_ops(ch: str) -> dict[str, Any]:
+    """submit / scan / poll for one Continuum environment (S3, GitHub, GitLab): the same operations pointed at that
+    channel's environment and reading that channel's state (respond keeps it under st[<channel>], R11)."""
+    c = respond.CHANNELS[ch]
 
     def env_of(env: dict[str, Any]) -> dict[str, Any]:
-        return {"environment_id": env[f"{ch}_environment_id"]}
+        return {"environment_id": env[c.env_key]}
 
     def poll(op: respond.Op, ev: dict[str, Any], _items: Any, st: dict[str, Any], env: dict[str, Any]) -> dict[str, Any]:
-        cs = st.get(ch) or {}
+        cs = (respond.migrate_state(st) or {}).get(ch) or {}
         mine = {f["finding_id"] for f in (cs.get("findings") or {}).values()}
-        return _read_env(env[f"{ch}_environment_id"], mine, (cs.get("scan") or {}).get("scan_run_id"), ev["event_id"], f"{op_tag}-")
+        return _read_env(env[c.env_key], mine, (cs.get("scan") or {}).get("scan_run_id"), ev["event_id"], c.patch_tag)
 
-    return {f"submit_finding_{op_tag}": lambda op, ev, items, st, env: _submit_finding(op, ev, items, st, env_of(env)),
-            f"request_scan_{op_tag}": lambda op, ev, items, st, env: _request_scan(op, ev, items, st, env_of(env)),
-            f"poll_continuum_{op_tag}": poll}
+    return {f"submit_finding{c.suffix}": lambda op, ev, items, st, env: _submit_finding(op, ev, items, st, env_of(env)),
+            f"request_scan{c.suffix}": lambda op, ev, items, st, env: _request_scan(op, ev, items, st, env_of(env)),
+            f"poll_continuum{c.suffix}": poll}
 
 
 def _patch_text(body: dict[str, Any]) -> str | None:
@@ -430,9 +442,8 @@ def _all(fn: Any, **kw: Any) -> list[dict[str, Any]]:
             return out
 
 
-_EXEC = {"sync_requirement": _sync_requirement, "write_context": _write_context, "submit_finding": _submit_finding,
-         "request_scan": _request_scan, "start_review": _start_review, "poll_review": _poll_review,
-         "poll_continuum": _poll_continuum, **{k: f for ch in respond.REPO_CHANNELS for k, f in _repo_ops(ch).items()}}
+_EXEC = {"sync_requirement": _sync_requirement, "write_context": _write_context, "start_review": _start_review,
+         "poll_review": _poll_review, **{k: f for ch in respond.CHANNELS for k, f in _channel_ops(ch).items()}}
 
 
 # ---------------------------------------------------------------- overview (continuum.json)

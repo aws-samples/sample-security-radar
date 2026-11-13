@@ -127,9 +127,9 @@ def test_binance_announcements_parse_to_dated_entries_with_their_page():
 
 
 def test_the_trm_report_is_an_attribution_naming_north_korea():
-    from radar import signals
+    from radar import signals, stages
     [trm] = [i for i in parsers.feed((SNAP30 / "trm.xml").read_text(), "trm_blog") if "Binance" in i.title]
-    assert signals.phase(trm.title) == "attribution"
+    assert stages.of_title(trm.title) == "attribution"
     assert signals.attribution_actor(f"{trm.title}\n{trm.text}") == "North Korea (Lazarus / TraderTraitor)"
 
 
@@ -139,3 +139,19 @@ def test_m4_sources_are_registered_with_their_tier():
             "slowmist_medium": "T1", "chainalysis_blog": "T1", "trm_blog": "T1", "binance_announcements": "T1"}
     assert {k: BY_ID[k].tier for k in want} == want
     assert {"embercn", "ai_9684xtpa", "arkham"} <= set(HANDLES)
+
+
+def test_aws_security_bulletins_feed_carries_cves_and_dates():
+    """AWS Security Bulletins (T1, 2026-11-02 snapshot): bulletin 2026-160 is CVE-2026-98432 (Linux TCP)."""
+    from radar import pipeline
+    from radar.store import MemoryStore
+    snap = Path(__file__).parent / "fixtures" / "snapshots" / "2026-11-02" / "aws_bulletins.xml"
+    items = parsers.feed(snap.read_text(), "aws_bulletins")
+    assert len(items) >= 10
+    assert all(i.published_at is not None and i.url.startswith("https://aws.amazon.com/") for i in items)
+    tcp = [i for i in items if "CVE-2026-98432" in i.title]
+    assert len(tcp) == 1 and "<p>" not in tcp[0].text
+    store = MemoryStore()
+    pipeline.ingest(tcp, store, tcp[0].published_at)
+    [ev] = store.events.values()
+    assert ev["cves"] == ["CVE-2026-98432"] and ev["domain"] == "vuln"

@@ -56,7 +56,7 @@ export function NowBoard({ cards, generatedAt, sourcesLine }: Props) {
             </ul>
             <div className="now-foot">
               {event.exploitation !== 'none' && !item.reasons.includes(ex.text) && <span className={`dt-word tone-${ex.tone}`}>{ex.text}</span>}
-              {!item.reasons.some(r => r.startsWith('首见')) && <span className="now-age" title={event.first_seen}>首见 {agoZh(event.first_seen)}</span>}
+              {!item.reasons.some(r => r.startsWith('首报')) && <span className="now-age" title={event.first_seen}>首报 {agoZh(event.first_seen)}</span>}
               <span className="now-go" aria-hidden="true">查看进展 →</span>
             </div>
           </li>

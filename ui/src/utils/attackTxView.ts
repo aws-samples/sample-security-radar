@@ -23,3 +23,21 @@ export const tokenName = (t: Tx['tokens'][number]) => t.symbol ?? short(t.token)
 export function senderTake(tx: Tx): string[] {
   return tx.tokens.filter(t => t.gainer?.role === '发起地址').map(t => `${fmtAmount(t.gainer!.amount)} ${tokenName(t)}`);
 }
+
+/** "$1.01M" — USD at the tx's block time (DefiLlama); "" when unpriced (never "$0": no price is not a zero value). */
+export function fmtUsd(v: number | null | undefined): string {
+  if (v === null || v === undefined) return '';
+  const a = Math.abs(v);
+  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
+  if (a >= 1e3) return `$${(v / 1e3).toFixed(1)}K`;
+  return `$${v.toFixed(0)}`;
+}
+
+/** The sender's take in USD — priced tokens only; `partial` when some of what it took has no (confident) price. */
+export function senderTakeUsd(tx: Tx): { usd: number; partial: boolean } | null {
+  const take = tx.tokens.filter(t => t.gainer?.role === '发起地址');
+  const priced = take.filter(t => t.gainer!.usd !== null && t.gainer!.usd !== undefined);
+  if (priced.length === 0) return null;
+  return { usd: priced.reduce((sum, t) => sum + (t.gainer!.usd as number), 0), partial: priced.length < take.length };
+}

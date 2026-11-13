@@ -168,7 +168,7 @@ def _tranche_store():
     store.put_event(Event(event_id=T.TRANCHE, domain="web3", title=e["title"], first_seen=e["first_seen"],
                           last_updated=T.FIX["now"], item_ids=[], keys=[], tx=e["tx"], severity="P1", chains=["avalanche"]))
     for _ in range(3):
-        attacktx.cycle(store, T.NOW, T.tape())
+        attacktx.cycle(store, T.NOW, T.tape(), T.llama())
     # the station runs while the incident is young (first seen 10-27, date-only)
     return store, T.TRANCHE, datetime(2026, 10, 28, 12, tzinfo=UTC)
 

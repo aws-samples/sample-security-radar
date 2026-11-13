@@ -33,8 +33,11 @@ def test_radar_repo_lockfiles_become_components_with_their_source_file():
 
 
 def test_exact_pins_in_a_bare_package_json_are_read_and_ranges_are_not():
-    comps = I.components(_files(DEMO / "node-gateway", "node-gateway"))
-    assert [c["purl"] for c in comps] == ["pkg:npm/express@4.21.2"]
+    pkg = (DEMO / "node-gateway" / "package.json").read_text()
+    assert [c["purl"] for c in I.components({"node-gateway/package.json": pkg})] == ["pkg:npm/express@4.21.2"]
+    # with its lockfile (its CI runs `npm ci`) the target is read from the lock: the pin plus its resolved tree
+    by = {c["purl"]: c for c in I.components(_files(DEMO / "node-gateway", "node-gateway"))}
+    assert by["pkg:npm/express@4.21.2"]["file"] == "node-gateway/package-lock.json" and len(by) > 1
     assert I.components({"x/package.json": json.dumps({"dependencies": {"a": "^1.2.3", "b": "1.2.3"}})}) == [
         {"purl": "pkg:npm/b@1.2.3", "name": "b", "version": "1.2.3", "file": "x/package.json"}]
 

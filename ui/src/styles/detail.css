@@ -60,7 +60,8 @@
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 
 /* progress stepper -------------------------------------------- */
-.stepper { list-style: none; margin: 0; padding: 4px 0 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+/* one column per stage, however many (7, or 8 with 「CVE 公开」 first): repeat(7) wrapped the 8th onto a new line */
+.stepper { list-style: none; margin: 0; padding: 4px 0 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .stepper li { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 0 4px; }
 .stepper li::before { content: ''; position: absolute; top: 9px; left: calc(-50% + 12px); right: calc(50% + 12px); height: 2px; background: var(--line); }
 .stepper li:first-child::before { display: none; }
@@ -72,7 +73,7 @@
 .stepper li:not(.is-reached) .lbl { color: var(--text-3); font-weight: 500; }
 .stepper .at { font-family: var(--font-mono); font-size: 11px; color: var(--text-2); }
 .stepper li:not(.is-reached) .at { color: var(--text-3); font-style: italic; }
-@media (max-width: 900px) { .stepper { grid-template-columns: 1fr; gap: 8px; } .stepper li { flex-direction: row; text-align: left; } .stepper li::before { display: none; } }
+@media (max-width: 900px) { .stepper { grid-auto-flow: row; grid-template-columns: 1fr; gap: 8px; } .stepper li { flex-direction: row; text-align: left; } .stepper li::before { display: none; } }
 
 .psteps { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px dashed var(--line); display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .psteps li { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; border-radius: var(--r-sm); background: var(--bg-2); border: 1px solid var(--line); min-width: 0; }
@@ -247,8 +248,13 @@
 .af-n { font-size: 10px; color: var(--text-3); }
 .af-label { font-weight: 700; font-size: 13.5px; }
 .af-meta { font-size: 11px; color: var(--text-2); }
-.af-drain { --af: var(--p0); } .af-laundering { --af: var(--p1); } .af-freeze { --af: var(--status-ok); }
-.af-statement, .af-attribution { --af: var(--accent-2); } .af-prep, .af-impact, .af-recovery { --af: var(--accent); }
+/* by segment (radar.stages): how the attacker got in, then per-stage tones for the on-chain / response steps */
+.af-seg-cloud, .af-key_access { --af: var(--p1); }
+.af-asset_transfer { --af: var(--p0); } .af-laundering { --af: var(--p1); } .af-freeze { --af: var(--status-ok); }
+.af-disclosure, .af-attribution { --af: var(--accent-2); } .af-prep, .af-impact, .af-recovery { --af: var(--accent); }
+.af-controls { margin: 8px 0 0; } .af-controls summary { cursor: pointer; color: var(--text-2); }
+.af-controls dl { margin: 6px 0 0; display: grid; gap: 4px; } .af-ctl { display: grid; grid-template-columns: 6em 1fr; gap: 8px; }
+.af-ctl dt { font-weight: 700; } .af-ctl dd { margin: 0; display: flex; flex-direction: column; gap: 2px; color: var(--text-2); }
 .af-chip { border-left: 3px solid var(--af, var(--accent)); }
 
 /* M4 · on-chain reconstruction (OnchainPanel.tsx) */
@@ -275,3 +281,20 @@
 .atx-card { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; margin-top: 10px; }
 .atx-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; margin: 0 0 6px; }
 .atx-take { margin: 0 0 8px; }
+/* 响应决策 (radar.decisions) — not_evaluated is dashed + hollow + italic, never the muted look of not_fire */
+.dec-table td { font-size: 12px; }
+.dec-row .dec-glyph { color: var(--tone); }
+.dec-row.is-not_evaluated td { color: var(--text-3); }
+.dec-row.is-not_evaluated td:first-child { border-left: 2px dashed var(--text-3); }
+.tone-unevaluated { --tone: var(--text-3); font-style: italic; }
+.dec-code { font-family: var(--font-mono, monospace); font-size: 10.5px; color: var(--text-3); }
+.dec-paid { color: var(--p1); font-size: 11px; }
+.dec-row.is-failed td:first-child { border-left: 2px solid var(--loss); }
+.dec-error { color: var(--loss); }
+
+/* P2 WAF rule pack (RulePackPanel) — reuses the mt-* plan styles; only lists and the format switch are new */
+.rp-quotes, .rp-poc, .rp-rejected { margin: 0; padding-left: 18px; font-size: 12px; }
+.rp-poc li, .rp-rejected li { margin: 2px 0; }
+.rp-poc .mt-state { border-color: var(--tone); color: var(--tone); }
+.rp-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.rp-tabs .is-on { border-color: var(--accent); color: var(--text-1); font-weight: 700; }

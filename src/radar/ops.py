@@ -19,7 +19,7 @@ def _sources(f: Facts) -> list[Item]:
     for s in f.get("sources") or []:
         if s.get("status") in ("failing", "degraded"):
             out.append({"level": "error" if s["status"] == "failing" else "warn", "title": f"源 {s['name']} {s['status']}",
-                        "detail": (s.get("last_error") or "")[:200], "since": s.get("last_error_at"), "link": "/sources"})
+                        "detail": (s.get("degraded") or s.get("last_error") or "")[:200], "since": s.get("last_error_at"), "link": "/sources"})
     return out
 
 
@@ -30,16 +30,31 @@ def _over_budget(f: Facts) -> list[Item]:
 
 
 def _notify(f: Facts) -> list[Item]:
-    out, st = [], (f.get("ledger") or {}).get("notify") or {}
-    if st.get("error"):
-        out.append({"level": "error", "title": "推送配置读取失败", "detail": st["error"][:200], "since": None, "link": None})
-    for c in ("slack", "lark"):
-        row = st.get(c) or {}
+    """The notify station's status row (radar.notify_station.STATUS_KEY). A subscription held back by the rollout gate
+    is shown as such — never as ok."""
+    st = f.get("notify") or {}
+    out, top, at = [], st.get("status"), st.get("at")
+    if top == "error":
+        out.append({"level": "error", "title": "推送配置读取失败", "detail": ((st.get("error") or {}).get("message") or "")[:200],
+                    "since": at, "link": None})
+    elif top == "legacy_config":
+        out.append({"level": "error", "title": "推送配置仍是旧的单频道格式，未推送",
+                    "detail": "运行 scripts/set-notify.sh 写入订阅表（subscriptions）", "since": at, "link": None})
+    elif top == "not_configured":
+        out.append({"level": "info", "title": "推送未配置（没有订阅）", "detail": "运行 scripts/set-notify.sh 写入订阅表",
+                    "since": at, "link": None})
+    for bad in st.get("invalid") or []:   # error rule 5: code, message, actual, allowed
+        out.append({"level": "error", "title": f"订阅配置无效：{bad.get('id') or '（无 id）'}",
+                    "detail": f"{bad.get('error')}: {bad.get('message')}（实际 {bad.get('actual')!r}，允许 {bad.get('allowed')!r}）"[:300],
+                    "since": at, "link": None})
+    for sid, row in sorted((st.get("subscriptions") or {}).items()):
         if row.get("status") == "error":
-            out.append({"level": "error", "title": f"{c} 推送失败", "detail": (row.get("error") or "")[:200], "since": row.get("at"), "link": None})
-        elif row.get("status") == "not_configured":
-            out.append({"level": "info", "title": f"{c} 推送未配置", "detail": "凭证写入 ~/.env 后运行 scripts/set-notify.sh",
-                        "since": row.get("at"), "link": None})
+            err = row.get("error") or {}
+            out.append({"level": "error", "title": f"订阅 {sid} 推送失败（{row.get('channel')}）",
+                        "detail": f"{err.get('error')}: {err.get('message')}"[:200], "since": row.get("at"), "link": None})
+        elif row.get("status") == "gated_by_rollout":
+            out.append({"level": "info", "title": f"订阅 {sid} 被灰度挡住（rollout=owner_only），本轮未推送",
+                        "detail": "开放给所有订阅：secret 里 rollout 设为 all", "since": row.get("at"), "link": None})
     return out
 
 
@@ -85,6 +100,15 @@ def _mitigate(f: Facts) -> list[Item]:
                         "detail": "；".join(sorted({f"{f['purl']} → {f['fixed']}" for f in row["findings"]
                                                     if f["severity"] in ("critical", "high") and f.get("fixed")}))[:200],
                         "since": row.get("scanned_on"), "link": "/mitigate"})
+    if (wait := (led.get("dns") or {}).get("waiting")):
+        out.append({"level": "warn", "title": f"{len(wait)} 个新出现的域名没有进入已确认拦截的 DNS 名单",
+                    "detail": "、".join(wait[:8])[:200] + " —— 核对后再确认一次：scripts/promote.py dns radar-ioc-domains --by <name>",
+                    "since": led.get("run_at"), "link": "/mitigate"})
+    for g in led.get("waf_grown") or []:
+        out.append({"level": "warn", "title": f"已确认的 WAF 规则 {g['group']} 的计划扩大了：{g['beyond']} 仍只计数",
+                    "detail": f"{g.get('by')} 于 {g.get('at')} 确认的是 {', '.join(g.get('approved') or []) or '整组'}；"
+                              f"新增部分要拦截需再确认一次：scripts/promote.py waf {g['web_acl']} {g['group']} --by <name>",
+                    "since": led.get("run_at"), "link": "/mitigate"})
     staged = [(eid, p) for eid, m in (led.get("events") or {}).items() for p in m.get("plans") or [] if p.get("state") == "staged"]
     if staged:
         out.append({"level": "info", "title": f"{len(staged)} 条 WAF 规则在 Count 观察期，等人确认后切 Block",
@@ -100,10 +124,179 @@ def _untriaged(f: Facts) -> list[Item]:
             for e in f.get("events") or [] if e.get("severity") == "P0" and not e.get("triage")]
 
 
+def _dup_confirmed(f: Facts) -> list[Item]:
+    """Item 6: pairs an operator labelled 'same' (scripts/dup_label.py) while both events are still published — info:
+    a repair queue (scripts/recluster_web3.py --event A --event B), not a fault."""
+    titles = {e["event_id"]: e.get("title", "") for e in f.get("events") or []}
+    out = []
+    for k, lab in sorted((f.get("dup_labels") or {}).items()):
+        a, b = k.split("|")
+        if lab.get("label") == "same" and a in titles and b in titles:
+            out.append({"level": "info", "title": f"人工确认重复，待合并：{titles[a][:40]}",
+                        "detail": f"scripts/recluster_web3.py --domain <域> --since <日期> --event {a} --event {b}",
+                        "since": lab.get("at"), "link": f"/events/{a}"})
+    return out
+
+
+def _splits(f: Facts) -> list[Item]:
+    """One story shown as two events (pipeline.split_candidates) — warn: the page under-counts the older event and the
+    newer one duplicates it on the wall until the repair runs."""
+    return [{"level": "warn", "title": f"同一事件被拆成两个：{s['newer_title'][:40]}",
+             "detail": f"并入 {s['older_title'][:40]} — scripts/recluster_web3.py --domain {s['domain']} --since <日期> "
+                       f"--event {s['older']} --event {s['newer']}（先 dry run）",
+             "since": None, "link": f"/events/{s['newer']}"} for s in f.get("splits") or []]
+
+
+def _late(f: Facts) -> list[Item]:
+    """A critical CVE the radar first saw days after its CVE record was published (publish._late_detections) — info:
+    a source-coverage gap to review (which feed would have carried it, e.g. the CNA's own list), not a fault.
+    Live 2026-11-02: CVE-2026-98432 (Linux CNA, 9.8) published 10-15, first seen 10-29 via The Hacker News."""
+    return [{"level": "info", "title": f"首篇报道晚于 CVE 公开 {d['lag_days']} 天：{d['title'][:40]}",
+             "detail": f"{d['cve']} · CVSS {d['cvss']} · CNA {d['assigner'] or '?'} 于 {d['published'][:10]} 公开 · "
+                       f"首报 {d['first_seen'][:10]}（{d['first_source']}）— 核对哪个数据源本可更早带来它",
+             "since": d["first_seen"], "link": f"/events/{d['event_id']}"} for d in f.get("late") or []]
+
+
+def _title_proposals(f: Facts) -> list[Item]:
+    """Shadow-mode root-cause titles that passed every code gate (radar.retitle_judge) — info: nothing changed on the
+    page; an operator adopts one with scripts/retitle.py (or ignores it)."""
+    titles = {e["event_id"]: e.get("title", "") for e in f.get("events") or []}
+    out = []
+    for eid, r in sorted((f.get("title_proposals") or {}).items()):
+        if r.get("verdict") == "propose" and eid in titles and titles[eid] == r.get("current"):
+            out.append({"level": "info", "title": f"标题建议（影子，未生效）：{r['title'][:70]}",
+                        "detail": f"原：{titles[eid][:60]} · 依据「{r.get('quote', '')[:120]}」 — "
+                                  f"scripts/retitle.py {eid} \"{r['title']}\" --source {r.get('source') or '<url>'}",
+                        "since": r.get("at"), "link": f"/events/{eid}"})
+    return out
+
+
+def _slow(f: Facts) -> list[Item]:
+    """A station whose slowest recent run used ≥ 60 % of its Lambda timeout (radar.stationtime) — warn: there is still
+    headroom, which is the point (live 2026-11-02: publish crept 89 s → 256 s for two days, then failed at 300 s)."""
+    return [{"level": "warn", "title": f"{s['station']} 站点接近超时：最慢 {s['worst_s']:.0f} s / 上限 {s['timeout_s']} s",
+             "detail": f"最近 {s['share']:.0%} 的超时额度 · 中位 {s['median_s']:.0f} s — 先查它慢在哪一步（复杂度随数据增长？）",
+             "since": s["at"], "link": "/ops"} for s in f.get("slow_stations") or []]
+
+
+def _enrich(f: Facts) -> list[Item]:
+    """EPSS / CVE-record lookups that failed in the last publish run — warn: pages show '—' where a number belongs
+    (live 2026-11-02 the EPSS column went blank on every page and was found by eye). A lookup backlog is info."""
+    e = f.get("enrich") or {}
+    out = []
+    if e.get("epss_failed"):
+        out.append({"level": "warn", "title": f"EPSS 查询失败 {e['epss_failed']} 批（FIRST API）",
+                    "detail": f"{e.get('epss_error', '')} — 事件页 EPSS 显示 —；下轮自动重试", "since": e.get("at"), "link": "/ops"})
+    if e.get("cve_meta_failed"):
+        out.append({"level": "warn", "title": f"CVE 记录查询失败 {e['cve_meta_failed']} 个（cveawg.mitre.org）",
+                    "detail": f"{e.get('cve_meta_error', '')} — 公开时间 / CVSS 暂缺；下轮自动重试", "since": e.get("at"), "link": "/ops"})
+    if e.get("cve_meta_backlog"):
+        out.append({"level": "info", "title": f"CVE 记录待补 {e['cve_meta_backlog']} 个",
+                    "detail": "每轮发布按剩余时间补齐（Limits.CVE_META_*）", "since": e.get("at"), "link": "/ops"})
+    return out
+
+
+def _deferred(f: Facts) -> list[Item]:
+    """Event pages the publish station had no time for (they go out next run, first) — warn: if it persists, a page
+    is too slow for the station (see station_slow)."""
+    p = f.get("pending") or {}
+    n = len(p.get("ids") or [])
+    return [{"level": "warn", "title": f"{n} 个事件页因发布超时预算顺延到下一轮",
+             "detail": "下轮优先发布；持续出现说明某页过慢（看 station_slow）", "since": p.get("at"), "link": "/ops"}] if n else []
+
+
+def _amount_outliers(f: Facts) -> list[Item]:
+    """A loss figure set aside as implausible (pipeline._mark_outliers) — warn: the headline is right without it, but
+    someone should see what a source claimed (live 2026-11-04: $235B — the bank's balance sheet)."""
+    return [{"level": "warn", "title": f"离群金额未计入损失：{o['title'][:50]}",
+             "detail": "离群值 " + " · ".join(f"${v:,.0f}" for v in o["values"]) + " —— 核对原文：资产规模 / 价格 / 买入额被当成了损失？",
+             "since": None, "link": f"/events/{o['event_id']}"} for o in f.get("amount_outliers") or []]
+
+
+def _amount_shared(f: Facts) -> list[Item]:
+    """Several published web3 events with the same specific loss figure — warn: one theft counted several times."""
+    out = []
+    for g in f.get("amount_shared") or []:
+        ids = " ".join(f"--event {e['event_id']}" for e in g["events"])
+        out.append({"level": "warn", "title": f"{len(g['events'])} 个事件同报损失 ${g['amount']:,.0f}：{g['events'][0]['title'][:40]}",
+                    "detail": f"疑为同一起事件被拆开 —— scripts/recluster_web3.py --since <日期> {ids}（先 dry run）",
+                    "since": None, "link": f"/events/{g['events'][0]['event_id']}"})
+    return out
+
+
+def _latency(f: Facts) -> list[Item]:
+    """Published → held over the last 24 hours (radar.latency). Always stated (info); warn when the median is past
+    LATENCY_WARN_P50_MIN on enough samples — the radar is behind its sources."""
+    from radar.limits import Limits
+    push = f.get("push_latency")
+    pushed = [{"level": "info", "title": f"时效：首报发布到 P0 推送，中位 {push['p50']} 分钟，90 分位 {push['p90']} 分钟（近 7 天 {push['n']} 次推送）",
+               "detail": "从事件第一条报道的发布时间到该事件第一次推给一个订阅；首报 48 小时后才升为 P0 的不计", "since": None,
+               "link": "/ops"}] if push else []
+    s = f.get("latency")
+    if not s:
+        return pushed
+    slow = s["p50"] > Limits.LATENCY_WARN_P50_MIN and s["n"] >= Limits.LATENCY_MIN_SAMPLES
+    tiers = " · ".join(f"{t} {v['p50']}/{v['p90']}（{v['n']} 条）" for t, v in (s.get("tiers") or {}).items())
+    return [{"level": "warn" if slow else "info",
+             "title": f"时效：报道发布到雷达持有，中位 {s['p50']} 分钟，90 分位 {s['p90']} 分钟（近 24 小时 {s['n']} 条）",
+             "detail": f"各级 中位/90 分位：{tiers}" + (f" —— 中位超过界限 {Limits.LATENCY_WARN_P50_MIN} 分钟" if slow else ""),
+             "since": None, "link": "/sources"}, *pushed]
+
+
+def _stalled(f: Facts) -> list[Item]:
+    """Sources not being collected (overdue — error) or gone quiet (silent — warn), from publish.stalled_sources. One
+    item per kind: when the cycle itself is down every source is overdue at once."""
+    out = []
+    rows = f.get("stalled_sources") or []
+    late = sorted((r for r in rows if r["kind"] == "overdue"), key=lambda r: -r["minutes"])
+    if late:
+        out.append({"level": "error", "title": f"{len(late)} 个信源超过 3 个节奏没有被采集",
+                    "detail": "；".join(f"{r['name']} {r['minutes']} 分钟（界限 {r['limit_min']}）" for r in late[:8])[:300],
+                    "since": None, "link": "/sources"})
+    quiet = [r for r in rows if r["kind"] == "silent"]
+    if quiet:
+        out.append({"level": "warn", "title": f"{len(quiet)} 个一向有产出的信源连续 {quiet[0]['days']} 天没有新内容",
+                    "detail": "；".join(f"{r['name']}（平时每天 {r['usual_per_day']} 条）" for r in quiet[:8])[:300] + " —— 源站改版、换地址，或被拦",
+                    "since": None, "link": "/sources"})
+    return out
+
+
+def _silent(f: Facts) -> list[Item]:
+    """A station that raised on every recent run, or has not run at all (radar.stationtime.silent) — error: the cycle
+    catches Analyze / Respond / Mitigate / Notify failures and still succeeds, so nothing else reports it."""
+    out = []
+    for s in f.get("silent_stations") or []:
+        if s["kind"] == "failing":
+            out.append({"level": "error", "title": f"{s['station']} 站点连续 {s['runs']} 轮失败（周期仍算成功）",
+                        "detail": "看该函数的 CloudWatch 日志里的异常；本站的产出停在上一次成功时", "since": s["at"], "link": "/ops"})
+        else:
+            out.append({"level": "error", "title": f"{s['station']} 站点 {s['minutes']} 分钟没有运行记录（界限 {s['limit_min']} 分钟）",
+                        "detail": "被超时杀掉、没被调用，或周期整体停了 —— 看状态机最近的执行", "since": s["at"], "link": "/ops"})
+    return out
+
+
+_ANOMALY = {"absorbed_other_domain": "事件吸收了另一类事件", "absorbed_large_event": "事件吸收了一个已成形的事件",
+            "items_jump": "事件的报道数一轮内激增", "cves_jump": "事件的 CVE 数一轮内激增",
+            "loss_changed": "事件的头条损失一轮内变了一个数量级"}
+
+
+def _anomalies(f: Facts) -> list[Item]:
+    """An event that changed shape within one cycle (radar.anomaly) — error when it absorbed another story or its loss
+    moved ×10: the page may be showing two stories as one (live 2026-11-12, eleven hours unnoticed)."""
+    return [{"level": a["level"], "title": f"{_ANOMALY.get(a['kind'], a['kind'])}：{a['title'][:50]}",
+             "detail": f"{a['actual']}（界限 {a['limit']}）· {a['message']} —— 先看事件页的时间线，再 "
+                       f"scripts/recluster_web3.py --domain <域> --since <日期> --event {a['event_id']}（dry run）",
+             "since": a["at"], "link": f"/events/{a['event_id']}"} for a in f.get("anomalies") or []]
+
+
 RULES: dict[str, Callable[[Facts], list[Item]]] = {
+    "event_anomaly": _anomalies, "station_silent": _silent, "source_stalled": _stalled, "collect_latency": _latency,
     "source_unhealthy": _sources, "over_budget": _over_budget, "notify": _notify, "repo_channel_error": _repo_channels,
     "cost_unavailable": _cost, "chain_rpc_error": _chain, "digest_not_ok": _digest, "mitigate": _mitigate,
-    "p0_untriaged": _untriaged,
+    "p0_untriaged": _untriaged, "duplicate_confirmed": _dup_confirmed, "event_split": _splits,
+    "late_detection": _late, "title_proposal": _title_proposals,
+    "station_slow": _slow, "enrich_degraded": _enrich, "publish_deferred": _deferred,
+    "amount_outlier": _amount_outliers, "amount_shared": _amount_shared,
 }
 
 

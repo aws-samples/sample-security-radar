@@ -7,6 +7,8 @@ const navItems = [
   { to: '/web3',    label: 'Web3',    icon: '◎' },
   { to: '/wall',    label: '大屏',    icon: '⊞' },
   { to: '/continuum', label: 'Continuum', icon: '⟲', aria: 'AWS Continuum 融入' },
+  { to: '/search', label: '搜索', icon: '⌕', aria: '搜索全部事件' },
+  { to: '/announcements', label: '公告', icon: '✦', aria: '交易所公告' },
   { to: '/sources', label: 'Sources', icon: '◉' },
   { to: '/ops',     label: 'Ops',     icon: '⚑', aria: '需要人处理的事' },
   { to: '/mitigate', label: '缓解',  icon: '⛨', aria: '缓解（WAF / DNS Firewall / Inspector）' },

@@ -8,12 +8,14 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
+from functools import lru_cache
 from typing import Any
+from urllib.parse import urlsplit
 
-from radar import chain, keys, respond, signals, timeutil
+from radar import anomaly, chain, keys, latency, removals, respond, signals, timeutil
 from radar.limits import Limits
 from radar.model import EXPLOITATION_ORDER, LEVEL_ORDER, SEVERITY_ORDER, Domain, Event, Item, RawItem, Tier
-from radar.registry import BY_ID, Source, handle_info
+from radar.registry import BY_ID, EXCHANGE_NAMES, REPORTER_TOKENS, Source, handle_info
 from radar.store import Store
 
 _TIER_RANK = {"T1": 1, "T2": 2, "T3": 3}
@@ -25,7 +27,8 @@ _CRYPTO = re.compile(
     r"binance|coinbase|okx|bybit|bitget|kraken)(?![A-Za-z0-9])|加密|区块链|交易所|钱包|代币|链上|跨链|稳定币|币安|欧易|火币",
     re.IGNORECASE,
 )
-_VULN = re.compile(r"\b(CVE-\d{4}|vulnerabilit(?:y|ies)|zero-?day|0-?day|patch(?:es|ed)?|security update|RCE)\b|漏洞|补丁",
+_VULN = re.compile(r"(?<![A-Za-z0-9])CVE-\d{4}"     # lookbehind, not \b: 「厂商发布CVE-2026-1234修复」
+                   r"|\b(vulnerabilit(?:y|ies)|zero-?day|0-?day|patch(?:es|ed)?|security update|RCE)\b|漏洞|补丁",
                    re.IGNORECASE)
 _STRONG = ("cve:", "tx:", "attacker:", "xs:", "url:")
 # CISA's two phrasings: "Adds Two Known Exploited Vulnerabilities to Catalog" (advisories) and "We added … CVE-… &
@@ -33,6 +36,9 @@ _STRONG = ("cve:", "tx:", "attacker:", "xs:", "url:")
 # window: CISA's own tweets name vendor + product for each CVE before "to our KEV Catalog" (190 chars live 2026-10-29)
 KEV_ROUNDUP_RE = re.compile(r"\badd(?:s|ed)?\b.{0,320}?\b(?:known exploited vulnerabilit(?:y|ies)|KEV catalog)\b", re.IGNORECASE | re.DOTALL)
 _WEAK = ("ent:", "tok:")
+_NAME_KEYS = ("ent:", "tok:", "tt:")   # a name shared by text, not a link, tx or figure
+_NOT_ARTICLE = {"x.com", "t.co"}   # canonical_url already folds twitter.com / www. / mobile.
+_HEADLINE_SLUG = re.compile(r"/(?:[^/-]+-){3,}[^/]*$")   # last path segment of ≥ 4 hyphenated words
 
 
 @dataclass
@@ -49,6 +55,11 @@ class IngestResult:
     updated_items: int = 0
     unchanged_items: int = 0
     changes: dict[str, Change] = field(default_factory=dict)
+    # radar.anomaly inputs: each touched event as this cycle first found it, and the events merged into it
+    before: dict[str, dict[str, Any]] = field(default_factory=dict)
+    absorbed: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    anomalies: list[dict[str, Any]] = field(default_factory=list)
+    held: list[list[Any]] = field(default_factory=list)      # radar.latency samples: [tier, minutes] per new report
 
 
 # ---------------------------------------------------------------- normalize
@@ -63,12 +74,34 @@ def _classify(base: Domain | None, text: str, has_cve: bool) -> Domain:
     return "vuln" if has_cve or _VULN.search(text) else "incident"
 
 
+def amount_keys(losses: list[float]) -> list[str]:
+    """amt:<value> for each specific loss figure (≥ AMOUNT_KEY_MIN_USD, not a round AMOUNT_KEY_ROUND_USD multiple); also
+    used to re-key stored items in a repair."""
+    return [f"amt:{round(v)}" for v in losses
+            if v >= Limits.AMOUNT_KEY_MIN_USD and round(v) % Limits.AMOUNT_KEY_ROUND_USD]
+
+
 def web3_text_keys(title: str, blob: str) -> list[str]:
     """Free-text keys of a web3 item without a structured victim name (also used to re-key stored items in a repair).
     The headline's names come twice, as tok: and tt:: an event sharing one scores it twice, so when a report matches
     several events the one its headline is about outranks one that shares a body word (live 2026-10-29:
     「数据：Polymarket疑似攻击者…」 ranked a Tranche Vault event above the Polymarket one)."""
-    return sorted(f"tok:{t}" for t in keys.entity_tokens(blob)) + sorted(f"tt:{t}" for t in keys.entity_tokens(title))
+    body = blob.removeprefix(title)
+    head = keys.headline_names(title, body) - REPORTER_TOKENS   # Title Case headlines: only name-like words
+    head |= {x for x in EXCHANGE_NAMES if re.search(rf"\b{x}\b", title, re.IGNORECASE)}   # … but an exchange is a name
+    toks = (keys.entity_tokens(body) | head) - REPORTER_TOKENS     # a reporter's own name glues its whole feed
+    return sorted(f"tok:{t}" for t in toks) + sorted(f"tt:{t}" for t in head)
+
+
+def cited_article_keys(links: list[str]) -> list[str]:
+    """A tweet citing one article registers it, so whichever arrives first the other finds it: an outlet's tweet comes
+    20–80 min before its RSS entry, and a link that is only looked up let the later article miss it (live 2026-10-29:
+    ENGIE, Tailscale, Volt Typhoon stayed two events each). A homepage names no story; a digest citing several would
+    glue them; so does a shortener or listing page reused across tweets (CISA's go.dhs.gov/iEv on every "We issued N
+    ICS advisories"), hence only a headline slug counts — a miss only falls back to lookup. `links` are canonical (also
+    used to re-key stored tweets in a repair)."""
+    cited = {u for u in links if urlsplit(u).hostname not in _NOT_ARTICLE and _HEADLINE_SLUG.search(urlsplit(u).path)}
+    return [f"url:{u}" for u in cited] if len(cited) == 1 else []
 
 
 def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
@@ -84,7 +117,9 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
     canon = keys.canonical_url(raw.url)
 
     reg: list[str] = []
-    if len(cve_list) <= 3:  # roundups listing dozens of CVEs must not glue unrelated CVE events together
+    # roundups listing dozens of CVEs must not glue unrelated CVE events together — but one CSAF advisory is one
+    # product's advisory, however many CVEs it lists (live 2026-11-06: EPICS Base ICSA-26-300-01 with 4 CVEs got none)
+    if len(cve_list) <= 3 or source.parser == "rolie":
         reg += [f"cve:{c}" for c in cve_list]
     txs = keys.tx_refs(blob + "\n" + "\n".join(raw.links)) + list(raw.extra.get("attack_tx") or [])
     reg += [f"tx:{t['hash']}" for t in txs]
@@ -102,17 +137,36 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
         reg += sorted(f"tok:{t}" for t in keys.named_tokens(raw.title))
     # citing a tweet is a hard link: register it so whichever arrives first, the other finds it
     reg += [f"xs:{sid}" for _, sid in keys.x_statuses(" ".join(raw.links))]
+    if source.parser == "twitterapi":
+        reg += cited_article_keys(links)
 
     exploited = "yes" if raw.extra.get("kev") else signals.exploited(blob)
     amount = raw.extra.get("amount_usd")
     if amount is None and domain == "web3" and "amount_usd" not in raw.extra:
-        amount = signals.parse_amount(raw.text) if signals.web3_incident(blob) else None
+        amount = signals.loss_amount(raw.title, raw.text) if signals.web3_incident(blob) else None
+    # "does it name money at all" keeps deciding whether a web3 report opens an event (unchanged since M1); the STORED
+    # figure is only a stated loss (signals.loss_amount)
+    names_money = amount is not None or (domain == "web3" and signals.parse_amount(raw.text) is not None)
+    # the same specific loss figure in two reports days apart is the same incident (live 2026-11-04: an anonymous
+    # 「欧盟实体」 theft opened 4 events — 1.06亿 ×3, then 1.33亿 beside SlowMist's named Crédit Mutuel Arkéa record);
+    # a round figure ($100M) is too common to prove anything; a name-like key: same domain, inside the window
+    if domain == "web3" and raw.extra.get("amount_usd") is not None:      # a hack database's stated loss
+        reg += amount_keys([float(raw.extra["amount_usd"])])
+    elif ((domain == "web3" and signals.web3_incident(blob)) or (domain == "incident" and signals.security_event(raw.title))) \
+            and "amount_usd" not in raw.extra and not signals.is_roundup_report(raw.title):
+        # the headline's figures only: a body cites other thefts for comparison (「继Bitget被盗3.87亿美元后…」 in a
+        # Binance story would glue the two)
+        reg += amount_keys(signals.loss_amounts(raw.title, None))
     poc = bool(raw.extra.get("poc")) or signals.poc(blob)
 
     if source.always_eventful:
         eventful = True
+    elif source.parser == "cvelist_delta":
+        # the whole CVE List (~130 records a day, mostly low): only a critical one opens an event; the rest are context
+        # items carrying their cve: key, so a later report of that CVE meets the record (and its publication time)
+        eventful = (raw.extra.get("cvss") or 0) >= Limits.CVE_LIST_EVENT_CVSS or exploited == "yes"
     elif domain == "web3":
-        eventful = signals.web3_incident(raw.title or raw.text) and (amount is not None or tier == "T1")
+        eventful = signals.web3_incident(raw.title or raw.text) and (names_money or tier == "T1")
     else:
         eventful = bool(cve_list) or exploited == "yes" or (tier != "T3" and signals.security_event(raw.title))
 
@@ -142,12 +196,62 @@ def _lookup_keys(item: Item) -> list[str]:
     # structured victim names (ent:) and free-text tokens (tok:) look each other up in both directions
     out += [f"tok:{k[4:]}" for k in item.keys if k.startswith("ent:")]
     out += [f"ent:{k[4:]}" for k in item.keys if k.startswith("tok:")]
+    # a follow-up repeats the first figure in its body (「总额已超1.33亿…此前损失超1.06亿」): it may FIND the story by it,
+    # but lends only its headline figures (normalize) — a body citing another theft for comparison must not glue them
+    if item.domain == "web3" and item.eventful and "amount_usd" not in item.extra and not is_roundup(item):
+        out += amount_keys(signals.loss_amounts(None, item.text))
     return sorted(set(out))
 
 
+def _late_name_keys(item: Item) -> set[str]:
+    """ent: lookups for the words a Title Case headline drops as names (keys.headline_names keeps one only if the body
+    capitalises it mid-sentence too). They may find a story only through _same_loss_later — the figure has to agree.
+    Live 2026-11-03: Decrypt's 「Liquid Network Restores Full Bitcoin Backing Two Months After $320M Exploit」 never says
+    Liquid in its body, so it lost the name and opened a second Liquid Network event."""
+    if item.domain != "web3" or not item.eventful or item.entity or not keys.is_title_case(item.title):
+        return set()
+    body = item.text.removeprefix(item.title)
+    return {f"ent:{t}" for t in keys.entity_tokens(item.title) - keys.headline_names(item.title, body)}
+
+
+def _same_loss_later(event: Event, item: Item, key: str) -> bool:
+    """A web3 report naming the victim (name key) with a loss within LATE_LOSS_TOLERANCE of the event's, up to
+    LATE_LOSS_DAYS after the event's latest evidence, is the same theft — a retrospective, an analysis, a backfilled
+    database entry (live 2026-11-05: Bitget $387M · TRM's $351.6M · 安全客's 「3.5亿美元一夜蒸发」 five days later were
+    three events). The name alone is not enough: one exchange can be robbed twice; the figure has to agree too."""
+    # the name must be the EVENT's victim (its title / structured entity) and in the REPORT's headline — not any word the
+    # two share: the domain-plan diff caught 安全客's Bitget article joining Liquid Network ($350M vs $320M)
+    if event.domain != "web3" or item.domain != "web3" or not key.startswith(("tt:", "ent:")):
+        return False
+    victim = keys.entity_tokens(event.title) | {keys.entity_key(e) for e in event.entities}
+    if key.split(":", 1)[1] not in victim:
+        return False
+    a, b = item.signals.get("amount_usd"), event.amount_usd_latest
+    if not a or not b or abs(a - b) > Limits.LATE_LOSS_TOLERANCE * max(a, b):
+        return False
+    # the same figure (not just a close one) stays evidence for longer: a recovery or post-mortem months later restates
+    # it exactly (「…Two Months After $320M Exploit」), while a second theft of the victim rarely matches it to 2 %
+    days = Limits.LATE_LOSS_EXACT_DAYS if abs(a - b) <= Limits.LATE_LOSS_EXACT_TOLERANCE * max(a, b) \
+        else Limits.LATE_LOSS_DAYS
+    last, at = timeutil.parse(event.last_updated or event.first_seen), timeutil.parse(item.published_at)
+    first = timeutil.parse(event.first_seen)
+    return bool(last and at and first) and first - timedelta(days=Limits.ENTITY_WINDOW_DAYS) <= at \
+        <= last + timedelta(days=days)
+
+
 def _within(event: Event, item: Item, days: int) -> bool:
-    a, b = timeutil.parse(event.first_seen), timeutil.parse(item.published_at)
-    return abs((a - b).total_seconds()) <= days * 86400 if a and b else False
+    """Name matching window. It rolls with the story: from `days` before the first report to `days` after the latest
+    evidence, but never more than ENTITY_SPAN_DAYS after the first report. A fixed window from first_seen split every
+    long-running incident (live 2026-11-02: Binance, reported hourly, became two events 3 days after its first report;
+    zkLink and X100 likewise) — the cap keeps a quiet name from absorbing a new incident weeks later."""
+    first, last, at = (timeutil.parse(event.first_seen), timeutil.parse(event.last_updated or event.first_seen),
+                       timeutil.parse(item.published_at))
+    if not (first and at):
+        return False
+    if event.domain == "vuln":   # linked by CVE; a rolling window would keep vendor names (GitLab) open for weeks
+        return abs((first - at).total_seconds()) <= days * 86400
+    end = min(max(first, last or first) + timedelta(days=days), first + timedelta(days=Limits.ENTITY_SPAN_DAYS))
+    return first - timedelta(days=days) <= at <= end
 
 
 def is_roundup(item: Item) -> bool:
@@ -159,41 +263,203 @@ def is_roundup(item: Item) -> bool:
 def indexed_keys(item: Item) -> list[str]:
     """Keys an item contributes to its event (event keys, key index, event CVE list). A roundup attaches through its
     CVEs but contributes none of them — else the next ordinary item of one of those CVEs finds this event through the
-    index and merges two unrelated stories after all."""
-    return [k for k in item.keys if not (k.startswith("cve:") and is_roundup(item))]
+    index and merges two unrelated stories after all. A context-only item (not eventful) lends hard keys only: it attaches
+    through them, and its names are not this event's (live 2026-11-02: PANews' daily digest lent tok:zklink to Binance,
+    and the zkLink exploit reports then found Binance through it)."""
+    return [k for k in item.keys if not (k.startswith("cve:") and is_roundup(item))
+            and (item.eventful or k.startswith(_STRONG))]
 
 
-def find_events(item: Item, store: Store) -> tuple[str | None, list[str]]:
+def find_events(item: Item, store: Store, exclude: str | None = None) -> tuple[str | None, list[str]]:
     """Best matching event, plus other events this item proves are the same story (merge candidates):
-    matched through a strong key, or — outside web3 — through a named-vulnerability token."""
+    matched through a strong key, or — outside web3 — through a named-vulnerability token. `exclude`: an event to ignore
+    (split_candidates asks where an event's own first report would go if that event did not exist)."""
     score: dict[str, int] = {}
     strong_hit: set[str] = set()
+    own: set[str] = set()       # events whose own victim the report's headline names (_names_event)
+    # a body mention is context (「Pando Rings黑客将4000枚ETH通过Tornado转移」 recalls the Binance-led dip in its text)
+    headline = keys.entity_tokens(item.title) | {k[3:] for k in item.keys if k.startswith("tt:")} \
+        | ({keys.entity_key(item.entity)} if item.entity else set())
+    amt_hit: set[str] = set()   # events sharing the report's specific loss figure
     cache: dict[str, Event | None] = {}
     item_cves = {k[4:] for k in item.keys if k.startswith("cve:")}
-    for k in _lookup_keys(item):
+    base = _lookup_keys(item)
+    late = _late_name_keys(item) - set(base)
+    for k in base + sorted(late):
         strong = k.startswith(_STRONG)
         if not strong and not item.eventful:
             continue  # context-only items attach through hard links, never through name similarity
         for eid in store.event_ids_for_key(k):
+            if eid == exclude:
+                continue
             ev = cache.setdefault(eid, store.get_event(eid))
             if ev is None:
                 continue
-            if not strong and (ev.domain != item.domain or not _within(ev, item, Limits.ENTITY_WINDOW_DAYS)):
+            if k in late and not _same_loss_later(ev, item, k):
                 continue
-            score[eid] = score.get(eid, 0) + (10 if strong else 1)
+            # a specific loss figure links across web3 / incident: the same theft is a CEX hack to one outlet and a
+            # bank breach to another (live 2026-11-04: The Block's 「French bank Crédit Mutuel Arkéa exploited for over
+            # $133 million」 read as an incident, the ZachXBT reports as web3)
+            same_domain = ev.domain == item.domain or (k.startswith("amt:") and {ev.domain, item.domain} <= {"web3", "incident"})
+            if not strong and (not same_domain or not (_within(ev, item, Limits.ENTITY_WINDOW_DAYS)
+                                                       or _same_loss_later(ev, item, k))):
+                continue
+            # a report of a repeat attack is not the earlier incident's: its name matches the old event, its story is new
+            if not strong and item.domain == "web3" and signals.repeat_incident(item.title):
+                ev_first, item_at = timeutil.parse(ev.first_seen), timeutil.parse(item.published_at)
+                if ev_first and item_at and ev_first < item_at - timedelta(days=Limits.ENTITY_WINDOW_DAYS):
+                    continue
+            # a CVE ties a vulnerability story to a vulnerability story. Live 2026-11-11: a crypto-media article citing
+            # Chrome / iOS CVEs gave the Binance theft event CVE keys, and November's Patch Tuesday (MSRC, one item per
+            # CVE) then attached through them — 1,097 advisories, the event re-domained to vuln and kept growing.
+            if k.startswith("cve:") and ev.domain != item.domain and "vuln" in (ev.domain, item.domain):
+                continue
+            # a shared name is no evidence against disjoint CVEs: two advisories naming SharePoint with different CVEs are
+            # two vulnerabilities (the same live hairball glued per-CVE MSRC items through tok:sharepoint / win32k / …)
+            # … and neither is a link: an advisory citing a tweet or an article about another flaw is not about that flaw.
+            # Live 2026-11-12: SonicWall (CVE-2026-19868), OpenSSH and MS Paint reports attached through cited pages to
+            # the Linux TCP event (CVE-2026-98432) — one event, six unrelated CVEs, 146 reports.
+            contradicts = (not strong or k.startswith(("xs:", "url:"))) and item_cves and ev.cves \
+                and not (item_cves & set(ev.cves))
+            if contradicts:
+                continue
+            # a record that names its victim belongs to that victim's story. Live 2026-11-11: DeFiLlama / SlowMist
+            # records for Mercado Bitcoin, BitMart and Ankr Bridge joined the Binance event through tok:mercado /
+            # tok:bitmart / tok:ankr — Binance coverage mentions every exchange — and Ankr's $304,500 became Binance's
+            # headline loss (P0 → P1). A named victim the event does not already have is a different incident.
+            # Links count as strong but prove nothing about the victim: SlowMist's Ankr / Initia / Across records link the
+            # SlowMist tweet, which had joined Binance through a mention — the records followed via xs:, and their
+            # victims then let DeFiLlama's records in by name. Only the attack transaction itself overrides a victim.
+            if (not strong or k.startswith(("xs:", "url:"))) and item.domain == "web3" and item.entity and ev.entities \
+                    and not _same_victim([item.entity], ev.entities):
+                continue
+            # a specific loss figure outweighs a shared name: an event that gathered hundreds of reports (Binance, 277)
+            # shares some word with every story (ZachXBT, USDT, Kraken …) — live 2026-11-04 the 「欧盟实体」 reports scored
+            # higher there than on their own 1.06亿 story
+            # … and a name that is the event's own victim outweighs one its coverage merely mentions. Live 2026-11-12:
+            # one Binance article mentioned Ankr, so the 576-item event held tok:ankr; each Ankr bridge report then scored
+            # Binance and the Ankr event alike and went to the earlier one — 12 reports and Ankr's five attack txs sat on
+            # the Binance page. Ranking only: the mention still counts, it just loses to the owner of the name.
+            # A name is evidence for the event it names, not for every event whose coverage mentions it. Measured on the
+            # labelled corpus (scripts/cluster_eval.py, 2026-11-13): the Binance event held 557 reports of which 147 were
+            # other stories — UXLINK's and Drift's hackers trading, Mercado, Bitget, a market report — all attached
+            # through words Binance coverage had used (tok:hyperliquid, tok:uxlink, tok:coinjoin …). Pairwise precision
+            # 0.51 → 0.91 with these two rules, recall 0.98 → 0.94.
+            if not strong and k.startswith(_NAME_KEYS):
+                mine = item.domain == "web3" and _names_event(k.split(":", 1)[1], ev)
+                # (a) an event with a named victim is found by name only through that victim's name
+                if item.domain == "web3" and ev.entities and not mine:
+                    continue
+                # (b) a word that several web3 events hold names none of them (hyperliquid, tornado, coinjoin). Not
+                # outside web3: there the names are vendors (GitLab, SonicWall), and a report without a CVE has
+                # nothing else to find its event by — measured: the rule cost recall there and bought no precision
+                if item.domain == "web3" and not mine and len(store.event_ids_for_key(k)) >= Limits.GENERIC_NAME_EVENTS:
+                    continue
+            if k.startswith(_NAME_KEYS) and item.domain == "web3" and _names_event(k.split(":", 1)[1], ev) \
+                    and k.split(":", 1)[1] in headline:
+                own.add(eid)
+            if k.startswith("amt:"):
+                amt_hit.add(eid)
+            score[eid] = score.get(eid, 0) + (10 if strong else Limits.AMOUNT_KEY_WEIGHT if k.startswith("amt:") else 1)
             # a named-vulnerability token may prove "same story" only when the CVEs do not contradict it: an item
             # with CVEs cannot glue an event whose CVE set is disjoint from its own (live 2026-10-27: a late PHP2Shell
             # advisory merged Node2Shell — CVE-2026-111497 — into PHP2Shell through tok:php2shell)
-            contradicts = not strong and item_cves and ev.cves and not (item_cves & set(ev.cves))
-            if (strong or item.domain != "web3") and not contradicts:
+            if strong or item.domain != "web3":
                 strong_hit.add(eid)
     if not score:
         return None, []
+    # The own-name bonus, once per event. A shared loss figure still outweighs it: when some candidate shares the
+    # report's figure, only those may take the bonus (live: 「Mystery $106 Million Crypto Theft Hits EU Entity Days After
+    # Binance…」 is the EU entity's story, which holds amt:106000000; Binance is named in passing).
+    for eid in own:
+        if eid in score and (not amt_hit or eid in amt_hit):
+            score[eid] += Limits.OWN_NAME_BONUS
     ranked = sorted(score, key=lambda e: (-score[e], cache[e].first_seen if cache[e] else ""))
-    if is_roundup(item):
+    # a digest links to everything it reviews: live 2026-11-11, ZDI's "November 2026 Security Update Review" linked
+    # 1,129 MSRC advisory pages (Talos 168) — each link a strong url: key — and merged every per-CVE advisory into
+    # one event. An item that would prove more than a few events identical proves nothing: it attaches, merges none.
+    if is_roundup(item) or len(strong_hit) > Limits.MERGE_MAX_EVENTS_PER_ITEM:
         return ranked[0], []
-    return ranked[0], [e for e in ranked[1:] if e in strong_hit]
+    if not _may_prove_same_story(item):
+        return ranked[0], []
+    return ranked[0], [e for e in ranked[1:] if e in strong_hit and not _different_stories(cache[ranked[0]], cache[e], item_cves)]
 
+
+def _may_prove_same_story(item: Item) -> bool:
+    """Only a report of an event can show two events are one. A context-only item or a link-heavy one (a newsletter)
+    cites stories, it does not equate them. Live 2026-11-12: 「Srsly Risky Biz: Iranian Hacks With Russian
+    Characteristics」 (context-only, 34 links) linked a Binance article and a Linux kernel advisory, hit only those two
+    events, and merged the 540-report Binance theft into a vulnerability event — 703 items, 21 CVEs, P0 vuln."""
+    return item.eventful and len(item.links) <= Limits.MERGE_MAX_LINKS
+
+
+def _different_stories(a: Event | None, b: Event | None, item_cves: set[str]) -> bool:
+    """What no link may override: a theft and a vulnerability (vuln merges only with vuln), two named victims
+    (_other_victims), and two CVE sets with nothing in common — unless the item itself names a CVE of each (an advisory
+    covering both, 「CVE-A and CVE-B are one bug chain」)."""
+    if not a or not b:
+        return True
+    if a.domain != b.domain and "vuln" in (a.domain, b.domain):
+        return True
+    if a.cves and b.cves and not set(a.cves) & set(b.cves) and not (item_cves & set(a.cves) and item_cves & set(b.cves)):
+        return True
+    return _other_victims(a, b)
+
+
+def _other_victims(a: Event | None, b: Event | None) -> bool:
+    """Two web3 events with named victims and none in common are two incidents, whatever one article links them by.
+    Live 2026-11-11: an article on the Initia and Across exploits that also mentioned Binance merged both incidents
+    (DeFiLlama / SlowMist records included) into the Binance event — Initia's $615,000 became Binance's headline."""
+    if not a or not b or a.domain != "web3" or b.domain != "web3" or not a.entities or not b.entities:
+        return False
+    return not _same_victim(a.entities, b.entities)
+
+
+def _names_event(token: str, ev: Event) -> bool:
+    """The token is one of the event's named victims (any spelling _same_victim accepts). An event with none has no
+    own name: its title is some report's headline (live: a Pando Rings tweet titled 「…3 天前 Binance 被盗…」)."""
+    return bool(ev.entities) and _same_victim([token], ev.entities)
+
+
+def _same_victim(a: list[str], b: list[str]) -> bool:
+    """One victim under two spellings: 「ZkLinkNova」 (DeFiHackLabs) and 「zkLink Nova」 (DeFiLlama) key to zklinknova and
+    zklink. Same entity key, or one name's letters-and-digits a prefix of the other's (≥ 4 characters)."""
+    ka, kb = {keys.entity_key(x) for x in a} - {None}, {keys.entity_key(x) for x in b} - {None}
+    if ka & kb:
+        return True
+    ca = {re.sub(r"[^a-z0-9]", "", x.lower()) for x in a} | ka
+    cb = {re.sub(r"[^a-z0-9]", "", x.lower()) for x in b} | kb
+    return any(len(min(x, y, key=len)) >= 4 and (x.startswith(y) or y.startswith(x)) for x in ca for y in cb if x and y)
+
+
+
+def split_candidates(store: Store, now: datetime, evs: list[Event] | None = None) -> list[dict[str, str]]:
+    """Events opened in the last ENTITY_WINDOW_DAYS whose first eventful report belongs to an OLDER event under the
+    current rules — a story split in two (a rule that once failed, a window that once closed: live 2026-11-02 Binance,
+    zkLink, X100). Listed in #/ops with the repair command; merging stays the explicit, reviewed repair. Bounded: only
+    new events are re-matched (a few index reads each), so the check runs every publish."""
+    since = timeutil.iso(now - timedelta(days=Limits.ENTITY_WINDOW_DAYS))
+    out = []
+    # evs = the published events (publish passes them): a backfilled event's last_updated is evidence time, weeks old, so
+    # events_updated_since never returns it (live 2026-11-05: three Bitget events)
+    pool = evs if evs is not None else store.events_updated_since(since)
+    for ev in sorted(pool, key=lambda e: e.first_seen):
+        # new = OPENED recently, not first REPORTED recently: a backfilled story (TRM's and 安全客's September Bitget
+        # reports, fetched in late October) opens an event whose first_seen is weeks old (live 2026-11-05: three
+        # Bitget events slipped past this check)
+        opened = next((t["at"] for t in ev.timeline if t.get("kind") == "created"), ev.first_seen)
+        if max(ev.first_seen, opened or "") < since:
+            continue
+        first = next((i for i in sorted(store.get_items(ev.item_ids), key=lambda i: (i.published_at, i.item_id))
+                      if i.eventful), None)
+        if first is None:
+            continue
+        best, _ = find_events(first, store, exclude=ev.event_id)
+        older = store.get_event(best) if best else None
+        if older and older.first_seen < ev.first_seen:
+            out.append({"older": older.event_id, "newer": ev.event_id, "domain": ev.domain,
+                        "older_title": older.title, "newer_title": ev.title})
+    return out
 
 # ---------------------------------------------------------------- verify + score
 
@@ -215,9 +481,48 @@ def _norm_title(t: str) -> str:
     return re.sub(r"[^a-z0-9一-鿿]+", " ", t.lower()).strip()
 
 
-def independent_groups(items: list[Item]) -> list[int]:
+@lru_cache(maxsize=200_000)
+def _similar_titles(a: str, b: str) -> bool:
+    """Syndication test, memoised (argument order kept: SequenceMatcher is not symmetric). Live 2026-11-02: progress()
+    replays every prefix of an event, so the Binance page (186 reports) ran 1.4 M ratio() calls — 133 s, and the publish
+    station timed out at 300 s. real_quick_ratio / quick_ratio are upper bounds of ratio, so the pre-filter never changes
+    the answer."""
+    sm = SequenceMatcher(None, a, b)
+    t = Limits.ECHO_TITLE_SIMILARITY
+    return sm.real_quick_ratio() >= t and sm.quick_ratio() >= t and sm.ratio() >= t
+
+
+def _recompute_order(items: list[Item]) -> list[Item]:
+    return sorted(items, key=lambda i: (i.published_at, i.source_id, i.item_id))
+
+
+def title_edges(items: list[Item]) -> set[tuple[str, str]]:
+    """Every syndicated title pair (item ids, in recompute order) of a set of items. Whether two titles match depends
+    on those two titles alone, so a subset's pairs are exactly these restricted to it — insights.progress computes them
+    once per event instead of once per prefix (live 2026-11-11: 1,198 reports ⇒ 1,189 all-pairs passes, 102 s of one
+    page's 123 s)."""
+    its = _recompute_order(items)
+    titles = [_norm_title(it.title) for it in its]
+    thr = Limits.ECHO_TITLE_SIMILARITY
+    out: set[tuple[str, str]] = set()
+    sm = SequenceMatcher(None)
+    for j, b in enumerate(titles):      # b fixed per row: SequenceMatcher indexes seq2 once, set_seq1 is cheap
+        if not b:
+            continue
+        sm.set_seq2(b)
+        for i in range(j):
+            a = titles[i]
+            if a and 2 * min(len(a), len(b)) >= thr * (len(a) + len(b)):
+                sm.set_seq1(a)          # same ratio as _similar_titles(a, b): SequenceMatcher(None, a, b)
+                if sm.real_quick_ratio() >= thr and sm.quick_ratio() >= thr and sm.ratio() >= thr:
+                    out.add((its[i].item_id, its[j].item_id))
+    return out
+
+
+def independent_groups(items: list[Item], edges: set[tuple[str, str]] | None = None) -> list[int]:
     """Group items that are NOT independent: same org, one cites the other, they cite the same X status,
-    or near-identical titles (syndication). Returns a group index per item (0..n_groups-1)."""
+    or near-identical titles (syndication). Returns a group index per item (0..n_groups-1).
+    edges = title_edges() of a superset, in the same order (recompute's): used instead of comparing titles."""
     n = len(items)
     dsu = _DSU(n)
     canon = {it.canonical_url: i for i, it in enumerate(items)}
@@ -236,11 +541,29 @@ def independent_groups(items: list[Item]) -> list[int]:
         for _, sid in keys.x_statuses(" ".join(it.links)):
             if sid in xs_owner:
                 dsu.union(i, xs_owner[sid])
+    if edges is not None:
+        pos = {it.item_id: i for i, it in enumerate(items)}
+        for a, b in edges:
+            if a in pos and b in pos:
+                dsu.union(pos[a], pos[b])
+        roots0: dict[int, int] = {}
+        return [roots0.setdefault(dsu.find(i), len(roots0)) for i in range(n)]
     titles = [_norm_title(it.title) for it in items]
+    lens = [len(t) for t in titles]
+    thr = Limits.ECHO_TITLE_SIMILARITY
+    # Live 2026-11-11: Publish's now-board ran this for every listed event (hundreds of reports each) and spent
+    # minutes in SequenceMatcher. Both skips leave the grouping unchanged: a pair already in one group gains nothing
+    # from a union, and 2·min/(la+lb) is real_quick_ratio — an upper bound of ratio — computed without the object.
     for i in range(n):
+        if not lens[i]:
+            continue
         for j in range(i + 1, n):
-            if titles[i] and titles[j] and \
-                    SequenceMatcher(None, titles[i], titles[j]).ratio() >= Limits.ECHO_TITLE_SIMILARITY:
+            lj = lens[j]
+            if not lj or 2 * min(lens[i], lj) < thr * (lens[i] + lj):
+                continue
+            if dsu.find(i) == dsu.find(j):
+                continue
+            if _similar_titles(titles[i], titles[j]):
                 dsu.union(i, j)
     roots: dict[int, int] = {}
     return [roots.setdefault(dsu.find(i), len(roots)) for i in range(n)]
@@ -324,52 +647,131 @@ def _impact_severity(ev_domain: Domain, level: str, exploitation: str, amount: f
     return "P2"
 
 
+def _same(a: float, b: float) -> bool:
+    return abs(a - b) <= 1e-6 * max(abs(a), abs(b), 1.0)
+
+
+def _measure(v: float, mentions: list[tuple[float, str]], body: list[tuple[float, str]], body_losses: list[float],
+             whole: str) -> str:
+    """Measure of a prose report's stored figure: the headline decides its own figures; a body-only figure is a loss only
+    where its clause SAYS so — 「USDT 下降至341亿美元」 is not (live 2026-11-04, four Binance body figures read as losses)."""
+    k = next((k for x, k in mentions if _same(x, v)), None)
+    if k is not None:
+        return k
+    if any(_same(x, v) for x in body_losses):
+        return "loss"
+    k = next((k for x, k in body if _same(x, v)), None)
+    return k if k in ("frozen", "context") else ("context" if k == "loss" else whole)
+
+
+_BY = "_reporter"   # transient key on amount points while _amounts works; never stored (the history keeps its shape)
+
+
+def _rep(p: dict[str, Any]) -> str:
+    """A point's reporter (a point without the transient key — a stored history, a test's — is its source's)."""
+    return p.get(_BY, p["source_id"])
+
+
+def reporter(it: Item) -> str:
+    """Who stated a figure: the source — except on X, where one `x_security` source carries every account (T1 ZachXBT
+    beside T2 Lookonchain), so the account's organisation (normalize set it from registry.handle_info) is the reporter.
+    Grouping X by source_id gave every tweet the last tweet's tier and made all accounts one source (research 07 §2.2:
+    ZachXBT $50.2M vs Lookonchain $912.4M ⇒ headline $912.4M, not disputed). X reporters get their own `x:` namespace:
+    four handle orgs equal an RSS source_id (watchtowrcyber → watchtowr, thehackersnews → thehackernews …), and one key
+    for the T1 watchTowr blog and the T2 watchTowr tweet gave the blog the tweet's tier and stopped them backing each
+    other (review of b74b81b: headline $10M instead of the T1 blog's $40M)."""
+    src = BY_ID.get(it.source_id)
+    return "x:" + it.org if src and src.parser == "twitterapi" else it.source_id
+
+
+def _mark_outliers(hist: list[dict[str, Any]], structured: set[str]) -> None:
+    """A prose loss figure no other source backs and that is either implausible on its own (> MAX_PLAUSIBLE_LOSS_USD)
+    or two orders of magnitude off the event's other loss figures is an outlier: kept in the history, never the
+    headline (live 2026-11-04: the bank's $235B balance sheet next to its $133M loss). A hack database's structured
+    figure is never an outlier; a figure a second source repeats (±1 %) is not either."""
+    losses = [p for p in hist if p["kind"] == "loss"]
+    for p in losses:
+        if _rep(p) in structured:
+            continue
+        others = [q["value"] for q in losses if q is not p and q["value"] > 0]
+        backed = any(_rep(q) != _rep(p) and abs(q["value"] - p["value"]) <= 0.01 * p["value"] for q in losses)
+        if backed:
+            continue
+        # the ratio test needs a consensus to stand against: with one other figure there is no telling which of the two is
+        # off (a $6.3B theft beside 「一名用户被盗约100美元」 must not lose its headline to the $100)
+        med = sorted(others)[len(others) // 2] if len(others) >= 2 else None
+        if p["value"] > Limits.MAX_PLAUSIBLE_LOSS_USD or (med and p["value"] > Limits.AMOUNT_OUTLIER_RATIO * med):
+            p["kind"] = "outlier"
+
+
 def _amounts(items: list[Item]) -> tuple[list[dict[str, Any]], float | None, bool, bool, float | None]:
     """(history, headline loss, disputed, stable, frozen). Every point carries its measure (signals.amount_kind of the
     report's title; a hack database's structured amount is always the loss): the headline and the dispute flag use loss
     points only, freezes are their own measure (the largest reported — freeze totals only grow, and a single-issuer
     freeze such as Arbitrum's $30.5M must not replace the running total), context amounts feed neither."""
-    structured = {it.source_id for it in items if it.extra.get("amount_usd") is not None}
+    structured = {reporter(it) for it in items if it.extra.get("amount_usd") is not None}
     hist: list[dict[str, Any]] = []
+    rep: dict[int, str] = {}             # id(point) → reporter, once the transient key is stripped
     for it in items:
-        pts = it.extra.get("amount_history") or []
+        pts, by = it.extra.get("amount_history") or [], reporter(it)
         if it.extra.get("amount_usd") is not None:
-            hist += [{"value": p["value"], "source_id": it.source_id, "observed_at": p["observed_at"], "kind": "loss"} for p in pts]
+            hist += [{"value": p["value"], "source_id": it.source_id, _BY: by,
+                      "observed_at": p["observed_at"], "kind": "loss"} for p in pts]
             continue
         # prose: each number takes the measure of its own clause (a title can state the loss and the freeze); the
         # stored point is the title's largest number, a freeze stated beside it becomes its own point
         # the stored value is parsed from the body (normalize), the headline claims are in the title: a value takes the
         # measure of whichever clause states it (Decrypt: body "$5.57 billion" stolen, title "$5.5 Billion")
         text = it.title or it.text[:200]
+        if signals.is_roundup_report(it.title):   # statistics across incidents: context only, no freeze point
+            hist += [{"value": p["value"], "source_id": it.source_id, _BY: by,
+                      "observed_at": p["observed_at"], "kind": "context"}
+                     for p in pts]
+            continue
+        # a hack database's record IS a loss record, whichever way its line reads (DeFiHackLabs MUS: 「Lost: ~0.4 ETH per
+        # cycle …; reported campaign total ~$36.9k」 — no structured field, and the clause split hid the cue)
+        if BY_ID.get(it.source_id) and BY_ID[it.source_id].always_eventful:
+            hist += [{"value": p["value"], "source_id": it.source_id, _BY: by,
+                      "observed_at": p["observed_at"], "kind": "loss"}
+                     for p in pts]
+            continue
         mentions = signals.amount_mentions(text)
-        stated = mentions + signals.amount_mentions(it.text)
+        body = signals.amount_mentions(it.text)
+        body_losses = signals.stated_losses(it.text)
         whole = signals.amount_kind(text)
-        same = lambda a, b: abs(a - b) <= 1e-6 * max(abs(a), abs(b), 1.0)
         for p in pts:
-            kind = next((k for v, k in stated if same(v, p["value"])), whole)
-            hist.append({"value": p["value"], "source_id": it.source_id, "observed_at": p["observed_at"], "kind": kind})
+            kind = _measure(p["value"], mentions, body, body_losses, whole)
+            hist.append({"value": p["value"], "source_id": it.source_id, _BY: by,
+                         "observed_at": p["observed_at"], "kind": kind})
         if pts:
-            hist += [{"value": v, "source_id": it.source_id, "observed_at": pts[-1]["observed_at"], "kind": "frozen"}
-                     for v, k in mentions if k == "frozen" and not any(same(v, p["value"]) for p in pts)]
+            hist += [{"value": v, "source_id": it.source_id, _BY: by,
+                      "observed_at": pts[-1]["observed_at"], "kind": "frozen"}
+                     for v, k in mentions if k == "frozen" and not any(_same(v, p["value"]) for p in pts)]
     hist.sort(key=lambda p: (p["observed_at"], p["source_id"]))
+    _mark_outliers(hist, structured)
+    for p in hist:                       # the stored history keeps its shape: the reporter only groups, here
+        rep[id(p)] = p.pop(_BY)
     frozen_pts = [p["value"] for p in hist if p["kind"] == "frozen" and p["value"] > 0]
     frozen = max(frozen_pts) if frozen_pts else None
     loss = [p for p in hist if p["kind"] == "loss"]
     if not loss:
         return hist, None, False, True, frozen
-    tier_of = {it.source_id: it.tier for it in items}
+    tier_of = {reporter(it): it.tier for it in items}
     # A hack database's structured loss field (DeFiLlama / SlowMist amount) beats any number parsed from prose: prose
     # amounts are often a freeze, a borrow or a sale inside the story (live 2026-10-30: a T1 tweet "Arbitrum Security
     # Council froze $30.5M" displaced DeFiLlama's $5.78B Binance loss as the headline figure).
-    pool = [p for p in loss if p["source_id"] in structured] or loss
-    best_rank = min(_TIER_RANK[tier_of[p["source_id"]]] for p in pool)
-    trusted = [p for p in pool if _TIER_RANK[tier_of[p["source_id"]]] == best_rank]
+    pool = [p for p in loss if rep[id(p)] in structured] or loss
+    best_rank = min(_TIER_RANK[tier_of[rep[id(p)]]] for p in pool)
+    trusted = [p for p in pool if _TIER_RANK[tier_of[rep[id(p)]]] == best_rank]
     latest = trusted[-1]["value"]
     per_source: dict[str, float] = {}
-    for p in loss:
+    # the dispute is judged on the same pool as the headline: hack databases' structured figures, when there are any. Live
+    # 2026-11-11: Binance coverage carries every side story (Bitget $292M, Mercado $49M …), so some prose source's largest
+    # figure was always a side story and DeFiLlama $6.36B / SlowMist $6.34B — agreeing — read as disputed (P0 → P1).
+    for p in pool:      # = loss when no structured figure exists
         # a source's largest stated loss is its estimate of the total: flash-news sources report sub-stories after it
         # (live 2026-10-30: odaily's latest Binance "loss" was a $100M side story vs DeFiLlama's $6.36B ⇒ disputed)
-        per_source[p["source_id"]] = max(p["value"], per_source.get(p["source_id"], 0))
+        per_source[rep[id(p)]] = max(p["value"], per_source.get(rep[id(p)], 0))
     # live 2026-10-30: a $100 UNI price target in a side story flagged the $6.3B Binance loss as disputed
     top = max(per_source.values(), default=0)
     vals = [v for v in per_source.values() if v > 0 and v >= top * Limits.AMOUNT_DISPUTE_FLOOR]
@@ -397,8 +799,10 @@ def _attribution(items: list[Item]) -> dict[str, Any] | None:
         return None
     actor = named[0][1]
     hits = [it for it, a in named if a == actor]
+    # first naming = evidence time (a date-only entry's 00:00:00Z is "that day", not midnight — evidence_at decides)
+    first = first_report(sorted(items, key=lambda i: (i.published_at, i.source_id, i.item_id)))
     return {"actor": actor, "confidence": "stated" if any(it.tier in ("T1", "T2") for it in hits) else "suspected",
-            "sources": len({it.source_id for it in hits}), "first_at": min(it.published_at for it in hits)}
+            "sources": len({it.source_id for it in hits}), "first_at": min(evidence_at(it, first) for it in hits)}
 
 
 def day_precision(item: Item) -> bool:
@@ -406,6 +810,37 @@ def day_precision(item: Item) -> bool:
     not midnight. The single place this ambiguity is decided."""
     src = BY_ID.get(item.source_id)
     return bool(src and src.always_eventful) and item.published_at.endswith("T00:00:00Z")
+
+
+def collected_at(item: Item) -> str:
+    """When the radar first captured this report (a revision refreshes fetched_at; first_fetched_at survives it).
+    Not its publication time: live 2026-11-03 the CVE-2026-98432 page called THN's 15:57 publication 「雷达首见」 while
+    the radar captured it at 16:28."""
+    return item.extra.get("first_fetched_at") or item.fetched_at
+
+
+def sighting(items: list[Item]) -> dict[str, Any] | None:
+    """The event's three clocks, decided here once: the first report's publication (by its source), the radar's first
+    capture of any report, and the lag between them (minutes, ≥ 0; a backfilled incident has days). The CVE's own
+    publication is cvemeta.disclosure."""
+    if not items:
+        return None
+    items = sorted(items, key=lambda i: (i.published_at, i.source_id, i.item_id))
+    first = first_report(items)
+    seen = min(items, key=lambda i: (collected_at(i), i.item_id))
+    got = collected_at(seen)
+    a, b = timeutil.parse(first.published_at), timeutil.parse(got)
+    lag = round(max(0.0, (b - a).total_seconds()) / 60) if a and b else None
+
+    def name(it: Item) -> str:
+        src = BY_ID.get(it.source_id)
+        if it.source_id.startswith("x_") and it.url.count("/") >= 4:      # same wording as the evidence list
+            return f"X @{it.url.split('/')[3]}"
+        return src.name if src else it.source_id
+    # the first capture can be another report than the first one (live: THN's tweet at 16:28, its article at 17:08)
+    return {"first_report_at": first.published_at, "first_report_source": name(first),
+            "first_report_date_only": day_precision(first),
+            "first_collected_at": got, "first_collected_source": name(seen), "collect_lag_minutes": lag}
 
 
 def first_report(items: list[Item]) -> Item:
@@ -430,9 +865,9 @@ def evidence_at(item: Item, first: Item) -> str:
     return max(first.published_at, min(day_end, seen))
 
 
-def recompute(ev: Event, items: list[Item], now: datetime) -> Event:
-    items = sorted(items, key=lambda i: (i.published_at, i.source_id, i.item_id))
-    groups = independent_groups(items)
+def recompute(ev: Event, items: list[Item], now: datetime, title_pairs: set[tuple[str, str]] | None = None) -> Event:
+    items = _recompute_order(items)
+    groups = independent_groups(items, title_pairs)
     tiers = _group_tiers(items, groups)
     hist, latest, disputed, stable, frozen = _amounts(items)
     # on-chain verdicts live on the event (items only carry the hash): carry them over, then let them count
@@ -515,29 +950,54 @@ def ingest(raws: list[RawItem], store: Store, fetched_at: datetime, now: datetim
         item.extra["first_fetched_at"] = (prev.extra.get("first_fetched_at") or prev.fetched_at) if prev else item.fetched_at
         if prev:
             item.extra["revised_at"] = at
+            if prev.extra.get("event_pin"):
+                item.extra["event_pin"] = prev.extra["event_pin"]
             res.updated_items += 1
         else:
             res.new_items += 1
+            if (lag := latency.minutes(item.published_at, now)) is not None:
+                res.held.append([item.tier, lag])
         store.put_item(item)
         attach(item, store, at, now, res)
+    res.anomalies = anomaly.scan(res.before, res.absorbed, store.get_event, timeutil.iso(now))
     return res
 
 
 def attach(item: Item, store: Store, at: str, now: datetime, res: IngestResult) -> None:
     """Cluster one stored item: find its event (or found one), merge events it proves are one story, recompute.
     Shared by ingest and scripts/recluster_web3.py (a repair replays stored items through exactly this)."""
-    eid, merge_ids = find_events(item, store)
+    # a report an operator moved (radar.moves) stays where it was put: a revision or a replay does not re-ask the rules
+    pin = item.extra.get("event_pin")
+    eid, merge_ids = (pin, []) if pin else find_events(item, store)
     if eid is None and not item.eventful:
         return
     before = store.get_event(eid) if eid else None
-    if before is None:
+    if before is None and pin:
+        ev = Event(event_id=pin, domain=item.domain, title=item.title, first_seen=item.published_at,
+                   last_updated=item.published_at, item_ids=[], keys=[])   # a replay reaches the pin before its event
+    elif before is None:
         seed = next((k for k in item.keys if k.startswith(_STRONG[:4])), item.item_id)
         eid = keys.event_id(seed)
+        # "find_events found nothing" is not "nobody holds this id": a roundup seeds its event with a cve: key it does
+        # not index, so the next report of that CVE derived the same id and overwrote that event (research 07 §2.1)
+        salt = item.item_id
+        while store.get_event(eid) is not None:
+            eid, salt = keys.event_id(f"{seed}#{salt}"), salt + "#"
         ev = Event(event_id=eid, domain=item.domain, title=item.title, first_seen=item.published_at,
                    last_updated=item.published_at, item_ids=[], keys=[])
     else:
         ev = Event.from_dict(before.to_dict())
+    # Known gap, deliberately left (research 07 B10 / §2.6): a revision (same url) rewritten to tell another incident
+    # still reaches its old event through its own url: key, so that event — with any other reports it holds — merges
+    # into the new one. Not fixed automatically: refusing the merge leaves the item listed in both events
+    # (double-counted sources). The manual repair is radar.moves.move_item.
     merged = [m for m in (store.get_event(x) for x in merge_ids) if m]
+    if before is not None:
+        res.before.setdefault(ev.event_id, anomaly.snap(before))
+    for m in merged:
+        # what the absorbed event was when the cycle found it, not what earlier merges of this cycle made of it
+        res.absorbed.setdefault(ev.event_id, []).append(res.before.pop(m.event_id, None) or anomaly.snap(m))
+        res.absorbed[ev.event_id] += res.absorbed.pop(m.event_id, [])
     ids = list(dict.fromkeys(ev.item_ids + [i for m in merged for i in m.item_ids] + [item.item_id]))
     ev = recompute(ev, store.get_items(ids), now)
     ev.keys = sorted(set(ev.keys) | set(indexed_keys(item)) | {k for m in merged for k in m.keys})
@@ -552,7 +1012,12 @@ def attach(item: Item, store: Store, at: str, now: datetime, res: IngestResult) 
                                                                  m.event_id, gone))
             store.delete_response(m.event_id)
         store.delete_event(m.event_id)
+        # its index rows now point at nothing (live 2026-11-02: 49 such rows over 9 merged events); the survivor
+        # already holds every one of those keys (add_keys above)
+        store.remove_keys(m.event_id, m.keys)
         res.changes.pop(m.event_id, None)
+    # the site still holds their search rows and detail pages; publish prunes them (radar.removals)
+    removals.record(store, [(m.event_id, m.first_seen[:7], ev.event_id) for m in merged], at)
     ev.timeline.sort(key=lambda t: t["at"])
     store.put_event(ev)
     store.add_keys(ev.event_id, indexed_keys(item))

@@ -9,7 +9,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { MitigationPanel } from '@/components/detail/MitigationPanel';
 import { MitigateView } from '@/pages/MitigatePage';
-import { ADVISORY_NOTE, BASELINE_STATE, DNS_STATE, PLAN_STATE, SEVERITY, TIER, purlName } from '@/utils/mitigate';
+import { ADVISORY_NOTE, BASELINE_STATE, DNS_STATE, PASTE_PRIORITY_NOTE, PLAN_STATE, SEVERITY, TIER, purlName } from '@/utils/mitigate';
 import type { Mitigation, MitigationPlan, MitigateDoc } from '@/types/mitigate';
 
 const schema = JSON.parse(readFileSync(resolve(__dirname, '../../../schemas/site-data.schema.json'), 'utf-8'));
@@ -46,7 +46,10 @@ describe('M3 label maps cover every schema enum', () => {
     expect(PLAN_STATE.staged.label).toContain('等人确认');
     expect(PLAN_STATE.blocking.label).toBe('已拦截');
     expect(PLAN_STATE.no_web_acl.label).toBe('仅给出规则');
-    for (const s of ['unchecked', 'too_old', 'group_counted'] as const) {
+    // W1: staging counts the WHOLE group (the old copy "规则以 Count 暂存" hid that the group's other rules blocked)
+    expect(PLAN_STATE.staged.hint).toContain('整个规则组');
+    expect(PLAN_STATE.staged.hint).toContain('都不拦截');
+    for (const s of ['unchecked', 'too_old', 'group_counted', 'rules_counted'] as const) {
       expect(PLAN_STATE[s].tone).toBe('warn');
       expect(PLAN_STATE[s].label).toContain('需注意');
     }
@@ -81,6 +84,14 @@ describe('MitigationPanel (event detail · 缓解（快路）)', () => {
       expect(out).toContain(PLAN_STATE[st].label);
       expect(out).toContain(`data-state="${st}"`);
     }
+  });
+  it('rule JSON whose Priority is a placeholder says so (priority_placeholder); a rule really on a radar ACL does not', () => {
+    expect(panel({ ...sample, plans: [plan({ web_acl: null, state: 'no_web_acl', priority_placeholder: true })] })).toContain(PASTE_PRIORITY_NOTE);
+    expect(PASTE_PRIORITY_NOTE).toContain('占位');
+    expect(panel({ ...sample, plans: [plan({ web_acl: 'security-radar-waf-demo', priority_placeholder: false })] })).not.toContain(PASTE_PRIORITY_NOTE);
+    // W4: the note follows the backend's flag, not web_acl — an advisory cwe plan (or a group someone else runs, or a
+    // rule not written yet) behind a radar ACL still shows a 10000+ placeholder Priority
+    expect(panel({ ...sample, plans: [plan({ web_acl: 'security-radar-waf-demo', tier: 'cwe', appliable: false, priority_placeholder: true })] })).toContain(PASTE_PRIORITY_NOTE);
   });
   it('cwe tier says 仅建议，不自动下发; cve/product do not', () => {
     expect(panel({ ...sample, plans: [plan({ tier: 'cwe' })] })).toContain(ADVISORY_NOTE);

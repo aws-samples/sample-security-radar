@@ -4,7 +4,7 @@ Expected levels follow DESIGN §6 and are derived from facts in docs/research/03
 SlowMist (Hacked DB + its own tweet = ONE origin) + DeFiLlama ⇒ 2 independent sources, not 3."""
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -68,8 +68,10 @@ def test_wax_slowmist_tweet_is_not_independent_of_slowmist_db(replayed):
     store, _ = replayed
     [ev] = events_with_entity(store, "WAX")
     srcs = sorted(store.items[i]["source_id"] for i in ev["item_ids"])
-    assert srcs == ["defillama_hacks", "slowmist_hacked", "x_security"]
-    assert ev["independent_sources"] == 2
+    # PANews' 「WAX多链桥遭攻击…约7.5万美元」 is the same story (joined since the 2026-11-04 amount rules): 3 groups —
+    # DeFiLlama, SlowMist (database + its own tweet = one org), PANews
+    assert srcs == ["defillama_hacks", "panews", "slowmist_hacked", "x_security"]
+    assert ev["independent_sources"] == 3
     assert ev["level"] == "V2" and ev["severity"] == "P2"  # $90.5K is below the P1 line
 
 
@@ -79,7 +81,9 @@ def test_bitget_2026_is_p0_and_separate_from_2025_bitget(replayed):
     big = [e for e in evs if e["first_seen"].startswith("2026-09-24")]
     assert len(big) == 1
     ev = big[0]
-    assert {store.items[i]["source_id"] for i in ev["item_ids"]} == {"defillama_hacks", "slowmist_hacked"}
+    # 安全客's 09-29 retrospective 「3.5亿美元一夜蒸发！…Bitget…」 is the same theft (same victim, loss within 20 %,
+    # since 2026-11-05 — it was its own event); the 2025 Bitget incident still stays apart
+    assert {store.items[i]["source_id"] for i in ev["item_ids"]} == {"defillama_hacks", "slowmist_hacked", "anquanke"}
     # 29 days old, in two incident DBs, amount stable ⇒ finalized (DESIGN §6 V4); no longer "act now" ⇒ P1
     assert ev["level"] == "V4" and ev["severity"] == "P1"
     assert ev["amount_usd_latest"] == 387_500_000  # T1 (SlowMist) value wins over T2
@@ -294,7 +298,23 @@ def test_merge_carries_the_absorbed_events_response_state():
     gone = second if survivor == first else first
     assert store.get_response(gone) is None
     st = store.get_response(survivor)
-    assert st["issues"] == [{"issue_id": "i1"}] and st["delivered_prs"] == {"i1": "https://x/pull/1"}
+    assert st["s3"]["issues"] == [{"issue_id": "i1"}] and st["delivered_prs"] == {"i1": "https://x/pull/1"}
+
+
+def test_merge_drops_the_absorbed_events_index_rows():
+    """Live 2026-11-02: 49 key-index rows pointed at 9 events deleted by merges (ev_1119fbc978f9f673's CVE-2026-98432
+    rows among them). Readers skipped them, but every lookup paid for them and audits showed a ghost event."""
+    store = MemoryStore()
+    pipeline.ingest([_raw("bleepingcomputer", "Acme VPN CVE-2026-11111 exploited in the wild", "actively exploited",
+                          when="2026-10-20T08:00:00Z"),
+                     _raw("securityweek", "Zeta mail server CVE-2026-22222 exploited", "exploited in the wild",
+                          when="2026-10-20T09:00:00Z")], store, FETCHED)
+    pipeline.ingest([_raw("thehackernews", "CVE-2026-11111 and CVE-2026-22222 are the same bug, chained",
+                          "exploited in the wild", when="2026-10-20T10:00:00Z")], store, FETCHED)
+    [survivor] = store.events
+    pointed = {e for ids in store.keys.values() for e in ids}
+    assert pointed == {survivor}
+    assert store.event_ids_for_key("cve:CVE-2026-22222") == [survivor]
 
 
 def test_a_named_token_cannot_glue_an_event_whose_cves_contradict_the_item():
@@ -508,6 +528,12 @@ def test_a_price_in_a_side_story_does_not_make_the_loss_disputed():
     [ev] = store.events.values()
     assert len(ev["item_ids"]) == 2 and any(p["value"] == 100 for p in ev["amount_history"])
     assert ev["amount_disputed"] is False
+    # since 2026-11-04 that price is context anyway (an unstated body figure); the floor itself must still hold for a
+    # tiny figure a headline STATES as a loss — 「一名用户被盗约100美元」 beside the 63亿 loss is no rival estimate
+    pipeline.ingest([_raw("odaily", "币安被盗后续：一名用户钓鱼被盗约100美元", "一名币安用户钓鱼被盗约100美元",
+                          when="2026-10-30T03:50:00Z")], store, t)
+    [ev] = store.events.values()
+    assert any(p["value"] == 100 and p["kind"] == "loss" for p in ev["amount_history"]) and ev["amount_disputed"] is False
 
 
 def test_a_sub_story_amount_is_not_a_rival_loss_estimate():
@@ -580,3 +606,623 @@ def test_cisas_own_kev_tweet_listing_two_vendors_is_a_roundup():
                           when="2026-10-29T13:00:00Z")], store, datetime(2026, 10, 29, 13, 5, tzinfo=UTC))
     cves = sorted(tuple(e["cves"]) for e in store.events.values())
     assert cves == [("CVE-2026-76418",), ("CVE-2026-97229",)]
+
+
+ENGIE = "https://www.bleepingcomputer.com/news/security/energy-giant-engie-discloses-data-breach-affecting-customers/"
+
+
+def _engie_tweet(links):
+    return _raw("x_security", "Energy giant ENGIE discloses data breach affecting customers",
+                "Energy giant ENGIE discloses data breach affecting customers https://t.co/abc", author="BleepinComputer",
+                extra={"x_status": "1983"}, when="2026-10-29T09:28:00Z", links=links)
+
+
+def test_a_tweet_seen_before_the_article_it_cites_is_found_by_that_article():
+    """C4 F1 (docs/research/12 §10): the outlet's tweet arrives 20–80 min before its own RSS entry; the article's url:
+    key must find the tweet's event — live 2026-10-29: ENGIE, Tailscale, Volt Typhoon stayed two events each."""
+    store = MemoryStore()
+    pipeline.ingest([_engie_tweet([ENGIE])], store, datetime(2026, 10, 29, 9, 30, tzinfo=UTC))
+    pipeline.ingest([_raw("bleepingcomputer", "Energy giant ENGIE discloses data breach affecting customers",
+                          "ENGIE disclosed a data breach", url=ENGIE, when="2026-10-29T09:48:00Z")],
+                    store, datetime(2026, 10, 29, 9, 50, tzinfo=UTC))
+    [ev] = store.events.values()
+    assert len(ev["item_ids"]) == 2
+
+
+@pytest.mark.parametrize("links", [
+    ["https://www.bleepingcomputer.com/"],                                    # a homepage names no story
+    ["https://go.dhs.gov/iEv"],                       # CISA's shortener to the advisory listing, on every ICS tweet
+    ["https://www.cisa.gov/news-events/cybersecurity-advisories"],            # a listing page
+    ["https://x.com/BleepinComputer/status/1"],                               # tweets link up through xs:
+    [ENGIE, "https://www.bleepingcomputer.com/news/security/acme-discloses-ransomware-attack/"],  # a digest cites several stories
+])
+def test_a_tweet_registers_no_url_key_for_a_homepage_a_tweet_or_a_digest(links):
+    item = pipeline.normalize(_engie_tweet(links), registry_source("x_security"), FETCHED)
+    assert [k for k in item.keys if k.startswith("url:")] == [f"url:{item.canonical_url}"]   # only its own
+
+
+def registry_source(sid):
+    from radar import registry
+    return next(s for s in registry.SOURCES if s.source_id == sid)
+
+
+ROUNDUP = ("PANews 11月1日消息，据 PeckShieldAlert 统计，2026 年 10 月加密行业共发生 56 起重大黑客攻击，总损失约 64.8 亿美元。"
+           "其中币安事件（约 63 亿美元，已冻结 30 亿美元）跃居年内最大盗窃案首位。截至 10 月 31 日，年度前十大黑客事件合计损失"
+           "占全年总损失（86 亿美元）的 92.3%（未扣除已冻结及返还资金）。")
+
+
+def test_an_industry_roundup_report_states_no_amount_of_the_event():
+    """Live 2026-11-01: PANews' "October: 56 hacks, $6.48B" attached to the Binance event; its "全年总损失（86 亿美元）
+    （未扣除已冻结…）" became Binance's frozen headline ($8.6B > the $6.3B loss). Statistics across incidents are context."""
+    store = MemoryStore()
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T20:51:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 6_300_000_000}),
+                     _raw("odaily", "币安已冻结约30亿美元被盗资产", "币安已冻结约30亿美元被盗资产", when="2026-10-30T06:00:00Z")],
+                    store, datetime(2026, 10, 30, 6, 5, tzinfo=UTC))
+    pipeline.ingest([_raw("panews", "10月加密行业重大黑客事件达56起，损失达64.8亿美元", ROUNDUP, when="2026-11-01T05:01:38Z")],
+                    store, datetime(2026, 11, 1, 5, 5, tzinfo=UTC))
+    [ev] = [e for e in store.events.values() if "Binance" in e["title"]]
+    assert len(ev["item_ids"]) == 3                                   # it does attach (the live path), and
+    assert ev["amount_frozen_latest"] == 3_000_000_000 and ev["amount_usd_latest"] == 6_300_000_000
+    assert {p["kind"] for p in ev["amount_history"] if p["source_id"] == "panews"} == {"context"}
+
+
+@pytest.mark.parametrize(("text", "kind"), [
+    ("占全年总损失（86 亿美元）的 92.3%（未扣除已冻结及返还资金）", "loss"),     # a negated freeze is no freeze
+    ("Tether 已冻结 9.71 亿美元 USDT", "frozen"),
+])
+def test_a_negated_freeze_word_is_not_a_freeze(text, kind):
+    from radar import signals
+    [(_, k)] = [m for m in signals.amount_mentions(text)]
+    assert k == kind
+
+
+@pytest.mark.parametrize(("title", "roundup"), [
+    ("10月加密行业重大黑客事件达56起，损失达64.8亿美元", True),
+    ("2026年DeFi价格操纵攻击已达43起，超过2022年全年纪录", True),
+    ("Chainalysis：朝鲜相关攻击占今年加密黑客损失近89%，2021年为15%", True),      # live 2026-11-01: $22.34B on the wall
+    ("Crypto hacks in October top $6.5 billion", True),
+    ("Binance CEX — Hot Wallet Key Compromised", False),
+    ("币安热钱包疑似遭攻击，约25亿美元资产被转出", False),
+    ("Pando Rings黑客2小时前买入7548枚ETH，约合1672万美元", False),
+    ("Arbitrum安全委员会冻结币安黑客约3050万美元资产", False),
+])
+def test_an_industry_statistics_title_is_a_roundup_and_an_incident_title_is_not(title, roundup):
+    from radar import signals
+    assert signals.is_roundup_report(title) is roundup
+
+
+def test_a_context_digest_does_not_lend_its_names_to_the_event_it_attaches_to():
+    """Live 2026-11-02: PANews' daily digest 「昨夜今晨重要资讯」 (context only, 50+ names) sat in the Binance event and
+    lent every name it mentions — tok:zklink among them — to the Binance keys; two days later the zkLink exploit reports
+    found the Binance event through tok:zklink. A context-only item lends hard keys only (it still attaches through them)."""
+    from radar import registry
+    digest = pipeline.normalize(_raw("panews", "昨夜今晨重要资讯（10月29日-10月30日）",
+                                     "币安热钱包遭攻击；Polymarket 推出新功能；zkLink Nova 更新路线图；OKX 上线新币。",
+                                     when="2026-10-30T02:38:00Z"), registry.BY_ID["panews"], FETCHED)
+    assert digest.eventful is False and any(k.startswith("tok:") for k in digest.keys)
+    lent = pipeline.indexed_keys(digest)
+    assert lent and all(k.startswith(("url:", "cve:", "tx:", "xs:", "attacker:")) for k in lent)
+    report = pipeline.normalize(_raw("slowmist_medium", "One Fish, Multiple Meals — Analysis of the $780K zkLink Exploit",
+                                     "zkLink Nova exploited for $780K", when="2026-10-31T12:30:00Z"),
+                                registry.BY_ID["slowmist_medium"], FETCHED)
+    assert any(k.startswith("tok:") for k in pipeline.indexed_keys(report))       # an eventful report still lends names
+
+
+def _web3(source, title, when, now):
+    """An eventful web3 report (a context-only one would neither open an event nor match by name)."""
+    from radar import registry
+    raw = _raw(source, title, title, when=when)
+    assert pipeline.normalize(raw, registry.BY_ID[source], now).eventful, title
+    return raw
+
+
+def _binance_open_event(store):
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", when="2026-10-29T20:51:00Z",
+                          url="https://defillama.com/hacks#Binance", extra={"entity": "Binance CEX", "amount_usd": 6_300_000_000})],
+                    store, datetime(2026, 10, 30, 0, tzinfo=UTC))
+    t = datetime(2026, 11, 1, 19, tzinfo=UTC)
+    pipeline.ingest([_web3("cointelegraph", "Binance hack: attacker moves another $40M stolen from hot wallets",
+                           "2026-11-01T18:54:00Z", t)], store, t)
+
+
+def _web3_events(store):
+    return sorted((e for e in store.events.values() if e["domain"] == "web3"), key=lambda e: e["first_seen"])
+
+
+def test_an_incident_still_being_reported_keeps_collecting_its_reports():
+    """Live 2026-11-02: Binance (first seen 10-29 20:51, reports every hour) split in two at 11-01 20:51 — the name
+    window ran from first_seen; Cointelegraph's "Binance net outflows surge … after record hack" opened a new event with
+    12 more follow-ups. The window rolls from the latest evidence (still capped by a total span)."""
+    store = MemoryStore()
+    _binance_open_event(store)
+    t = datetime(2026, 11, 2, tzinfo=UTC)
+    pipeline.ingest([_web3("theblock", "Binance hack: $250K of stolen funds deposited to Gate, 2 accounts frozen",
+                           "2026-11-01T23:59:00Z", t)], store, t)
+    [ev] = _web3_events(store)
+    assert len(ev["item_ids"]) == 3
+
+
+def test_a_name_seen_again_long_after_the_story_went_quiet_is_a_new_event():
+    store = MemoryStore()
+    _binance_open_event(store)
+    t = datetime(2026, 11, 8, 10, 5, tzinfo=UTC)                                     # 6.6 days after the last report
+    pipeline.ingest([_web3("cointelegraph", "Binance hot wallet hacked again, $40M drained", "2026-11-08T10:00:00Z", t)], store, t)
+    assert len(_web3_events(store)) == 2
+
+
+def test_the_rolling_window_has_a_total_span_cap():
+    store = MemoryStore()
+    _binance_open_event(store)
+    day = datetime(2026, 11, 1, 18, 54, tzinfo=UTC)
+    for n in range(1, 10):                                                           # a report every 2.5 days …
+        t = day + timedelta(days=2.5 * n)
+        pipeline.ingest([_web3("cointelegraph", f"Binance hack: attacker moves ${n}0M more stolen funds", timeutil.iso(t), t)], store, t)
+    evs = _web3_events(store)
+    assert len(evs) == 2 and evs[1]["first_seen"] > "2026-11-19"                     # … opens a new event past 21 days
+
+
+def test_a_vulnerability_event_does_not_stay_open_to_its_vendor_name():
+    """Vulnerability stories are linked by CVE (a hard key); a rolling window would keep a vendor name like GitLab open
+    for weeks (live dry run 2026-11-02: "Alpine Linux rebuilds GitLab after attempted RCE attack" — no CVE named —
+    joined the CVE-2026-97229 KEV event). The rolling window is for web3 / incident stories only."""
+    store = MemoryStore()
+    pipeline.ingest([_raw("bleepingcomputer", "GitLab CVE-2026-97229 exploited in the wild, CISA adds to KEV",
+                          "GitLab CVE-2026-97229 exploited in the wild", when="2026-10-29T09:05:00Z")], store, datetime(2026, 10, 29, 10, tzinfo=UTC))
+    pipeline.ingest([_raw("securityweek", "GitLab CVE-2026-97229 patches rushed out as exploitation grows",
+                          "CVE-2026-97229 exploited in the wild", when="2026-10-31T09:00:00Z")], store, datetime(2026, 10, 31, 10, tzinfo=UTC))
+    pipeline.ingest([_raw("bleepingcomputer", "Alpine Linux rebuilds GitLab after attempted RCE attack",
+                          "Hackers attempted to exploit a critical GitLab vulnerability", when="2026-11-01T15:11:00Z")],
+                    store, datetime(2026, 11, 1, 16, tzinfo=UTC))
+    assert len([e for e in store.events.values() if e["domain"] == "vuln"]) == 2
+
+
+
+def test_attribution_first_at_is_evidence_time_not_a_date_only_midnight():
+    """A date-only structured entry (DeFiLlama "2026-10-29") naming the actor is not 「首次点名」 at 00:00 — it is
+    pipeline.evidence_at, the one rule for date vs moment (04-reconstruction.md B5)."""
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 3, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安热钱包疑似遭攻击，约25亿美元资产被转出", "币安热钱包疑似遭攻击，约25亿美元资产被盗",
+                          when="2026-10-29T20:51:50Z")], store, t)
+    pipeline.ingest([_raw("defillama_hacks", "Binance CEX — Hot Wallet Key Compromised", "Attributed to Lazarus",
+                          when="2026-10-29T00:00:00Z", url="https://defillama.com/hacks#Binance",
+                          extra={"entity": "Binance CEX", "amount_usd": 5_780_000_000})], store, t)
+    [ev] = store.events.values()
+    assert ev["attribution"]["confidence"] == "stated"
+    assert ev["attribution"]["first_at"] == "2026-10-29T23:59:59Z"
+
+
+def test_patch_tuesday_advisories_do_not_attach_to_a_theft_event_that_cites_a_cve():
+    """Live 2026-11-11: a crypto-media article citing a Chrome CVE gave the Binance theft event a CVE key; November's
+    Patch Tuesday (MSRC, one advisory per CVE) then attached through it — 1,097 advisories, the event re-domained to
+    vuln. A CVE links vulnerability stories only."""
+    store = MemoryStore()
+    pipeline.ingest([
+        _raw("panews", "币安热钱包遭攻击，约25亿美元资产被转出", "币安热钱包被盗，攻击者转出约25亿美元",
+             url="https://panews.example/a1", when="2026-10-29T20:58:00Z"),
+        _raw("odaily", "币安被盗事件追踪：攻击者再转出7.8亿枚USDC", "币安热钱包被盗事件，资金继续转出",
+             url="https://odaily.example/a2", when="2026-10-29T22:00:00Z"),
+    ], store, FETCHED)
+    (theft,) = store.events
+    pipeline.ingest([_raw("panews", "币安被盗约25亿美元：攻击者利用 Chrome 漏洞 CVE-2026-777001 入侵员工电脑",
+                          "币安热钱包被盗约25亿美元，攻击者利用 CVE-2026-777001 入侵运维人员电脑", url="https://panews.example/a3",
+                          when="2026-10-30T08:00:00Z")], store, FETCHED)
+    # the live precondition: the theft event is reachable through the CVE it cited (key index)
+    assert set(store.events) == {theft} and store.event_ids_for_key("cve:CVE-2026-777001") == [theft]
+    assert store.events[theft]["domain"] == "web3"
+    pipeline.ingest([_raw("msrc_update", "CVE-2026-777001 Chromium: Use after free in V8", "CVE-2026-777001",
+                          url="https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-777001",
+                          when="2026-11-10T18:15:00Z")], store, FETCHED)
+    adv = next(i for i, it in store.items.items() if it["source_id"] == "msrc_update")
+    assert adv not in store.events[theft]["item_ids"], "a vulnerability advisory attached to a theft event via a CVE"
+    assert store.events[theft]["domain"] == "web3"
+
+
+def test_two_advisories_for_one_product_with_disjoint_cves_stay_two_events():
+    """The same hairball glued per-CVE MSRC advisories through product names (tok:sharepoint, win32k, powershell …):
+    different CVEs are different vulnerabilities, whatever product they share."""
+    store = MemoryStore()
+    pipeline.ingest([
+        _raw("msrc_update", "CVE-2026-700001 Microsoft SharePoint Server Remote Code Execution Vulnerability", "CVE-2026-700001",
+             url="https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-700001", when="2026-11-10T18:00:00Z"),
+        _raw("msrc_update", "CVE-2026-700002 Microsoft SharePoint Server Spoofing Vulnerability", "CVE-2026-700002",
+             url="https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-700002", when="2026-11-10T18:00:00Z"),
+    ], store, FETCHED)
+    cves = sorted(tuple(e["cves"]) for e in store.events.values())
+    assert cves == [("CVE-2026-700001",), ("CVE-2026-700002",)], cves
+
+
+def test_a_review_linking_many_advisories_does_not_merge_them():
+    """Live 2026-11-11: ZDI's November Patch Tuesday review linked 1,129 MSRC advisory pages — each a strong url: key —
+    and merged every per-CVE advisory into one 1,239-item event. An item proving more than MERGE_MAX_EVENTS_PER_ITEM
+    events identical proves nothing — here five breach stories (no CVEs, so only this rule stands between them)."""
+    store = MemoryStore()
+    orgs = ["Acme Hospital", "Globex Retail", "Initech Port", "Umbrella School", "Hooli Airline"]
+    urls = [f"https://bc.example/{n}" for n in range(5)]
+    for n, (org, u) in enumerate(zip(orgs, urls, strict=True)):
+        pipeline.ingest([_raw("bleepingcomputer", f"Ransomware attack shuts down {org} network",
+                              f"Ransomware attack breached {org}, systems offline.", url=u, when=f"2026-11-0{n + 1}T08:00:00Z")],
+                        store, FETCHED)
+    assert len(store.events) == 5
+    pipeline.ingest([_raw("therecord", "Five organisations breached by ransomware crews this month, FBI says",
+                          "The FBI says ransomware gangs breached five organisations.", url="https://record.example/five",
+                          links=tuple(urls), when="2026-11-10T19:00:00Z")], store, FETCHED)
+    assert len(store.events) == 5, "a review that links to every story merged them"
+
+
+def test_a_hack_database_record_for_another_victim_does_not_join_a_big_incident():
+    """Live 2026-11-11: Mercado Bitcoin / BitMart / Ankr records joined the Binance event through names Binance coverage
+    mentions (tok:mercado …) and Ankr's $304,500 became Binance's headline loss."""
+    store = MemoryStore()
+    pipeline.ingest([
+        _raw("defillama_hacks", "Binance CEX — Key Leaked via Infrastructure", "Binance CEX hack",
+             url="https://defillama.example/binance", extra={"entity": "Binance CEX", "amount_usd": 6.36e9},
+             when="2026-10-29T21:00:00Z"),
+        _raw("panews", "币安被盗63亿美元后，Mercado Bitcoin 也被盗4900万美元", "币安被盗约63亿美元；Mercado Bitcoin 被盗4900万美元",
+             url="https://panews.example/b1", when="2026-10-30T08:00:00Z"),
+    ], store, FETCHED)
+    (binance,) = [e for e, v in store.events.items() if "Binance CEX" in v["entities"]]
+    assert any(k.startswith("amt:") for k in store.events[binance]["keys"])     # the live precondition: Mercado's figure
+    pipeline.ingest([_raw("defillama_hacks", "Mercado Bitcoin — Signing Capability Compromise", "Mercado Bitcoin hack",
+                          url="https://defillama.example/mercado", extra={"entity": "Mercado Bitcoin", "amount_usd": 4.9e7},
+                          when="2026-10-30T12:00:00Z")], store, FETCHED)     # inside the window: Binance is reported hourly
+    merc = next(i for i, it in store.items.items() if it["url"] == "https://defillama.example/mercado")
+    assert merc not in store.events[binance]["item_ids"], "another victim's hack record joined the Binance event"
+    assert store.events[binance]["amount_usd_latest"] == 6.36e9
+
+
+def test_agreeing_hack_databases_are_not_disputed_by_side_stories_in_prose():
+    """Live 2026-11-11: DeFiLlama $6.36B and SlowMist $6.34B agreed on Binance, but prose sources whose largest figure was a
+    side story (Bitget $292M) flagged the loss disputed — the headline dropped and P0 became P1."""
+    from radar.model import Item
+    def it(n, src, title, amount=None, extra=None):
+        return Item(item_id=f"it_{n:016x}", source_id=src, tier="T1" if amount else "T2", org=src, domain="web3",
+                    url=f"https://e{n}.example", canonical_url=f"https://e{n}.example", title=title, text=title,
+                    published_at=f"2026-10-30T{n:02d}:00:00Z", fetched_at=f"2026-10-30T{n:02d}:00:00Z", content_hash="h",
+                    keys=[], links=[], entity="Binance CEX" if amount else None, eventful=True,
+                    signals={"exploited": "yes", "kev": False, "poc": False, "amount_usd": amount},
+                    extra={**({"amount_usd": amount, "amount_history": [{"value": amount, "observed_at": f"2026-10-30T{n:02d}:00:00Z"}]} if amount else {}), **(extra or {})})
+    items = [it(1, "defillama_hacks", "Binance CEX — Key Leaked", 6.36e9), it(2, "slowmist_hacked", "Binance — Intrusion", 6.34e9),
+             it(3, "panews", "Bitget 被盗2.92亿美元", extra={"amount_history": [{"value": 2.92e8, "observed_at": "2026-10-30T03:00:00Z"}]})]
+    _hist, latest, disputed, _stable, _frozen = pipeline._amounts(items)
+    assert latest in (6.36e9, 6.34e9) and disputed is False
+
+
+def test_a_hack_record_does_not_follow_a_linked_tweet_into_another_victims_event():
+    """Live 2026-11-11: SlowMist's tweet on the Ankr bridge exploit mentioned Binance and joined the Binance event; SlowMist's
+    Ankr record links that tweet (xs:), followed it in, and DeFiLlama's Ankr record then joined by name — Ankr's $304,500
+    and Initia's $615,000 became Binance's headline."""
+    store = MemoryStore()
+    tweet = "https://x.com/SlowMist_Team/status/2119720284093890615"
+    pipeline.ingest([
+        _raw("defillama_hacks", "Binance CEX — Key Leaked via Infrastructure", "Binance CEX hack",
+             url="https://defillama.example/binance", extra={"entity": "Binance CEX", "amount_usd": 6.36e9},
+             when="2026-11-09T01:00:00Z"),
+        _raw("panews", "币安被盗63亿美元，攻击者资金持续转移", "币安热钱包被盗约63亿美元", url="https://panews.example/c1",
+             when="2026-11-09T02:00:00Z"),
+        _raw("x_security", "Ankr bridge exploited for $304.5K; attacker swapped and deposited to Binance",
+             "Ankr bridge exploited, funds sent to Binance", url=tweet, author="SlowMist_Team", when="2026-11-09T03:00:00Z"),
+    ], store, FETCHED)
+    (binance,) = [e for e, v in store.events.items() if "Binance CEX" in v["entities"]]
+    tw = next(i for i, it in store.items.items() if it["url"] == tweet)
+    assert tw in store.events[binance]["item_ids"]                     # the live precondition: the tweet is in Binance
+    pipeline.ingest([_raw("slowmist_hacked", "Ankr Ethereum Cross-chain Bridge — Smart Contract Vulnerability", "Ankr bridge",
+                          url="https://slowmist.example/ankr", links=(tweet,),
+                          extra={"entity": "Ankr Ethereum Cross-chain Bridge", "amount_usd": 304500.0},
+                          when="2026-11-09T06:00:00Z")], store, FETCHED)
+    rec = next(i for i, it in store.items.items() if it["url"] == "https://slowmist.example/ankr")
+    assert rec not in store.events[binance]["item_ids"], "another victim's record followed a tweet into Binance"
+    assert store.events[binance]["amount_usd_latest"] == 6.36e9
+
+
+def test_an_article_linking_two_named_incidents_does_not_merge_them():
+    """Live 2026-11-11: an article on the Initia exploit that also mentioned Binance merged the Initia incident (DeFiLlama
+    / SlowMist records included) into the Binance event; Initia's $615,000 became Binance's headline."""
+    store = MemoryStore()
+    t_bin, t_ini = "https://x.com/binance/status/2119000000000000001", "https://x.com/initia/status/2120050740626628972"
+    pipeline.ingest([
+        _raw("defillama_hacks", "Binance CEX — Key Leaked via Infrastructure", "Binance CEX hack", url="https://defillama.example/b",
+             links=(t_bin,), extra={"entity": "Binance CEX", "amount_usd": 6.36e9}, when="2026-11-10T00:00:00Z"),
+        _raw("defillama_hacks", "Initia — Infinite Mint", "Initia hack", url="https://defillama.example/i",
+             links=(t_ini,), extra={"entity": "Initia", "amount_usd": 615000.0}, when="2026-11-10T00:00:00Z"),
+    ], store, FETCHED)
+    assert len(store.events) == 2
+    pipeline.ingest([_raw("panews", "Initia 被盗61.5万美元，币安冻结部分资金", "Initia 被盗；币安冻结资金",
+                          url="https://panews.example/m", links=(t_bin, t_ini), when="2026-11-10T06:00:00Z")], store, FETCHED)
+    assert len(store.events) == 2, "an article linking two named incidents merged them"
+
+
+def test_a_prose_only_event_takes_each_sources_largest_figure_as_its_estimate():
+    """M185 without a hack database in the event (the structured pool then decides the dispute): a flash-news source's
+    later side story is not its estimate of the total."""
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 5, tzinfo=UTC)
+    pipeline.ingest([_raw("panews", "币安被盗约63亿美元", "币安被盗约63亿美元", url="https://panews.example/p1",
+                          when="2026-10-30T01:00:00Z")], store, t)
+    for title, when, url in [("币安被盗约63亿美元", "2026-10-30T02:00:00Z", "https://odaily.example/o1"),
+                             ("币安黑客某关联地址被盗约1亿美元", "2026-10-30T04:00:00Z", "https://odaily.example/o2")]:
+        pipeline.ingest([_raw("odaily", title, title, url=url, when=when)], store, t)
+    [ev] = store.events.values()
+    assert len(ev["item_ids"]) == 3 and ev["amount_disputed"] is False
+
+
+def test_a_prose_only_headline_is_the_loss_not_a_later_freeze():
+    """M157 without a hack database in the event: freezes reported after the loss never become the headline loss."""
+    store = MemoryStore()
+    t = datetime(2026, 10, 30, 5, tzinfo=UTC)
+    for title, when, url in [("币安热钱包疑似遭攻击，约25亿美元资产被盗", "2026-10-29T20:51:00Z", "https://panews.example/q1"),
+                             ("涉币安疑似被盗事件的稳定币冻结额升至约21.07亿美元", "2026-10-29T21:29:00Z", "https://panews.example/q2"),
+                             ("Arbitrum安全委员会冻结币安黑客约3050万美元资产", "2026-10-29T22:50:00Z", "https://panews.example/q3")]:
+        pipeline.ingest([_raw("panews", title, title, url=url, when=when)], store, t)
+    [ev] = store.events.values()
+    assert ev["amount_usd_latest"] == 2_500_000_000 and ev["amount_frozen_latest"] == 2_107_000_000
+
+
+def test_hack_records_without_a_victim_do_not_merge_through_the_shared_feed_url():
+    """M05 now that named records are kept apart by their victims: a record whose victim did not parse still must not
+    join another through the database's synthetic shared URL."""
+    store = MemoryStore()
+    pipeline.ingest([
+        _raw("defillama_hacks", "Unknown protocol — Flash Loan Attack", "flash loan", url="https://api.llama.fi/hacks",
+             extra={"amount_usd": 1_200_000}, when="2026-11-01T00:00:00Z"),
+        _raw("defillama_hacks", "Another protocol — Oracle Manipulation", "oracle", url="https://api.llama.fi/hacks",
+             extra={"amount_usd": 3_400_000}, when="2026-11-02T00:00:00Z"),
+    ], store, FETCHED)
+    assert len(store.events) == 2, "two hack records merged through the shared synthetic URL"
+
+
+def test_alert_boilerplate_and_time_zones_name_no_victim():
+    """Live 2026-11-11: SlowMist's TranchePool alert joined the Initia event through tok:utc (「reported at 03:14 UTC」) and
+    later Yapeswap through tok:vulnerable (「Root Cause: Vulnerable …」); its attack tx then pulled FenceTranchePool in."""
+    from radar import keys
+    toks = keys.entity_tokens("🚨 SlowMist TI Alert 🚨 💸 Loss: ~1.013M USDC from a TranchePool reported at 03:14 UTC. "
+                              "🔍 Root Cause: Vulnerable settle logic")
+    assert toks == {"tranchepool"}
+
+
+def test_a_second_attack_on_the_same_victim_is_a_new_incident():
+    """Live 2026-11-11: 「Initia confirms second exploit in 3 weeks」 joined the 10-23 Initia event by name."""
+    store = MemoryStore()
+    pipeline.ingest([_raw("defillama_hacks", "Initia — Infinite Mint", "Initia hack", url="https://defillama.example/i1",
+                          extra={"entity": "Initia", "amount_usd": 2.7e6}, when="2026-10-23T00:00:00Z")], store, FETCHED)
+    (first,) = store.events
+    for n, day in enumerate(("10-25", "10-28", "10-31", "11-03", "11-06", "11-09")):   # follow-ups keep the window open
+        pipeline.ingest([_raw("panews", f"Initia 链被盗约270万美元，追踪进展第{n}期", f"Initia 链上被盗资金第{n}次追踪：仍在转移",
+                              url=f"https://panews.example/i{n}", when=f"2026-{day}T08:00:00Z")], store, FETCHED)
+    assert len(store.events) == 1 and len(next(iter(store.events.values()))["item_ids"]) == 7   # one open story
+    pipeline.ingest([_raw("cointelegraph", "Initia blockchain confirms second crypto exploit in 3 weeks, $3.27M stolen",
+                          "Initia blockchain second exploit, $3.27 million in crypto stolen", url="https://ct.example/i3",
+                          when="2026-11-11T05:52:00Z")], store, FETCHED)
+    second = next(i for i, it in store.items.items() if it["url"] == "https://ct.example/i3")
+    assert second not in store.events[first]["item_ids"], "a reported second exploit joined the first incident"
+
+
+def test_one_victim_under_two_spellings_is_one_victim():
+    """DeFiHackLabs writes 「ZkLinkNova」, DeFiLlama 「zkLink Nova」 (entity keys zklinknova / zklink)."""
+    assert pipeline._same_victim(["ZkLinkNova"], ["zkLink Nova"]) and pipeline._same_victim(["Across"], ["Across Protocol"])
+    assert not pipeline._same_victim(["FenceTranchePool"], ["Initia"]) and not pipeline._same_victim(["Ankr Bridge"], ["Binance CEX"])
+
+
+def _ankr_and_binance(store):
+    """Binance open (one of its reports mentions Ankr, so the event holds tok:ankr) and the Ankr bridge's own event."""
+    _binance_open_event(store)
+    t = datetime(2026, 11, 3, 0, tzinfo=UTC)          # inside Binance's rolling window (reported hourly live)
+    pipeline.ingest([_web3("cointelegraph", "Binance hack: attacker moves another $30M as Ankr and Kraken freeze deposits",
+                           "2026-11-02T10:00:00Z", t)], store, t)
+    pipeline.ingest([_raw("defillama_hacks", "Ankr Ethereum Cross-chain Bridge — Smart Contract Vulnerability", "Ankr bridge",
+                          url="https://defillama.example/ankr", extra={"entity": "Ankr Ethereum Cross-chain Bridge",
+                                                                      "amount_usd": 304_500}, when="2026-11-03T00:53:00Z")],
+                    store, t)
+    (binance,) = [e for e, v in store.events.items() if "Binance CEX" in v["entities"]]
+    (ankr,) = [e for e, v in store.events.items() if "Ankr Ethereum Cross-chain Bridge" in v["entities"]]
+    assert "tok:ankr" in store.events[binance]["keys"]            # the live precondition: a mention lent Binance the name
+    return binance, ankr
+
+
+def test_a_report_naming_a_victim_goes_to_that_victims_event_not_to_one_that_mentions_it():
+    """Live 2026-11-12: one Binance article mentioned Ankr; every Ankr bridge report (no structured victim name) then
+    scored the 576-item Binance event and the Ankr event alike and went to the earlier one — 12 reports and Ankr's five
+    attack transactions sat on the Binance page (and Mercado Bitcoin's whole $49M story likewise)."""
+    store = MemoryStore()
+    binance, ankr = _ankr_and_binance(store)
+    t = datetime(2026, 11, 3, 11, tzinfo=UTC)
+    pipeline.ingest([_web3("gn_crypto_hack", "Ankr Bridge Hack: $304K Drained Using Forged Cross-Chain Receipts",
+                           "2026-11-03T10:39:00Z", t)], store, t)
+    report = next(i for i, it in store.items.items() if it["title"].startswith("Ankr Bridge Hack"))
+    assert report in store.events[ankr]["item_ids"], "the Ankr report went to the event that only mentions Ankr"
+    assert report not in store.events[binance]["item_ids"]
+
+
+def test_a_name_in_the_body_only_is_context_not_the_reports_subject():
+    """Live: 「Pando Rings黑客将4000枚ETH通过Tornado转移」 recalls the Binance-led dip in its text; it stays with Pando."""
+    store = MemoryStore()
+    _binance_open_event(store)
+    t = datetime(2026, 11, 2, 4, 10, tzinfo=UTC)
+    pipeline.ingest([_web3("panews", "Pando Rings黑客抄底买入7548枚ETH，约合1672万美元", "2026-11-02T04:04:00Z", t)], store, t)
+    pando = next(e for e, v in store.events.items() if "Pando" in v["title"])
+    pipeline.ingest([_raw("odaily", "价值约922万美元，Pando Rings黑客将4000枚ETH通过Tornado转移",
+                          "4 年前盗取 Pando Rings 的黑客，在币安被盗引发的市场下跌中抄底 ETH，并将 4000 枚 ETH 转入 Tornado Cash。",
+                          url="https://odaily.example/pando", when="2026-11-02T04:05:00Z")], store, t)
+    report = next(i for i, it in store.items.items() if it["url"] == "https://odaily.example/pando")
+    assert report in store.events[pando]["item_ids"], "a body mention of Binance outranked the headline's Pando Rings"
+
+
+def test_a_shared_loss_figure_outranks_a_name_mentioned_in_passing():
+    """Live: 「Mystery $106 Million Crypto Theft Hits EU Entity Days After Binance…」 is the EU entity's story (it holds
+    amt:106000000); Binance is a time reference, however the headline names it."""
+    store = MemoryStore()
+    _binance_open_event(store)
+    t = datetime(2026, 11, 2, 21, 30, tzinfo=UTC)
+    pipeline.ingest([_web3("panews", "ZachXBT：一欧盟实体疑从多个交易所账户被盗逾1.06亿美元", "2026-11-02T12:32:00Z", t)], store, t)
+    eu = next(e for e, v in store.events.items() if "欧盟" in v["title"])
+    assert "amt:106000000" in store.events[eu]["keys"]
+    pipeline.ingest([_raw("thedefiant", "Mystery $106 Million Crypto Theft Hits EU Entity Days After Binance Hack",
+                          "An EU entity lost $106 million days after the Binance hack.", url="https://defiant.example/eu",
+                          when="2026-11-02T21:16:00Z")], store, t)
+    report = next(i for i, it in store.items.items() if it["url"] == "https://defiant.example/eu")
+    assert report in store.events[eu]["item_ids"], "a passing mention of Binance outranked the shared $106M figure"
+
+
+def test_an_event_without_a_named_victim_has_no_own_name():
+    """Its title is one report's headline — live, a Pando Rings tweet titled 「…在 3 天前 Binance 被盗引发的市场下跌中…」
+    drew Binance follow-ups once its title's names counted as its own."""
+    from radar.model import Event
+    ev = Event.from_dict({**_binance_like_event(), "entities": [],
+                          "title": "4 年前从 Pando Rings 盗取资产的黑客，在 3 天前 Binance 被盗引发的市场下跌中抄底"})
+    assert not pipeline._names_event("binance", ev) and not pipeline._names_event("pando", ev)
+    assert pipeline._names_event("binance", Event.from_dict(_binance_like_event()))
+
+
+def _binance_like_event():
+    store = MemoryStore()
+    _binance_open_event(store)
+    return next(iter(store.events.values()))
+
+
+def test_a_capitalised_word_two_unrelated_incident_stories_share_does_not_merge_them():
+    """Outside web3 a capitalised headline word is no name (live 2026-10-23: 'Hackers' / 'Deliver' glued 11 unrelated THN
+    stories). The replay test above no longer reaches this rule — its glue words are stopwords since 2026-11-11 — so this
+    pins it with one that is not: both stories mention Discord."""
+    store = MemoryStore()
+    pipeline.ingest([_raw("thehackernews", "Ransomware Crews Deliver Payloads Through Fake Zoom Installers",
+                          "Ransomware operators breached hospitals using installers shared on Discord.", when="2026-10-20T08:00:00Z"),
+                     _raw("thehackernews", "Ransomware Gangs Deliver Encryptors to Brazilian Banks, Customer Data Stolen",
+                          "A ransomware attack breached Brazilian banks; stolen customer data was sold on Discord.", when="2026-10-20T09:00:00Z")], store, FETCHED)
+    assert all("tok:discord" not in it["keys"] for it in store.items.values())
+    assert len([e for e in store.events.values() if e["domain"] != "web3"]) == 2
+
+
+# --- what may prove two events are one story (live 2026-11-12: the Binance theft merged into a vulnerability event) ---
+
+_BINANCE_NEWS = "https://example.com/" + keys.short_hash("panews", "Binance hack: attacker moves $40M stolen from hot wallets")
+
+
+def _theft_and_flaw(store):
+    """A theft event and a vulnerability event, each holding the url: key of one article."""
+    pipeline.ingest([
+        _raw("defillama_hacks", "Binance CEX — Key Leaked via Infrastructure", "Binance CEX hack",
+             url="https://defillama.example/binance", extra={"entity": "Binance CEX", "amount_usd": 6.36e9},
+             when="2026-10-29T21:00:00Z"),
+        _raw("thehackernews", "Linux Kernel TCP Flaw CVE-2026-98432 exploited in the wild", "actively exploited",
+             url="https://thn.example/linux-tcp", when="2026-10-29T15:57:00Z"),
+    ], store, FETCHED)
+    pipeline.ingest([_web3("panews", "Binance hack: attacker moves $40M stolen from hot wallets", "2026-10-29T22:00:00Z", FETCHED)],
+                    store, FETCHED)                       # a news report: its url is a key of the theft event
+    theft = next(e for e, v in store.events.items() if v["domain"] == "web3")
+    flaw = next(e for e, v in store.events.items() if v["domain"] == "vuln")
+    return theft, flaw
+
+
+def _two_incidents(store):
+    urls = ["https://bc.example/acme", "https://sw.example/globex"]
+    pipeline.ingest([_raw("bleepingcomputer", "Ransomware attack shuts down Acme Hospital network",
+                          "Ransomware attack breached Acme Hospital, systems offline.", url=urls[0], when="2026-11-10T08:00:00Z"),
+                     _raw("securityweek", "Data breach at Globex exposes 2 million customer records",
+                          "Hackers breached Globex and stole customer data.", url=urls[1], when="2026-11-10T09:00:00Z")], store, FETCHED)
+    assert len(store.events) == 2
+    return urls
+
+
+def test_a_newsletter_linking_two_stories_does_not_merge_them():
+    """「Srsly Risky Biz: Iranian Hacks With Russian Characteristics」: context-only, 34 links, two of them into events.
+    The same two links in a report of an event do merge (the control: this test can fail)."""
+    store = MemoryStore()
+    urls = _two_incidents(store)
+    pipeline.ingest([_raw("risky", "Srsly Risky Biz: Iranian Hacks With Russian Characteristics", "A weekly look at policy.",
+                          url="https://risky.example/srsly", links=urls + [f"https://ref.example/{n}" for n in range(3)],
+                          when="2026-11-12T03:40:00Z")], store, FETCHED)
+    assert len(store.events) == 2, "a context-only newsletter merged two stories"
+    pipeline.ingest([_raw("securityweek", "In Other News: hospital ransomware, retail breach, port outage, school leak, airline hack",
+                          "Attackers breached several organisations this week; ransomware attack confirmed.",
+                          url="https://sw.example/other-news", links=urls + [f"https://ref.example/{n}" for n in range(10)],
+                          when="2026-11-12T04:00:00Z")], store, FETCHED)
+    assert len(store.events) == 2, "a report citing 12 pages merged two stories"
+    pipeline.ingest([_raw("therecord", "Acme Hospital and Globex were breached by the same ransomware crew, FBI says",
+                          "The FBI says one ransomware gang breached both.", url="https://record.example/same", links=urls,
+                          when="2026-11-12T05:00:00Z")], store, FETCHED)
+    assert len(store.events) == 1                                   # a report of the event, two links: it may
+
+
+def test_a_theft_and_a_vulnerability_never_merge_through_one_report():
+    """Even an eventful report with two links: a theft and a flaw are different kinds of story."""
+    store = MemoryStore()
+    theft, flaw = _theft_and_flaw(store)
+    pipeline.ingest([_raw("thehackernews", "Linux kernel TCP flaw CVE-2026-98432: exploit published, attacks under way", "actively exploited in the wild",
+                          url="https://thn.example/both", links=[_BINANCE_NEWS, "https://thn.example/linux-tcp"],
+                          when="2026-10-30T10:00:00Z")], store, FETCHED)
+    assert {theft, flaw} <= set(store.events)
+
+
+def test_an_advisory_does_not_follow_a_cited_page_into_another_flaws_event():
+    """Live 2026-11-12: SonicWall (CVE-2026-19868), OpenSSH and MS Paint reports attached through cited pages to the
+    Linux TCP event (CVE-2026-98432) — six unrelated CVEs in one event."""
+    store = MemoryStore()
+    _theft, flaw = _theft_and_flaw(store)
+    pipeline.ingest([_raw("bleepingcomputer", "SonicWall SSL-VPN flaw CVE-2026-19868 exploited to bypass MFA", "actively exploited",
+                          url="https://bc.example/sonicwall", links=["https://thn.example/linux-tcp"],
+                          when="2026-10-30T10:00:00Z")], store, FETCHED)
+    sonic = next(i for i, it in store.items.items() if it["url"] == "https://bc.example/sonicwall")
+    assert sonic not in store.events[flaw]["item_ids"] and store.events[flaw]["cves"] == ["CVE-2026-98432"]
+
+
+def test_two_flaws_with_no_cve_in_common_do_not_merge_through_a_report_naming_neither():
+    store = MemoryStore()
+    _theft, flaw = _theft_and_flaw(store)
+    pipeline.ingest([_raw("bleepingcomputer", "SonicWall SSL-VPN flaw CVE-2026-19868 exploited to bypass MFA", "actively exploited",
+                          url="https://bc.example/sonicwall", when="2026-10-30T10:00:00Z")], store, FETCHED)
+    n = len(store.events)
+    pipeline.ingest([_raw("securityweek", "Attackers exploit unpatched edge devices and servers this week", "exploited in the wild",
+                          url="https://sw.example/week", links=["https://bc.example/sonicwall", "https://thn.example/linux-tcp"],
+                          when="2026-10-31T10:00:00Z")], store, FETCHED)
+    assert len(store.events) == n and flaw in store.events
+
+
+# --- a name is evidence for the event it names (measured on the corpus, 2026-11-13: precision 0.51 → 0.91) ------------
+
+def test_a_report_about_someone_else_does_not_join_an_event_that_only_mentioned_the_name():
+    """Corpus: 「UXLINK黑客开始平多价值1.48亿美元的多仓」 and 19 more sat in the Binance event — Binance coverage had
+    mentioned UXLINK and Hyperliquid, and no UXLINK event existed to win the report."""
+    store = MemoryStore()
+    _binance_open_event(store)
+    t = datetime(2026, 11, 2, 10, tzinfo=UTC)
+    pipeline.ingest([_web3("cointelegraph", "Binance hack: $40M of stolen funds move through Hyperliquid, where the UXLINK hacker also trades",
+                           "2026-11-02T09:00:00Z", t)], store, t)
+    (binance,) = store.events
+    assert {"tok:uxlink", "tok:hyperliquid"} <= set(store.events[binance]["keys"])     # the precondition: mentions lent
+    pipeline.ingest([_raw("panews", "UXLINK黑客开始平多价值1.48亿美元的多仓，预计亏损330万美元",
+                          "UXLINK 被盗事件的黑客开始平掉其在 Hyperliquid 上价值 1.48 亿美元的多仓，包括 30,282 枚 ETH，预计亏损 330 万美元。",
+                          url="https://panews.example/ux",
+                          when="2026-11-02T11:00:00Z")], store, t)
+    report = next(i for i, it in store.items.items() if it["url"] == "https://panews.example/ux")
+    assert report not in store.events[binance]["item_ids"], "a report about UXLINK's hacker joined the Binance event"
+    pipeline.ingest([_web3("theblock", "Binance hack: $250K of stolen funds deposited to Gate, 2 accounts frozen", "2026-11-02T12:00:00Z", t)], store, t)
+    assert len(store.events[binance]["item_ids"]) == 4                              # its own name still finds it
+
+
+def test_an_advisory_numbers_prefix_is_not_a_name():
+    """Corpus: 18 Amazon Linux advisories for 18 packages were one event through tok:alas2023 — the advisory-id prefix,
+    read as a named vulnerability."""
+    assert keys.named_tokens("ALAS2023-2026-3389 (important): kernel") == set()
+    assert keys.named_tokens("ALAS2023LIVEPATCH-2026-424 and AV26-1135") == set()
+    assert keys.named_tokens("PHP2Shell: two unpatched flaws; Node2Shell-style exploit") == {"php2shell", "node2shell"}
+    store = MemoryStore()
+    for n, pkg in enumerate(["kernel", "docker", "libreswan", "cups", "rclone"]):
+        pipeline.ingest([_raw("alas2023", f"ALAS2023-2026-33{n:02d} (important): {pkg}", f"Update {pkg}: a flaw is actively exploited in the wild",
+                              url=f"https://alas.example/ALAS2023-2026-33{n:02d}.html", when=f"2026-11-09T23:{n:02d}:00Z")],
+                        store, FETCHED)
+    assert len(store.events) == 5
+
+
+def test_a_word_held_by_several_events_names_none_of_them():
+    """A key three web3 events hold is not a name (hyperliquid, tornado, coinjoin): the corpus had UXLINK's, Drift's
+    and BlueMove's hackers in one event because each report said Hyperliquid."""
+    store = MemoryStore()
+    for day, who, usd in (("10-01", "Zeta", 5), ("10-10", "Orbit", 12), ("10-20", "Nimbus", 31)):   # far apart, other sums
+        t = datetime(2026, 10, int(day[3:]), 9, tzinfo=UTC)
+        pipeline.ingest([_web3("panews", f"{who} hacker moves ${usd}M of stolen funds to Hyperliquid and opens ETH longs",
+                               f"2026-{day}T08:00:00Z", t)], store, t)
+    assert len(store.events) == 3 and all("tok:hyperliquid" in v["keys"] for v in store.events.values())
+    t = datetime(2026, 10, 21, 9, tzinfo=UTC)
+    pipeline.ingest([_web3("odaily", "Vega hacker moves $77M of stolen funds to Hyperliquid and opens ETH longs", "2026-10-21T08:00:00Z", t)], store, t)
+    assert len(store.events) == 4, "a word three events hold glued a fourth story to one of them"

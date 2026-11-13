@@ -1,0 +1,1 @@
+{"kind": "search-shard", "generated_at": "2026-10-23T04:00:00Z", "month": "2026-08", "events": [{"id": "ev_example1", "t": "Fortinet FortiWeb zero-day exploited", "d": "vuln", "s": "P0", "l": "V3", "f": "2026-08-12", "u": "2026-08-20", "c": ["CVE-2026-0001"], "e": ["fortinet"], "a": null}]}

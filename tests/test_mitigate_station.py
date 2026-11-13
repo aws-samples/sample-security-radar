@@ -4,13 +4,14 @@ plans → staged apply on the radar-owned web ACL only → human promotion → b
 from __future__ import annotations
 
 import copy
+import dataclasses
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 
 import jsonschema
 
-from radar import mitigate, mitigate_station, respond
+from radar import mitigate, mitigate_aws, mitigate_station, respond
 from radar.model import Event, Item
 from radar.store import MemoryStore
 
@@ -32,6 +33,7 @@ class FakeWaf:
                            "VisibilityConfig": {"SampledRequestsEnabled": True, "CloudWatchMetricsEnabled": True, "MetricName": "d"}},
                      "n8n-waf": copy.deepcopy(FOREIGN_ACL)}
         self.writes, self.fail, self.scans, self.dns, self.dns_writes, self.hub = [], set(), [], None, [], None
+        self.meta_calls = []
 
     def web_acls(self):
         return self.refs
@@ -42,7 +44,10 @@ class FakeWaf:
         return mitigate.parse_waf_changelog((SNAP / "waf-changelog.html").read_text())
 
     def group_meta(self, group):
-        return {"labels": GROUPS[group]["labels"], "default_version": "Version_2.5"}
+        self.meta_calls.append(group)
+        if "meta" in self.fail:
+            return {"error": "ThrottlingException"}
+        return {"labels": GROUPS[group]["labels"], "rules": GROUPS[group]["rules"], "default_version": "Version_2.5"}
 
     def get_acl(self, ref):
         if "get" in self.fail:
@@ -91,10 +96,43 @@ class FakeWaf:
             return {"error": "ThrottlingException"}
         return json.loads((ROOT / "tests" / "fixtures" / "inspector" / "scan-radar-2026-10-29.json").read_text())
 
+    # P2 rule pack: nuclei-templates (an empty index unless a test serves one) and the read-only CheckCapacity
+    poc_index = ""
+    capacity_calls: list | None = None
+
+    def poc_get(self, url):
+        import hashlib
+
+        from radar import pocs
+        if url == pocs.CHECKSUM_URL:
+            return hashlib.md5(self.poc_index.encode(), usedforsecurity=False).hexdigest()
+        if url == pocs.INDEX_URL:
+            return self.poc_index
+        raise AssertionError(f"unexpected PoC URL {url}")
+
+    def check_capacity(self, rules):
+        if self.capacity_calls is None:
+            self.capacity_calls = []
+        self.capacity_calls.append(rules)
+        return {"capacity": 3 * len(rules)}
+
     def put_rules(self, ref, acl, lock, rules):
-        self.writes.append(ref["name"])
-        self.acls[ref["name"]]["Rules"] = copy.deepcopy(rules)
-        return {"lock": "L2"}
+        """Through the REAL adapter (radar.mitigate_aws.put_rules, its prefix guard included) with a stub wafv2 client:
+        only what reaches UpdateWebACL counts as a write."""
+        class Client:
+            def update_web_acl(_, **kw):
+                self.writes.append(kw["Name"])
+                self.acls[kw["Name"]]["Rules"] = copy.deepcopy(kw["Rules"])
+                return {"NextLockToken": "L2"}
+        saved = mitigate_aws._clients.get("waf")
+        mitigate_aws._clients["waf"] = Client()
+        try:
+            return mitigate_aws.put_rules(ref, acl, lock, rules)
+        finally:
+            if saved is None:
+                mitigate_aws._clients.pop("waf", None)
+            else:
+                mitigate_aws._clients["waf"] = saved
 
 
 def _seed(store):
@@ -142,12 +180,177 @@ def test_station_stages_php2shell_on_the_radar_acl_and_reports_it():
     assert waf.writes == [ACL]
 
 
+THEIR_RULE = {"Name": "ops-rate-limit", "Priority": 3, "Action": {"Block": {}},
+              "Statement": {"RateBasedStatement": {"Limit": 100, "AggregateKeyType": "IP"}},
+              "VisibilityConfig": {"SampledRequestsEnabled": True, "CloudWatchMetricsEnabled": True, "MetricName": "r"}}
+
+
 def test_foreign_web_acls_are_never_written():
+    """B3 at station level. Before 2026-11-11 the fake listed only the radar ACL, so the station never even reached a
+    foreign one and every guard could be deleted with this test still green (01-waf.md Bug-3)."""
+    store = MemoryStore()
+    _seed(store)
+    # a mis-registered ACL (no radar prefix) behind an affected target: the station wants to write it — the adapter refuses
+    waf = FakeWaf({"demo-shop": {"name": "n8n-waf", "id": "f1"}})
+    _run(store, waf)
+    led = store.get_source_state(mitigate_station.MITIGATE_KEY)
+    assert waf.acls["n8n-waf"] == FOREIGN_ACL and "n8n-waf" not in waf.writes
+    assert any(e["what"] == "update n8n-waf" and "refusing" in e["error"] for e in led["errors"])
+    # the radar's own ACL shared with someone else's rule: written, and their rule kept byte-for-byte
+    store = MemoryStore()
+    _seed(store)
+    waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
+    waf.acls[ACL]["Rules"] = [copy.deepcopy(THEIR_RULE)]
+    _run(store, waf)
+    assert waf.writes == [ACL] and waf.acls[ACL]["Rules"][0] == THEIR_RULE
+    assert [r["Name"] for r in waf.acls[ACL]["Rules"]] == ["ops-rate-limit", "radar-AWSManagedRulesPHPRuleSet"]
+
+
+def test_w1_the_staged_rule_on_the_acl_and_on_the_page_blocks_nothing():
+    """Live bug (01-waf.md Bug-1): the staged PHP rule on the demo ACL — and the rule_json users copy — counted only the
+    two PHP2Shell rules; the group's 4 PHPHighRiskMethodsVariables_* rules blocked without anyone promoting them."""
+    store = MemoryStore()
+    eid = _seed(store)
+    waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
+    _run(store, waf)
+    (written,) = waf.acls[ACL]["Rules"]
+    (plan,) = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"][eid]["plans"]
+    for rule in (written, plan["rule_json"]):
+        assert rule["OverrideAction"] == {"Count": {}}
+        assert "RuleActionOverrides" not in rule["Statement"]["ManagedRuleGroupStatement"]
+    # promoted: only the plan's rules block; every other PHP rule stays at Count
+    store.put_source_state(mitigate_station.PROMOTE_KEY,
+                           {"waf": {ACL: {mitigate.rule_name("AWSManagedRulesPHPRuleSet"): {"by": "human", "at": "x"}}}})
+    _run(store, waf)
+    (written,) = waf.acls[ACL]["Rules"]
+    every = GROUPS["AWSManagedRulesPHPRuleSet"]["rules"]
+    counted = {o["Name"] for o in written["Statement"]["ManagedRuleGroupStatement"]["RuleActionOverrides"]
+               if "Count" in o["ActionToUse"]}
+    assert written["OverrideAction"] == {"None": {}}
+    assert set(every) - counted == set(plan["rules"]) & set(every) and set(every) - counted
+
+
+def _seed_twin(store, eid, new_id, cves):
+    """Another event with the same located response (same affected targets) but other CVEs."""
+    ev = store.get_event(eid)
+    store.put_event(dataclasses.replace(ev, event_id=new_id, cves=list(cves)))
+    store.put_response(new_id, copy.deepcopy(store.get_response(eid)))
+
+
+def test_w2_two_events_on_one_acl_and_group_share_one_rule_and_both_are_checked():
+    """Live bug (01-waf.md Bug-2): `wanted = {p.group: p …}` kept the last plan per group — the earlier event's rules were
+    not the ones rendered, so after a promotion the earlier plan read as not blocking (and, before W1, as blocking
+    while staged)."""
+    store = MemoryStore()
+    eid = _seed(store)
+    _seed_twin(store, eid, "ev_kbi_a", ["CVE-2022-42889"])
+    _seed_twin(store, eid, "ev_kbi_b", ["CVE-2023-22515"])
+    waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
+    _run(store, waf)
+    kbi = "AWSManagedRulesKnownBadInputsRuleSet"
+    assert [r["Name"] for r in waf.acls[ACL]["Rules"]].count(mitigate.rule_name(kbi)) == 1
+    events = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"]
+    plans = [p for e in ("ev_kbi_a", "ev_kbi_b") for p in events[e]["plans"] if p["group"] == kbi]
+    assert len(plans) == 2 and {p["state"] for p in plans} == {"staged"}
+    # approved as the whole group ("rules": []): the rule renders the merged plan itself. A promotion that names rules
+    # is pinned to them (mitigate.pinned) whatever the merge says — with that, last-one-wins rendered the same rule
+    # and this test could not tell (CI 2026-11-13: M505 survived)
+    store.put_source_state(mitigate_station.PROMOTE_KEY,
+                           {"waf": {ACL: {mitigate.rule_name(kbi): {"by": "human", "at": "x", "rules": []}}}})
+    _run(store, waf)
+    events = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"]
+    plans = [p for e in ("ev_kbi_a", "ev_kbi_b") for p in events[e]["plans"] if p["group"] == kbi]
+    assert {p["state"] for p in plans} == {"blocking"}, [(p["rules"], p["state"]) for p in plans]
+    (written,) = [r for r in waf.acls[ACL]["Rules"] if r["Name"] == mitigate.rule_name(kbi)]
+    every = set(GROUPS[kbi]["rules"])
+    counted = {o["Name"] for o in written["Statement"]["ManagedRuleGroupStatement"].get("RuleActionOverrides") or []}
+    assert every - counted == {r for p in plans for r in p["rules"]} & every
+    assert all(p["rule_json"] == written for p in plans)   # the page shows the rule that is really there
+
+
+def test_w4_rule_json_priority_is_the_real_one_on_the_radar_acl_and_a_distinct_placeholder_otherwise():
+    store = MemoryStore()
+    eid = _seed(store)
+    waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
+    waf.acls[ACL]["Rules"] = [copy.deepcopy(THEIR_RULE)]
+    _run(store, waf)
+    (plan,) = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"][eid]["plans"]
+    assert plan["rule_json"]["Priority"] == waf.acls[ACL]["Rules"][1]["Priority"] == 4
+    store, waf = MemoryStore(), FakeWaf({})
+    eid = _seed(store)
+    _run(store, waf)
+    (plan,) = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"][eid]["plans"]
+    assert plan["rule_json"]["Priority"] == mitigate.paste_priority(plan["group"]) != 0
+
+
+def test_w4_priority_placeholder_flag_follows_the_real_priority_not_the_web_acl():
+    """The page notes a placeholder Priority from this flag: web_acl alone is not enough (an advisory cwe plan behind a
+    radar ACL, a group someone else runs, a rule not written yet all carry web_acl and a 10000+ placeholder)."""
+    store = MemoryStore()
+    eid = _seed(store)
+    waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
+    _run(store, waf)
+    (plan,) = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"][eid]["plans"]
+    assert plan["web_acl"] == ACL and plan["priority_placeholder"] is False
+    assert plan["rule_json"]["Priority"] != mitigate.paste_priority(plan["group"])
+    # (b) a group someone else already runs: the radar rule is never written => the shown Priority is a placeholder
+    store = MemoryStore()
+    eid = _seed(store)
+    waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
+    waf.acls[ACL]["Rules"] = [{"Name": "ops-team-php", "Priority": 0, "OverrideAction": {"None": {}},
+                               "Statement": {"ManagedRuleGroupStatement": {"VendorName": "AWS", "Name": "AWSManagedRulesPHPRuleSet"}},
+                               "VisibilityConfig": {"SampledRequestsEnabled": True, "CloudWatchMetricsEnabled": True, "MetricName": "o"}}]
+    _run(store, waf)
+    (plan,) = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"][eid]["plans"]
+    assert plan["web_acl"] == ACL and plan["priority_placeholder"] is True
+    assert plan["rule_json"]["Priority"] == mitigate.paste_priority(plan["group"])
+    # (a) an advisory cwe plan behind a radar ACL whose radar rule for the group is there: still a placeholder
+    ref = {"name": ACL, "id": "a1"}
+    cwe = mitigate.WafPlan("demo-shop", "cwe", plan["group"], (), None, "CWE-94")
+    acl = {"Rules": [{"Name": mitigate.rule_name(plan["group"]), "Priority": 4}]}
+    row = mitigate_station._row(cwe, ref, False, {"state": "staged", "detail": ""}, acl, {}, {})
+    assert row["web_acl"] == ACL and row["priority_placeholder"] is True
+    assert row["rule_json"]["Priority"] == mitigate.paste_priority(plan["group"])
+    # (c) a radar ACL whose rule is not there (put_rules failed / get_acl unchecked): placeholder
+    cve = mitigate.WafPlan("demo-shop", "cve", plan["group"], (), None, "CVE")
+    row = mitigate_station._row(cve, ref, False, {"state": "unchecked", "detail": ""}, None, {}, {})
+    assert row["web_acl"] == ACL and row["priority_placeholder"] is True
+    # no web ACL at all: placeholder
+    store, waf = MemoryStore(), FakeWaf({})
+    eid = _seed(store)
+    _run(store, waf)
+    (plan,) = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"][eid]["plans"]
+    assert plan["web_acl"] is None and plan["priority_placeholder"] is True
+
+
+def test_group_meta_cached_without_the_rule_list_is_refetched_the_same_day():
+    """Ledgers written before W1 cached {labels, default_version} only; promotion needs the group's rule list."""
     store = MemoryStore()
     _seed(store)
     waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
     _run(store, waf)
-    assert waf.acls["n8n-waf"] == FOREIGN_ACL and "n8n-waf" not in waf.writes
+    led = store.get_source_state(mitigate_station.MITIGATE_KEY)
+    for g in led["groups"].values():
+        g.pop("rules")
+    store.put_source_state(mitigate_station.MITIGATE_KEY, led)
+    waf.meta_calls.clear()
+    _run(store, waf)
+    assert waf.meta_calls and all(g.get("rules") for g in store.get_source_state(mitigate_station.MITIGATE_KEY)["groups"].values())
+
+
+def test_a_promotion_without_the_group_rule_list_keeps_what_is_there_and_says_so():
+    store = MemoryStore()
+    _seed(store)
+    waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
+    waf.fail = {"meta"}
+    _run(store, waf)
+    staged = copy.deepcopy(waf.acls[ACL]["Rules"])
+    store.put_source_state(mitigate_station.PROMOTE_KEY,
+                           {"waf": {ACL: {mitigate.rule_name("AWSManagedRulesPHPRuleSet"): {"by": "human", "at": "x"}}}})
+    out = _run(store, waf)
+    led = store.get_source_state(mitigate_station.MITIGATE_KEY)
+    assert waf.acls[ACL]["Rules"] == staged and waf.writes == [ACL]   # neither a blind Block nor a demotion
+    assert out["errors"] >= 1 and any("AWSManagedRulesPHPRuleSet" in e["what"] and "promot" in e["what"] for e in led["errors"])
 
 
 def test_promotion_by_a_human_makes_it_blocking_and_it_is_never_demoted():
@@ -301,3 +504,58 @@ def test_a_group_someone_else_already_runs_on_the_acl_is_reported_not_duplicated
     assert waf.writes == [] and waf.acls[ACL]["Rules"] == [theirs]
     (plan,) = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"][eid]["plans"]
     assert plan["state"] == "blocking" and plan["rule"] == "ops-team-php"   # reported as what is really there
+
+
+def test_the_station_blocks_what_was_approved_and_reports_what_the_plan_gained_since():
+    """R4.1 end to end: a promotion recorded for ONE of the plan's rules — the web ACL rule lets only that one block, the
+    rest of the plan's rules stay at Count, and the ledger (⇒ #/ops) names them as waiting for a decision."""
+    store = MemoryStore()
+    eid = _seed(store)
+    waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
+    _run(store, waf)
+    (plan,) = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"][eid]["plans"]
+    assert len(plan["rules"]) >= 2, "the fixture plan names several rules"
+    first, rest = plan["rules"][0], set(plan["rules"][1:])
+    name = mitigate.rule_name(plan["group"])
+    store.put_source_state(mitigate_station.PROMOTE_KEY, {"waf": {ACL: {name: {"by": "human", "at": "x", "rules": [first]}}}})
+    _run(store, waf)
+    rule = next(r for r in waf.acls[ACL]["Rules"] if r["Name"] == name)
+    counted = {o["Name"] for o in rule["Statement"]["ManagedRuleGroupStatement"].get("RuleActionOverrides") or []}
+    assert rule["OverrideAction"] == {"None": {}} and first not in counted and rest <= counted
+    led = store.get_source_state(mitigate_station.MITIGATE_KEY)
+    (g,) = led["waf_grown"]
+    assert g["group"] == plan["group"] and set(g["beyond"].split(", ")) == rest and g["approved"] == [first]
+    from radar import ops
+    assert any("计划扩大了" in i["title"] for i in ops.attention({"mitigate": led}) if i["code"] == "mitigate")
+
+
+def test_a_promoted_dns_rule_blocks_the_domains_approved_and_a_domain_found_later_waits():
+    """Audit 04 §6.3 (reproduced): the promotion was per rule and the list is rewritten every run from every defanged
+    domain in the window — after a promotion, one report writing `partner-api[.]example` made it NXDOMAIN in the VPC."""
+    store = MemoryStore()
+    eid = _seed(store)
+    _with_ioc(store, eid)
+    waf = FakeWaf({})
+    waf.dns = {"domains": [], "rules": []}
+    _run(store, waf)
+    listed = list(waf.dns["domains"])
+    assert "php2shell-loader.top" in listed and "partner-api.example" not in listed
+    store.put_source_state(mitigate_station.PROMOTE_KEY,
+                           {"dns": {mitigate.DNS_RADAR_RULE: {"by": "h", "at": "t", "domains": listed}}})
+    it = store.get_items(store.get_event(eid).item_ids)[0]
+    it.text += " A later report also names partner-api[.]example as contacted."
+    store.put_item(it)
+    _run(store, waf)
+    led = store.get_source_state(mitigate_station.MITIGATE_KEY)
+    assert waf.dns["domains"] == listed, "a domain nobody approved entered a blocking list"
+    assert led["dns"]["waiting"] == ["partner-api.example"]
+    from radar import ops
+    assert any("partner-api.example" in i["detail"] for i in ops.attention({"mitigate": led}) if i["code"] == "mitigate")
+    # a promotion from before pinning: the list is frozen at what it holds
+    store.put_source_state(mitigate_station.PROMOTE_KEY, {"dns": {mitigate.DNS_RADAR_RULE: {"by": "h", "at": "t"}}})
+    _run(store, waf)
+    assert waf.dns["domains"] == listed
+    # not promoted (ALERT only): every domain is listed, as before
+    store.put_source_state(mitigate_station.PROMOTE_KEY, {})
+    _run(store, waf)
+    assert set(waf.dns["domains"]) == {*listed, "partner-api.example"}

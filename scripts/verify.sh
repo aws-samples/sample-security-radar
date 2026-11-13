@@ -21,13 +21,16 @@ if [ "${1:-}" = "--run" ]; then
   check "cycle succeeded ($st)" "[ '$st' = SUCCEEDED ]"
 fi
 
+live=$(aws lambda list-functions --region ap-northeast-1 --query "Functions[?starts_with(FunctionName, 'SecurityRadar$SUFFIX-ProcessFn')].Environment.Variables.RADAR_COMMIT | [0]" --output text)
+check "deployed commit is HEAD ($live)" "[ '$live' = '$(git rev-parse --short HEAD)' ]"
+
 creds=$(aws secretsmanager get-secret-value --region ap-northeast-1 --secret-id "$(out UiSecretArn)" --query SecretString --output text)
 hf=$(mktemp); chmod 600 "$hf"; trap 'rm -f "$hf"' EXIT   # credential header via file, never argv
 printf '%s' "$creds" | uv run -q python -I -c 'import json,sys,base64;d=json.load(sys.stdin);print("Authorization: Basic "+base64.b64encode((d["username"]+":"+d["password"]).encode()).decode())' > "$hf"
 unset creds
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 check "anonymous request denied by the gate (401)" "[ \$(code '$site/') = 401 ]"
-check "wrong credential denied (401)" "[ \$(code -H 'Authorization: Basic d3Jvbmc6d3Jvbmc=' '$site/') = 401 ]"
+check "wrong credential denied (401)" "[ \$(code -H 'Authorization: Basic d3Jvbmc6d3Jvbmc=' '$site/') = 401 ]"   # gitleaks:allow — base64 of wrong:wrong, the negative test
 check "authorised UI loads (200)" "[ \$(code -H @'$hf' '$site/') = 200 ]"
 for doc in events.json sources.json continuum.json; do
   check "data/$doc published" "aws s3api head-object --region ap-northeast-1 --bucket '$bucket' --key data/$doc"
@@ -51,6 +54,8 @@ done
 aws s3 cp --quiet --region ap-northeast-1 "s3://$bucket/data/continuum.json" build/verify-continuum.json || true
 check "Continuum environment reconciled (resources in continuum.json)" \
   "uv run -q python -I -c \"import json;d=json.load(open('build/verify-continuum.json'));assert any(r['kind']=='environment' and r['status']=='ACTIVE' for r in d['resources'])\""
+check "WAF rule pack quotes read back verbatim from their sources (rulepack --check)" \
+  "STAGE='${STAGE:-}' uv run -q python scripts/rulepack_check.py --check"
 check "respond station considered events" \
   "uv run -q python -I -c \"import json;d=json.load(open('build/verify-continuum.json'));assert d['coverage'] and any(r['status']=='live' for r in d['coverage'])\""
 uv run -q python -I -c "
