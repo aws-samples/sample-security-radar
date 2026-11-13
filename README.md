@@ -44,8 +44,10 @@ Attacks on exchanges and DeFi protocols move fast: hot-wallet key leaks and cont
 minutes of disclosure. AWS Security Agent and AWS Continuum can review code, prove exploitability and write patches —
 but they do not know **what just happened outside, which line of your code it touches, or when a paid scan is worth it**.
 
-Security Radar is the **source** of that chain. It tracks the outside security world (CISA KEV, vendor advisories,
-security media, Web3 incident databases; an X source is available but off by default), decides in code what is real and
+Security Radar is the **source** of that chain. It tracks the outside security world — more than 200 public
+sources: CISA KEV and CSAF advisories, the CVE List itself, vendor PSIRTs and CERTs, AWS security bulletins, security
+and crypto media, Web3 incident databases, exchange announcement boards, public Telegram channel previews and WeChat
+official-account feeds (an X source is available but off by default) — decides in code what is real and
 what is urgent, and when an event matches your code it **pulls the trigger**:
 
 1. **AWS Security Agent** — the radar writes the event as a security requirement and starts a code review; Security Agent
@@ -70,7 +72,7 @@ it located**, on resources it owns, in a non-blocking mode until a human promote
 </picture>
 
 > The wall (`#/wall`): radar sweep of the last 24 h, the live feed, what needs a human now, Web3 losses by protocol and chain.
-> Captured from the author's deployment on 2026-10-28 (UI text is Chinese; every page also has a light theme).
+> Captured from the author's deployment on 2026-10-28, before v1.2.0 (UI text is Chinese; every page also has a light theme).
 
 <table>
 <tr><th>Home — posture, NOW, lifecycle</th><th>Web3 incidents</th></tr>
@@ -85,10 +87,14 @@ it located**, on resources it owns, in a non-blocking mode until a human promote
 |---|---|
 | **Decisions in code, not in an LLM** | De-duplication, independent-source counting, verification level V0–V4, severity P0–P2, version comparison and IOC matching are deterministic code. An LLM (Amazon Bedrock) only writes sentences, each with citations that code checks (citation exists, every number appears in the cited text). |
 | **Located to the line** | A pinned vulnerable version or an IOC (address, key) found in your repository becomes a finding with file and line, e.g. `Dockerfile:1`, `composer.json:8`, `.gitlab-ci.yml:2`. When the version cannot be compared, the radar says so and leaves it to Security Agent. |
-| **On-chain evidence** | For Web3 incidents the attack transaction is checked on a public RPC node (`eth_getTransactionReceipt`); a successful transaction raises the event to *corroborated*. |
+| **On-chain evidence** | For Web3 incidents the attack transaction is checked on a public RPC node (`eth_getTransactionReceipt`); a successful transaction raises the event to *corroborated*. Young incidents are reconstructed from public JSON-RPC (ERC-20 outflows, issuer freezes), and each verified attack transaction is broken down per token. |
+| **Clustering that is measured** | One incident, many reports: reports are merged by hard links (CVE, transaction, cited article) and by the victim's name — a name is evidence for the event it names, not for every event whose coverage mentions it. A single misplaced report can be moved (`scripts/move_item.py`) and stays where it was put. |
+| **It reports its own mistakes** | An event that changes shape within one cycle, a station that fails every run or stopped running, a source that is not collected or went quiet are items on the ops page; five Amazon CloudWatch alarms notify the owner through Amazon SNS. Published → held and first report → P0 push latency are measured every cycle. |
+| **One response decision table** | Every response action (review, finding, scan, patch delivery, notification, mitigation) is decided by one table in code; each event page shows the outcome, the reason code and the time, and "not evaluated" looks unlike "not fired". |
 | **Three code hosts, one chain** | Each target lives in exactly one Continuum environment: S3 (patch artifacts), GitHub (native PRs) or GitLab (native MRs). Adding a host is one row in `respond.REPO_CHANNELS`, one adapter in `scripts/sync-fleet.py` and one integration. |
 | **Cost guardrails** | A scan is requested only to validate radar findings that were submitted successfully, at most once per environment per 24 h, with scheduled scans off. A daily budget line is flagged on the ops page, never silently enforced. |
-| **Operator view** | Daily 08:00 HKT digest (code picks and counts, the LLM writes cited sentences), advisory "possible duplicate" hints, and an ops page listing what needs a human. |
+| **Operator view** | Daily 08:00 HKT digest (code picks and counts, the LLM writes cited sentences), advisory "possible duplicate" hints, an ops page listing what needs a human, search over every event ever published, and an exchange announcement board. |
+| **Notifications** | Subscriptions per channel (Slack, Lark, a signed webhook) with filters, sent by their own station after Publish; Atom / JSON feeds of the published events. Configure with `scripts/set-notify.sh`. |
 
 ## Fast path: mitigate until the patch ships
 
@@ -98,10 +104,15 @@ surface says so.
 
 | Channel | Where the plan comes from (code) | What the radar does | What a human does |
 |---|---|---|---|
-| **AWS WAF** | The AWS Managed Rules changelog parsed into CVE → rule group / rules / minimum version; then the product (PHP, WordPress); then the weakness class (CWE — advisory only) | Adds the managed rule group to the radar's web ACL with the rules in **Count**, and checks it (group overridden to Count? pinned to a version that predates the CVE?) | `scripts/promote.py waf …` to **Block**; the radar never demotes |
-| **Route 53 Resolver DNS Firewall** | Domain indicators written in **defanged** form in the evidence (`evil[.]com`) + the AWS-managed threat lists; major platforms are never blocked | Writes the radar's domain list; rules in **ALERT** | `promote.py dns …` to **BLOCK** |
+| **AWS WAF** | The AWS Managed Rules changelog parsed into CVE → rule group / rules / minimum version; then the product (PHP, WordPress); then the weakness class (CWE — advisory only) | Adds the managed rule group to the radar's web ACL with the rules in **Count**, and checks it (group overridden to Count? pinned to a version that predates the CVE?) | `scripts/promote.py waf …` to **Block** — the promotion records the rules it approves, and the rule keeps blocking exactly those; what later events add stays in Count and is reported. The radar never demotes |
+| **Route 53 Resolver DNS Firewall** | Domain indicators written in **defanged** form in the evidence (`evil[.]com`) + the AWS-managed threat lists; major platforms are never blocked | Writes the radar's domain list; rules in **ALERT** | `promote.py dns …` to **BLOCK** — an approved rule keeps its approved domains; later ones wait in ALERT |
 | **Amazon Inspector** | Target lockfiles → CycloneDX SBOM → `ScanSbom` (stateless, nothing enabled in the account, at most once per target per day) | Per-target dependency baseline; intersects event CVEs with it | Upgrade through the PR / MR channel |
 | **AWS Security Hub** (opt-in) | One ASFF finding per event × affected target, with the fix version and every mitigation's state | Imports on change, archives when no longer affected | Triage next to GuardDuty / Inspector findings |
+
+For each event the radar also builds a **WAF rule pack**: custom rules taken from verbatim features of a pinned
+nuclei template or of an evidence sentence, checked by an offline matcher, with the capacity read from the read-only
+`CheckCapacity` call, rendered as wafv2 JSON, CloudFormation, Terraform and AWS CLI text for a human to apply — the
+radar does not apply a rule pack itself.
 
 Inspector judges language packages, not runtimes (a PHP or Node.js version pin is judged by the radar's own product
 registry). End-to-end checks: `scripts/waf-e2e.py`, `scripts/dns-e2e.py`, `scripts/securityhub-check.py`.
@@ -113,12 +124,15 @@ registry). End-to-end checks: `scripts/waf-e2e.py`, `scripts/dns-e2e.py`, `scrip
   <img src="docs/assets/architecture.svg" alt="Security Radar architecture">
 </picture>
 
-Serverless on AWS: EventBridge (every 10 min) → Step Functions (plan → collect → process → analyze → respond → mitigate → publish) →
-Lambda + DynamoDB + S3 → CloudFront. AWS Security Agent runs in the radar's Region; AWS Continuum runs in `us-east-1`.
+Serverless on AWS, a 5-minute cycle: EventBridge → Step Functions (plan → collect → process → analyze → respond →
+mitigate → publish → notify) → Lambda + DynamoDB + S3 → CloudFront. Collection is incremental and batched; a cycle
+that finds the previous one still running skips itself. CloudWatch alarms → SNS → a small Lambda that tells the
+owner. AWS Security Agent runs in the radar's Region; AWS Continuum runs in `us-east-1`.
 
 | Path | Content |
 |---|---|
-| `src/radar/` | Parsers, pipeline (normalize → cluster → verify → score), analyst, respond station, on-chain checks, digest, ops rules |
+| `src/radar/` | Parsers and the source registry, pipeline (normalize → cluster → verify → score), analyst, respond / mitigate / notify stations, the response decision table, rule packs, on-chain checks, digest, ops rules, self-monitoring |
+| `scripts/` | Deploy / verify / destroy, the deploy guard (`preflight.py`, `site_diff.py`), source onboarding, promotion, repair tools (`move_item.py`, `recluster_web3.py`) |
 | `infra/` | AWS CDK (Python): three stacks — radar + Security Agent + DNS Firewall demo VPC in `ap-northeast-1`; Continuum side and the WAF demo (a web ACL in front of a CloudFront distribution that refuses every request) in `us-east-1` |
 | `integrations/continuum/targets/` | **Deliberately vulnerable** demo repositories used as scan targets (see below) |
 | `ui/` | React 18 + Vite + TypeScript; `ui/mock-data/` for local development only |
@@ -133,7 +147,7 @@ AWS Security Agent in `ap-northeast-1`; Amazon Bedrock access to Anthropic Claud
 ```bash
 git clone https://github.com/aws-samples/sample-security-radar.git && cd sample-security-radar
 export AWS_PROFILE=<non-production-profile>
-./scripts/deploy-all.sh                          # build → three CDK stacks → arm the UI gate → upload UI → one cycle → verify
+./scripts/deploy-all.sh                          # preflight → build → three CDK stacks → arm the UI gate → upload UI → one cycle → verify → compare the site
 STAGE=demo ./scripts/deploy-all.sh               # an isolated copy (every name carries the stage)
 STAGE=demo ./scripts/verify.sh                   # PASS/FAIL acceptance + integration coverage
 STAGE=demo ./scripts/destroy-stage.sh            # remove that copy
@@ -143,6 +157,9 @@ Optional channels: GitHub PRs (`uv run python scripts/sync-fleet.py --channel gi
 AWS Continuum GitHub App once and set `github_repo` in `infra/cdk.json`) and GitLab MRs (`--channel gitlab`, with a
 personal access token in `~/.env`; set `gitlab_project`, and `gitlab_url` for a self-managed instance reachable by
 Continuum).
+
+Optional notifications: put the bot credentials and channel ids in `~/.env` and run `scripts/set-notify.sh` (it writes
+one AWS Secrets Manager secret; values never appear on a command line). The alarms use the owner's subscription.
 
 Optional: AWS Security Hub export with `-c security_hub=on` (an account-wide service — enabled without any default
 standards; off by default in this sample).
@@ -163,6 +180,12 @@ or address from them.**
 
 - Feeds are fetched from their public endpoints and respect each publisher's terms. The X source is **off by default**:
   set `X_SEARCH_URL` and `X_API_KEY` to a data source you are licensed to use, then enable it in `src/radar/registry.py`.
+- Every source in the registry was admitted by `scripts/source-onboard.py` (fetched from the deployment's AWS egress
+  and read by the production parser). Telegram channels are read from their public preview pages; WeChat
+  official-account articles come through a third-party RSS service — review whether those fit your use before you
+  keep them enabled (`python -m radar.registry --explain` lists every source).
+- Optional paid fallback: with a `FIRECRAWL_API_KEY` configured, a blocked feed fetch is retried once through the
+  Firecrawl API (capped per source per day) and the source is marked degraded. Without a key nothing is sent there.
 - Test fixtures were recorded once; third-party news text is reduced to title, link, date and one sentence (see `NOTICE`).
 - The UI is gated with HTTP Basic Auth at CloudFront (credential generated into AWS Secrets Manager). This is a demo gate,
   not an identity system — for anything beyond a demo, put the site behind Amazon Cognito or AWS IAM Identity Center.

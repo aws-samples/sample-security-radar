@@ -33,7 +33,9 @@
 AWS Security Agent 和 AWS Continuum 能审代码、证实可利用、出补丁，但它们回答不了三个问题：
 **外面刚发生了什么、该查哪一行、什么时候值得花钱扫**。
 
-Security Radar 是这条链路的**源头**：持续跟踪外部安全世界（CISA KEV、厂商公告、安全媒体、Web3 被盗数据库；X 源已实现但默认关闭），
+Security Radar 是这条链路的**源头**：持续跟踪外部安全世界 —— 200 多个公开信源：CISA KEV 与 CSAF 公告、CVE List 本身、
+厂商 PSIRT 与 CERT、AWS 安全公告、安全与加密媒体、Web3 被盗数据库、交易所公告板、公开 Telegram 频道预览、公众号 feed
+（X 源已实现但默认关闭），
 由代码判断真伪和紧急度；事件一旦对上你的代码，就**扣扳机**：
 
 1. **AWS Security Agent**：雷达把事件写成安全规则并发起代码评审，Security Agent 给出 finding 和修复 diff
@@ -56,7 +58,7 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界（C
 </picture>
 
 > 大屏（`#/wall`）：近 24 小时雷达扫描、实时事件流、必须处理、Web3 损失排行与链分布。
-> 截自作者的部署（2026-10-28）；每个页面都有浅色主题。
+> 截自作者的部署（2026-10-28，v1.2.0 之前）；每个页面都有浅色主题。
 
 <table>
 <tr><th>首页 · 态势 / NOW / 生命周期</th><th>Web3 事件</th></tr>
@@ -71,21 +73,39 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界（C
 |---|---|
 | **判定在代码里，不在 LLM 里** | 去重、独立来源计数、真实性 V0–V4、严重度 P0–P2、版本比对、IOC 匹配全部是确定性代码；LLM（Amazon Bedrock）只写句子，每句带引用并由代码校验 |
 | **定位到行** | 钉死的受影响版本或 IOC（地址、密钥）在仓库里出现 ⇒ 带文件与行号的 finding；版本无法比较时如实说明，交给 Security Agent |
-| **链上证据** | Web3 事件的攻击交易在公共 RPC 上查回执，成功即升为「已佐证」 |
+| **链上证据** | Web3 事件的攻击交易在公共 RPC 上查回执，成功即升为「已佐证」；新事件用公开 JSON-RPC 复盘（ERC-20 流出、发行方冻结），每笔已证实的攻击交易按代币拆解 |
+| **聚类用数字管** | 一起事件、多篇报道：按硬链接（CVE、交易、引用的原文）和受害者名称合并 —— 名字只指向它命名的事件，不指向报道里提到它的每个事件；放错的单条报道可以移动（`scripts/move_item.py`），移动后不会回流 |
+| **错了能知道** | 事件在一轮内变形、站点连续失败或停摆、信源停采或沉默，都是运维页上的条目；5 个 Amazon CloudWatch 告警经 Amazon SNS 通知负责人；「发布 → 持有」与「首报 → P0 推送」的时效每轮都在量 |
+| **一张响应决策表** | 评审、finding、扫描、补丁交付、通知、缓解，每个动作都由代码里的一张表决定；事件页显示结果、原因码与时间，「没评估」与「没触发」长得不一样 |
 | **三种托管、同一条链** | 每个目标只进一个 Continuum 环境：S3（补丁文件）/ GitHub（原生 PR）/ GitLab（原生 MR） |
 | **成本护栏** | 只为验证已提交成功的雷达 finding 才扫描；每个环境 24 小时最多一次；关闭定时扫描；日预算线在运维页标出 |
-| **值班视角** | 每日 08:00 HKT 简报（代码选事件与计数，LLM 写带引用的句子）、疑似重复提示、「需要人处理的事」运维页 |
+| **值班视角** | 每日 08:00 HKT 简报（代码选事件与计数，LLM 写带引用的句子）、疑似重复提示、「需要人处理的事」运维页、搜索发布过的每个事件、交易所公告板 |
+| **通知** | 按渠道订阅（Slack、Lark、带签名的 webhook），可设筛选，由 Publish 之后的独立工位发送；另有已发布事件的 Atom / JSON feed。用 `scripts/set-notify.sh` 配置 |
 
 ## 快路：补丁上线前先缓解
 
 | 渠道 | 计划从哪来（代码） | 雷达自动做什么 | 人做什么 |
 |---|---|---|---|
-| **AWS WAF** | 解析 AWS 托管规则 changelog：CVE → 规则组 / 规则 / 最低版本；其次按产品（PHP、WordPress）；再次按 CWE（仅建议） | 在雷达的 web ACL 上挂规则组，规则设为 **Count**，并核查（整组被 Count？版本太旧？） | `scripts/promote.py waf …` 切 **Block**；雷达从不自己降级 |
-| **Route 53 DNS Firewall** | 证据里**防篡改写法**的域名（`evil[.]com`）+ AWS 托管威胁列表；主流平台永不拦截 | 写入雷达的域名列表，规则 **ALERT** | 切 **BLOCK** |
+| **AWS WAF** | 解析 AWS 托管规则 changelog：CVE → 规则组 / 规则 / 最低版本；其次按产品（PHP、WordPress）；再次按 CWE（仅建议） | 在雷达的 web ACL 上挂规则组，规则设为 **Count**，并核查（整组被 Count？版本太旧？） | `scripts/promote.py waf …` 切 **Block** —— 晋升时记下批准的规则，之后只拦这些；后来的事件想加的规则留在 Count 并上报。雷达从不自己降级 |
+| **Route 53 DNS Firewall** | 证据里**防篡改写法**的域名（`evil[.]com`）+ AWS 托管威胁列表；主流平台永不拦截 | 写入雷达的域名列表，规则 **ALERT** | 切 **BLOCK** —— 批准的规则只拦批准时的域名，之后的留在 ALERT |
 | **Amazon Inspector** | 目标 lockfile → SBOM → `ScanSbom`（无状态，不在账号里开通） | 每个目标的依赖基线，并与事件 CVE 求交 | 走 PR / MR 通道升级 |
 | **AWS Security Hub**（可选） | 每个「事件 × 受影响目标」一条 ASFF：修复版本 + 各渠道缓解状态 | 内容变化才导入，不再受影响就归档 | 与 GuardDuty / Inspector 一起处理 |
 
+每个事件还会生成一份 **WAF 规则包**：自定义规则取自钉住版本的 nuclei 模板或证据句子里的原文特征，经离线匹配器校验，
+容量用只读的 `CheckCapacity` 查，导出为 wafv2 JSON、CloudFormation、Terraform 和 AWS CLI 文本，由人来应用 —— 雷达自己不应用规则包。
+
 缓解 ≠ 修复：升级到修复版本才是唯一完整的修复。
+
+## 架构
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
+  <img src="docs/assets/architecture.svg" alt="Security Radar 架构">
+</picture>
+
+AWS 无服务器，5 分钟一轮：EventBridge → Step Functions（plan → collect → process → analyze → respond → mitigate →
+publish → notify）→ Lambda + DynamoDB + S3 → CloudFront。采集是增量、分批的；上一轮没跑完时这一轮自己跳过。
+CloudWatch 告警 → SNS → 一个小 Lambda 通知负责人。AWS Security Agent 与雷达同区；AWS Continuum 在 `us-east-1`。
 
 ## 部署
 
@@ -95,7 +115,7 @@ Amazon Bedrock 可调用 Claude Sonnet / Haiku、`ap-northeast-1` 与 `us-east-1
 ```bash
 git clone https://github.com/aws-samples/sample-security-radar.git && cd sample-security-radar
 export AWS_PROFILE=<非生产 profile>
-./scripts/deploy-all.sh                # 构建 → 三个 CDK 栈 → 布防 UI 门 → 上传 UI → 跑一轮 → 验收
+./scripts/deploy-all.sh                # 部署前检查 → 构建 → 三个 CDK 栈 → 布防 UI 门 → 上传 UI → 跑一轮 → 验收 → 比对站点
 STAGE=demo ./scripts/deploy-all.sh     # 完全独立的副本
 STAGE=demo ./scripts/destroy-stage.sh  # 删除副本
 ```
@@ -104,6 +124,8 @@ STAGE=demo ./scripts/destroy-stage.sh  # 删除副本
 快路缓解每月约增加 $10–15（web ACL $5 + 每条规则 $1、ScanSbom 每次 $0.03、DNS Firewall 每百万次查询 $0.60）。
 Security Hub 导出需 `-c security_hub=on` 才开通（账号级服务，本示例默认关闭，开通时不启用任何默认标准）。
 
+可选通知：把机器人凭证与频道 id 写进 `~/.env`，运行 `scripts/set-notify.sh`（写入一个 AWS Secrets Manager 密钥，值不会出现在命令行上）。告警发给负责人的订阅。
+
 ## ⚠️ 故意含漏洞的演示代码
 
 `integrations/continuum/targets/` 下是**故意含漏洞**的小仓库，只作为扫描目标。**不要部署，也不要复用其中任何密钥或地址。**
@@ -111,6 +133,9 @@ Security Hub 导出需 `-c security_hub=on` 才开通（账号级服务，本示
 ## 数据源与访问
 
 - 各源取自公开端点并遵守其条款；X 源**默认关闭**，需设置你有授权的数据源 `X_SEARCH_URL` / `X_API_KEY` 后再启用
+- 登记表里的每个源都经 `scripts/source-onboard.py` 准入（从部署账号的 AWS 出口抓取，用线上解析器读）。Telegram 频道读的是公开预览页；
+  公众号文章经第三方 RSS 服务取得 —— 保持启用前请确认是否适合你的用途（`python -m radar.registry --explain` 列出全部信源）
+- 可选付费回退：配置了 `FIRECRAWL_API_KEY` 时，被封的 feed 抓取会经 Firecrawl API 重试一次（每个源每天有上限），该源标为降级；没有 key 就不会向它发任何请求
 - 测试夹具只录制一次；第三方新闻正文只保留标题、链接、日期和一句话（见 `NOTICE`）
 - UI 在 CloudFront 上用 HTTP Basic Auth 做演示门；超出演示用途请改用 Amazon Cognito 或 AWS IAM Identity Center
 
