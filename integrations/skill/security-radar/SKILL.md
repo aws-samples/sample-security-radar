@@ -11,7 +11,7 @@ Read-only. One command, one JSON document on stdout; on failure exit 1 and a JSO
 ## Setup (once)
 
 ```bash
-set -a; source ~/.config/security-radar/<name>.env; set +a     # the file the radar's operator gave you
+set -a; source ~/.config/security-radar/clients/<name>.env; set +a     # the file the radar's operator gave you
 ```
 
 That file holds `RADAR_URL`, `RADAR_TOKEN_URL`, `RADAR_CLIENT_ID` and `RADAR_CLIENT_SECRET`. The command exchanges

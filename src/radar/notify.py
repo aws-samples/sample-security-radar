@@ -369,8 +369,10 @@ def record(sent: dict[str, Any], key: str, thread: str | None, also: list[str] |
 def _post(url: str, body: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
     req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",  # noqa: S310 — fixed https chat API endpoints
                                  headers={"Content-Type": "application/json; charset=utf-8", **headers})
-    with fetch.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S) as r:
-        return json.loads(r.read())
+    # a credentialed call (bot / tenant token): no redirect is followed — urllib would carry Authorization to the new
+    # host — and the answer is capped like every other read
+    with fetch.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S, allow_hosts=frozenset()) as r:
+        return json.loads(r.read(Limits.HTTP_MAX_BYTES))
 
 
 def slack_escape(text: str) -> str:

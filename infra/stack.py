@@ -6,7 +6,7 @@ from pathlib import Path
 
 import continuum_stack
 import mitigate_stack
-from aws_cdk import CfnOutput, CfnResource, Duration, RemovalPolicy, SecretValue, Stack
+from aws_cdk import CfnOutput, CfnResource, Duration, Fn, RemovalPolicy, SecretValue, Stack
 from aws_cdk import aws_apigateway as apigw
 from aws_cdk import aws_cloudfront as cf
 from aws_cdk import aws_cloudfront_origins as origins
@@ -443,7 +443,7 @@ class RadarStack(Stack):
             cognito.ResourceServerScope(scope_name="read", scope_description="read the radar's published documents"),
             cognito.ResourceServerScope(scope_name="subscribe", scope_description="register the caller's own webhook subscriptions")])
         api_domain = api_users.add_domain("ApiDomain", cognito_domain=cognito.CognitoDomainOptions(
-            domain_prefix=f"{name}-{self.account}"))
+            domain_prefix=Fn.join("-", [name, Fn.select(0, Fn.split("-", Fn.select(2, Fn.split("/", self.stack_id))))])))
         api_fn = lambda_.Function(
             self, "ApiFn", runtime=lambda_.Runtime.PYTHON_3_12, architecture=lambda_.Architecture.ARM_64,
             handler="radar.api.handler", code=code, timeout=Duration.seconds(10), memory_size=512,

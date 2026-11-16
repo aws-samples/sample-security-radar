@@ -70,7 +70,8 @@ def usage(session, pool_clients: dict[str, str], days: int) -> list[dict[str, st
         got = logs.get_query_results(queryId=qid)
         if got["status"] in ("Complete", "Failed", "Cancelled", "Timeout"):
             break
-        time.sleep(1)
+        # polling a Logs Insights query (it has no wait call): one-second steps, at most 60
+        time.sleep(1)  # nosemgrep
     if got["status"] != "Complete":
         raise RuntimeError(f"usage query {got['status']}")
     return usage_rows(got["results"], pool_clients)

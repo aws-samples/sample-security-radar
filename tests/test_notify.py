@@ -205,6 +205,30 @@ def _dns(monkeypatch):
         (2, 1, 6, "", ("10.0.0.5" if str(h).endswith(".rebind.example") else "93.184.215.14", 0))])
 
 
+def test_a_chat_api_call_never_follows_a_redirect(monkeypatch):
+    """Slack / Lark calls carry a bot or tenant token; urllib keeps Authorization across a redirect, so none is followed
+    (an empty allowlist), and the answer is read with the size cap."""
+    seen = {}
+
+    class R:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self, n=-1):
+            seen["n"] = n
+            return b'{"ok": true}'
+
+    def opener(req, timeout, allow_hosts=None):
+        seen["allow"] = allow_hosts
+        return R()
+    monkeypatch.setattr(fetch, "urlopen", opener)
+    assert notify._post("https://slack.com/api/chat.postMessage", {"a": 1}, {"Authorization": "Bearer x"}) == {"ok": True}
+    assert seen["allow"] == frozenset() and seen["n"] == notify.Limits.HTTP_MAX_BYTES
+
+
 def test_a_webhook_whose_name_now_resolves_internal_is_not_posted_to(monkeypatch):
     """Registered while public, re-pointed to 10.0.0.5 later: the send resolves again and refuses before any open."""
     opened = []

@@ -113,9 +113,13 @@ class _SafeRedirect(urllib.request.HTTPRedirectHandler):
                          newurl: str) -> urllib.request.Request | None:
         old, new = urllib.parse.urlsplit(req.full_url), urllib.parse.urlsplit(newurl)
         scheme = new.scheme.lower()
-        why = ("non-http scheme" if scheme not in ("http", "https") else
-               "https → http downgrade" if old.scheme.lower() == "https" and scheme == "http" else
-               "internal address" if _internal_host(new.hostname or "") else "")
+        why = ""
+        if scheme not in ("http", "https"):
+            why = "non-http scheme"
+        elif old.scheme.lower() == "https" and scheme == "http":
+            why = "https → http downgrade"
+        elif _internal_host(new.hostname or ""):
+            why = "internal address"
         if why:
             raise FetchError("redirect_refused", f"redirect to {newurl[:120]} refused: {why}", code, req.full_url)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
@@ -269,7 +273,7 @@ def _firecrawl_scrape(url: str, formats: list[str], timeout: float = 60) -> dict
         req = urllib.request.Request("https://api.firecrawl.dev/v2/scrape", data=body, method="POST",
                                      headers={"Authorization": f"Bearer {k}", "Content-Type": "application/json"})
         try:
-            with urlopen(req, timeout=timeout) as r:
+            with urlopen(req, timeout=timeout, allow_hosts=frozenset()) as r:   # Bearer key: never follow a redirect
                 raw = r.read(Limits.HTTP_MAX_BYTES + 1)
             if len(raw) > Limits.HTTP_MAX_BYTES:    # a scrape is one page; a runaway answer must not OOM the Lambda
                 raise FetchError("too_large", "firecrawl response exceeds the cap", None, url)

@@ -5136,14 +5136,14 @@ expect = tests/test_notify_stack.py::test_notify_runs_after_publish_in_the_cycle
 
 [M1362 a redirect may downgrade https to http (R2.8)]
 file = src/radar/fetch.py
-find = "https → http downgrade" if old.scheme.lower() == "https" and scheme == "http" else
-replace = "https → http downgrade" if False else
+find = elif old.scheme.lower() == "https" and scheme == "http":
+replace = elif False:
 expect = tests/test_fetch_redirects.py::test_a_redirect_the_general_policy_refuses
 
 [M1363 a redirect may reach an internal address (R2.8)]
 file = src/radar/fetch.py
-find = "internal address" if _internal_host(new.hostname or "") else "")
-replace = "internal address" if False else "")
+find = elif _internal_host(new.hostname or ""):
+replace = elif False:
 expect = tests/test_fetch_redirects.py::test_a_redirect_the_general_policy_refuses
 
 [M1364 a name that resolves to a private address passes (R2.8)]
@@ -5932,3 +5932,9 @@ file = src/radar/notify.py
 find = raise fetch.FetchError("webhook_internal", "the webhook host resolves to a non-public address")
 replace = pass
 expect = tests/test_notify.py::test_a_webhook_whose_name_now_resolves_internal_is_not_posted_to
+
+[M1516 a credentialed chat call follows a redirect (it would carry the bot / tenant token to the new host)]
+file = src/radar/notify.py
+find = with fetch.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S, allow_hosts=frozenset()) as r:
+replace = with fetch.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S) as r:
+expect = tests/test_notify.py::test_a_chat_api_call_never_follows_a_redirect

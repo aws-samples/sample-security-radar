@@ -10,6 +10,7 @@ import re
 from typing import Any
 
 from radar import fetch
+from radar.limits import Limits
 
 BRANCH = re.compile(r"^continuum/([0-9a-f]{8})-")
 ISSUE = re.compile(r"\*\*AWS Continuum\*\* issue `([^`]+)`")  # first line of deliver_prs.pr_body — keep in sync
@@ -50,8 +51,8 @@ def fetch_pulls(repo: str, token: str) -> list[dict[str, Any]]:
         req = urllib.request.Request(f"https://api.github.com/repos/{repo}/pulls?state=all&per_page=100&page={page}",
                                      headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
                                               "X-GitHub-Api-Version": "2022-11-28"})
-        with fetch.urlopen(req, timeout=20) as r:
-            batch = json.loads(r.read())
+        with fetch.urlopen(req, timeout=20, allow_hosts=frozenset()) as r:   # token: never follow a redirect
+            batch = json.loads(r.read(Limits.HTTP_MAX_BYTES))
         out += batch
         if len(batch) < 100:
             break
