@@ -113,14 +113,14 @@ class _SafeRedirect(urllib.request.HTTPRedirectHandler):
                          newurl: str) -> urllib.request.Request | None:
         old, new = urllib.parse.urlsplit(req.full_url), urllib.parse.urlsplit(newurl)
         scheme = new.scheme.lower()
-        why = ""
+        why: str | None = None
         if scheme not in ("http", "https"):
             why = "non-http scheme"
         elif old.scheme.lower() == "https" and scheme == "http":
             why = "https → http downgrade"
         elif _internal_host(new.hostname or ""):
             why = "internal address"
-        if why:
+        if why is not None:
             raise FetchError("redirect_refused", f"redirect to {newurl[:120]} refused: {why}", code, req.full_url)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
