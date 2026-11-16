@@ -182,10 +182,10 @@ or address from them.**
   set `X_SEARCH_URL` and `X_API_KEY` to a data source you are licensed to use, then enable it in `src/radar/registry.py`.
 - Every source in the registry was admitted by `scripts/source-onboard.py` (fetched from the deployment's AWS egress
   and read by the production parser). Telegram channels are read from their public preview pages; WeChat
-  official-account articles come through a third-party RSS service — review whether those fit your use before you
+  official-account articles are read through the third-party RSS service `wechat2rss.xlab.app` — review whether those fit your use before you
   keep them enabled (`python -m radar.registry --explain` lists every source).
 - Optional paid fallback: with a `FIRECRAWL_API_KEY` configured, a blocked feed fetch is retried once through the
-  Firecrawl API (capped per source per day) and the source is marked degraded. Without a key nothing is sent there.
+  Firecrawl API — the feed URL is sent to `api.firecrawl.dev` (capped per source per day) and the source is marked degraded. Without a key nothing is sent there.
 - Test fixtures were recorded once; third-party news text is reduced to title, link, date and one sentence (see `NOTICE`).
 - The UI is gated with HTTP Basic Auth at CloudFront (credential generated into AWS Secrets Manager). This is a demo gate,
   not an identity system — for anything beyond a demo, put the site behind Amazon Cognito or AWS IAM Identity Center.

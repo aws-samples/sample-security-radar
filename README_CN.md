@@ -134,8 +134,8 @@ Security Hub 导出需 `-c security_hub=on` 才开通（账号级服务，本示
 
 - 各源取自公开端点并遵守其条款；X 源**默认关闭**，需设置你有授权的数据源 `X_SEARCH_URL` / `X_API_KEY` 后再启用
 - 登记表里的每个源都经 `scripts/source-onboard.py` 准入（从部署账号的 AWS 出口抓取，用线上解析器读）。Telegram 频道读的是公开预览页；
-  公众号文章经第三方 RSS 服务取得 —— 保持启用前请确认是否适合你的用途（`python -m radar.registry --explain` 列出全部信源）
-- 可选付费回退：配置了 `FIRECRAWL_API_KEY` 时，被封的 feed 抓取会经 Firecrawl API 重试一次（每个源每天有上限），该源标为降级；没有 key 就不会向它发任何请求
+  公众号文章经第三方 RSS 服务 `wechat2rss.xlab.app` 读取 —— 保持启用前请确认是否适合你的用途（`python -m radar.registry --explain` 列出全部信源）
+- 可选付费回退：配置了 `FIRECRAWL_API_KEY` 时，被封的 feed 抓取会经 Firecrawl API 重试一次（该 feed 的 URL 会发送到 `api.firecrawl.dev`）（每个源每天有上限），该源标为降级；没有 key 就不会向它发任何请求
 - 测试夹具只录制一次；第三方新闻正文只保留标题、链接、日期和一句话（见 `NOTICE`）
 - UI 在 CloudFront 上用 HTTP Basic Auth 做演示门；超出演示用途请改用 Amazon Cognito 或 AWS IAM Identity Center
 
