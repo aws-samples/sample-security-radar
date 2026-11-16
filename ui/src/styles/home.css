@@ -168,3 +168,10 @@ details.lc-group > summary { cursor: pointer; }
 .dg-block li.is-ungrounded { color: var(--text-2); }
 .dg-cite { text-decoration: underline; text-underline-offset: 2px; color: var(--accent); padding: 0 3px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 4px; font-size: 11px; }
 .dg-issue { margin-left: 4px; font-size: 11px; font-style: normal; color: var(--p1); }
+/* R3.4: first seen since the reader's previous visit */
+.hm-new { font-size: 12px; color: var(--status-degraded); margin-right: 10px; }
+.row-new { display: inline-block; font-size: 10px; font-weight: 700; padding: 0 5px; margin-right: 6px; border-radius: 8px;
+           color: var(--bg-surface); background: var(--status-degraded); vertical-align: 1px; }
+/* R3.4 the previous-visit line in 「按首见排序」 */
+.mon-sep { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 12px; color: var(--text-3); }
+.mon-sep::before, .mon-sep::after { content: ''; flex: 1; border-top: 1px dashed var(--border); }

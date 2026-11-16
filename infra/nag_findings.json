@@ -1,0 +1,92 @@
+{
+ "AwsSolutions-APIG2": [
+  "/SecurityRadar/ReadApi/Resource"
+ ],
+ "AwsSolutions-APIG3": [
+  "/SecurityRadar/ReadApi/DeploymentStage.v1/Resource"
+ ],
+ "AwsSolutions-CFR1": [
+  "/SecurityRadar/Site/Resource",
+  "/SecurityRadarMitigateDemo/DemoDistribution/Resource"
+ ],
+ "AwsSolutions-CFR2": [
+  "/SecurityRadar/Site/Resource"
+ ],
+ "AwsSolutions-CFR3": [
+  "/SecurityRadarMitigateDemo/DemoDistribution/Resource"
+ ],
+ "AwsSolutions-CFR4": [
+  "/SecurityRadar/Site/Resource",
+  "/SecurityRadarMitigateDemo/DemoDistribution/Resource"
+ ],
+ "AwsSolutions-COG2": [
+  "/SecurityRadar/ApiUsers/Resource"
+ ],
+ "AwsSolutions-COG8": [
+  "/SecurityRadar/ApiUsers/Resource"
+ ],
+ "AwsSolutions-IAM4": [
+  "/SecurityRadar/AlertFn/ServiceRole/Resource",
+  "/SecurityRadar/AnalyzeFn/ServiceRole/Resource",
+  "/SecurityRadar/ApiFn/ServiceRole/Resource",
+  "/SecurityRadar/CollectFn/ServiceRole/Resource",
+  "/SecurityRadar/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/ServiceRole/Resource",
+  "/SecurityRadar/DnsProbeFn/ServiceRole/Resource",
+  "/SecurityRadar/MitigateFn/ServiceRole/Resource",
+  "/SecurityRadar/NotifyFn/ServiceRole/Resource",
+  "/SecurityRadar/PlanFn/ServiceRole/Resource",
+  "/SecurityRadar/ProcessFn/ServiceRole/Resource",
+  "/SecurityRadar/PublishFn/ServiceRole/Resource",
+  "/SecurityRadar/ReadApi/CloudWatchRole/Resource",
+  "/SecurityRadar/RespondFn/ServiceRole/Resource",
+  "/SecurityRadar/SubscribeFn/ServiceRole/Resource",
+  "/SecurityRadarContinuum/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/ServiceRole/Resource"
+ ],
+ "AwsSolutions-IAM5": [
+  "/SecurityRadar/AnalyzeFn/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/ApiFn/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/CollectFn/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/Cycle/Role/DefaultPolicy/Resource",
+  "/SecurityRadar/MitigateFn/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/NotifyFn/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/PlanFn/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/ProcessFn/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/PublishFn/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/RespondFn/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadar/SecurityAgentServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadarContinuum/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/ServiceRole/DefaultPolicy/Resource",
+  "/SecurityRadarContinuum/IntegrationRole/DefaultPolicy/Resource"
+ ],
+ "AwsSolutions-L1": [
+  "/SecurityRadar/AlertFn/Resource",
+  "/SecurityRadar/AnalyzeFn/Resource",
+  "/SecurityRadar/ApiFn/Resource",
+  "/SecurityRadar/CollectFn/Resource",
+  "/SecurityRadar/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/Resource",
+  "/SecurityRadar/DnsProbeFn/Resource",
+  "/SecurityRadar/MitigateFn/Resource",
+  "/SecurityRadar/NotifyFn/Resource",
+  "/SecurityRadar/PlanFn/Resource",
+  "/SecurityRadar/ProcessFn/Resource",
+  "/SecurityRadar/PublishFn/Resource",
+  "/SecurityRadar/RespondFn/Resource",
+  "/SecurityRadar/SubscribeFn/Resource",
+  "/SecurityRadarContinuum/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/Resource"
+ ],
+ "AwsSolutions-S1": [
+  "/SecurityRadar/AccessLogBucket/Resource",
+  "/SecurityRadar/RawBucket/Resource",
+  "/SecurityRadar/SecurityAgentCodeBucket/Resource",
+  "/SecurityRadar/SiteBucket/Resource",
+  "/SecurityRadarContinuum/CodeBucket/Resource",
+  "/SecurityRadarMitigateDemo/EmptyOrigin/Resource"
+ ],
+ "AwsSolutions-SMG4": [
+  "/SecurityRadar/CollectorSecret/Resource",
+  "/SecurityRadar/DemoFleetGithubRO/Resource",
+  "/SecurityRadar/NotifyConfig/Resource",
+  "/SecurityRadar/SelfSubscriptions/Resource",
+  "/SecurityRadar/UiBasicAuth/Resource"
+ ]
+}

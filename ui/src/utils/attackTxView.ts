@@ -1,3 +1,4 @@
+import { compactUsd } from '@/utils/formatters';
 import type { AttackTxs } from '@/types/site-data';
 
 type Tx = AttackTxs['txs'][number];
@@ -27,11 +28,7 @@ export function senderTake(tx: Tx): string[] {
 /** "$1.01M" — USD at the tx's block time (DefiLlama); "" when unpriced (never "$0": no price is not a zero value). */
 export function fmtUsd(v: number | null | undefined): string {
   if (v === null || v === undefined) return '';
-  const a = Math.abs(v);
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
-  if (a >= 1e3) return `$${(v / 1e3).toFixed(1)}K`;
-  return `$${v.toFixed(0)}`;
+  return compactUsd(v, { B: 2, M: 2, K: 1 }) ?? `$${v.toFixed(0)}`;
 }
 
 /** The sender's take in USD — priced tokens only; `partial` when some of what it took has no (confident) price. */

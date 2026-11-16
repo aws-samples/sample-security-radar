@@ -1,8 +1,11 @@
 /** Data freshness for the wall. Two independent failure modes, reported separately (never silently):
  *  - publish_stale: the backend stopped publishing (generated_at too old) — fetches still "succeed"
  *  - fetch_failing: the browser cannot reach data/*.json
- * Pipeline cadence is 10 min, so >25 min without a new generated_at means ≥2 missed cycles. */
-export const PUBLISH_STALE_SECS = 25 * 60;
+ * Measured 2026-11-15 over 24 h (142 published cycles): the gap between publishes is p50 9.9 min, p90 11.2, p99 24.8
+ * (the schedule fires every 5 min; a cycle still running skips the next). 20 min = about twice the p90: a stale
+ * notice means something stopped, not a slow cycle. It was 25 min, set for the old 10-minute schedule — five missed
+ * triggers before the page said anything (audit 03 1.7). The server-side alarm (NoPublishedCycle) fires at 30. */
+export const PUBLISH_STALE_SECS = 20 * 60;
 export const FETCH_STALE_SECS = 120;
 
 export type Freshness =

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEvents } from '@/hooks/useEvents';
 import { useSources } from '@/hooks/useSources';
@@ -9,12 +9,14 @@ import { DigestCard } from '@/components/home/DigestCard';
 import { HeadlineBar } from '@/components/home/HeadlineBar';
 import { NowBoard } from '@/components/home/NowBoard';
 import { applyFilters, DEFAULT_FILTERS } from '@/utils/filters';
+import { cutNote } from '@/utils/listing';
 import type { FilterState } from '@/utils/filters';
 import {
   applyFunnelAction, corroborationView, funnelView, groupByLifecycle, parseHomeQuery, resolveNow, sourceRatio, toHomeQuery, web3Loss24h,
 } from '@/utils/home';
 import type { FunnelAction, LifecycleGroup, MonitorTab } from '@/utils/home';
 import { freshness } from '@/utils/staleness';
+import { byFirstSeen, isNewSince, rollVisit, visitLineRows } from '@/utils/lastVisit';
 import '@/styles/home.css';
 
 const STAGE_WORD: Record<FilterState['stage'], string> = { all: '', touched_24h: '近 24h 有更新', corroborated: '已证实（V2+）' };
@@ -26,7 +28,8 @@ const STAGE_WORD: Record<FilterState['stage'], string> = { all: '', touched_24h:
  * View state (tab + filters) lives in the URL so "back" from a detail page restores it (UI-IA §1 rule 3).
  */
 export function RadarPage() {
-  const { events, now, headline, funnel, digest, generatedAt, loading, error, staleSecs } = useEvents();
+  const { events, now, headline, funnel, digest, window: listing, generatedAt, loading, error, staleSecs } = useEvents();
+  const cut = cutNote(listing);
   const { sources, loading: srcLoading } = useSources();
   const [params, setParams] = useSearchParams();
   const { filters, tab } = parseHomeQuery(params);
@@ -42,6 +45,11 @@ export function RadarPage() {
   const groups = useMemo(() => groupByLifecycle(filtered), [filtered]);
   const loss = useMemo(() => web3Loss24h(events), [events]);
   const fresh = freshness(generatedAt, staleSecs, Date.now());
+  // R3.4: the previous visit's moment, read once per page load (a reload within 30 min keeps it)
+  const [since] = useState(() => (typeof localStorage === 'undefined' ? null : rollVisit(localStorage, Date.now())));
+  const newCount = useMemo(() => events.filter(e => isNewSince(e.first_seen, since)).length, [events, since]);
+  // R3.4: 「按首见」 — one list, newest first seen first, with a line at the previous visit (lastVisit.byFirstSeen)
+  const [byFirst, setByFirst] = useState(false);
 
   const activeAction: FunnelAction =
     filters.stage === 'touched_24h' ? 'touched_24h' : filters.stage === 'corroborated' ? 'corroborated'
@@ -58,6 +66,8 @@ export function RadarPage() {
   const visibleGroups = groups.filter(g => g.events.length > 0 || (g.key !== 'dormant' && g.key !== 'unknown'));
   const shown: LifecycleGroup[] = tab === 'all' ? groups.filter(g => g.events.length) : groups.filter(g => g.key === tab);
   const total = filtered.length;
+  const order = useMemo(() => byFirstSeen(shown.flatMap(g => g.events), since), [shown, since]);
+  const row = (ev: (typeof events)[number]) => <EventCard key={ev.event_id} event={ev} showSummary={false} isNew={isNewSince(ev.first_seen, since)} />;
 
   if (error && events.length === 0) {
     return <div className="hm-page"><p className="hm-error" role="alert">事件数据加载失败：{error}</p></div>;
@@ -68,6 +78,9 @@ export function RadarPage() {
       <div className="hm-wrap">
         <div className="hm-top">
           <Breadcrumbs items={[{ label: '态势' }]} />
+          {since && newCount > 0 && (
+            <span className="hm-new" data-testid="new-since">上次来访以来 {newCount} 个新事件</span>
+          )}
           <span className={`hm-status is-${fresh.kind}`} role="status">
             <span className="hm-dot" aria-hidden="true" />
             {fresh.kind === 'fetch_failing' ? `刷新失败 ${Math.floor(fresh.sinceFetchSecs / 60)} 分钟` :
@@ -105,6 +118,8 @@ export function RadarPage() {
                     {g.label} <b className="tabular">{g.events.length}</b>
                   </button>
                 ))}
+                <button type="button" className="tab" aria-pressed={byFirst} onClick={() => setByFirst(b => !b)}
+                  data-testid="order-first-seen">按首见排序</button>
                 {filters.stage !== 'all' && (
                   <button type="button" className="tab is-filter" onClick={() => setView({ ...filters, stage: 'all' }, tab)}
                     aria-label={`清除漏斗筛选：${STAGE_WORD[filters.stage]}`}>
@@ -113,6 +128,7 @@ export function RadarPage() {
                 )}
               </div>
 
+              {cut && <p className="hm-muted mon-cut" role="note">{cut} · <Link to="/search" style={{ textDecoration: 'underline' }}>搜索全部事件</Link></p>}
               <FilterBar filters={filters} onChange={f => setView(f, tab)} resultCount={total} />
 
               <div className="mon-list" aria-busy={loading}>
@@ -125,16 +141,22 @@ export function RadarPage() {
                 {total > 0 && shown.every(g => g.events.length === 0) && (
                   <p className="hm-none">该分组下没有事件。</p>
                 )}
-                {shown.map(g => g.events.length > 0 && (
+                {byFirst ? (
+                  <div className="lc-rows" data-testid="first-seen-list">
+                    {visitLineRows(order, since).map(r => 'ev' in r ? row(r.ev) : (
+                      <div key="visit-line" className="mon-sep" role="separator" aria-label="以上是上次来访以来的新事件">{r.line}</div>
+                    ))}
+                  </div>
+                ) : shown.map(g => g.events.length > 0 && (
                   g.folded && tab === 'all' ? (
                     <details key={g.key} className={`lc-group lc-${g.key}`}>
                       <summary className="lc-h">{g.label} <b className="tabular">{g.events.length}</b> <span className="hm-muted">超过 14 天无动静，默认折叠</span></summary>
-                      <div className="lc-rows">{g.events.map(ev => <EventCard key={ev.event_id} event={ev} showSummary={false} />)}</div>
+                      <div className="lc-rows">{g.events.map(ev => <EventCard key={ev.event_id} event={ev} showSummary={false} isNew={isNewSince(ev.first_seen, since)} />)}</div>
                     </details>
                   ) : (
                     <div key={g.key} className={`lc-group lc-${g.key}`} role="group" aria-label={`${g.label} ${g.events.length} 件`}>
                       {tab === 'all' && <h3 className="lc-h">{g.label} <b className="tabular">{g.events.length}</b></h3>}
-                      <div className="lc-rows">{g.events.map(ev => <EventCard key={ev.event_id} event={ev} showSummary={false} />)}</div>
+                      <div className="lc-rows">{g.events.map(ev => <EventCard key={ev.event_id} event={ev} showSummary={false} isNew={isNewSince(ev.first_seen, since)} />)}</div>
                     </div>
                   )
                 ))}

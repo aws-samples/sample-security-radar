@@ -1,3 +1,4 @@
+import { FetchProblem } from '@/components/FetchProblem';
 import { errorView, healthSummary } from '@/utils/health';
 import { useSources } from '@/hooks/useSources';
 import { formatDateTime } from '@/utils/formatters';
@@ -20,16 +21,11 @@ export function SourcesPage() {
   const { sources, generatedAt, loading, error } = useSources();
 
 
-  if (error) {
-    return (
-      <div style={{ padding: '40px', color: 'var(--sev-p0)', fontFamily: 'var(--font-mono)' }}>
-        {error}
-      </div>
-    );
-  }
+  if (error && sources.length === 0) return <FetchProblem error={error} hasData={false} />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {error && <FetchProblem error={error} hasData />}
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>

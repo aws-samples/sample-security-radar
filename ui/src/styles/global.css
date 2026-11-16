@@ -6,17 +6,7 @@
    Noto Sans SC: Chinese labels (unicode-range ensures only needed
                   subsets are downloaded, not the full CJK font)
    ============================================================ */
-@import '@fontsource/space-grotesk/300.css';
-@import '@fontsource/space-grotesk/400.css';
-@import '@fontsource/space-grotesk/500.css';
-@import '@fontsource/space-grotesk/700.css';
-@import '@fontsource/inter/400.css';
-@import '@fontsource/inter/500.css';
-@import '@fontsource/inter/600.css';
-@import '@fontsource/jetbrains-mono/400.css';
-@import '@fontsource/jetbrains-mono/500.css';
-@import '@fontsource/noto-sans-sc/400.css';
-@import '@fontsource/noto-sans-sc/500.css';
+/* @font-face rules: styles/fonts.css, loaded after first paint (R3.6) */
 
 /* ============================================================
    CSS CUSTOM PROPERTIES — Houdini registered (for conic-gradient animation)

@@ -15,9 +15,10 @@ def _calls(name: str) -> list[ast.Call]:
 
 def test_notify_runs_after_publish_in_the_cycle():
     """research/action/03 B1: push ran inside Respond, before Mitigate and Publish — a new P0's link 404'd."""
-    chain = re.search(r"cycle = \((.*?)\)\n        definition", STACK, re.DOTALL).group(1)
+    chain = re.search(r"rest = \((.*?)\)\n        cycle = ", STACK, re.DOTALL).group(1)
     steps = re.findall(r"\.next\((\w+)", chain)
     assert steps[-2:] == ["publish_task", "notify_step"], steps
+    assert "cycle = fan_out.next(collected_only.otherwise(rest))" in STACK    # R2.2: a collect-only cycle ends before Process
 
 
 def test_notify_is_a_single_writer_with_its_own_secret_grant():

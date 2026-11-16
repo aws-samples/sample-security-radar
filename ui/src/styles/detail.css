@@ -298,3 +298,13 @@
 .rp-poc .mt-state { border-color: var(--tone); color: var(--tone); }
 .rp-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .rp-tabs .is-on { border-color: var(--accent); color: var(--text-1); font-weight: 700; }
+.dt-asof { font-weight: 400; color: var(--text-3, var(--text-2)); }   /* audit 03 4.8: when the page judged it */
+/* R3.4: what to do, at the verdict */
+.dt-todo { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.dt-todo-list { margin: 0; padding-left: 18px; font-size: 13px; }
+/* R4.5 action pack (components/detail/ActionPackPanel.tsx) */
+.ap-wrap { overflow-x: auto; }
+.ap-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ap-table th, .ap-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.ap-table thead th { font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.ap-cell { border-left: 3px solid var(--tone, transparent); }

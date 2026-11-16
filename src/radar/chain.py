@@ -60,7 +60,7 @@ def canon(chain: str) -> str:
 
 def _one(url: str, method: str, params: list[Any]) -> Any:
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
-    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json", "User-Agent": UA})
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json", "User-Agent": UA})  # noqa: S310 — RPC URLs come from the code registry; opened via fetch.urlopen (http/https only)
     try:
         with fetch.urlopen(req, timeout=Limits.CHAIN_RPC_TIMEOUT_S) as r:
             doc = json.loads(r.read(1_000_000))

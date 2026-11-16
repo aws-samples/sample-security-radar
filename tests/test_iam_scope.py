@@ -66,3 +66,49 @@ def test_mitigate_waf_actions_equal_the_calls_and_writes_are_prefix_scoped():
     assert 'global/webacl/security-radar-*/*' in src and not re.search(r'"wafv2:\*"', src)
     from radar import mitigate
     assert mitigate.RADAR_ACL_PREFIX == "security-radar-"
+
+
+def test_publish_writes_only_site_data_and_its_code_writes_nowhere_else():
+    """R5.4 (audit 05 4.2): Publish could overwrite index.html and the JS bundle — the page every reader runs. Its grant
+    is data/* and every site write in the publish path names a data/ key, so the narrowing cannot break a write."""
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    stack = (root / "infra" / "stack.py").read_text()
+    assert re.search(r'site\.grant_put\(publish_fn, "data/\*"\)', stack)
+    assert not re.search(r"site\.grant_put\(publish_fn\)", stack)
+    handlers = (root / "src" / "radar" / "handlers.py").read_text()
+    site_keys = re.findall(r'_s3\.put_object\(Bucket=bucket, Key=(f?"[^"]*")', handlers)
+    assert site_keys and all(k.lstrip("f").startswith('"data/') for k in site_keys), site_keys
+
+
+def test_the_functions_get_exactly_the_table_actions_the_store_uses_and_no_scan():
+    """R5.4: grant_read_write_data gave every function Scan (whole-table reads). The grant now lists the operations
+    radar.dynamo calls; a new call shape needs the list to change, and nothing in src scans."""
+    import ast
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    stack = (root / "infra" / "stack.py").read_text()
+    actions = next(ast.literal_eval(n.value) for n in ast.walk(ast.parse(stack))
+                   if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "TABLE_ACTIONS")
+    assert "Scan" not in actions and "table.grant_read_write_data(" not in stack.split("def fn(", 1)[1].split("return f", 1)[0]
+    used = set()
+    for f in (root / "src" / "radar").rglob("*.py"):
+        # calls on a table or DynamoDB client object (patterns.scan / anomaly.scan are not table scans)
+        for m in re.findall(r"(?:self\.t|table|client|tbl|_table)\.(get_item|put_item|update_item|delete_item|query|scan"
+                            r"|batch_get_item|batch_writer)\(", f.read_text()):
+            used.add(m)
+    camel = {"get_item": "GetItem", "put_item": "PutItem", "update_item": "UpdateItem", "delete_item": "DeleteItem",
+             "query": "Query", "batch_get_item": "BatchGetItem", "batch_writer": "BatchWriteItem", "scan": "Scan"}
+    assert {camel[u] for u in used} <= set(actions), used
+
+
+def test_r5_4_collect_writes_only_rows_under_its_leading_keys():
+    """The station that parses untrusted feed content gets writes only on COLLECT_WRITE_KEYS (dynamodb:LeadingKeys);
+    tests/test_collect_batching.py runs it and checks every key it writes falls under them."""
+    src = (ROOT / "infra" / "stack.py").read_text()
+    assert re.search(r'collect_fn = fn\("CollectFn", "collect_batch", \d+, write_keys=COLLECT_WRITE_KEYS\)', src)
+    assert '"ForAllValues:StringLike": {"dynamodb:LeadingKeys": write_keys}' in src
+    reads = ast.literal_eval(re.search(r"^TABLE_READ_ACTIONS = (\[.*\])", src, re.MULTILINE).group(1))
+    assert set(reads) == {"GetItem", "BatchGetItem", "Query"}           # a write action here would escape the condition

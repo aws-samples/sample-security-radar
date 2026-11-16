@@ -1,3 +1,4 @@
+import { FetchProblem } from '@/components/FetchProblem';
 import { useMemo, useState } from 'react';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { KIND_META, KIND_ORDER, filterNotices, type NoticeKind } from '@/utils/announcements';
@@ -15,9 +16,10 @@ export function AnnouncementsPage() {
   const exchanges = useMemo(() => [...new Set(boards.map(b => b.exchange))].sort((a, b) => a.localeCompare(b)), [boards]);
   const toggle = (k: NoticeKind) => setKinds(ks => ks.includes(k) ? ks.filter(x => x !== k) : [...ks, k]);
 
-  if (error) return <div style={{ padding: 40, color: 'var(--sev-p0)', fontFamily: 'var(--font-mono)' }}>{error}</div>;
+  if (error && notices.length === 0) return <FetchProblem error={error} hasData={false} />;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {error && <FetchProblem error={error} hasData />}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
           <div>

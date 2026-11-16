@@ -380,3 +380,74 @@ def test_an_amount_called_stolen_is_the_loss_even_in_a_clause_about_a_freeze():
         [(6_300_000_000.0, "loss")]                                                       # a name between, then hack
     assert signals.amount_mentions("币安损失约63亿美元，已冻结约30亿美元资产") == [(6_300_000_000.0, "loss"), (3_000_000_000.0, "frozen")]
     assert signals.stated_losses("$2.85 billion of the $6.43 billion stolen from Binance has been frozen or seized.") == [6_430_000_000.0]
+
+
+@pytest.mark.parametrize(("text", "loss"), [
+    ("卖出 1.67 万 ETH ($3093 万)！ 滑点损失 $137 万", [1_370_000.0]),      # live 2026-11-13: read as $137, replaced $1.37M
+    ("损失 $1.2 亿", [120_000_000.0]), ("loss of $137万美元", [1_370_000.0]), ("损失$3亿美元", [300_000_000.0]),
+    ("$5m stolen", [5_000_000.0]), ("stole $90,500", [90_500.0]), ("lost $5x coins", []),     # unchanged shapes
+])
+def test_a_dollar_sign_with_a_chinese_unit_keeps_the_unit(text, loss):
+    assert signals.loss_amounts(text, None) == loss
+
+
+# ---------------------------------------------------------------- R1.4: "exploited" is said about something
+
+A, B = "CVE-2026-119618", "CVE-2026-124194"
+
+
+@pytest.mark.parametrize(("title", "text", "own", "event", "about"), [
+    # live 2026-11-14 — the three wrong P0s
+    ("Policy and Disclosure: 2026 Edition", ("The only exceptions to our new policy are: Vulnerabilities actively exploited "
+     "in the wild -- ITW vulnerabilities will be handled accordingly."), set(), set(), False),
+    ("Risky Bulletin: Chinese APT uses SS7", (f"Apache patched {A}. Separately, a flaw in Outlook ({B}) is actively exploited "
+     "in the wild."), {A, B}, {A}, False),                                      # in the Apache event through A; says it of B
+    ("Risky Bulletin: Chinese APT uses SS7", f"Apache patched {A}. One of this week's bugs is under active attack.",
+     {A, B}, {A}, False),                                                      # a digest's unnamed claim is nobody's
+    # what must keep counting
+    (f"{A} Apache HTTP Server", f"{A} is being actively exploited in the wild.", {A}, {A}, True),
+    ("Apache HTTP/2 flaw", "This vulnerability has been exploited in the wild.", {A}, {A}, True),     # one subject
+    ("Two PHP flaws", "Both are being actively exploited.", {A, B}, {A, B}, True),                    # all its CVEs are the event's
+    ("Outlook zero-day actively exploited", "", set(), set(), True),                                 # the headline says it
+    ("New Windows SignDrop Zero-Day Exploit Allows Attackers to Gain SYSTEM", ("Researchers say SignDrop is being "
+     "exploited in the wild."), set(), set(), True),                            # no CVE yet: the sentence names the headline's subject
+])
+def test_an_exploitation_claim_counts_for_the_event_it_is_about(title, text, own, event, about):
+    assert signals.exploited(f"{title}\n{text}") == "yes"                      # the text does say it of something
+    assert signals.exploited_about(title, text, own, event) is about
+
+
+def test_a_claim_that_names_a_cve_counts_when_the_event_has_none_and_a_claim_beyond_the_stored_text_is_believed():
+    # live: 「Google紧急修复Chrome高危零日漏洞：CVE-2026-125350已遭在野利用」 from a source whose items carry no cve: key
+    assert signals.exploited_about("Google紧急修复Chrome高危零日漏洞：CVE-2026-125350已遭在野利用", "", set(), set())
+    # no stored sentence says it (items keep 4,000 characters): a report about this event only is believed as before
+    assert signals.exploited_about("QNAP Warns Users as Plex2Shell Flaws Are Used to Hack NAS Devices", "Patches are out.", set(), set())
+    # … but not when what IS stored says "not found" — a judgement made before the status-table rule
+    assert not signals.exploited_about("Apache HTTP/2 远程代码执行漏洞", "POC状态 已公开 在野利用状态 未发现 EXP状态 未公开", {A}, {A})
+    # … and not for a digest whose list of CVEs reaches beyond the event
+    assert not signals.exploited_about("Weekly bulletin", "Patches are out.", {A, B}, {A})
+
+
+def test_a_status_table_saying_not_found_is_not_exploitation():
+    """奇安信's advisory layout: 「在野利用状态 未发现」 — the field name contains 在野利用."""
+    t = "CVSS 3.1分数 9.8 威胁类型 代码执行 利用可能性 高 POC状态 已公开 在野利用状态 未发现 EXP状态 未公开"
+    assert signals.exploited(t) == "no"
+    assert signals.exploited("在野利用状态 已发现 EXP状态 已公开") == "yes" and signals.exploited("该漏洞已发现在野利用") == "yes"
+
+
+def test_r1_6_chinese_daily_roundups_are_digests():
+    """Live 2026-11-15: 「每日安全动态推送(26/11/9)」 chained an OpenSSH event to a Linux TCP CVE and an APT flaw."""
+    from radar import signals
+    for t in ("每日安全动态推送(26/11/9)", "每日安全简讯｜11月14日", "安全资讯汇总 第 45 期"):
+        assert signals.is_digest(t), t
+    assert not signals.is_digest("腾讯发布安全动态修复 CVE-2026-1")
+
+
+def test_r1_3_industry_statistics_are_digests_and_incidents_are_not():
+    """Corpus story "ark-report": ARK Invest's cumulative-loss statistics joined the Binance event (8 of 15 reports)."""
+    from radar import signals
+    for t in ("ARK Invest：自2017年以来加密行业因黑客攻击累计损失约269亿美元", "Crypto Hack Losses Head Past On-Chain Revenue for First Time",
+              "2026年加密黑客损失87.8亿美元，首超链上收入"):
+        assert signals.is_digest(t), t
+    for t in ("币安遭黑客攻击，损失约63亿美元", "Bybit loses $1.5B in hack", "Protocol drained since 2026-11-01 deploy"):
+        assert not signals.is_digest(t), t

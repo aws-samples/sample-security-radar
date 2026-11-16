@@ -167,8 +167,8 @@ expect = scripts/chunk-budget.test.mjs
 
 [UC2 chunks: budget comparison disabled]
 file = scripts/chunk-budget.mjs
-find = if (totalKb > limitKb)
-replace = if (totalKb > limitKb * 10)
+find = if (totalKb > limitKb) errors.push(`3D chunks
+replace = if (totalKb > limitKb * 10) errors.push(`3D chunks
 expect = scripts/chunk-budget.test.mjs
 
 [UC3 chunks: three.js leak into main not detected]
@@ -590,8 +590,8 @@ expect = src/test/announcements.test.ts
 
 [UM97 search: one matching term is enough]
 file = src/utils/search.ts
-find = return rows.filter(r => { const h = hay(r); return terms.every(t => h.includes(t)); })
-replace = return rows.filter(r => { const h = hay(r); return terms.some(t => h.includes(t)); })
+find = filter(r => ok(r) && terms.every(t => hay(r).includes(t)))
+replace = filter(r => ok(r) && terms.some(t => hay(r).includes(t)))
 expect = src/test/search.test.ts
 
 
@@ -680,9 +680,9 @@ replace = {false && (
 expect = src/test/searchPage.test.tsx
 
 [UM106 search: every hit links to a detail page, published or not]
-file = src/pages/SearchPage.tsx
-find = {r.p ? (
-replace = {true ? (
+file = src/utils/search.ts
+find = if (r.p) return { kind: 'page', to: `/events/${r.id}` };
+replace = return { kind: 'page', to: `/events/${r.id}` };
 expect = src/test/searchPage.test.tsx
 
 [UM107 announcements: notice URL rendered without safeHref]
@@ -888,3 +888,256 @@ file = src/utils/health.ts
 find = return { kind: 'current', text: src.last_error };   // no timestamps to compare ⇒ never assumed recovered
 replace = return { kind: 'recovered', text: src.last_error, at: src.last_error_at ?? '' };
 expect = src/test/errorView.test.ts
+
+[UM902 subscribe: a feed path that is not a feed document becomes an address]
+file = src/utils/subscribe.ts
+find = .filter(f => FEED_PATH.test(f.atom) && FEED_PATH.test(f.json))
+replace = .filter(() => true)
+expect = src/test/subscribe.test.tsx
+
+[UM903 subscribe: the token address is the site address]
+file = src/utils/subscribe.ts
+find = const both = (p: string) => ({ site: `${root}data/${p}`, api: `${root}api/data/${p}` });
+replace = const both = (p: string) => ({ site: `${root}data/${p}`, api: `${root}data/${p}` });
+expect = src/test/subscribe.test.tsx
+
+[UM904 subscribe: a failed feed list reads as "no feeds yet"]
+file = src/pages/SubscribePage.tsx
+find = {!error && !loading && rows.length === 0 && <p role="status" style={p}>还没有发布任何 feed。</p>}
+replace = {!loading && rows.length === 0 && <p role="status" style={p}>还没有发布任何 feed。</p>}
+expect = src/test/subscribe.test.tsx
+
+[UM905 listing: a cut list says nothing about what it left out]
+file = src/utils/listing.ts
+find = if (!w || w.listed >= w.total) return null;
+replace = return null;
+expect = src/test/listing.test.ts
+
+[UM906 amounts: the unit is chosen before rounding ($1000.0K)]
+file = src/utils/formatters.ts
+find = if (i > 0 && Math.abs(Number(shown)) >= 1000) {           // rounded up into the next unit
+replace = if (false) {
+expect = src/test/pageErrors.test.tsx
+
+[UM907 page boundary: moving to another page keeps the failure]
+file = src/components/PageBoundary.tsx
+find = return props.resetKey !== state.key ? { error: null, key: props.resetKey } : null;
+replace = return null;
+expect = src/test/pageErrors.test.tsx
+
+[UM908 freshness: the stale threshold of the old 10-minute schedule (25 min) is back]
+file = src/utils/staleness.ts
+find = export const PUBLISH_STALE_SECS = 20 * 60;
+replace = export const PUBLISH_STALE_SECS = 25 * 60;
+expect = src/test/staleness.test.ts
+
+
+[UM909 site status: a reload is offered when no version file was found]
+file = src/utils/siteStatus.ts
+find = return deployed !== null && deployed !== own;
+replace = return deployed !== own;
+expect = src/test/siteStatus.test.tsx
+
+[UM910 site status: a stale publish reads as fresh]
+file = src/utils/siteStatus.ts
+find = case 'publish_stale': return { tone: 'warn',
+replace = case 'publish_stale': return { tone: 'ok',
+expect = src/test/siteStatus.test.tsx
+
+[UM911 site status: polls the 400 KB listing instead of the beacon]
+file = src/hooks/useSiteStatus.ts
+find = json('./data/status.json')
+replace = json('./data/events.json')
+expect = src/test/siteStatus.test.tsx
+
+[UM912 site status: a document of another kind is taken as the publish time]
+file = src/hooks/useSiteStatus.ts
+find = generatedAt: st && st.kind === 'status' && typeof st.generated_at === 'string' ? st.generated_at : null,
+replace = generatedAt: st && typeof st.generated_at === 'string' ? st.generated_at : null,
+expect = src/test/siteStatus.test.tsx
+
+[UM913 detail page: an old judgement is shown without its age (audit 03 4.8)]
+file = src/utils/siteStatus.ts
+find = if (!(mins >= 60)) return null;
+replace = return null;
+expect = src/test/siteStatus.test.tsx
+
+[UM914 detail page: the page time never reaches the verdict panel]
+file = src/pages/EventDetailPage.tsx
+find = sighting={d.sighting} generatedAt={d.generatedAt} hasRulePack=
+replace = sighting={d.sighting} hasRulePack=
+expect = src/test/siteStatus.test.tsx
+
+[UM915 a page with data turns into the error screen after one failed poll (R3.2)]
+file = src/components/FetchProblem.tsx
+find = if (hasData) {
+replace = if (false) {
+expect = src/test/fetchProblem.test.tsx
+
+[UM916 the Vulns page blanks itself on any error again (R3.2)]
+file = src/pages/VulnPage.tsx
+find = if (error && events.length === 0) return <FetchProblem error={error} hasData={false} />;
+replace = if (error) { return <FetchProblem error={error} hasData={false} />; }
+expect = src/test/fetchProblem.test.tsx
+
+[UM917 fonts are inlined into the CSS again (R3.6)]
+file = scripts/chunk-budget.mjs
+find = for (const f of blocking) if (f.text.includes('@font-face')) errors.push(
+replace = for (const f of blocking) if (false) errors.push(
+expect = scripts/chunk-budget.test.mjs
+
+[UM918 the blocking-CSS budget is loosened (R3.6)]
+file = scripts/chunk-budget.mjs
+find = export const BLOCKING_CSS_LIMIT_KB = 20;
+replace = export const BLOCKING_CSS_LIMIT_KB = 200;
+expect = scripts/chunk-budget.test.mjs
+
+[UM919 a UI mutant red only through a crash counts as red again (R8.6)]
+file = scripts/mutate-judge.mjs
+find = if (msgs.length && msgs.every(m => CRASH.test(m))) {
+replace = if (false) {
+expect = scripts/mutate-judge.test.mjs
+
+[UM920 search: a re-published event shows twice (R3.5)]
+file = src/utils/search.ts
+find = if (!had || r.u > had.u) by.set(r.id, r);
+replace = by.set(r.id + Math.random(), r);
+expect = src/test/search.test.ts
+
+[UM921 search: relevance ignored, newest first only (R3.5)]
+file = src/utils/search.ts
+find = .sort((a, b) => b.n - a.n || SEV[a.r.s] - SEV[b.r.s] || b.r.f.localeCompare(a.r.f));
+replace = .sort((a, b) => b.r.f.localeCompare(a.r.f));
+expect = src/test/search.test.ts
+
+[UM922 search: the severity filter is ignored (R3.5)]
+file = src/utils/search.ts
+find = && (!filters.severity || SEV[r.s] <= SEV[filters.severity])
+replace = && true
+expect = src/test/search.test.ts
+
+[UM923 search: a capped result says nothing (R3.5)]
+file = src/pages/SearchPage.tsx
+find = {matched > SEARCH_LIMIT && (
+replace = {false && (
+expect = src/test/searchPage.test.tsx
+
+[UM924 search: all months load 8 at a time again (R3.5)]
+file = src/utils/search.ts
+find = for (let i = 0; i < ms.length; i += i === 0 ? 3 : 8) {
+replace = for (let i = 0; i < ms.length; i += 8) {
+expect = src/test/searchPage.test.tsx
+
+[UM925 every event is "new" on a first visit (R3.4)]
+file = src/utils/lastVisit.ts
+find = return Boolean(boundary && firstSeen && firstSeen > boundary);
+replace = return Boolean(firstSeen && (!boundary || firstSeen > boundary));
+expect = src/test/whatsNew.test.tsx
+
+[UM926 a reload clears the "new" marks (R3.4)]
+file = src/utils/lastVisit.ts
+find = if (last && nowMs - last > SESSION_GAP_MS) store.setItem(PREV, String(last));
+replace = if (last) store.setItem(PREV, String(last));
+expect = src/test/whatsNew.test.tsx
+
+[UM927 the verdict lists every action, grounded or not (R3.4)]
+file = src/components/detail/VerdictPanel.tsx
+find = const acts = (analysis?.actions ?? []).filter(a => a.grounded).slice(0, 3);
+replace = const acts = (analysis?.actions ?? []);
+expect = src/test/whatsNew.test.tsx
+
+[UM928 a lazy page loads into a blank main, no loading line (R3.6)]
+file = src/components/Layout.tsx
+find = <Suspense fallback={<p className="page-loading" role="status">加载中…</p>}>
+replace = <Suspense fallback={null}>
+expect = src/test/routes.test.tsx
+
+[UM929 the entry chunk can grow without limit (R3.6)]
+file = scripts/chunk-budget.mjs
+find = if (totalKb > limitKb) errors.push(`entry chunk
+replace = if (false) errors.push(`entry chunk
+expect = scripts/chunk-budget.test.mjs
+
+[UM930 a page imported eagerly again passes the chunk gate (R3.6)]
+file = scripts/chunk-budget.mjs
+find = for (const p of LAZY_PAGES) if (!files.some(
+replace = for (const p of []) if (!files.some(
+expect = scripts/chunk-budget.test.mjs
+
+[UM931 a build without an entry chunk passes (R3.6)]
+file = scripts/chunk-budget.mjs
+find = if (entry.length !== 1) errors.push(
+replace = if (false) errors.push(
+expect = scripts/chunk-budget.test.mjs
+
+[UM935 skipped targets (no such product) get a row, reading as checked (R4.5)]
+file = src/utils/actionPack.ts
+find = const targets = (response?.targets ?? []).filter(t => t.relevant);
+replace = const targets = (response?.targets ?? []);
+expect = src/test/actionPack.test.tsx
+
+[UM936 a WAF rule still counting reads as blocking (R4.5)]
+file = src/utils/actionPack.ts
+find = const on = plans.find(p => p.state === 'blocking');
+replace = const on = plans.find(p => p.state === 'blocking' || COUNTING.includes(p.state));
+expect = src/test/actionPack.test.tsx
+
+[UM937 an affected target reads as safe (R4.5)]
+file = src/utils/actionPack.ts
+find = affected: { tone: 'loss', text: '受影响' },
+replace = affected: { tone: 'ok', text: '受影响' },
+expect = src/test/actionPack.test.tsx
+
+[UM938 a bare patch hides the PR link (R4.5)]
+file = src/utils/actionPack.ts
+find = const pr = patches.find(p => p.pr_url)?.pr_url;
+replace = const pr = patches[0]?.pr_url;
+expect = src/test/actionPack.test.tsx
+
+[UM939 an event without targets shows an empty table (R4.5)]
+file = src/components/detail/ActionPackPanel.tsx
+find = if (!rows.length) return null;
+replace = if (false) return null;
+expect = src/test/actionPack.test.tsx
+
+[UM940 a PR link is rendered without safeHref (R4.5)]
+file = src/components/detail/ActionPackPanel.tsx
+find = const href = safeHref(c.href);
+replace = const href = c.href;
+expect = src/test/actionPack.test.tsx
+
+[UM941 a target only the mitigate station planned for gets no row (R4.5)]
+file = src/utils/actionPack.ts
+find = ...(mitigation?.plans ?? []).map(p => p.target_id)])];
+replace = ])];
+expect = src/test/actionPack.test.tsx
+
+[UM942 「按首见排序」 sorts oldest first (R3.4)]
+file = src/utils/lastVisit.ts
+find = .sort(([a, i], [b, j]) => (b.first_seen ?? '').localeCompare(a.first_seen ?? '') || i - j)
+replace = .sort(([a, i], [b, j]) => (a.first_seen ?? '').localeCompare(b.first_seen ?? '') || i - j)
+expect = src/test/firstSeenOrder.test.ts
+
+[UM943 the visit line splits at the wrong place: older events above it (R3.4)]
+file = src/utils/lastVisit.ts
+find = return { fresh, older: sorted.slice(fresh.length) };
+replace = return { fresh: sorted.slice(0, fresh.length + 1), older: sorted.slice(fresh.length + 1) };
+expect = src/test/firstSeenOrder.test.ts
+
+[UM944 the visit line is drawn where it separates nothing (R3.4)]
+file = src/utils/lastVisit.ts
+find = const line = boundary && order.fresh.length && order.older.length
+replace = const line = boundary
+expect = src/test/firstSeenOrder.test.ts
+
+[UM945 a search hit with a page links to its source instead (R3.5)]
+file = src/utils/search.ts
+find = if (r.p) return { kind: 'page', to: `/events/${r.id}` };
+replace = if (false) return { kind: 'page', to: `/events/${r.id}` };
+expect = src/test/search.test.ts
+
+[UM946 a hit's source URL is linked without safeHref (R3.5)]
+file = src/utils/search.ts
+find = const href = safeHref(r.r);
+replace = const href = r.r;
+expect = src/test/search.test.ts

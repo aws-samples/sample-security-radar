@@ -66,7 +66,7 @@ def test_a_real_rpc_error_class_does_not_escape(monkeypatch):
 
     def boom(*_a, **_k):
         raise http.client.RemoteDisconnected("node closed the connection")
-    monkeypatch.setattr(chain.urllib.request, "urlopen", boom)
+    monkeypatch.setattr(chain.fetch, "_open", boom)
     with pytest.raises(chain.RpcError):
         chain.rpc_call("https://example.invalid", "eth_getTransactionReceipt", [TX])
 
@@ -147,7 +147,7 @@ def _fake_nodes(monkeypatch, behaviour):
         doc = {"jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": "Archive requests require a personal token"}} \
             if b == "archive" else {"jsonrpc": "2.0", "id": 1, "result": b}
         return io.BytesIO(_json.dumps(doc).encode())
-    monkeypatch.setattr(chain.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(chain.fetch, "_open", urlopen)
     return tried
 
 
@@ -189,7 +189,7 @@ def test_a_real_answer_is_not_retried_elsewhere(monkeypatch):
     def urlopen(req, *_a, **_k):
         tried.append(req.full_url)
         return io.BytesIO(_json.dumps({"jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": "invalid argument 0: hex string"}}).encode())
-    monkeypatch.setattr(chain.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(chain.fetch, "_open", urlopen)
     with pytest.raises(chain.RpcError):
         chain.rpc_call(chain.RPC["ethereum"], "eth_getLogs", [{"fromBlock": "x"}])
     assert tried == [chain.RPC["ethereum"]]

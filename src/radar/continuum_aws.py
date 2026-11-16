@@ -274,14 +274,34 @@ def review_assets(target_id: str, env: Any) -> dict[str, Any]:
     return {"sourceCode": [{"s3Location": f"s3://{env['SA_CODE_BUCKET']}/code/{target_id}.zip"}]}
 
 
+def _unstarted_review(sa: Any, space: str, title: str) -> str | None:
+    """A review with this title that never got a job — what a failed StartCodeReviewJob leaves behind (audit 04 6.6:
+    CreateCodeReview has no idempotency token, so every retry created another review object). Newest first; a review
+    WITH a job (an earlier, finished run for the same event and target) is history, never reused."""
+    found, token = [], None
+    for _ in range(Limits.REVIEW_LIST_MAX_PAGES):
+        page = sa.list_code_reviews(agentSpaceId=space, **({"nextToken": token} if token else {}))
+        found += [c for c in page.get("codeReviewSummaries", []) if c.get("title") == title]
+        token = page.get("nextToken")
+        if not token:
+            break
+    for c in sorted(found, key=lambda c: str(c.get("createdAt") or ""), reverse=True)[:3]:
+        jobs = sa.list_code_review_jobs_for_code_review(agentSpaceId=space, codeReviewId=c["codeReviewId"], maxResults=1)
+        if not jobs.get("codeReviewJobSummaries"):
+            return c["codeReviewId"]
+    return None
+
+
 def _start_review(op: respond.Op, ev: dict[str, Any], *_: Any) -> dict[str, Any]:
     sa, space, tid = _sa(), os.environ["SA_AGENT_SPACE_ID"], op.target_id
     title = re.sub(r"[^A-Za-z0-9_-]", "-", f"radar-{ev['event_id']}-{tid}")[:100]
-    cr = sa.create_code_review(title=title, agentSpaceId=space,
-                               assets=review_assets(tid, os.environ),
-                               serviceRole=os.environ["SA_SERVICE_ROLE_ARN"], codeRemediationStrategy="AUTOMATIC",
-                               maxTaskHours=20.0)  # API minimum (an upper bound, not the billed amount)
-    cr_id = cr.get("codeReviewId") or cr["id"]
+    cr_id = _unstarted_review(sa, space, title)
+    if cr_id is None:
+        cr = sa.create_code_review(title=title, agentSpaceId=space,
+                                   assets=review_assets(tid, os.environ),
+                                   serviceRole=os.environ["SA_SERVICE_ROLE_ARN"], codeRemediationStrategy="AUTOMATIC",
+                                   maxTaskHours=20.0)  # API minimum (an upper bound, not the billed amount)
+        cr_id = cr.get("codeReviewId") or cr["id"]
     job = sa.start_code_review_job(agentSpaceId=space, codeReviewId=cr_id)
     return {"code_review_id": cr_id, "job_id": job.get("codeReviewJobId") or job["jobId"]}
 

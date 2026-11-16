@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
-from radar import decisions, fetch, latency, notify, publish, respond, retitle, timeutil
+from radar import decisions, digest, fetch, latency, notify, publish, removals, respond, retitle, timeutil
 from radar.limits import Limits
 from radar.model import SEVERITY_ORDER
 
@@ -32,6 +32,9 @@ LEGACY_STATE_KEY = "__notify__"
 # station's error paths rewrite whole: one cycle with an unreadable secret erased every flag, and the next good cycle
 # "baselined" again, recording a P0 that had arrived in between as sent without sending it (audit 04 §4.1).
 BASELINED_KEY = "__notify_baselined__"
+
+
+DIGEST_ID = "__digest__"   # the digest's push row: state_key(DIGEST_ID, sub) — keys `digest:<day>`, no thread
 
 
 def state_key(event_id: str, sub_id: str) -> str:
@@ -58,8 +61,52 @@ def views(store: Any, now: datetime) -> tuple[list[dict[str, Any]], list[str]]:
         row = publish._summary(e, {"title_override": retitle.public(fixes.get(e.event_id), e.title),
                                    "impact": respond.impact(resp)})
         prs = [i["pr_url"] for i in (resp or {}).get("issues") or [] if i.get("pr_url")]
-        out.append(notify.view(row, bool((mit.get(e.event_id) or {}).get("plans")), prs))
+        v = notify.view(row, bool((mit.get(e.event_id) or {}).get("plans")), prs)
+        # when the event became what it is now (Event.escalated_at): the push latency is measured from there — an event
+        # first reported days ago and raised to P0 an hour ago was pushed an hour late, not days late
+        v["became_at"] = max(e.first_seen or "", e.escalated_at or "")
+        out.append(v)
     return out, held
+
+
+def moved(store: Any, now: datetime) -> dict[str, str | None]:
+    """Events removed in the last NOTIFY_FOLLOW_HOURS → where their story is now: the last successor of the merge chain,
+    or None (withdrawn, nothing took it over). An id that exists again (a replay re-created it) is not "removed"."""
+    led = store.get_source_state(removals.REMOVED_KEY)
+    floor = timeutil.iso(now - timedelta(hours=Limits.NOTIFY_FOLLOW_HOURS))
+    out: dict[str, str | None] = {}
+    for eid, r in led.items():
+        if (r.get("at") or "") < floor or store.get_event(eid) is not None:
+            continue
+        to, hops = r.get("to"), 0
+        while to in led and store.get_event(to) is None and hops < 5:     # a successor that was merged away in turn
+            to, hops = led[to].get("to"), hops + 1
+        out[eid] = to if to and store.get_event(to) is not None else None
+    return out
+
+
+def correction(eid: str, to: str | None, title: str | None, site_url: str) -> dict[str, str]:
+    """The one message a subscriber gets in the thread of an event that no longer exists (roadmap R4.3)."""
+    link = f"{site_url.rstrip('/')}/#/events/{to}" if to else site_url.rstrip("/") + "/"
+    if to is None:
+        text = "更正：这条推送对应的事件已撤下（与其他事件重复，或不再成立）。此前的链接不再有效。"
+    else:
+        text = f"更正：这条推送对应的事件已并入{f'「{title}」' if title else '另一个事件'}，后续更新在那里。\n{link}"
+    return {"key": f"moved:{to or 'withdrawn'}", "text": text, "link": link}
+
+
+# what a send may raise without being a bug: urllib errors are OSError, in-band API errors ValueError, a refused redirect
+# fetch.FetchError (a plain Exception — it once escaped run() and crashed the station for every later subscription)
+SEND_ERRORS = (OSError, ValueError, KeyError, fetch.FetchError)
+
+
+def _out_of_budget(sent_n: int, time_left: Callable[[], float] | None) -> str | None:
+    """Why this subscription sends nothing more this run ("cap" / "time"), or None. One rule for messages and corrections."""
+    if sent_n >= Limits.NOTIFY_MAX_PER_CYCLE:
+        return "cap"
+    if time_left is not None and time_left() < Limits.NOTIFY_RESERVE_S:
+        return "time"
+    return None
 
 
 def _safe(ex: BaseException) -> str:
@@ -123,33 +170,64 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
                           "baselined": s.id in based}
     hits = {s.id: [v for v in vs if notify.matches(s.filters, v)] for s in active}
     rows = store.get_source_states([state_key(v["event_id"], s.id) for s in active for v in hits[s.id]])
+    # R4.3: pushes follow the story. An event a subscriber was told about and that has since been merged away or
+    # withdrawn gets one correction in its thread; what was already said about it (the P0 notice) counts for the
+    # survivor, whose later messages then continue in that thread instead of opening a second one.
+    gone = moved(store, now)
+    old_rows = store.get_source_states([state_key(e, s.id) for s in active for e in gone]) if gone else {}
+    titles = {v["event_id"]: v["title"] for v in vs}
+    # R4.4: today's digest, once per opted-in subscription (notify.wants_digest); None ⇒ nothing to send today
+    dmsg = notify.digest_message(store.get_source_state(digest.KEY), digest.day_key(now), site_url)
     cache: dict[str, Any] = {}    # per-run adapter cache (one Lark tenant token per run)
     pushed: list[list[Any]] = []  # latency samples of this run's P0 pushes
     for s in active:
         baseline = s.id not in based
         sent_n, err, stopped = 0, None, None
         after: dict[str, dict[str, Any]] = {}
-        for v in hits[s.id]:
+        for eid, to in ([] if baseline else sorted(gone.items())):
+            ko = state_key(eid, s.id)
+            was = old_rows.get(ko) or {}
+            m = correction(eid, to, titles.get(to or ""), site_url)
+            if not was.get("keys") or m["key"] in was["keys"]:
+                continue                                    # never told about it, or already corrected
+            if to and "p0" in was["keys"]:
+                # before the send, and whether or not it succeeds: the survivor must not announce itself as a new P0
+                ks = state_key(to, s.id)
+                surv = rows.get(ks) or store.get_source_state(ks) or {}
+                if "p0" not in (surv.get("keys") or []):
+                    # with what the old notice said about loss and level: the survivor then updates only on a change
+                    said = [k for k in was["keys"] if k == notify.STANDING or k.startswith(("loss:", "level:"))]
+                    surv = notify.record(surv, "p0", was.get("thread"), said)
+                    store.put_source_state(ks, surv)
+                    rows[ks] = surv
+            stopped = _out_of_budget(sent_n, time_left)
+            if stopped:
+                break
+            try:
+                senders[s.channel](cfg, s, {**m, "view": {"event_id": eid, "merged_into": to}}, was.get("thread"), cache)
+            except SEND_ERRORS as ex:
+                err = {"error": "send_failed", "message": _safe(ex)}
+                break
+            store.put_source_state(ko, notify.record(was, m["key"], None))
+            sent_n += 1
+        for v in ([] if err or stopped else hits[s.id]):
             k = state_key(v["event_id"], s.id)
             mine = rows.get(k) or {}
-            msgs = notify.plan(v, mine, site_url)
+            msgs = [m for m in notify.plan(v, mine, site_url) if notify.wanted(s.filters, m)]   # R4.4: kinds filter
             if not msgs:
                 continue
             if baseline:     # the first run of a subscription records what exists — it does not replay a week
                 for m in msgs:
-                    mine = notify.record(mine, m["key"], None)
+                    mine = notify.record(mine, m["key"], None, m.get("also"))
                 store.put_source_state(k, mine)
                 after[k] = mine
                 continue
             for m in msgs:
-                if sent_n >= Limits.NOTIFY_MAX_PER_CYCLE:
-                    stopped = "cap"
-                elif time_left is not None and time_left() < Limits.NOTIFY_RESERVE_S:
-                    stopped = "time"
+                stopped = _out_of_budget(sent_n, time_left)
                 if stopped:
                     break
                 # refuse BEFORE sending: a row that could not be stored would make the message repeat every run
-                if (n := _size(notify.record(mine, m["key"], "x" * 64))) > Limits.NOTIFY_STATE_ROW_MAX_BYTES:
+                if (n := _size(notify.record(mine, m["key"], "x" * 64, m.get("also")))) > Limits.NOTIFY_STATE_ROW_MAX_BYTES:
                     err = {"error": "state_row_too_large", "message": "push state row would exceed the limit",
                            "actual": n, "limit": Limits.NOTIFY_STATE_ROW_MAX_BYTES, "event_id": v["event_id"]}
                     break
@@ -158,17 +236,29 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
                 # urllib errors are OSError; in-band API errors ValueError; a refused redirect (a webhook answering
                 # 3xx: its allowlist is empty) is fetch.FetchError — a plain Exception, which escaped run() and
                 # crashed the station for every later subscription, every cycle
-                except (OSError, ValueError, KeyError, fetch.FetchError) as ex:
+                except SEND_ERRORS as ex:
                     err = {"error": "send_failed", "message": _safe(ex)}
                     break
-                mine = notify.record(mine, m["key"], thread)
+                mine = notify.record(mine, m["key"], thread, m.get("also"))
                 store.put_source_state(k, mine)   # right after the send: at most once, even if the run dies next
-                if m["key"] == "p0" and (lag := latency.minutes(v.get("first_seen") or "", now)) is not None:
-                    pushed.append(["P0", lag])    # first report published → this push (roadmap R0.5)
+                if m["key"] == "p0" and (lag := latency.minutes(v.get("became_at") or v.get("first_seen") or "", now)) is not None:
+                    pushed.append(["P0", lag])    # became P0 → this push (roadmap R0.5 / R8.8)
                 after[k] = mine
                 sent_n += 1
             if err or stopped:
                 break
+        if dmsg and not (err or stopped) and notify.wants_digest(s.filters):
+            kd = state_key(DIGEST_ID, s.id)
+            drow = store.get_source_state(kd)
+            if dmsg["key"] not in (drow.get("keys") or []):
+                if not baseline and not (stopped := _out_of_budget(sent_n, time_left)):
+                    try:   # top level, never a thread: a digest is not about one event
+                        senders[s.channel](cfg, s, {**dmsg, "view": {"event_id": DIGEST_ID}}, None, cache)
+                        sent_n += 1
+                    except SEND_ERRORS as ex:
+                        err = {"error": "send_failed", "message": _safe(ex)}
+                if not err and not stopped:   # baseline: today's digest counts as seen — the next one is sent
+                    store.put_source_state(kd, {"keys": [dmsg["key"]]})   # only the latest day matters: one key, no growth
         for v in hits[s.id]:                      # what is still unsent for this subscription, per event
             row = events[v["event_id"]]
             row["matched"] += 1

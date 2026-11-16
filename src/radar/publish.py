@@ -3,6 +3,7 @@ the publish handler writes them to S3."""
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
@@ -59,6 +60,9 @@ def _summary(ev: Event, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         "item_count": len(ev.item_ids), "cves": ev.cves, "entities": ev.entities, "chains": ev.chains,
         "amount_usd_latest": ev.amount_usd_latest, "amount_disputed": ev.amount_disputed,
         "amount_frozen_latest": ev.amount_frozen_latest, "attribution": ev.attribution,
+        # attack transactions whose receipt the radar read on chain (radar.chain: verified = confirmed) — the push
+        # station updates a P0 thread when this rises (R4.3)
+        "tx_confirmed": sum(1 for t in ev.tx or [] if t.get("verified") == "confirmed"),
         "summary": next((x["text"] for x in (ev.analysis or {}).get("bluf", []) if x.get("grounded")), ev.summary),
         "analysis_status": _analysis_status(ev),
     }
@@ -206,13 +210,32 @@ def _chain(ev: Event, store: Store) -> dict[str, Any]:
     return {"onchain": oc, "attack_txs": atx, "stages": stages.chain_evidence(oc, onchain.victim_set(case), atx)}
 
 
+def select_listing(window: list[Event], day: str) -> list[Event]:
+    """The PUBLISH_MAX_EVENTS events the live pages list, in their order: severity, then newest inside it — so what
+    changed today leads each severity. Severity always wins across levels: a P0 or P1 is never cut to make room for
+    a P2 updated today (live 2026-11-15, the first version of R3.1 did exactly that: 343 P2s updated in a day pushed
+    4 of 6 P0s and 353 of 508 P1s off the page). What the cap leaves out is said on the page (window_counts) and is
+    in search. `day` is unused: the order alone puts today first within a severity (kept so callers do not change)."""
+    order = sorted(window, key=lambda e: e.last_updated, reverse=True)   # newest first …
+    order.sort(key=lambda e: -SEVERITY_ORDER[e.severity])               # … within severity (stable sort), P0 on top
+    return order[: Limits.PUBLISH_MAX_EVENTS]
+
+
+def window_counts(window: list[Event], listed: int) -> dict[str, Any]:
+    """How many events the window holds and how many the page lists — said on the page, so a cut list is never read as
+    the whole (audit 03 6.2). The rest is in search (data/search)."""
+    sev, dom = Counter(e.severity for e in window), Counter(e.domain for e in window)
+    return {"days": Limits.PUBLISH_WINDOW_DAYS, "total": len(window), "listed": listed, "cap": Limits.PUBLISH_MAX_EVENTS,
+            "by_severity": {k: sev.get(k, 0) for k in ("P0", "P1", "P2")},
+            "by_domain": {k: dom.get(k, 0) for k in ("vuln", "web3", "incident")}}
+
+
 def events_doc(store: Store, now: datetime) -> tuple[dict[str, Any], list[Event]]:
     tri = store.get_source_state(triage.KEY)
     since = timeutil.iso(now - timedelta(days=Limits.PUBLISH_WINDOW_DAYS))
-    evs = store.events_updated_since(since)
-    evs.sort(key=lambda e: e.last_updated, reverse=True)   # newest first …
-    evs.sort(key=lambda e: -SEVERITY_ORDER[e.severity])     # … within severity (stable sort), P0 on top
-    evs = evs[: Limits.PUBLISH_MAX_EVENTS]
+    window = store.events_updated_since(since)
+    day = timeutil.iso(now - timedelta(days=1))
+    evs = select_listing(window, day)
     fixes = store.get_source_state(retitle.KEY)
     meta = cvemeta.load(store)
     store.get_items([i for e in evs for i in e.item_ids])          # warm the run's caches: one batched read each,
@@ -232,12 +255,14 @@ def events_doc(store: Store, now: datetime) -> tuple[dict[str, Any], list[Event]
     ok = sum(1 for s in SOURCES if s.enabled and (states.get(s.source_id) or {}).get("consecutive_failures", 0) == 0
              and (states.get(s.source_id) or {}).get("last_run"))
     total = sum(1 for s in SOURCES if s.enabled)
-    day = timeutil.iso(now - timedelta(days=1))
-    touched = [e for e in evs if e.last_updated >= day]
+    # counts are of the window, before the listing is cut (audit 03 6.2: the funnel's 「24 小时内有更新」 and P0 counted
+    # only the 500 listed events, so they changed with the cap, not with the world)
+    touched = [e for e in window if e.last_updated >= day]
     fun = insights.funnel(store.get_source_state("__funnel__").get("runs", []), events_touched=len(touched),
                           corroborated=sum(1 for e in touched if e.level in ("V2", "V3", "V4")),
-                          p0=sum(1 for e in evs if e.severity == "P0"), now=now)
+                          p0=sum(1 for e in window if e.severity == "P0"), now=now)
     return {"kind": "events", "generated_at": timeutil.iso(now), "events": rows, "now": board,
+            "window": window_counts(window, len(evs)),
             "headline": insights.headline(board, {e.event_id: e for e in evs}, ok, total, now), "funnel": fun,
             **_digest(store)}, evs
 
@@ -274,7 +299,13 @@ def stalled_sources(states: dict[str, dict[str, Any]], now: datetime) -> list[di
         if not s.enabled or last is None:
             continue
         idle = round((now - last).total_seconds() / 60)
-        limit = max(Limits.SOURCE_OVERDUE_CADENCES * s.cadence_min, Limits.SOURCE_OVERDUE_MIN_MINUTES)
+        # the interval the source actually runs at (R2.5: backed off while failing — source_unhealthy reports that);
+        # a server-requested hold (Retry-After) is not "overdue" either
+        from radar.collect import cadence
+        hold = timeutil.parse(st.get("retry_after_until"))
+        if hold is not None and now < hold:
+            continue
+        limit = max(Limits.SOURCE_OVERDUE_CADENCES * cadence(s, st), Limits.SOURCE_OVERDUE_MIN_MINUTES)
         if idle > limit:
             out.append({"source_id": s.source_id, "name": s.name, "kind": "overdue", "minutes": idle, "limit_min": limit})
             continue
@@ -407,6 +438,15 @@ def ops_doc(store: Store, now: datetime, srcs: dict[str, Any], evs: list[Event])
                            "mitigate": store.get_source_state("__mitigate__"),
                            "notify": store.get_source_state("__notify_status__"),   # radar.notify_station.STATUS_KEY
                            "anomalies": anomaly.recent(store, now),
+                           # handlers.RAW_BAD_KEY (the handlers module imports the AWS SDK; the key is restated here)
+                           "raw_bad": sorted(({"key": k, **v} for k, v in store.get_source_state("__raw_bad__").items()
+                                              if (v.get("at") or "") >= timeutil.iso(now - timedelta(days=1))),
+                                             key=lambda r: r["at"], reverse=True),
+                           # radar.dynamo.ROW_SIZES_KEY (restated: publish does not import the DynamoDB store)
+                           "row_sizes": sorted(({"key": k, **v} for k, v in store.get_source_state("__row_sizes__").items()
+                                                if (v.get("at") or "") >= timeutil.iso(now - timedelta(days=1))),
+                                               key=lambda r: -r["bytes"]),
+                           "spend": store.counts(timeutil.iso(now)[:10]),            # R5.6 paid calls today
                            "latency": latency.summary(store, now),
                            "push_latency": latency.summary(store, now, latency.PUSH_KEY, latency.PUSH_HOURS),
                            "stalled_sources": stalled_sources(
@@ -469,7 +509,9 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
         mark("listing")
     detail = [ev for ev in evs if changed is None or ev.event_id in changed or set(ev.cves) & touched]
     srcs = sources_doc(store, now)
-    docs: dict[str, dict[str, Any]] = {"events.json": listing, "sources.json": srcs,
+    # status.json: the site-wide freshness beacon (R3.3) — a few bytes every page polls instead of the 400 KB listing
+    docs: dict[str, dict[str, Any]] = {"status.json": {"kind": "status", "generated_at": timeutil.iso(now)},
+                                       "events.json": listing, "sources.json": srcs,
                                        "continuum.json": continuum_doc(store, now, evs), "ops.json": ops_doc(store, now, srcs, evs),
                                        "mitigate.json": mitigate_doc(store, now),
                                        "announcements.json": announcements.board_doc(

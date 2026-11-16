@@ -87,7 +87,7 @@ def test_run_caches_per_title_and_report_count_and_retries_errors():
     assert n == 1
     # an operator title takes the event out of the queue
     st, n = retitle_judge.run([EV], lambda ids: ITEMS, st, {EV.event_id: {"title": NEW}}, NOW, call)
-    assert n == 0 and st == {}
+    assert n == 0 and set(st) == {retitle_judge.STATS}                 # only the adoption tally stays
 
 
 def test_only_recent_p0_p1_web3_incident_events_with_enough_reports_are_asked():
@@ -112,3 +112,38 @@ def test_a_proposal_shows_in_ops_and_changes_no_title():
     # once the title differs from the one judged, the stale proposal is not shown
     f = {"events": [{"event_id": EV.event_id, "title": NEW}], "title_proposals": st}
     assert not ops._title_proposals(f)
+
+
+def test_r1_7_a_negated_cause_a_month_and_a_title_without_prefix():
+    """R1.7 (audit 02 Q4): 「no private key was leaked」 passed every gate; "May 3" read as a hedge; an event title
+    without " — " could never get a proposal (the whole title became the required prefix)."""
+    neg = {**GOOD, "title": "Binance CEX — Private Key Leaked", "quote": "There is no evidence of any wallet private key leak.",
+           "terms": ["private key"]}
+    row = retitle_judge.judge(EV, ITEMS, _call(neg))
+    assert row["verdict"] == "rejected" and "negated" in row["reason"], row
+    month = _item("it_may", "T1", "binance", "Update", "On May 3 an attacker compromised a DevOps laptop.")
+    ans = {**GOOD, "item_id": "it_may", "quote": "On May 3 an attacker compromised a DevOps laptop."}
+    assert retitle_judge.judge(EV, [*ITEMS, month], _call(ans))["verdict"] == "propose"
+    hedge = _item("it_may2", "T1", "binance", "Update", "May have been a DevOps laptop.")
+    ans = {**GOOD, "item_id": "it_may2", "quote": "May have been a DevOps laptop."}
+    assert "hedged" in retitle_judge.judge(EV, [*ITEMS, hedge], _call(ans))["reason"]
+    bare = Event(**{**EV.__dict__, "title": "Binance hacked"})
+    ok = {**GOOD, "title": "Binance — Hot Wallets Drained via DevOps Laptop"}
+    assert retitle_judge.judge(bare, ITEMS, _call(ok))["verdict"] == "propose"
+    other = {**GOOD, "title": "Bybit — Hot Wallets Drained"}
+    assert "victim prefix" in retitle_judge.judge(bare, ITEMS, _call(other))["reason"]
+
+
+def test_r1_7_what_became_of_each_proposal_is_counted_once():
+    """The adoption rate (roadmap decision 5: proposals stay manual until it is known) — counted when the row leaves."""
+    st, _ = retitle_judge.run([EV], lambda ids: ITEMS, {}, {}, NOW, _call(GOOD))
+    assert st[retitle_judge.STATS]["proposed"] == 1
+    st, _ = retitle_judge.run([EV], lambda ids: ITEMS, st, {EV.event_id: {"title": NEW}}, NOW, _call(GOOD))
+    assert st[retitle_judge.STATS] == {"proposed": 1, "adopted": 1, "other": 0, "expired": 0}
+    assert EV.event_id not in st
+    st, _ = retitle_judge.run([EV], lambda ids: ITEMS, st, {EV.event_id: {"title": NEW}}, NOW, _call(GOOD))
+    assert st[retitle_judge.STATS]["adopted"] == 1                       # not counted twice
+    assert retitle_judge.adoption_line(st[retitle_judge.STATS]) == "历史采纳 1/1"
+    other, _ = retitle_judge.run([EV], lambda ids: ITEMS, {}, {}, NOW, _call(GOOD))
+    other, _ = retitle_judge.run([EV], lambda ids: ITEMS, other, {EV.event_id: {"title": "Binance CEX — x"}}, NOW, _call(GOOD))
+    assert other[retitle_judge.STATS]["other"] == 1

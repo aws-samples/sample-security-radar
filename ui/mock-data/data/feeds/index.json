@@ -1,0 +1,6 @@
+{"kind": "feeds", "schema_version": "1", "generated_at": "2026-10-23T04:00:00Z", "feeds": [
+ {"name": "all", "title": "全部事件", "filters": {}, "items": 50, "json": "feeds/all.json", "atom": "feeds/all.atom"},
+ {"name": "p0", "title": "P0 事件", "filters": {"severity": ["P0"]}, "items": 3, "json": "feeds/p0.json", "atom": "feeds/p0.atom"},
+ {"name": "web3", "title": "Web3 事件", "filters": {"domain": ["web3"]}, "items": 20, "json": "feeds/web3.json", "atom": "feeds/web3.atom"},
+ {"name": "has-waf-pack", "title": "已有 WAF 规则包", "filters": {"has_waf_pack": true}, "items": 0, "json": "feeds/has-waf-pack.json", "atom": "feeds/has-waf-pack.atom"}
+]}

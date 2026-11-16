@@ -15,7 +15,7 @@ from typing import Any
 
 from radar import fetch, notify
 
-CHAT_CHANNELS = ("slack_dm", "slack_channel", "lark_chat")
+CHAT_CHANNELS = ("slack_dm", "slack_channel", "lark_chat", "lark_dm")
 REASON_MAX = 600
 
 

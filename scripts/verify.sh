@@ -10,6 +10,16 @@ check() { if eval "$2" >/dev/null 2>&1; then echo "PASS  $1"; else echo "FAIL  $
 
 sm=$(out StateMachineArn); site=$(out SiteUrl); bucket=$(out SiteBucketName)
 if [ "${1:-}" = "--run" ]; then
+  # A scheduled cycle that is already running would share the single-writer stations with ours (reserved concurrency 1:
+  # 2026-11-15 Analyze was throttled 7.7 min behind one, and the 15-min wait below ran out on a cycle that succeeded).
+  # Let it finish first, so the wait measures our cycle only.
+  for _ in $(seq 1 90); do
+    running=$(aws stepfunctions list-executions --region ap-northeast-1 --state-machine-arn "$sm" --status-filter RUNNING \
+              --query 'length(executions)' --output text)
+    [ "$running" = 0 ] && break
+    echo "waiting for a running cycle to finish ($running running)"
+    sleep 10
+  done
   arn=$(aws stepfunctions start-execution --region ap-northeast-1 --state-machine-arn "$sm" --input '{"full": true}' \
         --query executionArn --output text)
   echo "cycle started: ${arn##*:}"
@@ -32,6 +42,9 @@ code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 check "anonymous request denied by the gate (401)" "[ \$(code '$site/') = 401 ]"
 check "wrong credential denied (401)" "[ \$(code -H 'Authorization: Basic d3Jvbmc6d3Jvbmc=' '$site/') = 401 ]"   # gitleaks:allow — base64 of wrong:wrong, the negative test
 check "authorised UI loads (200)" "[ \$(code -H @'$hf' '$site/') = 200 ]"
+# token API (R7.1): its gate is the Cognito authorizer — anonymous and forged tokens are refused by API Gateway
+check "anonymous request to the token API denied (401)" "[ \$(code '$site/api/data/events.json') = 401 ]"
+check "forged bearer token denied by the token API (401)" "[ \$(code -H 'Authorization: Bearer not.a.token' '$site/api/data/events.json') = 401 ]"
 for doc in events.json sources.json continuum.json; do
   check "data/$doc published" "aws s3api head-object --region ap-northeast-1 --bucket '$bucket' --key data/$doc"
 done

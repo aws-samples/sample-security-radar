@@ -292,6 +292,11 @@
               "type": "null"
             }
           ]
+        },
+        "tx_confirmed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Attack transactions whose receipt was read on chain as successful (radar.chain); a rise updates P0 push threads."
         }
       }
     },
@@ -3540,6 +3545,12 @@
         },
         "p": {
           "const": true
+        },
+        "r": {
+          "description": "R3.5: the source URL of the item that created the event — only on rows without a detail page (no \"p\"), so a hit without a page still leads somewhere.",
+          "type": "string",
+          "pattern": "^https?://",
+          "maxLength": 300
         }
       }
     },
@@ -3698,6 +3709,83 @@
         },
         "schema_version": {
           "$ref": "#/$defs/SchemaVersion"
+        },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The publish window before the listing was cut (publish.window_counts): the page says 'listed / total'.",
+          "required": [
+            "days",
+            "total",
+            "listed",
+            "cap",
+            "by_severity",
+            "by_domain"
+          ],
+          "properties": {
+            "days": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "total": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "listed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cap": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "by_severity": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "P0",
+                "P1",
+                "P2"
+              ],
+              "properties": {
+                "P0": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "P1": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "P2": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "by_domain": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "vuln",
+                "web3",
+                "incident"
+              ],
+              "properties": {
+                "vuln": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "web3": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "incident": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -4306,6 +4394,26 @@
           "items": {
             "$ref": "#/$defs/FeedEntry"
           }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generated_at"
+      ],
+      "description": "data/status.json — written by every Publish run; the UI's one freshness indicator reads it (R3.3).",
+      "properties": {
+        "kind": {
+          "const": "status"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
         }
       }
     }

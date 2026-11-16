@@ -39,7 +39,7 @@ from radar.wafmatch import Request, gate
 KEY = "__rule_pack__#"          # + event_id → the pack row (single writer: the mitigate station)
 CONFIDENCE = ("exact", "heuristic")
 KINDS = ("byte", "regex", "size", "and", "sqli", "ipset", "rate", "origin_lockdown")
-ORIGIN_SECRET_PLACEHOLDER = "{{ORIGIN_SECRET}}"     # the one placeholder a match string may hold (origin template only)
+ORIGIN_SECRET_PLACEHOLDER = "{{ORIGIN_SECRET}}"     # the one placeholder a match string may hold (origin template only)  # noqa: S105 — a template placeholder, not a secret
 IPSET_ARN_PLACEHOLDER = "{{IPSET_ARN}}"
 ORIGIN_HEADER = "x-origin-verify"
 # headers every client sends — never a rule's field (08 §2.1). Content-Type is generic too: as the only condition it

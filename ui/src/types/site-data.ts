@@ -24,6 +24,25 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
       funnel?: Funnel;
       digest?: Digest;
       schema_version?: SchemaVersion;
+      /**
+       * The publish window before the listing was cut (publish.window_counts): the page says 'listed / total'.
+       */
+      window?: {
+        days: number;
+        total: number;
+        listed: number;
+        cap: number;
+        by_severity: {
+          P0: number;
+          P1: number;
+          P2: number;
+        };
+        by_domain: {
+          vuln: number;
+          web3: number;
+          incident: number;
+        };
+      };
     }
   | {
       kind: "event";
@@ -149,6 +168,11 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
       schema_version: SchemaVersion;
       generated_at: Timestamp;
       feeds: FeedEntry[];
+    }
+  | {
+      kind: "status";
+      generated_at: Timestamp;
+      schema_version?: SchemaVersion;
     };
 /**
  * ISO-8601 UTC, e.g. 2026-10-23T03:39:57Z
@@ -293,6 +317,10 @@ export interface EventSummary {
   followup?: null | Followup;
   title_override?: null | TitleOverride;
   cve_disclosed?: CveDisclosed | null;
+  /**
+   * Attack transactions whose receipt was read on chain as successful (radar.chain); a rise updates P0 push threads.
+   */
+  tx_confirmed?: number;
 }
 /**
  * Compact 'does it hit us' chip for lists and the wall (from AWS Continuum / Security Agent results).
@@ -1167,6 +1195,10 @@ export interface SearchRow {
   e: string[];
   a: number | null;
   p?: true;
+  /**
+   * R3.5: the source URL of the item that created the event — only on rows without a detail page (no "p"), so a hit without a page still leads somewhere.
+   */
+  r?: string;
 }
 /**
  * One pull feed (radar.feeds.FEEDS): JSON Feed 1.1 and Atom 1.0 documents of the newest matching events, behind the site's access control.

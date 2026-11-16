@@ -210,3 +210,75 @@ def test_a_page_that_could_not_be_deleted_is_retried_next_run(env, monkeypatch):
     monkeypatch.setattr(h._s3, "delete_objects", lambda **k: {"Errors": [{"Key": "data/events/ev_9.json", "Code": "AccessDenied"}]})
     h._publish_search("site", datetime(2026, 11, 12, tzinfo=UTC), events=[ev(1, "2026-11-01T00:00:00Z")])
     assert "ev_9" in removals.pending(h._store)
+
+
+def test_a_shard_whose_rows_did_not_change_is_not_rewritten(env, monkeypatch):
+    """R2.6: every cycle rewrote ~50 month shards (2+ MB) whose rows were the same; the bucket is versioned (R5.5), so
+    each rewrite was also an old version kept for a week. The index is still written (it carries the publish time)."""
+    h, _ = env
+    now = datetime(2026, 11, 10, tzinfo=UTC)
+    evs = [ev(1, "2026-08-01T00:00:00Z"), ev(2, "2026-11-01T00:00:00Z")]
+    h._publish_search("site", now, events=evs)
+    puts: list[str] = []
+    real = h._s3.put_object
+    monkeypatch.setattr(h._s3, "put_object", lambda **kw: puts.append(kw["Key"]) or real(**kw))
+    h._publish_search("site", now, events=evs)
+    assert puts == ["data/search/index.json"]
+    h._publish_search("site", now, events=[ev(2, "2026-11-01T00:00:00Z", title="Event 2 (updated)")])
+    assert puts[1:] == ["data/search/2026-11.json", "data/search/index.json"]
+
+
+def _item(iid, url):
+    from radar.model import Item
+    return Item(item_id=iid, source_id="bleepingcomputer", tier="T2", org="bc", domain="vuln", url=url, canonical_url=url,
+                title="t", text="", published_at="2026-11-01T00:00:00Z", fetched_at="2026-11-01T00:00:00Z",
+                content_hash="h", keys=[], links=[], entity=None, eventful=True, signals={}, extra={})
+
+
+def _with_item(i, first, url):
+    e = ev(i, first)
+    e.item_ids = [f"it_{i}b", f"it_{i}"]
+    e.timeline = [{"at": first, "kind": "created", "item_id": f"it_{i}"}]
+    return e, _item(f"it_{i}", url)
+
+
+def test_r3_5_a_row_without_a_page_carries_the_source_it_started_from_read_once(env, monkeypatch):
+    """R3.5: 74% of live search rows (6,322 / 8,493 on 2026-11-15) had no detail page — the hit led nowhere."""
+    h, s3 = env
+    a, ia = _with_item(1, "2026-11-01T00:00:00Z", "https://www.bleepingcomputer.com/news/a")
+    b, ib = _with_item(2, "2026-11-02T00:00:00Z", "javascript:alert(1)")
+    c, ic = _with_item(3, "2026-11-03T00:00:00Z", "https://example.com/c")
+    for it in (ia, ib, ic):
+        h._store.put_item(it)
+    now = datetime(2026, 11, 10, tzinfo=UTC)
+    h._publish_search("site", now, events=[a, b, c], published={"ev_3"})
+    rows = {r["id"]: r for r in json.loads(s3.get_object(Bucket="site", Key="data/search/2026-11.json")["Body"].read())["events"]}
+    assert rows["ev_1"]["r"] == "https://www.bleepingcomputer.com/news/a"     # the created item, not item_ids[0]
+    assert "r" not in rows["ev_2"]                                             # not http(s): no link
+    assert "r" not in rows["ev_3"] and rows["ev_3"]["p"]                       # it has a page: the page links its sources
+    read: list = []
+    monkeypatch.setattr(h._store, "get_items", lambda ids: read.append(ids) or [])
+    h._publish_search("site", now, events=[a, b, c], published={"ev_3"})
+    rows2 = {r["id"]: r for r in json.loads(s3.get_object(Bucket="site", Key="data/search/2026-11.json")["Body"].read())["events"]}
+    assert rows2["ev_1"]["r"] == rows["ev_1"]["r"] and read == [["it_2"]]     # kept; only the one without a URL is retried
+
+
+def test_r3_5_source_urls_are_read_at_most_the_cap_per_run(env, monkeypatch):
+    h, _ = env
+    monkeypatch.setattr(h.Limits, "SEARCH_URL_READS_PER_RUN", 2)
+    pairs = [_with_item(i, f"2026-{10 + i % 2}-0{i}T00:00:00Z", f"https://example.com/{i}") for i in range(1, 7)]
+    for _, it in pairs:
+        h._store.put_item(it)
+    read: list = []
+    real = h._store.get_items
+    monkeypatch.setattr(h._store, "get_items", lambda ids: read.append(ids) or real(ids))
+    h._publish_search("site", datetime(2026, 11, 10, tzinfo=UTC), events=[e for e, _ in pairs])
+    assert sum(len(x) for x in read) == 2
+    assert {i for x in read for i in x} <= {"it_1", "it_3", "it_5"}           # the cap goes to the newest month (Nov) first
+
+
+def test_r3_5_a_page_drops_the_source_url_and_the_url_must_be_http():
+    row = {**search.record(ev(1, "2026-11-01T00:00:00Z")), "r": "https://example.com/x"}
+    assert "r" not in search.merge([row], [search.record(ev(1, "2026-11-01T00:00:00Z"), published=True)])[0]
+    assert search.merge([row], [search.record(ev(1, "2026-11-01T00:00:00Z"))])[0]["r"] == "https://example.com/x"
+    assert search.source_url("ftp://x") is None and search.source_url("https://x/" + "a" * 300) is None

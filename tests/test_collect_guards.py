@@ -137,7 +137,7 @@ def test_a_gzip_bomb_is_refused_not_decompressed(monkeypatch):
     monkeypatch.setattr(Limits, "HTTP_MAX_BYTES", 10_000)
     bomb = gzip.compress(b"\0" * 1_000_000)                 # 1 MB out of ~1 KB in: under the cap compressed, 100× over
     assert len(bomb) < 10_000
-    monkeypatch.setattr(fetch.urllib.request, "urlopen", lambda *a, **k: _Resp(bomb, encoding="gzip"))
+    monkeypatch.setattr(fetch, "_open", lambda *a, **k: _Resp(bomb, encoding="gzip"))
     with pytest.raises(fetch.FetchError) as e:
         fetch.http_get("https://example.org/feed")
     assert e.value.code == "too_large"
@@ -145,7 +145,7 @@ def test_a_gzip_bomb_is_refused_not_decompressed(monkeypatch):
 
 def test_a_normal_gzip_body_still_decodes_every_member(monkeypatch):
     body = gzip.compress(b"first ") + b"\0\0" + gzip.compress(b"second")   # two members, padded, as gzip.decompress reads
-    monkeypatch.setattr(fetch.urllib.request, "urlopen", lambda *a, **k: _Resp(body, encoding="gzip"))
+    monkeypatch.setattr(fetch, "_open", lambda *a, **k: _Resp(body, encoding="gzip"))
     assert fetch.http_get("https://example.org/feed").body == "first second"
 
 
@@ -155,12 +155,12 @@ def test_a_truncated_gzip_body_is_a_failed_fetch_not_a_short_one(monkeypatch):
     batch that looked like a successful run. gzip.decompress raised EOFError there; now it is a FetchError."""
     whole = gzip.compress(b"x" * 100_000)
     for body in (whole[:len(whole) // 2], gzip.compress(b"first ") + gzip.compress(b"second")[:-6]):
-        monkeypatch.setattr(fetch.urllib.request, "urlopen", lambda *a, b=body, **k: _Resp(b, encoding="gzip"))
+        monkeypatch.setattr(fetch, "_open", lambda *a, b=body, **k: _Resp(b, encoding="gzip"))
         with pytest.raises(fetch.FetchError) as e:
             fetch.http_get("https://example.org/feed")
         assert e.value.code == "bad_gzip" and "truncated" in str(e.value)
     # corrupt data is a FetchError too (zlib.error would escape collect's handler and skip the source's state update)
-    monkeypatch.setattr(fetch.urllib.request, "urlopen", lambda *a, **k: _Resp(whole[:20] + b"\xff" * 40, encoding="gzip"))
+    monkeypatch.setattr(fetch, "_open", lambda *a, **k: _Resp(whole[:20] + b"\xff" * 40, encoding="gzip"))
     with pytest.raises(fetch.FetchError) as e:
         fetch.http_get("https://example.org/feed")
     assert e.value.code == "bad_gzip" and "corrupt" in str(e.value)
@@ -216,12 +216,9 @@ def test_a_redirect_off_the_allowlist_is_refused(monkeypatch, target):
         def open(self, req, timeout):
             used.append(self)
             [h] = [h for h in self.handlers if isinstance(h, urllib.request.HTTPRedirectHandler)]
+            assert isinstance(h, fetch._GuardedRedirect), "an allowlisted fetch went through the general redirect policy"
             return h.redirect_request(req, None, 302, "Found", email.message.Message(), target)
     monkeypatch.setattr(fetch.urllib.request, "build_opener", Opener)
-
-    def unguarded(*a, **k):
-        raise AssertionError("an allowlisted fetch went through the default (redirect-anywhere) opener")
-    monkeypatch.setattr(fetch.urllib.request, "urlopen", unguarded)
     with pytest.raises(fetch.FetchError) as e:
         fetch.http_get(f"{RAW}cisagov/CSAF/x.json", allow_hosts=frozenset({"raw.githubusercontent.com"}))
     assert e.value.code == "redirect_refused" and used
@@ -232,3 +229,19 @@ def test_a_redirect_within_the_allowlist_is_followed():
     req = urllib.request.Request(f"{RAW}a.json")
     nxt = h.redirect_request(req, None, 301, "Moved", email.message.Message(), f"{RAW}b.json")
     assert nxt is not None and nxt.full_url == f"{RAW}b.json"
+
+
+def test_a_poc_held_back_for_lack_of_time_is_never_given_up(monkeypatch, caplog):
+    """R2.5: the source budget ran out before this .sol — the PoC is not gone, the run was slow. It waits without
+    counting a miss, so slow runs alone never hand an entry over without its attack tx."""
+    gone = "src/test/2026-10/TIPMine_exp.sol"
+    real = fetch.http_get
+
+    def get(url, **k):
+        if url.endswith("TIPMine_exp.sol"):
+            raise fetch.FetchError("source_budget", "the source's budget is spent", None, url)
+        return real(url, **k)
+    monkeypatch.setattr(fetch, "http_get", get)
+    runs = _poc_runs(monkeypatch, [False] * (Limits.POC_RETRIES + 1), caplog)
+    assert all(gone not in {r.guid for r in raws} for raws, _, _ in runs)
+    assert [sum((st.get("poc_misses") or {}).values()) for _, st, _ in runs] == [0] * len(runs)

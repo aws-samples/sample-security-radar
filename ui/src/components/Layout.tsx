@@ -1,4 +1,7 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Suspense } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { PageBoundary } from '@/components/PageBoundary';
+import { SiteStatus } from '@/components/SiteStatus';
 import { useTheme } from '@/contexts/ThemeContext';
 
 const navItems = [
@@ -9,12 +12,14 @@ const navItems = [
   { to: '/continuum', label: 'Continuum', icon: '⟲', aria: 'AWS Continuum 融入' },
   { to: '/search', label: '搜索', icon: '⌕', aria: '搜索全部事件' },
   { to: '/announcements', label: '公告', icon: '✦', aria: '交易所公告' },
+  { to: '/subscribe', label: '订阅', icon: '⇣', aria: '订阅：feed / webhook / agent' },
   { to: '/sources', label: 'Sources', icon: '◉' },
   { to: '/ops',     label: 'Ops',     icon: '⚑', aria: '需要人处理的事' },
   { to: '/mitigate', label: '缓解',  icon: '⛨', aria: '缓解（WAF / DNS Firewall / Inspector）' },
 ];
 
 export function Layout() {
+  const { pathname } = useLocation();
   const { theme, toggle } = useTheme();
 
   return (
@@ -151,9 +156,7 @@ export function Layout() {
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-            {import.meta.env.DEV ? 'mock' : 'live'}
-          </span>
+          <SiteStatus />
           <button
             onClick={toggle}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
@@ -194,7 +197,11 @@ export function Layout() {
           background: 'var(--bg-base)',
         }}
       >
-        <Outlet />
+        <PageBoundary resetKey={pathname}>
+          {/* R3.6: lazy pages (App.tsx). Inside the boundary: a chunk that fails to load (an old tab after a deploy) shows
+              the page error with its retry, not a blank page */}
+          <Suspense fallback={<p className="page-loading" role="status">加载中…</p>}><Outlet /></Suspense>
+        </PageBoundary>
       </main>
     </div>
   );

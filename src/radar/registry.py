@@ -33,6 +33,7 @@ class Source:
     url_is_identity: bool = True   # False ⇒ item URLs are synthetic/shared (no per-entry page): no url: key
     board: str | None = None       # "exchange" ⇒ also listed on the announcement board (#/announcements)
     notes: str = ""
+    post_json: str | None = None   # an API answered only to POST (Broadcom's advisory list): the JSON body to send
 
 
 # Admitted feeds whose AWS egress later stopped working: fetched through firecrawl instead (collect: via="firecrawl").
@@ -98,9 +99,26 @@ SOURCES: tuple[Source, ...] = (
     Source("cisa_advisories", "CISA Advisories", "T1", "cisa", None, "feed",
            "https://www.cisa.gov/cybersecurity-advisories/all.xml", 30),
     Source("chrome_releases", "Chrome Releases", "T1", "google", "vuln", "feed",
-           "https://chromereleases.googleblog.com/feeds/posts/default", 10),
+           "https://feeds.feedburner.com/GoogleChromeReleases", 10),   # the blog 302s to http:// feedburner (R2.8 refuses the downgrade)
     Source("fortinet_psirt", "Fortinet PSIRT", "T1", "fortinet", "vuln", "feed",
            "https://filestore.fortinet.com/fortiguard/rss/ir.xml", 10),
+    # R2.7 coverage (admitted 2026-11-15 by scripts/source-onboard.py from the radar's Lambda: ok, newest within days)
+    Source("sonicwall_psirt", "SonicWall PSIRT", "T1", "sonicwall", "vuln", "feed",
+           "https://psirtapi.global.sonicwall.com/api/v1/feed/rss.xml", 30),
+    Source("ivanti_advisories", "Ivanti Security Advisories", "T1", "ivanti", "vuln", "feed",
+           "https://www.ivanti.com/blog/topics/security-advisory/rss", 30),
+    # Microsoft's own CVEs (not Azure Linux copies of upstream ones), newest revision first — reached directly from the
+    # radar's Lambda (scripts/probe-from-lambda.py 2026-11-15: 200, 457 KB, 1.1 s)
+    Source("msrc", "Microsoft Security Update Guide", "T1", "microsoft", "vuln", "msrc",
+           "https://api.msrc.microsoft.com/sug/v2.0/en-US/vulnerability?$filter=isMariner%20eq%20false%20and%20"
+           "issuingCna%20eq%20%27Microsoft%27&$orderBy=latestRevisionDate%20desc&$top=100", 60),
+    # VMware (Broadcom) advisories: no feed since the move to Broadcom; the support portal's list API answers a POST
+    # (scripts/probe-from-lambda.py --data 2026-11-15: 200 with the radar's headers, 403 without a User-Agent)
+    Source("broadcom_vmsa", "VMware Security Advisories (Broadcom)", "T1", "broadcom", "vuln", "broadcom",
+           "https://support.broadcom.com/web/ecx/security-advisory/-/securityadvisory/getSecurityAdvisoryList", 60,
+           post_json='{"pageNumber":0,"pageSize":20,"searchVal":"","segment":"VC","sortInfo":{"column":"","order":""}}'),
+    Source("gcp_bulletins", "Google Cloud Security Bulletins", "T1", "google_cloud", "vuln", "feed",
+           "https://docs.cloud.google.com/feeds/google-cloud-security-bulletins.xml", 60),
     # CISA advisories through CISA's CSAF provider (GitHub ROLIE feeds): CISA's CDN 403s the radar's AWS egress on the
     # RSS since 2026-11-04 (cisa_advisories below stays for whatever it still delivers). OT = ICS advisories, IT = VA-*.
     Source("cisa_csaf_ot", "CISA ICS Advisories (CSAF)", "T1", "cisa", "vuln", "rolie",
@@ -168,7 +186,8 @@ SOURCES: tuple[Source, ...] = (
     *(Source(*row) for row in SOCIAL),
 )
 
-assert len({s.source_id for s in SOURCES}) == len(SOURCES), "duplicate source_id"
+if len({s.source_id for s in SOURCES}) != len(SOURCES):   # an import-time invariant; `assert` vanishes under python -O
+    raise ValueError("duplicate source_id in SOURCES")
 BY_ID: dict[str, Source] = {s.source_id: s for s in SOURCES}
 
 

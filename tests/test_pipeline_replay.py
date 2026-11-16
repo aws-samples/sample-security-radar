@@ -216,8 +216,16 @@ def test_uncx_amount_dispute_is_flagged_not_merged(replayed):
     assert sorted(p["value"] for p in ev["amount_history"]) == [86_000, 1_490_000]
 
 
+def signals_is_digest(title):
+    from radar import signals
+    return signals.is_digest(title)
+
+
 def test_cve_roundup_does_not_glue_unrelated_cves():
-    roundup = "Patch Tuesday fixes CVE-2026-1001, CVE-2026-1002, CVE-2026-1003, CVE-2026-1004 and CVE-2026-1005"
+    # not a digest by its headline (a 「Patch Tuesday」 title is one, and then signals.is_digest decides first — CI
+    # 2026-11-14: with that title the ≤ 3 CVE rule's mutation survived): a plain report that lists five CVEs
+    roundup = "Vendor ships fixes for CVE-2026-1001, CVE-2026-1002, CVE-2026-1003, CVE-2026-1004 and CVE-2026-1005"
+    assert not signals_is_digest(roundup)
     store = MemoryStore()
     pipeline.ingest([_raw("cisa_kev", "CVE-2026-1001 Foo", "x", extra={"cves": ["CVE-2026-1001"], "kev": True}),
                      _raw("cisa_kev", "CVE-2026-1002 Bar", "y", extra={"cves": ["CVE-2026-1002"], "kev": True}),
@@ -1226,3 +1234,179 @@ def test_a_word_held_by_several_events_names_none_of_them():
     t = datetime(2026, 10, 21, 9, tzinfo=UTC)
     pipeline.ingest([_web3("odaily", "Vega hacker moves $77M of stolen funds to Hyperliquid and opens ETH longs", "2026-10-21T08:00:00Z", t)], store, t)
     assert len(store.events) == 4, "a word three events hold glued a fourth story to one of them"
+
+
+# ---------------------------------------------------------------- live 2026-11-13: who investigates is not who was robbed
+
+FBI_STORIES = [
+    ("odaily", "前FBI特工承认盗取约247万美元加密货币，面临最高20年监禁", "2026-11-07T15:52:00Z"),
+    ("gn_crypto_hack", "FBI: North Korean hackers have stolen $400 million in crypto over last 18 months", "2026-11-12T22:52:00Z"),
+]
+
+
+def test_an_agency_or_an_attribution_in_the_headline_does_not_make_two_thefts_one():
+    """Live: a P0 web3 event of 21 reports — a Singapore police operation, a former FBI agent's theft, the Binance
+    suspect, a cooling-system attack write-up and the FBI's $400M North Korea statement — glued through tok:fbi /
+    tok:north / tok:korean. The event had no named victim, so the name rules (which need one) did not apply. The FBI
+    investigates every theft: its name is not an incident's. (Attribution words — "North Korean hackers" — were
+    measured too: stopping them cost recall on the labelled corpus, 0.9454 → 0.9413, for no precision; left as is.)"""
+    store = MemoryStore()
+    for src, title, when in FBI_STORIES:
+        t = datetime.fromisoformat(when) + timedelta(minutes=5)
+        pipeline.ingest([_web3(src, title, when, t)], store, t)
+    evs = _web3_events(store)
+    assert len(evs) == 2, [e["title"][:40] for e in evs]
+    # a third and a fourth event holding the word make it "generic" (GENERIC_NAME_EVENTS) — the figure still counts
+    for n, title in enumerate(("Zeta bridge hacked for $31.7 million, FBI says", "Orbit bridge hacked for $58.3 million, FBI says")):
+        t = datetime(2026, 11, 13, 10 + n, tzinfo=UTC)
+        pipeline.ingest([_web3("gn_crypto_hack", title, f"2026-11-13T{9 + n}:50:00Z", t)], store, t)
+    assert len(_web3_events(store)) == 4
+    # the same story told again still meets itself: the agency's name together with the story's own figure ($400M is
+    # round, so it has no amt: key — without the name the retelling would open another event)
+    t = datetime(2026, 11, 13, 22, tzinfo=UTC)
+    pipeline.ingest([_web3("gn_exchange_zh", "FBI称朝鲜黑客窃取4亿美元加密货币——The Hill", "2026-11-13T21:40:00Z", t)], store, t)
+    evs = _web3_events(store)
+    assert len(evs) == 4 and sorted(len(e["item_ids"]) for e in evs) == [1, 1, 1, 2]
+    told = next(e for e in evs if len(e["item_ids"]) == 2)
+    assert told["amount_usd_latest"] == 400_000_000
+
+
+def test_a_digest_does_not_make_the_event_it_touches_exploited():
+    """Live 2026-11-14: the Apache HTTP/2 event (37 reports, nobody claiming exploitation of it) was P0 「confirmed」
+    through a weekly bulletin that names its CVE in one paragraph and an exploited Outlook bug in another."""
+    store = MemoryStore()
+    t = datetime(2026, 11, 12, 1, tzinfo=UTC)
+    cve = "CVE-2026-119618"
+    pipeline.ingest([_raw("wiz", f"Critical RCE Vulnerability in Apache HTTP Server ({cve})", f"{cve} is a race condition in mod_http2.",
+                          when="2026-11-11T20:00:00Z")], store, t)
+    pipeline.ingest([_raw("talos", "Never be afraid to ask questions", f"Apache fixed {cve}. Microsoft warned that a spoofing flaw in "
+                          "Outlook (CVE-2026-124194) is already being actively exploited in the wild.", when="2026-11-12T00:00:00Z")], store, t)
+    ev = next(e for e in store.events.values() if cve in e["cves"] and "Apache" in e["title"])
+    assert ev["exploitation"] == "none" and ev["severity"] != "P0", (ev["exploitation"], ev["severity"])
+
+
+# ---------------------------------------------------------------- R8.3: a digest is a report of no single event
+
+DIGESTS = ["Risky Bulletin: Chinese APT uses SS7, Diameter attacks", "9th November – Threat Intelligence Report",
+           "November Patch Tuesday boasts over 1,000 bugs, one already under attack", "美股盘前要闻一览：美国通胀数据高于预期",
+           "Microsoft Patch Tuesday, November 2026 Security Update Review", "This Week in Security: Apache, Outlook and more",
+           "安全周报（11.03-11.09）", "Weekly Recap: zero-days and a bridge hack"]
+NOT_DIGESTS = ["Android Security Bulletin — November 2026", "NVIDIA Security Bulletin: GPU Display Driver",
+               "Critical RCE Vulnerability in Apache HTTP Server", "Binance hot wallet drained for $6.3B",
+               "CVE-2026-119618 - Apache HTTP Server: mod_http2", "Digest authentication bypass in nginx (CVE-2026-1)",
+               # found on the corpus: the word is the story's subject, not what the piece is
+               "SEGA newsletter data breach exposes 2.2 million email addresses", "Ether Nears $2,000 as Weekly Loss Outpaces Bitcoin's",
+               "华尔街日报：部分服务商在 FBI 呼吁后仍处理币安被盗交易"]
+
+
+def test_digests_are_recognised_by_headline_or_by_how_they_open_and_advisories_are_not():
+    from radar import signals
+    assert [t for t in DIGESTS if not signals.is_digest(t)] == []
+    assert [t for t in NOT_DIGESTS if signals.is_digest(t)] == []
+    assert signals.is_digest("Never be afraid to ask questions", "Welcome to this week's edition of the Threat Source newsletter. …")
+    assert not signals.is_digest("Never be afraid to ask questions", "A long essay. " * 60 + "this week's edition")   # the opening only
+
+
+def test_a_digest_never_joins_a_storys_event_and_claims_nothing_for_itself():
+    """Live 2026-11-14: Talos' newsletter (two CVEs, "actively exploited") was a P0 event of its own; a Risky Bulletin
+    in the Apache event gave it a $26M email scam and an exploitation status."""
+    store = MemoryStore()
+    t = datetime(2026, 11, 12, 1, tzinfo=UTC)
+    cve = "CVE-2026-119618"
+    pipeline.ingest([_raw("wiz", f"Critical RCE Vulnerability in Apache HTTP Server ({cve})", f"{cve} is a race condition in mod_http2.",
+                          when="2026-11-11T20:00:00Z")], store, t)
+    [before] = [dict(e) for e in store.events.values()]
+    pipeline.ingest([
+        _raw("talos", "Never be afraid to ask questions", "Welcome to this week's edition of the Threat Source newsletter. "
+             f"Apache fixed {cve}. A flaw in Outlook (CVE-2026-124194) is being actively exploited in the wild.", when="2026-11-12T00:00:00Z"),
+        _raw("risky", "Risky Bulletin: Chinese APT uses SS7", f"Apache patched {cve}. US village loses $26m in email scam. "
+             "One bug is under active attack.", when="2026-11-12T00:10:00Z")], store, t)
+    assert store.events[before["event_id"]] == before                          # the story's event is untouched
+    rest = [e for e in store.events.values() if e["event_id"] != before["event_id"]]
+    assert len(rest) == 2                                                      # two outlets' digests: each its own
+    for e in rest:
+        assert e["cves"] == [] and e["exploitation"] == "none" and e["severity"] == "P2" and e["amount_usd_latest"] is None
+        assert all(k.startswith(("dg:", "url:")) for k in e["keys"]), e["keys"]
+
+
+def test_the_same_digest_from_several_outlets_is_one_event_and_an_outlets_weekly_stays_its_own():
+    store = MemoryStore()
+    t = datetime(2026, 11, 12, 1, tzinfo=UTC)
+    pipeline.ingest([
+        _raw("bleepingcomputer", "Microsoft November 2026 Patch Tuesday fixes 1,235 flaws, Outlook zero-day", "CVE-2026-124194 is exploited.",
+             when="2026-11-11T18:00:00Z"),
+        _raw("rapid7", "Patch Tuesday - November 2026", "CVE-2026-124194 and 1,234 more.", when="2026-11-11T19:00:00Z"),
+        _raw("thehackernews", "⚡ Weekly Recap: Critical CVEs, Linux DDoS Botnet", "CVE-2026-124194 and more.", when="2026-11-11T20:00:00Z"),
+        _raw("secaffairs", "Weekly Recap: what happened in security", "CVE-2026-124194 again.", when="2026-11-11T21:00:00Z")], store, t)
+    sizes = sorted(len(e["item_ids"]) for e in store.events.values())
+    assert sizes == [1, 1, 2], sizes                                           # Patch Tuesday ×2 together; two weeklies apart
+    pt = next(e for e in store.events.values() if len(e["item_ids"]) == 2)
+    assert "dg:patch-tuesday:2026-11" in pt["keys"]
+
+
+def test_a_digest_already_in_an_event_stays_listed_but_is_evidence_for_nothing():
+    """Stored events were built before digests were recognised: recompute keeps the member, drops its say."""
+    store = MemoryStore()
+    t = datetime(2026, 11, 12, 1, tzinfo=UTC)
+    cve = "CVE-2026-119618"
+    plain = _raw("thehackernews", f"Critical Apache HTTP/2 Flaw ({cve}) Could Let Attackers Run Code", f"{cve} affects mod_http2.",
+                 when="2026-11-11T20:00:00Z")
+    pipeline.ingest([plain], store, t)
+    [ev] = [Event_from(e) for e in store.events.values()]
+    digest = pipeline.normalize(_raw("risky", "Risky Bulletin: Chinese APT uses SS7", f"Apache patched {cve}. A flaw in Outlook is being "
+                                     "actively exploited in the wild. US village loses $26 million in email scam.", when="2026-11-12T00:10:00Z"),
+                                __import__("radar.registry", fromlist=["BY_ID"]).BY_ID["risky"], t)
+    digest.extra.pop("digest", None)                                           # as an item stored before the flag existed
+    store.put_item(digest)
+    members = store.get_items([*ev.item_ids, digest.item_id])
+    got = pipeline.recompute(ev, members, t)
+    assert digest.item_id in got.item_ids                                      # still listed on the page
+    assert got.exploitation == "none" and got.amount_usd_latest is None and "Risky" not in got.title
+
+
+def Event_from(d):
+    from radar.model import Event
+    return Event.from_dict(d)
+
+
+@pytest.mark.parametrize(("title", "eventful"), [
+    ("North Korean hackers stole $1.5 billion from Bybit, FBI confirms", True),       # live 2026-11-14: was not an incident
+    ("Hacker steals $58.3 million from Orbit bridge", True),
+    ("Bitcoin ETF theft fears overblown, analysts say", False),                         # the word without money lost
+])
+def test_stole_steals_theft_and_heist_are_incident_words(title, eventful):
+    from radar import registry
+    it = pipeline.normalize(_raw("gn_crypto_hack", title, title, when="2026-11-13T02:00:00Z"), registry.BY_ID["gn_crypto_hack"],
+                            datetime(2026, 11, 13, 3, tzinfo=UTC))
+    assert it.eventful is eventful
+
+
+def test_a_report_naming_cves_years_apart_does_not_make_their_events_one():
+    """Live 2026-11-12: six exploit-catalog entries, each naming CVE-2013-2729 beside a later Acrobat CVE, merged seven
+    KEV events (2013–2023) into one. Measured on the corpus with that event added: precision 0.9220 → 0.9221, recall
+    unchanged; "catalog entries never merge" had cost recall instead."""
+    store = MemoryStore()
+    t = datetime(2026, 11, 12, 18, tzinfo=UTC)
+    old, new = "CVE-2013-2729", "CVE-2021-21017"
+    for cve in (old, new):
+        pipeline.ingest([_raw("cisa_kev", f"{cve} Adobe Acrobat and Reader: Adobe Acrobat and Reader Vulnerability", f"{cve} is exploited.",
+                              extra={"kev": True, "cves": [cve]}, when="2026-10-23T00:00:00Z")], store, t)
+    pipeline.ingest([_raw("sploitus", "Exploit for Heap-based Buffer Overflow in Adobe Acrobat", f"Works against {old} and {new}.",
+                          when="2026-11-12T15:37:00Z")], store, t)
+    assert sorted(len(e["item_ids"]) for e in store.events.values()) == [1, 2]            # attached to one, merged none
+    # … and it lent the event it joined no CVE from another era: the next entry naming both would otherwise find the
+    # two events sharing an id and merge them after all (the dry run of the live repair: 7 stories came back as 3)
+    held = next(e for e in store.events.values() if len(e["item_ids"]) == 2)
+    assert len(held["cves"]) == 1 and not [k for k in held["keys"] if k.startswith("cve:") and k[4:] not in held["cves"]]
+    pipeline.ingest([_raw("sploitus", "Exploit for Use After Free in Adobe Acrobat_Dc", f"Works against {old} and {new} too.",
+                          when="2026-11-12T15:38:00Z")], store, t)
+    assert len(store.events) == 2
+    # negative control: two CVEs of one release, named together, are still one story
+    a, b = "CVE-2026-109618", "CVE-2026-109619"
+    for cve in (a, b):
+        pipeline.ingest([_raw("cisa_kev", f"{cve} PHP Group PHP: PHP Memory Corruption Vulnerability", f"{cve} is exploited.",
+                              extra={"kev": True, "cves": [cve]}, when="2026-10-23T00:00:00Z")], store, t)
+    pipeline.ingest([_raw("bleepingcomputer", f"PHP patches {a} and {b}, both exploited", f"{a} and {b} are one chain.",
+                          when="2026-11-12T16:00:00Z")], store, t)
+    php = [e for e in store.events.values() if a in e["cves"]]
+    assert len(php) == 1 and b in php[0]["cves"]

@@ -1,0 +1,24 @@
+/* R3.6: loaded after first paint (main.tsx imports it lazily) — the page renders with system fonts first and swaps
+   (font-display: swap). Latin families: latin + latin-ext only (the UI is Chinese + Latin; Cyrillic / Greek /
+   Vietnamese text from a source falls back to the system font). Noto Sans SC keeps all its unicode-range subsets:
+   a subset file downloads only when one of its glyphs is drawn. */
+@import '@fontsource/space-grotesk/latin-300.css';
+@import '@fontsource/space-grotesk/latin-ext-300.css';
+@import '@fontsource/space-grotesk/latin-400.css';
+@import '@fontsource/space-grotesk/latin-ext-400.css';
+@import '@fontsource/space-grotesk/latin-500.css';
+@import '@fontsource/space-grotesk/latin-ext-500.css';
+@import '@fontsource/space-grotesk/latin-700.css';
+@import '@fontsource/space-grotesk/latin-ext-700.css';
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-ext-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-ext-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-ext-600.css';
+@import '@fontsource/jetbrains-mono/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-ext-400.css';
+@import '@fontsource/jetbrains-mono/latin-500.css';
+@import '@fontsource/jetbrains-mono/latin-ext-500.css';
+@import '@fontsource/noto-sans-sc/400.css';
+@import '@fontsource/noto-sans-sc/500.css';

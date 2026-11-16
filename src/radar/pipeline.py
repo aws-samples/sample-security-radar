@@ -35,8 +35,7 @@ _STRONG = ("cve:", "tx:", "attacker:", "xs:", "url:")
 # … CVE-… to our KEV Catalog" (X); both list unrelated bugs side by side
 # window: CISA's own tweets name vendor + product for each CVE before "to our KEV Catalog" (190 chars live 2026-10-29)
 KEV_ROUNDUP_RE = re.compile(r"\badd(?:s|ed)?\b.{0,320}?\b(?:known exploited vulnerabilit(?:y|ies)|KEV catalog)\b", re.IGNORECASE | re.DOTALL)
-_WEAK = ("ent:", "tok:")
-_NAME_KEYS = ("ent:", "tok:", "tt:")   # a name shared by text, not a link, tx or figure
+_NAME_KEYS = ("ent:", "tok:", "tt:", "dg:")   # a name shared by text, not a link, tx or figure
 _NOT_ARTICLE = {"x.com", "t.co"}   # canonical_url already folds twitter.com / www. / mobile.
 _HEADLINE_SLUG = re.compile(r"/(?:[^/-]+-){3,}[^/]*$")   # last path segment of ≥ 4 hyphenated words
 
@@ -140,7 +139,8 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
     if source.parser == "twitterapi":
         reg += cited_article_keys(links)
 
-    exploited = "yes" if raw.extra.get("kev") else signals.exploited(blob)
+    # a catalogue's or the vendor's own statement (CISA KEV; MSRC "Exploitation Detected") is not left to the text rules
+    exploited = "yes" if raw.extra.get("kev") or raw.extra.get("vendor_exploited") else signals.exploited(blob)
     amount = raw.extra.get("amount_usd")
     if amount is None and domain == "web3" and "amount_usd" not in raw.extra:
         amount = signals.loss_amount(raw.title, raw.text) if signals.web3_incident(blob) else None
@@ -161,9 +161,10 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
 
     if source.always_eventful:
         eventful = True
-    elif source.parser == "cvelist_delta":
+    elif source.parser in ("cvelist_delta", "msrc"):
         # the whole CVE List (~130 records a day, mostly low): only a critical one opens an event; the rest are context
-        # items carrying their cve: key, so a later report of that CVE meets the record (and its publication time)
+        # items carrying their cve: key, so a later report of that CVE meets the record (and its publication time).
+        # MSRC is the same shape (~100 CVEs each Patch Tuesday): critical or exploited opens one, the rest corroborate
         eventful = (raw.extra.get("cvss") or 0) >= Limits.CVE_LIST_EVENT_CVSS or exploited == "yes"
     elif domain == "web3":
         eventful = signals.web3_incident(raw.title or raw.text) and (names_money or tier == "T1")
@@ -178,6 +179,8 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
     # attach to one of their events but must not merge them (live 2026-10-27: Adobe Commerce glued into Node2Shell)
     if len(cve_list) >= 2 and KEV_ROUNDUP_RE.search(blob):
         extra = {**extra, "roundup": True}
+    if signals.is_digest(raw.title, raw.text):
+        extra = {**extra, "digest": True}
     return Item(
         item_id=keys.item_id(source.source_id, raw.guid or canon), source_id=source.source_id, tier=tier, org=org,
         domain=domain, url=raw.url, canonical_url=canon, title=raw.title[:300], text=raw.text[:4000],
@@ -190,6 +193,8 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
 # ---------------------------------------------------------------- cluster
 
 def _lookup_keys(item: Item) -> list[str]:
+    if is_digest(item):      # a digest looks events up in its own key space only
+        return _digest_keys(item)
     out = list(item.keys)
     out += [f"url:{u}" for u in item.links]
     out += [f"xs:{sid}" for _, sid in keys.x_statuses(" ".join(item.links))]
@@ -254,6 +259,24 @@ def _within(event: Event, item: Item, days: int) -> bool:
     return first - timedelta(days=days) <= at <= end
 
 
+def is_digest(item: Item) -> bool:
+    """A newsletter / bulletin / review that tells several stories (signals.is_digest; flag set at normalize, recomputed
+    for items stored before it). A digest is never evidence for an event's loss, exploitation, level or title, and a
+    new one is not attached to any event."""
+    return bool(item.extra.get("digest")) or signals.is_digest(item.title, item.text)
+
+
+def _digest_keys(item: Item) -> list[str]:
+    """The keys of a digest: itself (its url) and one key in a namespace of its own — what kind of digest, of which
+    month, and by whom. A digest names many stories and links to all of them; with its ordinary keys it would join one
+    of them, or all. In dg: it can only meet another digest of the same thing: twenty outlets' 「Patch Tuesday」 reviews
+    of one month are one event (the one kind that is the same thing across outlets), and none of the thousand CVEs'
+    events; an outlet's own weekly stays with that outlet."""
+    kind = signals.digest_kind(item.title, item.text) or "digest"
+    who = "" if kind == "patch-tuesday" else f":{item.org}"
+    return sorted({k for k in item.keys if k == f"url:{item.canonical_url}"} | {f"dg:{kind}{who}:{item.published_at[:7]}"})
+
+
 def is_roundup(item: Item) -> bool:
     """KEV catalog announcement listing several CVEs (flag set at normalize; recomputed for items stored before it)."""
     n = sum(1 for k in item.keys if k.startswith("cve:"))
@@ -266,6 +289,8 @@ def indexed_keys(item: Item) -> list[str]:
     index and merges two unrelated stories after all. A context-only item (not eventful) lends hard keys only: it attaches
     through them, and its names are not this event's (live 2026-11-02: PANews' daily digest lent tok:zklink to Binance,
     and the zkLink exploit reports then found Binance through it)."""
+    if is_digest(item):      # … and lends an event nothing else
+        return _digest_keys(item)
     return [k for k in item.keys if not (k.startswith("cve:") and is_roundup(item))
             and (item.eventful or k.startswith(_STRONG))]
 
@@ -345,6 +370,14 @@ def find_events(item: Item, store: Store, exclude: str | None = None) -> tuple[s
             # other stories — UXLINK's and Drift's hackers trading, Mercado, Bitget, a market report — all attached
             # through words Binance coverage had used (tok:hyperliquid, tok:uxlink, tok:coinjoin …). Pairwise precision
             # 0.51 → 0.91 with these two rules, recall 0.98 → 0.94.
+            # an agency or an attribution is a name of nobody's incident: it finds an event only together with that
+            # event's loss figure (keys.ATTRIBUTION)
+            attributed = False
+            if not strong and k.startswith(_NAME_KEYS) and item.domain == "web3" and k.split(":", 1)[1] in keys.ATTRIBUTION:
+                a, b = item.signals.get("amount_usd"), ev.amount_usd_latest
+                if not a or not b or abs(a - b) > Limits.LATE_LOSS_EXACT_TOLERANCE * max(a, b):
+                    continue
+                attributed = True     # the word plus the figure: evidence of its own, whatever else holds the word
             if not strong and k.startswith(_NAME_KEYS):
                 mine = item.domain == "web3" and _names_event(k.split(":", 1)[1], ev)
                 # (a) an event with a named victim is found by name only through that victim's name
@@ -353,7 +386,8 @@ def find_events(item: Item, store: Store, exclude: str | None = None) -> tuple[s
                 # (b) a word that several web3 events hold names none of them (hyperliquid, tornado, coinjoin). Not
                 # outside web3: there the names are vendors (GitLab, SonicWall), and a report without a CVE has
                 # nothing else to find its event by — measured: the rule cost recall there and bought no precision
-                if item.domain == "web3" and not mine and len(store.event_ids_for_key(k)) >= Limits.GENERIC_NAME_EVENTS:
+                generic = len(store.event_ids_for_key(k)) >= Limits.GENERIC_NAME_EVENTS and not attributed
+                if item.domain == "web3" and not mine and generic:
                     continue
             if k.startswith(_NAME_KEYS) and item.domain == "web3" and _names_event(k.split(":", 1)[1], ev) \
                     and k.split(":", 1)[1] in headline:
@@ -403,7 +437,30 @@ def _different_stories(a: Event | None, b: Event | None, item_cves: set[str]) ->
         return True
     if a.cves and b.cves and not set(a.cves) & set(b.cves) and not (item_cves & set(a.cves) and item_cves & set(b.cves)):
         return True
+    # … and even then not across years: one bug chain is disclosed together. Live 2026-11-12: six exploit-catalog
+    # entries, each naming CVE-2013-2729 beside a later Acrobat CVE, merged seven KEV events from 2013 to 2023.
+    if a.cves and b.cves and not set(a.cves) & set(b.cves) and _years_apart(a.cves, b.cves) >= Limits.MERGE_MAX_CVE_YEARS:
+        return True
     return _other_victims(a, b)
+
+
+def _own_cves(items: list[Item]) -> list[str]:
+    """The CVEs that are this event's. A report that names one CVE says which vulnerability the event is; a report
+    naming several lends the event only those within MERGE_MAX_CVE_YEARS of one of them — else the first catalog
+    entry naming 「CVE-2013-… and CVE-2021-…」 gives the 2021 event the 2013 id, and the next entry merges the two
+    events through it (the dry run of the Adobe repair, 2026-11-14: 7 stories came back as 3 events)."""
+    named = [sorted(k[4:] for k in indexed_keys(i) if k.startswith("cve:")) for i in items]
+    every = {c for n in named for c in n}
+    core = {n[0] for n in named if len(n) == 1}
+    if not core:
+        return sorted(every)
+    return sorted(c for c in every if c in core or _years_apart([c], sorted(core)) < Limits.MERGE_MAX_CVE_YEARS)
+
+
+def _years_apart(a: list[str], b: list[str]) -> int:
+    """The smallest gap in years between a CVE of one event and a CVE of the other (CVE-YYYY-…)."""
+    ya, yb = {int(c[4:8]) for c in a}, {int(c[4:8]) for c in b}
+    return min(abs(x - y) for x in ya for y in yb)
 
 
 def _other_victims(a: Event | None, b: Event | None) -> bool:
@@ -616,9 +673,20 @@ def _level(ev_domain: Domain, items: list[Item], tiers: list[Tier], now: datetim
 def _exploitation(ev_domain: Domain, items: list[Item], level: str) -> str:
     if ev_domain == "web3":
         return "confirmed" if LEVEL_ORDER[level] >= 2 else "reported"
-    if any(i.signals["kev"] or (i.tier == "T1" and i.signals["exploited"] == "yes") for i in items):
+    # a report's "exploited" counts for THIS event only when it is said about this event (signals.exploited_about):
+    # a report is in an event through one of its keys, and may speak of exploitation about something else
+    named = [{k[4:] for k in i.keys if k.startswith("cve:")} for i in items]
+
+    def says(n: int) -> bool:
+        # the event's CVEs as the OTHER reports name them: a digest lends the event every CVE it lists, so "a CVE of
+        # the event" judged against the union would always include the digest's own
+        rest = set().union(*(c for m, c in enumerate(named) if m != n)) if len(items) > 1 else named[n]
+        i = items[n]
+        return i.signals["exploited"] == "yes" and signals.exploited_about(i.title, i.text, named[n], rest)
+    told = [n for n in range(len(items)) if items[n].signals["exploited"] == "yes" and says(n)]
+    if any(i.signals["kev"] for i in items) or any(items[n].tier == "T1" for n in told):
         return "confirmed"
-    if any(i.signals["exploited"] == "yes" for i in items):
+    if told:
         return "reported"
     return "poc" if any(i.signals["poc"] for i in items) else "none"
 
@@ -866,10 +934,16 @@ def evidence_at(item: Item, first: Item) -> str:
 
 
 def recompute(ev: Event, items: list[Item], now: datetime, title_pairs: set[tuple[str, str]] | None = None) -> Event:
-    items = _recompute_order(items)
+    members = _recompute_order(items)
+    # digests attached before they were recognised stay members (the page lists them) but are evidence for nothing;
+    # an event made of digests only keeps them — there is nothing else to compute it from (it should not exist: a replay
+    # removes it, and scripts/recompute_check.py shows it)
+    items = [i for i in members if not is_digest(i)] or members
+    digest_only = len(items) == len(members) and all(is_digest(i) for i in members)
     groups = independent_groups(items, title_pairs)
     tiers = _group_tiers(items, groups)
-    hist, latest, disputed, stable, frozen = _amounts(items)
+    # a digest's figures and its "exploited" are about the stories it tells, none of them this event
+    hist, latest, disputed, stable, frozen = ([], None, False, False, None) if digest_only else _amounts(items)
     # on-chain verdicts live on the event (items only carry the hash): carry them over, then let them count
     seen = {t["hash"]: t for t in ev.tx}
     tx: dict[str, dict[str, Any]] = {}
@@ -878,18 +952,18 @@ def recompute(ev: Event, items: list[Item], now: datetime, title_pairs: set[tupl
             tx.setdefault(t["hash"], {**t, **{k: v for k, v in (seen.get(t["hash"]) or {}).items() if k not in t},
                                       "verified": (seen.get(t["hash"]) or {}).get("verified", "unchecked")})
     level, reason = _level(ev.domain, items, tiers, now, stable, onchain=chain.onchain_confirmed(list(tx.values())))
-    exploitation = _exploitation(ev.domain, items, level)
+    exploitation = "none" if digest_only else _exploitation(ev.domain, items, level)
     # escalation time = publication of the newest evidence when urgency rose (not processing time, or a
     # historical backfill would look "fresh"); age-driven V4 finalization is not an escalation
     rose = (LEVEL_ORDER[level] > LEVEL_ORDER[ev.level] and level != "V4") or \
         EXPLOITATION_ORDER[exploitation] > EXPLOITATION_ORDER[ev.exploitation]
     if rose and ev.item_ids:
         ev.escalated_at = max(i.published_at for i in items)
-    ev.item_ids = [i.item_id for i in items]
+    ev.item_ids = [i.item_id for i in members]
     ev.title = _title(items)
     first = first_report(items)
     ev.first_seen = first.published_at
-    ev.last_updated = max(max(i.published_at for i in items), max((i.extra.get("revised_at") or "") for i in items))
+    ev.last_updated = max(max(i.published_at for i in members), max((i.extra.get("revised_at") or "") for i in members))
     ev.level, ev.level_reason, ev.exploitation = level, reason, exploitation
     ev.independent_sources = len(tiers)
     src = BY_ID.get(first.source_id)
@@ -902,7 +976,7 @@ def recompute(ev: Event, items: list[Item], now: datetime, title_pairs: set[tupl
                             # freshness keeps the earliest timestamp, date-only included: conservative on purpose
                             # (a KEV entry "added 10-20" may be 3 days old) — first_seen moved to the first report
                             fresh=max(items[0].published_at, ev.escalated_at) >= fresh_since)
-    ev.cves = sorted({k[4:] for i in items for k in indexed_keys(i) if k.startswith("cve:")})
+    ev.cves = _own_cves(items)
     ev.entities = sorted({i.entity for i in items if i.entity})
     ev.tx = list(tx.values())
     ev.chains = sorted({c for i in items for c in (i.extra.get("chains") or [])} | {t["chain"] for t in ev.tx})
@@ -1000,7 +1074,8 @@ def attach(item: Item, store: Store, at: str, now: datetime, res: IngestResult) 
         res.absorbed[ev.event_id] += res.absorbed.pop(m.event_id, [])
     ids = list(dict.fromkeys(ev.item_ids + [i for m in merged for i in m.item_ids] + [item.item_id]))
     ev = recompute(ev, store.get_items(ids), now)
-    ev.keys = sorted(set(ev.keys) | set(indexed_keys(item)) | {k for m in merged for k in m.keys})
+    ev.keys = sorted(k for k in set(ev.keys) | set(indexed_keys(item)) | {k for m in merged for k in m.keys}
+                     if not k.startswith("cve:") or k[4:] in ev.cves)      # a CVE that is not the event's finds it no more
     ev.timeline = (before.timeline if before else []) + _timeline_diff(before, ev, at, item.item_id)
     for m in merged:
         ev.timeline.append({"at": at, "kind": "merged", "from": m.event_id, "to": ev.event_id, "item_id": item.item_id})
@@ -1020,7 +1095,7 @@ def attach(item: Item, store: Store, at: str, now: datetime, res: IngestResult) 
     removals.record(store, [(m.event_id, m.first_seen[:7], ev.event_id) for m in merged], at)
     ev.timeline.sort(key=lambda t: t["at"])
     store.put_event(ev)
-    store.add_keys(ev.event_id, indexed_keys(item))
+    store.add_keys(ev.event_id, [k for k in indexed_keys(item) if k in ev.keys])
     ch = res.changes.setdefault(ev.event_id, Change(ev.event_id, created=before is None))
     if before is not None:
         ch.level_changed |= LEVEL_ORDER[before.level] != LEVEL_ORDER[ev.level]

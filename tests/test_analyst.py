@@ -85,3 +85,55 @@ def test_evidence_is_bounded():
     big = [{"item_id": f"it_{n}", "source": "s", "tier": "T2", "published_at": "2026-10-23T00:00:00Z",
             "title": "t", "text": "x" * 5000} for n in range(200)]
     assert len(analyst.render_prompt(analyst.trim_evidence(big)).encode()) <= analyst.PROMPT_MAX_BYTES
+
+
+def test_r1_8_a_number_is_grounded_only_as_a_whole_number():
+    """Audit 02 Q6 #1: "26" was grounded by "2026" and "1.5" by "11.5" (single digits are not checked at all)."""
+    by_id = {"a": "Released on 2026-11-15; the patch is 11.5 MB and fixes 12 bugs."}
+    assert analyst._check({"text": "修复了 12 个缺陷", "cite": ["a"]}, by_id)["grounded"]
+    assert not analyst._check({"text": "影响 26 个版本", "cite": ["a"]}, by_id)["grounded"]          # was matched inside 2026
+    assert not analyst._check({"text": "补丁 1.5 MB", "cite": ["a"]}, by_id)["grounded"]
+
+
+def test_r1_8_a_big_event_is_briefed_from_its_records_first_report_and_newest_per_tier():
+    """Audit 02 Q6 #2: a 391-report event was briefed from its first 44 reports for ever (the cut was oldest-first and
+    the hash taken after it never changed again)."""
+    ev = [{"item_id": f"i{k:03}", "tier": "T1" if k % 10 == 0 else "T3", "published_at": f"2026-11-{1 + k // 20:02}",
+           "title": f"report {k}", "text": "x" * 1_100} for k in range(200)]
+    out = analyst.trim_evidence(ev, structured={"i057"})
+    ids = [e["item_id"] for e in out]
+    assert "i000" in ids and "i057" in ids                     # first report + a structured record
+    assert "i199" in ids and "i190" in ids                     # newest T3 and newest T1
+    assert ids == sorted(ids)                                  # time order kept
+    small = ev[:5]
+    assert analyst.trim_evidence(small) == [dict(e, text=e["text"][:analyst.ITEM_TEXT_MAX]) for e in small]   # fits ⇒ unchanged
+    ev[-1] = {**ev[-1], "title": "new"}                        # a new latest report changes what the brief is fed
+    assert analyst.input_hash(analyst.trim_evidence(ev, {"i057"})) != analyst.input_hash(out)
+
+
+def test_r1_8_the_analyze_station_keeps_a_structured_record_in_a_big_events_brief(monkeypatch):
+    for k, v in {"AWS_DEFAULT_REGION": "ap-northeast-1", "AWS_ACCESS_KEY_ID": "x", "AWS_SECRET_ACCESS_KEY": "x"}.items():
+        monkeypatch.setenv(k, v)                      # importing handlers builds an S3 client (no region ⇒ a lookup)
+    from radar import handlers as h
+    from radar.model import Event, Item
+    from radar.store import MemoryStore
+    store = MemoryStore()
+
+    def item(k, src, tier):
+        at = f"2026-11-{1 + k // 20:02}T00:00:00Z"
+        return Item(item_id=f"it_{k:04}", source_id=src, tier=tier, org=src, domain="web3", url=f"https://x/{k}",
+                    canonical_url=f"https://x/{k}", title=f"r{k}", text="x" * 1_100, published_at=at, fetched_at=at,
+                    content_hash=str(k), keys=[], links=[], entity=None, eventful=True, signals={}, extra={})
+    items = [item(k, "defillama_hacks" if k == 57 else "odaily", "T3") for k in range(200)]
+    for it in items:
+        store.put_item(it)
+    store.put_event(Event(event_id="ev_0000000000000001", domain="web3", title="x", first_seen=items[0].published_at,
+                          last_updated="2026-11-15T00:00:00Z", item_ids=[i.item_id for i in items], keys=[], severity="P0"))
+    seen = []
+    monkeypatch.setattr(h, "_store", store)
+    for f in ("_daily_digest", "_cluster_judge", "_retitle_shadow"):
+        monkeypatch.setattr(h, f, lambda now: [])
+    monkeypatch.setattr(analyst, "analyze", lambda ev_in, now: seen.append(ev_in) or {"status": "ok", "input_hash": "h"})
+    monkeypatch.setattr(h.timeutil, "now", lambda: __import__("datetime").datetime(2026, 11, 15, tzinfo=__import__("datetime").UTC))
+    h.analyze_events({})
+    assert "it_0057" in [e["item_id"] for e in seen[0]]

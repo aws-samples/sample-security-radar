@@ -62,3 +62,5 @@ step "run one cycle now and verify end to end"
 step "compare the site with the snapshot taken before the deployment"
 aws s3 cp --region ap-northeast-1 "s3://$(out SiteBucketName)/data/events.json" build/events-after.json --quiet
 uv run python scripts/site_diff.py compare "$before" build/events-after.json
+# what is live now: the preflight compares the judgement code against it next time (scripts/recompute_check.py)
+git rev-parse HEAD > build/deployed-commit

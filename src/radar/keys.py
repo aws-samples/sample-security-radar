@@ -105,6 +105,15 @@ def entity_key(name: str | None) -> str | None:
 # theft through tok:eth / cash / tornado / certik / report; a Tranche Vault event absorbed zkLink, Polymarket and Circle's
 # USDC freeze through tok:usdc / slowmist / cause. Kinds: assets and tickers, chains, mixers, the security firms and news
 # desks that *report* hacks, tweet boilerplate. Matching only — they never were victim names.
+# Who investigates or sanctions — never who was robbed. Live 2026-11-13: tok:fbi / north / korean glued a
+# Singapore police operation, a former FBI agent's theft, the Binance suspect and the FBI's $400M North Korea statement
+# into one P0 event (it had no named victim, so the victim-name rules did not apply). Not in MATCH_STOP: a story with
+# no victim ("FBI: North Korean hackers stole $400 million") has nothing else to be found by, and its figure is round
+# (no amt: key) — so such a word finds an event only when the report states the event's loss figure too
+# (pipeline.find_events).
+ATTRIBUTION = frozenset(["fbi", "doj", "sec", "cftc", "cisa", "nsa", "ofac", "treasury", "interpol", "europol", "police",
+                         "court"])
+
 MATCH_STOP = frozenset(
     # assets / tickers
     ["eth", "weth", "steth", "btc", "wbtc", "usdt", "usdc", "usde", "usd1", "usd", "dai", "bnb", "sol", "trx", "xrp",

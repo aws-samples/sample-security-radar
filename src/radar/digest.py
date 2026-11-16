@@ -18,6 +18,7 @@ from radar import analyst, llm, timeutil
 from radar.model import LEVEL_ORDER, SEVERITY_ORDER, Event
 
 PROMPT_VERSION = "digest-v1"
+KEY = "__digest__"          # the latest digest's state row (single writer: the analyze station; read by notify)
 SECTIONS = ("summary", "highlights", "watch")
 HKT = timezone(timedelta(hours=8))
 RUN_AFTER_HKT_HOUR = 8

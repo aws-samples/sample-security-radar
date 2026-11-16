@@ -30,6 +30,13 @@ class LlmResult:
 
 
 _client = None
+# R5.6: installed by radar.handlers with the table — model id ⇒ may this call be made today? None (tests, scripts) ⇒ no gate
+gate: Any = None
+
+
+def daily_cap(model: str) -> int:
+    from radar.limits import Limits
+    return Limits.BEDROCK_CALLS_PER_DAY_FAST if model == MODEL_FAST else Limits.BEDROCK_CALLS_PER_DAY_BRIEF
 
 
 def converse(prompt: str, model: str, max_tokens: int) -> LlmResult:
@@ -39,6 +46,11 @@ def converse(prompt: str, model: str, max_tokens: int) -> LlmResult:
     if _client is None:
         _client = boto3.client("bedrock-runtime", region_name=REGION)
     t = time.time()
+    if gate is not None and not gate(model):
+        res = LlmResult("error", "", {}, model, 0.0, f"daily_cap: {daily_cap(model)} calls of {model} today")
+        log.info(json.dumps({"ledger": "llm", "model": model, "status": res.status, "usage": {}, "latency_s": 0,
+                             "error": res.error}))
+        return res
     try:
         r = _client.converse(modelId=model, messages=[{"role": "user", "content": [{"text": prompt}]}],
                              inferenceConfig={"maxTokens": max_tokens})

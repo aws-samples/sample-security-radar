@@ -6,6 +6,7 @@ sources), and Process reads only the batches after its watermark."""
 import importlib
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import boto3
 import pytest
@@ -223,13 +224,19 @@ def test_a_cycle_skips_while_an_earlier_one_runs_but_a_full_publish_does_not(env
     later = {"executionArn": "arn:aws:states:ap-northeast-1:1:execution:Cycle-X:c", "startDate": NOW + timedelta(minutes=1)}
     seen = {}
 
+    history = []
+
     class SFN:
         def list_executions(self, **kw):
             seen.update(kw)
             return {"executions": runs}
+
+        def get_execution_history(self, **kw):
+            return {"events": history}
     monkeypatch.setattr(h.boto3, "client", lambda name, **k: SFN())
     started = timeutil.iso(NOW)
     runs = [earlier, {"executionArn": me, "startDate": NOW}]
+    history = [{"stateEnteredEventDetails": {"name": "CollectAll"}}]           # the earlier one is still collecting
     assert h.plan({"input": {}, "execution": me, "started": started})["skip"] is True
     assert seen["stateMachineArn"] == "arn:aws:states:ap-northeast-1:1:stateMachine:Cycle-X"
     assert h.plan({"input": {"full": True}, "execution": me, "started": started})["skip"] is False
@@ -338,3 +345,150 @@ def test_a_feed_served_in_two_versions_is_not_handed_over_again(monkeypatch):
     for feed in (a, b, a, b):
         out, seen = collect.incremental(feed, seen, NOW, brand_new=False)
         assert out == []
+
+
+
+def test_a_cycle_collects_while_an_earlier_one_processes_and_stops_before_process(env, monkeypatch):
+    """R2.2 — measured 2026-11-15: half of the 5-minute triggers were skipped because the previous cycle was still in
+    Analyze / Respond / Publish, so reports waited up to two cycles to be fetched."""
+    h, _ = env
+    me = "arn:aws:states:ap-northeast-1:1:execution:Cycle-X:b"
+    earlier = {"executionArn": "arn:aws:states:ap-northeast-1:1:execution:Cycle-X:a", "startDate": NOW - timedelta(minutes=4)}
+    histories = {earlier["executionArn"]: [{"stateEnteredEventDetails": {"name": "Respond"}}, {"type": "LambdaFunctionStarted"}]}
+
+    class SFN:
+        def list_executions(self, **kw):
+            return {"executions": [earlier, {"executionArn": me, "startDate": NOW}]}
+
+        def get_execution_history(self, **kw):
+            assert kw["reverseOrder"] is True and kw["maxResults"] <= 100
+            return {"events": histories[kw["executionArn"]]}
+    monkeypatch.setattr(h.boto3, "client", lambda name, **k: SFN())
+    out = h.plan({"input": {}, "execution": me, "started": timeutil.iso(NOW)})
+    assert out["skip"] is False and out["collect_only"] is True and out["sources"]
+    # a second earlier one still collecting: nothing may collect next to it
+    second = {"executionArn": "arn:aws:states:ap-northeast-1:1:execution:Cycle-X:a2", "startDate": NOW - timedelta(minutes=1)}
+    histories[second["executionArn"]] = [{"stateEnteredEventDetails": {"name": "Collect"}}]
+    SFN.list_executions = lambda self, **kw: {"executions": [earlier, second, {"executionArn": me, "startDate": NOW}]}
+    assert h.plan({"input": {}, "execution": me, "started": timeutil.iso(NOW)})["skip"] is True
+    # nothing earlier: a full cycle
+    SFN.list_executions = lambda self, **kw: {"executions": [{"executionArn": me, "startDate": NOW}]}
+    out = h.plan({"input": {}, "execution": me, "started": timeutil.iso(NOW)})
+    assert out["skip"] is False and out["collect_only"] is False
+
+
+def test_the_state_machine_ends_a_collect_only_cycle_before_process():
+    stack = (Path(__file__).resolve().parents[1] / "infra" / "stack.py").read_text()
+    assert 'sfn.Condition.boolean_equals("$.collect_only", True)' in stack and "fan_out.next(collected_only.otherwise(rest))" in stack
+    assert stack.index('rest = (invoke("Process"') < stack.index("cycle = fan_out.next(collected_only.otherwise(rest))")
+    assert 'actions=["states:GetExecutionHistory"]' in stack and "execution:Cycle*:*" in stack
+    # every name the Choice checks for is a state the machine has (a renamed state would silently mean "collecting")
+    import re
+    states = set(re.findall(r'invoke\("(\w+)"', stack)) | set(re.findall(r'sfn\.Pass\(self, "(\w+)"', stack))
+    assert h_post_collect() <= states, h_post_collect() - states
+
+
+def h_post_collect():
+    from radar import handlers
+    return set(handlers.POST_COLLECT_STATES)
+
+
+
+def test_a_line_that_does_not_parse_is_skipped_and_counted_not_a_failed_run_forever(env):
+    """R5.1 / audit 05 1.6: one bad raw line failed every run until the batch aged out of the listing — unprocessed."""
+    h, s3 = env
+    good = json.dumps({"source_id": "krebs", "url": "https://k/ok", "title": "Hackers exploit zero-day CVE-2026-3333",
+                       "text": "x", "published_at": "2026-11-10T10:00:00Z", "guid": "ok", "author": None, "links": [], "extra": {}})
+    key = "raw/2026-11-10/2026-11-10T11:55:00Z/krebs.jsonl"
+    s3.put_object(Bucket="raw", Key=key, Body=("{not json\n" + good + "\n" + json.dumps({"source_id": "krebs", "nope": 1})).encode())
+    out = h.process({"results": [], "slot": "2026-11-10T12:00:00Z"})
+    assert out is not None and h._store.is_raw_processed(key)                    # processed, watermark moved on
+    assert h._store.get_source_state(h.WATERMARK_KEY)["key"] == "raw/2026-11-10/2026-11-10T12:00:00Z/~"
+    assert any("CVE-2026-3333" in (e.title or "") for e in h._store.events_updated_since("2026-11-01T00:00:00Z"))
+    led = h._store.get_source_state(h.RAW_BAD_KEY)
+    assert led[key]["lines"] == 2 and led[key]["first_line"] == 1 and led[key]["at"]
+    from radar import ops, publish
+    items = [i for i in publish.build(h._store, NOW)["ops.json"]["attention"] if i["code"] == "raw_lines_skipped"]
+    assert len(items) == 1 and "2 条原始记录读不了" in items[0]["title"]
+    assert ops.attention({"raw_bad": []}) == [] or all(i["code"] != "raw_lines_skipped" for i in ops.attention({"raw_bad": []}))
+
+
+def test_r2_5_a_host_that_fails_three_times_in_a_row_is_skipped_for_this_run(env, monkeypatch):
+    """24 WeChat feeds share wechat2rss, 21 Telegram channels share t.me: one host down cost 24 timeouts a run."""
+    h, _ = env
+    from radar.registry import SOURCES
+    tg = [s.source_id for s in SOURCES if s.enabled and s.source_id.startswith("tg_")][:6]
+    calls = []
+    monkeypatch.setattr(h, "_collect_source", lambda st, sid, slot: calls.append(sid) or
+                        {"source_id": sid, "key": None, "count": 0, "ok": False})
+    out = h.collect_batch({"source_ids": tg, "slot": "2026-11-10T12:00:00Z"})["results"]
+    assert len(calls) == Limits.HOST_BREAKER_AFTER
+    assert [r.get("skipped") for r in out[Limits.HOST_BREAKER_AFTER:]] == ["host_breaker"] * (len(tg) - Limits.HOST_BREAKER_AFTER)
+    # a success resets the count
+    flip = iter([False, False, True, False, False, True])
+    calls.clear()
+    monkeypatch.setattr(h, "_collect_source", lambda st, sid, slot: calls.append(sid) or
+                        {"source_id": sid, "key": None, "count": 0, "ok": next(flip)})
+    h.collect_batch({"source_ids": tg, "slot": "2026-11-10T12:00:00Z"})
+    assert len(calls) == len(tg)
+
+
+def test_r2_5_every_source_runs_inside_the_source_budget(env, monkeypatch):
+    """ex_bit2me (live 11-13): a 25 s direct timeout, then a 60 s fallback — 86 s on one batch thread. Every request a
+    source makes runs under one deadline of Limits.SOURCE_BUDGET_S, and none is left behind for the next source."""
+    h, _ = env
+    from radar import collect, fetch
+    seen = []
+
+    def run(source, state, now, **k):
+        seen.append(fetch._DEADLINE.get() - fetch.time.monotonic())
+        return [], dict(state or {})
+    monkeypatch.setattr(collect, "collect", run)
+    h.collect_batch({"source_ids": ["theblock", "cisa_kev"], "slot": "2026-11-10T12:00:00Z"})
+    assert len(seen) == 2 and all(Limits.SOURCE_BUDGET_S - 5 < left <= Limits.SOURCE_BUDGET_S for left in seen)
+    assert fetch._DEADLINE.get() is None
+
+
+def test_r5_4_the_collect_station_writes_only_source_state_rows(env, monkeypatch):
+    """infra/stack.py gives CollectFn writes only on partition keys COLLECT_WRITE_KEYS (dynamodb:LeadingKeys). A write
+    path outside them would be AccessDenied live — so the station runs here, a good source, a crashing one and a host
+    breaker, and every key it writes is recorded at the botocore layer (every thread's client goes through it)."""
+    import ast
+    import fnmatch
+    from pathlib import Path
+
+    import botocore.client
+
+    from radar import collect
+    from radar.registry import SOURCES
+    h, _ = env
+    tree = ast.parse((Path(__file__).resolve().parents[1] / "infra" / "stack.py").read_text())
+    allowed = next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+                   and getattr(n.targets[0], "id", "") == "COLLECT_WRITE_KEYS")
+    wrote: list[str] = []
+    real = botocore.client.BaseClient._make_api_call
+
+    def rec(self, op, params):
+        if self.meta.service_model.service_name == "dynamodb":
+            if op == "PutItem":
+                wrote.append(params["Item"]["pk"])
+            elif op in ("UpdateItem", "DeleteItem"):
+                wrote.append(params["Key"]["pk"])
+            elif op == "BatchWriteItem":
+                for reqs in params["RequestItems"].values():
+                    wrote.extend((r.get("PutRequest", {}).get("Item") or r["DeleteRequest"]["Key"])["pk"] for r in reqs)
+        return real(self, op, params)
+    monkeypatch.setattr(botocore.client.BaseClient, "_make_api_call", rec)
+    _feed(monkeypatch)
+    real_collect = collect.collect
+
+    def maybe_crash(source, state, now, **k):
+        if source.source_id == "cisa_kev":
+            raise RuntimeError("parser bug")
+        return real_collect(source, state, now, **k)
+    monkeypatch.setattr(collect, "collect", maybe_crash)
+    tg = [s.source_id for s in SOURCES if s.enabled and s.source_id.startswith("tg_")][:4]
+    h.collect_batch({"source_ids": ["theblock", "cisa_kev", *tg], "slot": "2026-11-10T12:00:00Z"})
+    pks = {str(k if isinstance(k, str) else k.get("S")) for k in wrote}
+    assert pks, "the run wrote nothing — the recorder is not on the path"
+    assert all(any(fnmatch.fnmatchcase(k, pat) for pat in allowed) for k in pks), sorted(pks)

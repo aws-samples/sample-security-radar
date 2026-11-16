@@ -13,6 +13,8 @@ interface Props {
   event: EventSummary;
   /** One-line summary under the meta row (domain pages); the home monitor keeps rows at ~64 px without it. */
   showSummary?: boolean;
+  /** first seen since the reader's previous visit (utils/lastVisit, R3.4) */
+  isNew?: boolean;
 }
 
 const DOMAIN_WORD: Record<EventSummary['domain'], string> = { vuln: '漏洞', incident: '事件', web3: 'Web3' };
@@ -22,7 +24,7 @@ const DOMAIN_WORD: Record<EventSummary['domain'], string> = { vuln: '漏洞', in
  * The whole row is one link target (stretched title link); the impact chip is a separate link to #env, layered
  * above it — never nested interactive content.
  */
-export function EventCard({ event, showSummary = true }: Props) {
+export function EventCard({ event, showSummary = true, isNew = false }: Props) {
   const ex = EXPLOITATION_WORD[event.exploitation];
   const time = eventTimeLabel(event);
   return (
@@ -30,6 +32,7 @@ export function EventCard({ event, showSummary = true }: Props) {
       <SeverityBadge severity={event.severity} pulse={event.severity === 'P0'} />
       <SignalBar level={event.level} />
       <div className="row-title">
+        {isNew && <span className="row-new" data-testid="new-badge" title="上次来访之后首见">新</span>}
         <Link to={`/events/${event.event_id}`} title={`${event.title} · 查看进展 →`}>{event.title}</Link>
       </div>
       <span className="row-right">

@@ -149,11 +149,13 @@ def load(store: Any, key: str) -> dict[str, Any]:
 def save(store: Any, key: str, pairs: dict[str, Any]) -> None:
     """Live 2026-11-11: one record held 1,658 pairs in 399,029 bytes and the next write failed with 413, every cycle.
     Only model verdicts are kept — a code verdict (contradiction()) is recomputed for free on every run — and they are
-    sharded so no record nears DynamoDB's 400 KB. Every shard is rewritten (pairs leave as the window moves on)."""
+    sharded so no record nears DynamoDB's 400 KB. A shard is rewritten only when it changed (pairs leave as the window moves on)."""
     kept = {k: v for k, v in pairs.items() if v.get("by") != "code"}
     for i in range(SHARDS):
         sh = f"{key}#{i}"
-        store.put_source_state(sh, {"pairs": {k: v for k, v in kept.items() if _shard(key, k) == sh}})
+        new = {"pairs": {k: v for k, v in kept.items() if _shard(key, k) == sh}}
+        if store.get_source_state(sh) != new:   # R2.6: only a shard that changed is written (read is cached per run)
+            store.put_source_state(sh, new)
     if store.get_source_state(key):
         store.put_source_state(key, {})
 

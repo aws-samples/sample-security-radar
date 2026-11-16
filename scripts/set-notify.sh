@@ -12,6 +12,7 @@ source scripts/lib.sh
 tmp=$(mktemp); chmod 600 "$tmp"; trap 'trash "$tmp" 2>/dev/null || true' EXIT
 # jq reads the values from its environment ($ENV) and the subscription file by path, not from `--arg` (argv is visible
 # to `ps`). `set -a` exports what ~/.env assigns, but only inside this subshell — jq is the one child that sees them.
+# shellcheck source=/dev/null
 (set +x; set -a; source ~/.env >/dev/null 2>&1; set +a
  subs="${NOTIFY_SUBSCRIPTIONS_FILE:-$HOME/.config/security-radar/subscriptions.json}"
  if [ -f "$subs" ]; then from=(--slurpfile own "$subs"); else from=(--argjson own '[]'); fi

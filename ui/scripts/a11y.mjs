@@ -48,6 +48,7 @@ const PAGES = [
   { name: 'sources', path: '/#/sources'      },
   { name: 'announcements', path: '/#/announcements' },
   { name: 'search', path: '/#/search' },
+  { name: 'subscribe', path: '/#/subscribe', expect: '.sub-row' },
   // D/M3 ops view: error / warn / info rows (left-border level + text label, never colour alone)
   { name: 'ops',     path: '/#/ops', expect: '.ops-row' },
   // M3 mitigate station: note, web ACLs, DNS, Inspector baselines (state label + left-border tone), applied history

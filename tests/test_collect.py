@@ -75,7 +75,7 @@ def test_firecrawl_upstream_error_page_is_an_error(monkeypatch):
     class R(io.BytesIO):
         def __enter__(self): return self
         def __exit__(self, *a): return False
-    monkeypatch.setattr(fetch.urllib.request, "urlopen", lambda *a, **k: R(body))
+    monkeypatch.setattr(fetch, "_open", lambda *a, **k: R(body))
     import pytest
     with pytest.raises(fetch.FetchError) as e:
         fetch.firecrawl_raw("https://www.freebuf.com/feed")

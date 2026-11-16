@@ -5,10 +5,25 @@
 
 /** Format USD amount with appropriate suffix (K/M/B) */
 export function formatAmount(usd: number): string {
-  if (usd >= 1_000_000_000) return `$${(usd / 1_000_000_000).toFixed(2)}B`;
-  if (usd >= 1_000_000)     return `$${(usd / 1_000_000).toFixed(1)}M`;
-  if (usd >= 1_000)         return `$${(usd / 1_000).toFixed(1)}K`;
-  return `$${usd.toLocaleString()}`;
+  return compactUsd(usd, { B: 2, M: 1, K: 1 }) ?? `$${usd.toLocaleString()}`;
+}
+
+/** "$1.0M", "$950.0K" … with the unit chosen AFTER rounding: $999,960 rounds to 1000.0 K, which is $1.0M (audit 03:
+ *  the page showed 「$1000.0K」). digits = decimals per unit. Below $1K: null (the caller formats it). */
+export function compactUsd(v: number, digits: { B: number; M: number; K: number }): string | null {
+  const a = Math.abs(v);
+  const units: [string, number][] = [['B', 1e9], ['M', 1e6], ['K', 1e3]];
+  for (let i = 0; i < units.length; i++) {
+    const [u, n] = units[i];
+    if (a < n) continue;
+    const shown = (v / n).toFixed(digits[u as 'B' | 'M' | 'K']);
+    if (i > 0 && Math.abs(Number(shown)) >= 1000) {           // rounded up into the next unit
+      const [up, un] = units[i - 1];
+      return `$${(v / un).toFixed(digits[up as 'B' | 'M' | 'K'])}${up}`;
+    }
+    return `$${shown}${u}`;
+  }
+  return null;
 }
 
 /** ISO timestamp → "Oct 23, 09:45 UTC" */

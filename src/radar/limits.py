@@ -6,7 +6,16 @@ from __future__ import annotations
 
 class Limits:
     TIMEOUT_WATCHDOG_S = 15         # a station logs phases + stack this long before its Lambda deadline
-    STATE_ROW_WARN_BYTES = 250_000  # a ledger record above this logs state_row_near_limit (DynamoDB max 400 KB)
+    # R5.6 Bedrock calls per UTC day, per model tier — ~3× measured (2026-11-14: Haiku 715, Sonnet 203 ≈ $6/day). The
+    # per-cycle caps bound one run; these bound a day of runs (the 5-minute cycle doubled them). Past the cap a call
+    # is not made: llm.converse returns status error / daily_cap and #/ops daily_cap_reached says so.
+    BEDROCK_CALLS_PER_DAY_FAST = 2_500
+    BEDROCK_CALLS_PER_DAY_BRIEF = 800
+    RAW_MARKER_TTL_DAYS = 14        # RAW#…/DONE markers expire (R5.3): Process lists only today's and yesterday's batches
+    SPEND_TTL_DAYS = 90             # SPEND#<day> counters expire (R5.3)
+    ROW_WARN_BYTES = 250_000        # any table row above this is noted ⇒ #/ops row_near_limit (DynamoDB max 400 KB)
+    ROW_MAX_BYTES = 395_000         # … above this the write is refused with the key and the size (R5.3), not a 400 from
+                                    # DynamoDB that names neither
     EVENT_ROW_COMPACT_BYTES = 300_000  # an event row above this is compacted before the write (DynamoDB max 400 KB)
     EVENT_STREAM_KEEP = 300         # … and if still too big: the newest report-added / amount-changed entries kept
     # --- cycle & collection (research/17) ---
@@ -58,6 +67,10 @@ class Limits:
 
     # --- collection ---
     HTTP_TIMEOUT_S = 25
+    SEARCH_URL_READS_PER_RUN = 400   # R3.5: items read per publish for search rows' source URLs (new rows only, once each)
+    SOURCE_BUDGET_S = 60             # R2.5: wall time of every request one source makes in a run (direct + fallback +
+                                     # follow-ups); live max 86 s (ex_bit2me 11-13) of the 150 s batch deadline
+    SOURCE_BUDGET_MIN_CALL_S = 3     # less left than this ⇒ the next call is refused, not started with a uselessly short timeout
     CHAIN_RPC_TIMEOUT_S = 6          # C6: one eth_getTransactionReceipt; worst case 8 × 6 s = 48 s of a 600 s process station
     CHAIN_CHECKS_PER_CYCLE = 8       # C6: RPC calls per 10-min cycle (process station stays well inside its timeout)
     RPC_WALL_S_PER_CYCLE = 120       # all public-RPC calls of one process run (verify + on-chain + attack-tx, fallbacks included); 5-min cycles since 2026-11-10 (typical use ≈ 20 s)
@@ -103,6 +116,7 @@ class Limits:
     SOURCE_DAYS_KEPT = 30           # per-day counts kept in the source state (~15 B a day)
     TWITTERAPI_MIN_INTERVAL_S = 5.5  # never-topped-up key: 1 request / 5 s
     TWITTERAPI_RETRIES = 2
+    X_WINDOW_MAX_H = 24              # R2.4: an X search reaches back to the last success, at most this far
     # X fallback through firecrawl profile snapshots (docs/research/13): 30 credits per handle, from a one-off key pool
     # shared with the blocked-site sources — a cap per day so a long twitterapi outage cannot drain it (≈ 5 full runs)
     X_FIRECRAWL_MAX_HANDLES = 20
@@ -121,8 +135,16 @@ class Limits:
     ANOMALY_SHOW_HOURS = 48         # how long a row stays on #/ops
     ANOMALY_MAX = 200               # ledger rows (~300 B each)
     GENERIC_NAME_EVENTS = 3         # a name key held by this many events names none of them (pipeline.find_events)
+    MERGE_MAX_CVE_YEARS = 2         # two events whose CVEs are this many years apart are never proved one by a report naming both
     MERGE_MAX_LINKS = 8             # an item citing more pages than this is a newsletter: it attaches, merges nothing
     MERGE_MAX_EVENTS_PER_ITEM = 3   # an item proving more events "the same story" is a digest (it links to all of them)
+    SURGE_HOURS = 6                  # R2.3: a P0 updated within this many hours puts the radar in surge …
+    SOURCE_IDLE_DAYS = 7             # … a source that handed over nothing for this many days (with ≥ 14 days of
+    SOURCE_IDLE_MAX_MIN = 120        #     history) runs at twice its cadence, never slower than this
+    HOST_BREAKER_AFTER = 3           # R2.5: this many failures in a row on one host ⇒ its other sources wait for the next cycle
+    SOURCE_BACKOFF_AFTER = 3         # R2.5: from the 3rd failure in a row the cadence doubles per failure …
+    SOURCE_BACKOFF_MAX_MIN = 360     # … up to 6 h; a success resets it (consecutive_failures = 0)
+    RETRY_AFTER_MAX_S = 6 * 3600     # a server's Retry-After is honoured up to 6 h (a longer one is not taken as given)
     FEED_FIRECRAWL_FALLBACKS_PER_DAY = 24   # per source: a direct feed fetch that failed is retried through firecrawl
 
     # --- respond (AWS Security Agent + AWS Continuum) ---
@@ -134,8 +156,11 @@ class Limits:
     CONTINUUM_SCHEDULED_SCAN = "PT0H"   # no scheduled scans (API allows only PT0H / P1D / P2D / P7D): the radar triggers the scans it needs
     COST_REFRESH_H = 6               # Cost Explorer read for the ledger ($0.01/request; CE data lags ~24 h anyway)
     NOTIFY_MAX_PER_CYCLE = 10        # messages per subscription per cycle; the rest go next cycle (C3 / P3)
+    SELF_SUBSCRIPTIONS_PER_CLIENT = 3   # self-service webhooks one token client may hold (radar.subscribe_api)
+    SELF_SUBSCRIPTIONS_MAX = 20         # … and in all; with the operator's own they stay under NOTIFY_SUBSCRIPTIONS_MAX
     NOTIFY_SUBSCRIPTIONS_MAX = 50    # subscriptions read from the NotifyConfig secret; more are reported, not used
     NOTIFY_STATE_ROW_MAX_BYTES = 200_000   # one push-state row (DynamoDB item limit 400 KB): refused above, never truncated
+    NOTIFY_FOLLOW_HOURS = 72         # a removed event's subscribers are corrected within this long after the removal
     NOTIFY_RESERVE_S = 30            # the notify station stops sending with this many seconds left (one send ≤ 2 × HTTP timeout)
     WEBHOOK_SECRET_MIN_CHARS = 32    # per-subscription HMAC key length (≈ 192 bits as base64)
     FEED_MAX_ITEMS = 50              # newest events per data/feeds/<name> document
@@ -144,6 +169,7 @@ class Limits:
     REQUIREMENT_TTL_DAYS = 14        # R6: a radar-* rule not re-asserted for this long leaves the Security Agent pack
     INSPECTOR_SCANS_PER_DAY = 5      # M3: ScanSbom calls per day ($0.03 each, first 25 free); one per target with lockfiles
     MITIGATE_WINDOW_DAYS = 30        # M3: a mitigation stays planned/checked while the event is this fresh (patch windows run long)
+    REVIEW_LIST_MAX_PAGES = 20             # ListCodeReviews pages read for an unstarted review to reuse (audit 04 6.6)
     CONTINUUM_SCAN_MIN_INTERVAL_H = 24     # ≤ 1 paid environment scan per day per environment (≈ $450 each, measured 10-26)
 
     # --- P2 WAF rule pack (radar.pocs / radar.wafmatch / radar.rulepack; docs/research/action/01-waf.md, 08-poc-sources.md) ---
@@ -154,6 +180,7 @@ class Limits:
     POC_INDEX_SHARDS = 32            # cves.json index {cve: path}: 4,585 rows ≈ 10 KB a shard; 40k rows still < POC_ROW_MAX_BYTES
     POC_TEMPLATE_MAX_BYTES = 100_000 # a template larger than this is not stored (state too_large) — real ones are 1–10 KB
     POC_ROW_MAX_BYTES = 200_000      # no ledger row the radar writes for PoCs exceeds this (DynamoDB item limit 400 KB)
+    WAF_CHANGELOG_REFRESH_H = 3      # R4.5: AWS managed-rule changelog re-read this often (was once a day)
     WAF_BODY_INSPECT_BYTES = 8_192   # AWS WAF body inspection limit (ALB / AppSync; CloudFront default 16 KB) — the matcher uses the smaller
     WAF_SEARCH_STRING_MAX = 200      # ByteMatchStatement.SearchString max length (API reference)
     RULEPACK_MIN_TOKEN = 3           # a verbatim match string shorter than this is never a rule ("/", "a", "..")

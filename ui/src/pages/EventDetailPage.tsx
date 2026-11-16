@@ -15,6 +15,7 @@ import { AttackTxPanel } from '@/components/detail/AttackTxPanel';
 import { EvidenceTimeline, ChangeLog } from '@/components/detail/EvidenceTimeline';
 import { EnvSection } from '@/components/env/EnvSection';
 import { MitigationPanel } from '@/components/detail/MitigationPanel';
+import { ActionPackPanel } from '@/components/detail/ActionPackPanel';
 import { DecisionsPanel } from '@/components/env/DecisionsPanel';
 import { RulePackPanel } from '@/components/detail/RulePackPanel';
 import { LevelBadge } from '@/components/LevelBadge';
@@ -98,9 +99,10 @@ export function EventDetailPage() {
         <div className="dt-wrap">
           <Breadcrumbs items={[{ label: '态势', to: '/' }, { label: '事件不存在' }]} />
           <section className="dt-section">
-            <h1 className="dt-h2">{notFound ? '事件不存在' : '事件加载失败'}</h1>
+            <h1 className="dt-h2">{notFound ? '详情页还没有' : '事件加载失败'}</h1>
             <p className="dt-small">
-              {notFound ? <>没有找到 <code className="dt-mono">{eventId}</code> 的详情文件（可能已合并或被清理）。</> : <>错误：<code className="dt-mono">{d.error}</code></>}
+              {notFound ? <>还没有 <code className="dt-mono">{eventId}</code> 的详情页。刚出现的事件，详情页在下一轮发布（每 5 分钟一轮）后才有，请稍后刷新；
+                若它已被并入别的事件，<Link to={`/search?q=${encodeURIComponent(eventId)}`} style={{ textDecoration: 'underline' }}>在搜索里</Link>能找到去向。</> : <>错误：<code className="dt-mono">{d.error}</code></>}
             </p>
             <Link to="/">← 返回态势</Link>
           </section>
@@ -130,7 +132,7 @@ export function EventDetailPage() {
         {/* verdict (BLUF) — above both tabs */}
         <VerdictPanel
           event={ev} analysis={d.analysis} progress={d.progress} response={d.response} impact={impact}
-          disclosure={d.disclosure} sighting={d.sighting} cite={id => numbers.get(id)} onCite={onCite} onEnv={() => { setTab('env'); requestAnimationFrame(() => scrollTo('dt-tabs')); }}
+          disclosure={d.disclosure} sighting={d.sighting} generatedAt={d.generatedAt} hasRulePack={Boolean(d.rulePack)} cite={id => numbers.get(id)} onCite={onCite} onEnv={() => { setTab('env'); requestAnimationFrame(() => scrollTo('dt-tabs')); }}
         />
 
         <div className="dt-tabs" id="dt-tabs" role="tablist" aria-label="事件详情视图">
@@ -192,6 +194,8 @@ export function EventDetailPage() {
           </div>
         ) : (
           <div role="tabpanel" id="dt-panel-env" aria-labelledby="dt-tab-env">
+            {/* R4.5: block → detect → verify → patch per code target — the summary of the panels below */}
+            <ActionPackPanel response={d.response} mitigation={d.mitigation} />
             <section className="dt-section" id="env" aria-labelledby="dt-h-env">
               <h2 className="dt-h2" id="dt-h-env"><span className="dt-step">01</span>在你的环境中 <span className="dt-en">In your environment</span>
                 <span className="dt-aside">AWS Security Agent + AWS Continuum{d.response ? ` · 更新 ${utcShort(d.response.updated_at)} UTC` : ''}</span></h2>

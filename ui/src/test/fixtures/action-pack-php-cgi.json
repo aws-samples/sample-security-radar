@@ -1,0 +1,476 @@
+{
+ "response": {
+  "status": "done",
+  "reason": "P1 · 产品 PHP 命中登记表 · 证据未给修复版本；受影响版本 未知 ⇒ 2/5 个目标受影响 · 未评估：本轮名额已满（每轮最多 8 个事件），排到下一轮评估（自 2026-11-15T04:54:14Z）",
+  "updated_at": "2026-11-15T05:05:24Z",
+  "targets": [
+   {
+    "target_id": "demo-shop",
+    "name": "demo-shop",
+    "relevant": true,
+    "verdict": "affected",
+    "detail": "AWS 侧确认命中雷达规则",
+    "locations": []
+   },
+   {
+    "target_id": "node-gateway",
+    "name": "node-gateway",
+    "relevant": false,
+    "verdict": "skipped",
+    "detail": "清单中无 PHP，不评审",
+    "locations": []
+   },
+   {
+    "target_id": "wp-storefront",
+    "name": "wp-storefront",
+    "relevant": true,
+    "verdict": "affected",
+    "detail": "AWS 侧确认命中雷达规则",
+    "locations": []
+   },
+   {
+    "target_id": "alps-vault",
+    "name": "alps-vault",
+    "relevant": false,
+    "verdict": "skipped",
+    "detail": "清单中无 PHP，不评审",
+    "locations": []
+   },
+   {
+    "target_id": "security-radar",
+    "name": "security-radar",
+    "relevant": false,
+    "verdict": "skipped",
+    "detail": "清单中无 PHP，不评审",
+    "locations": []
+   }
+  ],
+  "actions": [
+   {
+    "kind": "requirement",
+    "service": "security_agent",
+    "target_id": null,
+    "status": "done",
+    "detail": "规则 radar-cve-2012-1823-cve-2024-4577 已写入 requirement pack",
+    "external_id": "radar-cve-2012-1823-cve-2024-4577",
+    "console_url": null,
+    "started_at": "2026-11-13T09:56:40Z",
+    "updated_at": "2026-11-15T00:11:28Z"
+   },
+   {
+    "kind": "context",
+    "service": "continuum",
+    "target_id": null,
+    "status": "done",
+    "detail": "事件与分析卡写入 context/ 作为知识文档",
+    "external_id": null,
+    "console_url": null,
+    "started_at": "2026-11-13T09:56:40Z",
+    "updated_at": "2026-11-14T17:58:23Z"
+   },
+   {
+    "kind": "code_review",
+    "service": "security_agent",
+    "target_id": "demo-shop",
+    "status": "done",
+    "detail": "COMPLETED · 3 个 finding（命中雷达规则 1）",
+    "external_id": "cj-717dcbfd-62b8-4f18-add4-ecd218abc9e5",
+    "console_url": null,
+    "started_at": "2026-11-13T09:56:40Z",
+    "updated_at": "2026-11-13T10:36:15Z"
+   },
+   {
+    "kind": "code_review",
+    "service": "security_agent",
+    "target_id": "wp-storefront",
+    "status": "done",
+    "detail": "COMPLETED · 11 个 finding（命中雷达规则 3）",
+    "external_id": "cj-7768b1c0-4cf3-4fb8-b509-2b0ee311f6e6",
+    "console_url": null,
+    "started_at": "2026-11-13T09:56:40Z",
+    "updated_at": "2026-11-13T10:36:15Z"
+   },
+   {
+    "kind": "remediation",
+    "service": "security_agent",
+    "target_id": "demo-shop",
+    "status": "done",
+    "detail": "自动修复 diff：3 份，涉及 5 个文件",
+    "external_id": null,
+    "console_url": null,
+    "started_at": "2026-11-13T10:36:15Z",
+    "updated_at": "2026-11-13T10:36:15Z"
+   },
+   {
+    "kind": "remediation",
+    "service": "security_agent",
+    "target_id": "wp-storefront",
+    "status": "done",
+    "detail": "自动修复 diff：10 份，涉及 5 个文件",
+    "external_id": null,
+    "console_url": null,
+    "started_at": "2026-11-13T10:36:15Z",
+    "updated_at": "2026-11-13T10:36:15Z"
+   }
+  ],
+  "findings": [
+   {
+    "service": "security_agent",
+    "finding_id": "f-930845f7-1e8a-45b4-8c64-891589a12758",
+    "title": "[Requirement: security-radar/radar-cve-2026-107484-cve-2026-10961-cve-2026-10961",
+    "severity": "MEDIUM",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "Dockerfile",
+    "line": 1,
+    "requirement_hit": true
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-d07e6ae7-e0d9-4de5-ae22-17039ff169c0",
+    "title": "[Requirement: security-radar/radar-cve-2026-119977] WordPress Core 6.8.1 runtime",
+    "severity": "MEDIUM",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "Dockerfile",
+    "line": 1,
+    "requirement_hit": true
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-f45d2a59-e3c9-4be0-8a3f-5cc72ffe2fac",
+    "title": "[Requirement: security-radar/radar-cve-2026-109618-cve-2026-109619-cve-2026-1155",
+    "severity": "HIGH",
+    "status": "ACTIVE",
+    "target_id": "demo-shop",
+    "file": "Dockerfile",
+    "line": 1,
+    "requirement_hit": true
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-ffa179a0-b361-463b-a858-02bcb7103099",
+    "title": "[Requirement: security-radar/radar-cve-2026-60137-cve-2026-63030] WordPress Core",
+    "severity": "MEDIUM",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "Dockerfile",
+    "line": 1,
+    "requirement_hit": true
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-0a2d5f03-11ed-4b34-9de3-fe168f50f63a",
+    "title": "[Requirement: ASA Base Pack/authentication-best-practices] Consequential file-in",
+    "severity": "HIGH",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "shop-pages.php",
+    "line": 6,
+    "requirement_hit": false
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-1501742e-e1d1-413e-b6a9-47d09c23a935",
+    "title": "[Requirement: ASA Base Pack/secure-by-default-best-practices] Permissive default",
+    "severity": "HIGH",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "shop-pages.php",
+    "line": 6,
+    "requirement_hit": false
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-3607b6cd-32a1-4bc5-a49f-41f1423c45ee",
+    "title": "[Requirement: ASA Base Pack/audit-logging-best-practices] No logging of security",
+    "severity": "MEDIUM",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "shop-pages.php",
+    "line": 6,
+    "requirement_hit": false
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-776886f1-f5a1-47a6-9e39-fb6503c89e85",
+    "title": "[Requirement: ASA Base Pack/authorization-best-practices] No access control or c",
+    "severity": "HIGH",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "shop-pages.php",
+    "line": 7,
+    "requirement_hit": false
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-79e14584-4f17-4559-81e9-32192eb6c7a2",
+    "title": "[Requirement: ASA Base Pack/secure-by-default-best-practices] Insecure deploymen",
+    "severity": "MEDIUM",
+    "status": "ACTIVE",
+    "target_id": "demo-shop",
+    "file": "Dockerfile",
+    "line": 1,
+    "requirement_hit": false
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-892458dd-4cc6-4733-ab91-4bd2d8fd3a86",
+    "title": "[Requirement: ASA Base Pack/secret-protection-best-practices] Single shared DB s",
+    "severity": "MEDIUM",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "docker-compose.yml",
+    "line": 7,
+    "requirement_hit": false
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-9b9b27bd-7763-41cc-be7d-5ca6faf50f35",
+    "title": "Array-typed `q` parameter triggers uncaught TypeError → HTTP 500 leaking server ",
+    "severity": "MEDIUM",
+    "status": "ACTIVE",
+    "target_id": "demo-shop",
+    "file": "src/index.php",
+    "line": 3,
+    "requirement_hit": false
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-aeb580ec-c351-4585-a2b2-3747268d1c51",
+    "title": "Unauthenticated LFI/RFI via $_GET['tpl'] passed directly to PHP include() in Sho",
+    "severity": "CRITICAL",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "docker-compose.yml",
+    "line": 4,
+    "requirement_hit": false
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-b79fabd0-524f-4d95-b091-49df4e033efb",
+    "title": "[Requirement: ASA Base Pack/information-protection-best-practices] Sensitive sec",
+    "severity": "HIGH",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "shop-pages.php",
+    "line": 9,
+    "requirement_hit": false
+   },
+   {
+    "service": "security_agent",
+    "finding_id": "f-c77ee3de-2957-42a8-8e66-c0b92128d4c5",
+    "title": "[Requirement: ASA Base Pack/privileged-access-best-practices] WordPress app runs",
+    "severity": "HIGH",
+    "status": "ACTIVE",
+    "target_id": "wp-storefront",
+    "file": "docker-compose.yml",
+    "line": 7,
+    "requirement_hit": false
+   }
+  ],
+  "issues": [],
+  "patches": [
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-79e14584-4f17-4559-81e9-32192eb6c7a2-0.diff",
+    "files_changed": [
+     "Dockerfile",
+     "docker/security-headers.conf",
+     "src/index.php"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: ASA Base Pack/secure-by-default-best-practices] Insecure deploymen",
+    "target_id": "demo-shop"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-f45d2a59-e3c9-4be0-8a3f-5cc72ffe2fac-0.diff",
+    "files_changed": [
+     ".gitlab-ci.yml",
+     "Dockerfile",
+     "composer.json",
+     "src/index.php"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: security-radar/radar-cve-2026-109618-cve-2026-109619-cve-2026-1155",
+    "target_id": "demo-shop"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-9b9b27bd-7763-41cc-be7d-5ca6faf50f35-0.diff",
+    "files_changed": [
+     "Dockerfile",
+     "src/index.php"
+    ],
+    "source": "security_agent",
+    "summary": "Array-typed `q` parameter triggers uncaught TypeError → HTTP 500 leaking server ",
+    "target_id": "demo-shop"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-1501742e-e1d1-413e-b6a9-47d09c23a935-0.diff",
+    "files_changed": [
+     "Caddyfile",
+     "docker-compose.yml",
+     "wp-content/plugins/shop-pages/shop-pages.php"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: ASA Base Pack/secure-by-default-best-practices] Permissive default",
+    "target_id": "wp-storefront"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-c77ee3de-2957-42a8-8e66-c0b92128d4c5-0.diff",
+    "files_changed": [
+     "docker-compose.yml"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: ASA Base Pack/privileged-access-best-practices] WordPress app runs",
+    "target_id": "wp-storefront"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-776886f1-f5a1-47a6-9e39-fb6503c89e85-0.diff",
+    "files_changed": [
+     "wp-content/plugins/shop-pages/shop-pages.php"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: ASA Base Pack/authorization-best-practices] No access control or c",
+    "target_id": "wp-storefront"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-b79fabd0-524f-4d95-b091-49df4e033efb-0.diff",
+    "files_changed": [
+     "Caddyfile",
+     "docker-compose.yml",
+     "wp-content/plugins/shop-pages/shop-pages.php"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: ASA Base Pack/information-protection-best-practices] Sensitive sec",
+    "target_id": "wp-storefront"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-ffa179a0-b361-463b-a858-02bcb7103099-0.diff",
+    "files_changed": [
+     "Dockerfile"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: security-radar/radar-cve-2026-60137-cve-2026-63030] WordPress Core",
+    "target_id": "wp-storefront"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-930845f7-1e8a-45b4-8c64-891589a12758-0.diff",
+    "files_changed": [
+     "Dockerfile"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: security-radar/radar-cve-2026-107484-cve-2026-10961-cve-2026-10961",
+    "target_id": "wp-storefront"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-0a2d5f03-11ed-4b34-9de3-fe168f50f63a-0.diff",
+    "files_changed": [
+     "wp-content/plugins/shop-pages/shop-pages.php"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: ASA Base Pack/authentication-best-practices] Consequential file-in",
+    "target_id": "wp-storefront"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-3607b6cd-32a1-4bc5-a49f-41f1423c45ee-0.diff",
+    "files_changed": [
+     "wp-content/plugins/shop-pages/shop-pages.php"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: ASA Base Pack/audit-logging-best-practices] No logging of security",
+    "target_id": "wp-storefront"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-aeb580ec-c351-4585-a2b2-3747268d1c51-0.diff",
+    "files_changed": [
+     "wp-content/plugins/shop-pages/shop-pages.php"
+    ],
+    "source": "security_agent",
+    "summary": "Unauthenticated LFI/RFI via $_GET['tpl'] passed directly to PHP include() in Sho",
+    "target_id": "wp-storefront"
+   },
+   {
+    "path": "continuum/patches/ev_3f63ca0373ce3ed6-f-892458dd-4cc6-4733-ab91-4bd2d8fd3a86-0.diff",
+    "files_changed": [
+     "SECRETS.md",
+     "docker-compose.yml"
+    ],
+    "source": "security_agent",
+    "summary": "[Requirement: ASA Base Pack/secret-protection-best-practices] Single shared DB s",
+    "target_id": "wp-storefront"
+   }
+  ]
+ },
+ "mitigation": {
+  "note": "缓解 ≠ 修复：边缘规则只在打补丁之前降低风险，升级到修复版本才是唯一完整的修复。",
+  "updated_at": "2026-11-15T05:03:45Z",
+  "inspector": [],
+  "dns": null,
+  "plans": [
+   {
+    "channel": "waf",
+    "key": "waf:demo-shop:AWSManagedRulesPHPRuleSet",
+    "target_id": "demo-shop",
+    "tier": "product",
+    "group": "AWSManagedRulesPHPRuleSet",
+    "group_label": "PHP application",
+    "rules": [],
+    "min_version": null,
+    "reason": "受影响的产品是 php，PHP application 规则组专门防护它",
+    "cves": [
+     "CVE-2012-1823",
+     "CVE-2024-4577"
+    ],
+    "labels": [
+     "awswaf:managed:aws:php-app:PHP2Shell_Body_Extended",
+     "awswaf:managed:aws:php-app:PHP2Shell_Body",
+     "awswaf:managed:aws:php-app:PHPHighRiskMethodsVariables_Body",
+     "awswaf:managed:aws:php-app:PHPHighRiskMethodsVariables_URIPath",
+     "awswaf:managed:aws:php-app:PHPHighRiskMethodsVariables_Header",
+     "awswaf:managed:aws:php-app:PHPHighRiskMethodsVariables_QueryString"
+    ],
+    "appliable": true,
+    "web_acl": "security-radar-waf-demo",
+    "promoted": true,
+    "priority_placeholder": false,
+    "state": "blocking",
+    "rule": "radar-AWSManagedRulesPHPRuleSet",
+    "version": "Version_2.5",
+    "detail": "规则生效（Block）",
+    "rule_json": {}
+   },
+   {
+    "channel": "waf",
+    "key": "waf:wp-storefront:AWSManagedRulesPHPRuleSet",
+    "target_id": "wp-storefront",
+    "tier": "product",
+    "group": "AWSManagedRulesPHPRuleSet",
+    "group_label": "PHP application",
+    "rules": [],
+    "min_version": null,
+    "reason": "受影响的产品是 php，PHP application 规则组专门防护它",
+    "cves": [
+     "CVE-2012-1823",
+     "CVE-2024-4577"
+    ],
+    "labels": [
+     "awswaf:managed:aws:php-app:PHP2Shell_Body_Extended",
+     "awswaf:managed:aws:php-app:PHP2Shell_Body",
+     "awswaf:managed:aws:php-app:PHPHighRiskMethodsVariables_Body",
+     "awswaf:managed:aws:php-app:PHPHighRiskMethodsVariables_URIPath",
+     "awswaf:managed:aws:php-app:PHPHighRiskMethodsVariables_Header",
+     "awswaf:managed:aws:php-app:PHPHighRiskMethodsVariables_QueryString"
+    ],
+    "appliable": true,
+    "web_acl": "security-radar-waf-demo",
+    "promoted": true,
+    "priority_placeholder": false,
+    "state": "blocking",
+    "rule": "radar-AWSManagedRulesPHPRuleSet",
+    "version": "Version_2.5",
+    "detail": "规则生效（Block）",
+    "rule_json": {}
+   }
+  ]
+ }
+}

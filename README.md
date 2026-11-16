@@ -21,22 +21,20 @@
 > **Preview notice.** This sample calls AWS Continuum code scanning, which is in **public preview**. APIs and behaviour
 > may change. Use a non-production AWS account.
 
-## What's new in v1.2.0
+## What's new in v1.3.0
 
 Full list in [CHANGELOG.md](CHANGELOG.md).
 
 | Area | What changed |
 |---|---|
-| **It reports its own mistakes** | An event that changes shape within one cycle, a station that fails every run or stopped, a source that is not collected or went quiet — all on the ops page; five CloudWatch alarms notify the owner through SNS |
-| **Clustering** | Only a report of an event may merge two events; a name is evidence for the event it names. `scripts/move_item.py` moves a single report |
-| **Timeliness** | Published → held and first report → P0 push (median / p90) on the ops page; short lists read every 5–10 minutes |
-| **Mitigation** | A promoted WAF / DNS Firewall rule blocks what was approved; later growth is reported, not applied |
-| **WAF rule pack** | Per-event rules from verbatim template or evidence features, checked offline, rendered as wafv2 JSON / CloudFormation / Terraform / CLI |
-| **Response decisions** | One decision table; every event page shows each action's outcome, reason code and time |
-| **Notifications** | Subscriptions (Slack, Lark, webhook) and Atom / JSON feeds |
-| **Sources** | CVE List, CISA CSAF, AWS bulletins, vendor PSIRTs, CERTs, exchange announcement boards, Telegram previews, WeChat feeds — each admitted by an onboarding harness; 5-minute incremental collection |
-| **Pages** | Search over every published event; exchange announcement board |
-| **Deploy guard** | Preflight before a deployment, site comparison after it |
+| **Agent access** | Amazon Cognito client-credentials tokens → read-only `GET /api/data/*` through Amazon API Gateway; `scripts/radar-token.py` issues and revokes access |
+| **Agent kit** | CLI, stdio MCP server, the `security-radar` skill and `llms.txt` — read-only tools over the published documents |
+| **Subscriptions** | A token client may register its own https webhooks (`radar/subscribe`, own rows only); filters by CVE, exploitation, level, loss and message kind (incl. `digest`); new channel `lark_dm`; a `#/subscribe` page |
+| **Sources** | Microsoft Security Update Guide (JSON API), VMware via Broadcom's list API (the first POST source), SonicWall, Ivanti, Google Cloud; 60 s per source per run, a host breaker, back-off and `Retry-After` |
+| **Recovery** | Versioned buckets, table deletion protection, `scripts/restore.py` (dry run by default) |
+| **Least privilege** | Exact table actions per station (no `Scan`); Collect writes only source-state rows (`dynamodb:LeadingKeys`); Publish writes only `data/*` |
+| **Clustering** | Digests merge nothing; CVEs years apart merge nothing; "exploited" counts only when said about the event |
+| **UI** | Entry chunk ≤ 120 KB gzip with lazy pages; first-seen order; an action pack per code target; search hits link to their source |
 
 ## What it is
 
@@ -89,12 +87,12 @@ it located**, on resources it owns, in a non-blocking mode until a human promote
 | **Located to the line** | A pinned vulnerable version or an IOC (address, key) found in your repository becomes a finding with file and line, e.g. `Dockerfile:1`, `composer.json:8`, `.gitlab-ci.yml:2`. When the version cannot be compared, the radar says so and leaves it to Security Agent. |
 | **On-chain evidence** | For Web3 incidents the attack transaction is checked on a public RPC node (`eth_getTransactionReceipt`); a successful transaction raises the event to *corroborated*. Young incidents are reconstructed from public JSON-RPC (ERC-20 outflows, issuer freezes), and each verified attack transaction is broken down per token. |
 | **Clustering that is measured** | One incident, many reports: reports are merged by hard links (CVE, transaction, cited article) and by the victim's name — a name is evidence for the event it names, not for every event whose coverage mentions it. A single misplaced report can be moved (`scripts/move_item.py`) and stays where it was put. |
-| **It reports its own mistakes** | An event that changes shape within one cycle, a station that fails every run or stopped running, a source that is not collected or went quiet are items on the ops page; five Amazon CloudWatch alarms notify the owner through Amazon SNS. Published → held and first report → P0 push latency are measured every cycle. |
+| **It reports its own mistakes** | An event that changes shape within one cycle, a station that fails every run or stopped running, a source that is not collected or went quiet are items on the ops page; five Amazon CloudWatch alarms notify the owner through Amazon SNS. Published → held and became P0 → push latency are measured every cycle. |
 | **One response decision table** | Every response action (review, finding, scan, patch delivery, notification, mitigation) is decided by one table in code; each event page shows the outcome, the reason code and the time, and "not evaluated" looks unlike "not fired". |
 | **Three code hosts, one chain** | Each target lives in exactly one Continuum environment: S3 (patch artifacts), GitHub (native PRs) or GitLab (native MRs). Adding a host is one row in `respond.REPO_CHANNELS`, one adapter in `scripts/sync-fleet.py` and one integration. |
 | **Cost guardrails** | A scan is requested only to validate radar findings that were submitted successfully, at most once per environment per 24 h, with scheduled scans off. A daily budget line is flagged on the ops page, never silently enforced. |
 | **Operator view** | Daily 08:00 HKT digest (code picks and counts, the LLM writes cited sentences), advisory "possible duplicate" hints, an ops page listing what needs a human, search over every event ever published, and an exchange announcement board. |
-| **Notifications** | Subscriptions per channel (Slack, Lark, a signed webhook) with filters, sent by their own station after Publish; Atom / JSON feeds of the published events. Configure with `scripts/set-notify.sh`. |
+| **Notifications** | Subscriptions per channel (Slack channel / DM, Lark chat / DM, a signed webhook) with filters and message kinds, sent by their own station after Publish; Atom / JSON feeds of the published events. Configure with `scripts/set-notify.sh`, or let a token client register its own webhook (below). |
 
 ## Fast path: mitigate until the patch ships
 
@@ -117,6 +115,53 @@ radar does not apply a rule pack itself.
 Inspector judges language packages, not runtimes (a PHP or Node.js version pin is judged by the radar's own product
 registry). End-to-end checks: `scripts/waf-e2e.py`, `scripts/dns-e2e.py`, `scripts/securityhub-check.py`.
 
+## Agent access and subscriptions
+
+The UI stays read-only. Agents and scripts read the same published documents through a token-gated API; the only
+write it offers is a subscriber's own webhook rows.
+
+- **Token.** The operator issues one Amazon Cognito app client per consumer (client-credentials grant, scope
+  `radar/read`, one-hour tokens) and hands over the 0600 file it writes — the secret is never printed:
+  ```bash
+  AWS_PROFILE=<profile> uv run python scripts/radar-token.py create <name> [--subscribe]
+  AWS_PROFILE=<profile> uv run python scripts/radar-token.py list
+  AWS_PROFILE=<profile> uv run python scripts/radar-token.py revoke <name> --yes
+  AWS_PROFILE=<profile> uv run python scripts/radar-token.py usage --days 7   # who read how much
+  ```
+  The file holds `RADAR_URL`, `RADAR_TOKEN_URL` (`https://<domain-prefix>.auth.<region>.amazoncognito.com/oauth2/token`,
+  stack output `ApiTokenUrl`), `RADAR_CLIENT_ID` and `RADAR_CLIENT_SECRET`. A revoked client gets no new token; one it
+  holds expires within the hour.
+- **What it reads.** `GET <site>/api/data/*` — CloudFront sends `/api/*` to an Amazon API Gateway REST API whose
+  Cognito authorizer checks signature, expiry and scope; one Lambda reads `data/*` of the site bucket. Every document
+  is listed in `ui/public/llms.txt` and described by `schemas/site-data.schema.json`.
+- **CLI and MCP server** (`src/radar/agentkit/`, standard library only; credentials from the environment, never sent
+  across a redirect):
+  ```bash
+  set -a; source ~/.config/security-radar/clients/<name>.env; set +a   # the file radar-token.py wrote
+  uv run python -m radar.agentkit.cli recent_events --severity P0 --hours 24
+  uv run python -m radar.agentkit.cli cve_status --cve CVE-2026-12345
+  uv run python -m radar.agentkit.cli --list
+  ```
+  The same tools (`recent_events`, `get_event`, `search_events`, `cve_status`, `rule_pack`, `health`, `feeds`) as a
+  stdio MCP server — no port is opened:
+  ```json
+  {"mcpServers": {"security-radar": {"command": "uv", "args": ["run", "--directory", "<radar checkout>", "python", "-m", "radar.agentkit.mcp"],
+    "env": {"RADAR_URL": "https://<your radar site>"}}}}
+  ```
+  The skill for coding agents is `integrations/skill/security-radar/SKILL.md`.
+- **Self-registered webhooks.** A client issued with `--subscribe` (scope `radar/subscribe`) can list, add and remove
+  its own https webhooks; another client's subscriptions are "not found". The signing secret goes to a 0600 file;
+  verify `X-Radar-Signature` with it. Kept out of the agent tools — registering an endpoint is a person's decision:
+  ```bash
+  uv run python -m radar.agentkit.subscriptions add --target https://<your-endpoint> --filters '{"severity": ["P0"], "kinds": ["p0", "update", "digest"]}'
+  uv run python -m radar.agentkit.subscriptions list
+  uv run python -m radar.agentkit.subscriptions remove --id <id>
+  ```
+- **Message kinds** (`kinds` filter): `p0`, `update` (the P0 thread follows the event; one correction when it is
+  merged away or withdrawn), `waf`, `verdict`, `pr`, `digest` (the daily digest, only when listed). Event filters:
+  `severity`, `domain`, `cves`, `exploitation`, `min_level`, `min_loss_usd`. Operator channels add `lark_dm` (a person by open_id or e-mail).
+  The `#/subscribe` page lists feeds, webhooks and agent access.
+
 ## Architecture
 
 <picture>
@@ -127,12 +172,12 @@ registry). End-to-end checks: `scripts/waf-e2e.py`, `scripts/dns-e2e.py`, `scrip
 Serverless on AWS, a 5-minute cycle: EventBridge → Step Functions (plan → collect → process → analyze → respond →
 mitigate → publish → notify) → Lambda + DynamoDB + S3 → CloudFront. Collection is incremental and batched; a cycle
 that finds the previous one still running skips itself. CloudWatch alarms → SNS → a small Lambda that tells the
-owner. AWS Security Agent runs in the radar's Region; AWS Continuum runs in `us-east-1`.
+owner. Agents read through Amazon API Gateway (`/api/*`, Amazon Cognito tokens). AWS Security Agent runs in the radar's Region; AWS Continuum runs in `us-east-1`.
 
 | Path | Content |
 |---|---|
-| `src/radar/` | Parsers and the source registry, pipeline (normalize → cluster → verify → score), analyst, respond / mitigate / notify stations, the response decision table, rule packs, on-chain checks, digest, ops rules, self-monitoring |
-| `scripts/` | Deploy / verify / destroy, the deploy guard (`preflight.py`, `site_diff.py`), source onboarding, promotion, repair tools (`move_item.py`, `recluster_web3.py`) |
+| `src/radar/` | Parsers and the source registry, pipeline (normalize → cluster → verify → score), analyst, respond / mitigate / notify stations, the response decision table, rule packs, on-chain checks, digest, ops rules, self-monitoring, the read / subscribe API, the agent kit (`agentkit/`) |
+| `scripts/` | Deploy / verify / destroy, the deploy guard (`preflight.py`, `site_diff.py`), source onboarding, promotion, repair tools (`move_item.py`, `recluster_web3.py`), token access (`radar-token.py`), recovery (`restore.py`) |
 | `infra/` | AWS CDK (Python): three stacks — radar + Security Agent + DNS Firewall demo VPC in `ap-northeast-1`; Continuum side and the WAF demo (a web ACL in front of a CloudFront distribution that refuses every request) in `us-east-1` |
 | `integrations/continuum/targets/` | **Deliberately vulnerable** demo repositories used as scan targets (see below) |
 | `ui/` | React 18 + Vite + TypeScript; `ui/mock-data/` for local development only |
@@ -189,6 +234,7 @@ or address from them.**
 - Test fixtures were recorded once; third-party news text is reduced to title, link, date and one sentence (see `NOTICE`).
 - The UI is gated with HTTP Basic Auth at CloudFront (credential generated into AWS Secrets Manager). This is a demo gate,
   not an identity system — for anything beyond a demo, put the site behind Amazon Cognito or AWS IAM Identity Center.
+  `/api/*` is not behind that gate: it answers only a valid Amazon Cognito token with the right scope.
 
 ## Security
 

@@ -156,6 +156,10 @@ def test_publish_writes_the_feeds_and_every_root_document_carries_schema_version
             br = next(b for b in SCHEMA["oneOf"] if b["properties"]["kind"]["const"] == doc["kind"])
             assert br["properties"]["schema_version"] == {"$ref": "#/$defs/SchemaVersion"}, k
     assert not list(jsonschema.Draft202012Validator(SCHEMA).iter_errors(json.loads(objs["data/feeds/index.json"])))
+    # R3.3: the freshness beacon every page polls — written by every run, valid against the contract
+    status = json.loads(objs["data/status.json"])
+    assert status["kind"] == "status" and status["generated_at"] == timeutil.iso(NOW)
+    assert not list(jsonschema.Draft202012Validator(SCHEMA).iter_errors(status))
     for k, body in objs.items():
         if k.startswith("data/feeds/"):
             assert CANARY.encode() not in body, k                    # internal state never reaches a feed

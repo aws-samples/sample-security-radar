@@ -34,7 +34,10 @@ _NEG = re.compile(
     r"|not aware of (?:any )?(?:active )?(?:exploit|attacks?|in[- ]the[- ]wild|malicious)"
     r"|not (?:been |being )?(?:actively )?exploited"
     r"|has not been exploited)"
-    r"|未(?:发现|监测到|观察到)[^。]{0,10}在野|暂无在野",
+    r"|未(?:发现|监测到|观察到)[^。]{0,10}在野|暂无在野"
+    # an advisory's status table: 「在野利用状态 未发现」 is a field name followed by "not found" (live 2026-11-11: 奇安信's
+    # Apache HTTP/2 advisory read as exploited in the wild, T1 ⇒ P0)
+    r"|在野利用(?:状态|情况)?\s*[:：]?\s*(?:未发现|未知|暂无|无\b|否)",
     re.IGNORECASE,
 )
 _YES = re.compile(
@@ -49,7 +52,8 @@ _POC = re.compile(r"\b(proof[- ]of[- ]concept|PoC (?:exploit|released|published|
                   r"|PoC已公开|POC公开|公开了?(?:PoC|POC|利用代码)", re.IGNORECASE)
 
 _WEB3_INCIDENT = re.compile(
-    r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull|drainer"
+    # stole / steals / theft / heist: 「North Korean hackers stole $1.5 billion from Bybit」 was not an incident headline
+    r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|stole|steals?|theft|heist|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull|drainer"
     r"|phishing|private key|flash ?loan|loss)\b|被盗|被黑|攻击|漏洞|损失|盗取|黑客",   # 黑客: 「冻结币安黑客约3050万美元」
     re.IGNORECASE,
 )
@@ -62,7 +66,9 @@ _SEC_EVENT = re.compile(
 )
 
 _AMOUNT = re.compile(
-    r"(?:US)?\$\s?~?\s?([0-9][0-9,]*(?:\.[0-9]+)?)\s*(k|thousand|m|mn|million|b|bn|billion)?\b"
+    # 「$137 万」 / 「$1.2 亿」: a dollar sign with a Chinese unit (live 2026-11-13: a tweet's 「滑点损失 $137 万」 read as
+    # $137 and, being T1, replaced the event's $1.37M headline). 万 / 亿 end a number without a word boundary before 美元.
+    r"(?:US)?\$\s?~?\s?([0-9][0-9,]*(?:\.[0-9]+)?)\s*(k|thousand|m|mn|million|b|bn|billion|万|亿)?(?:\b|(?<=[万亿]))"
     r"|([0-9][0-9,]*(?:\.[0-9]+)?)\s*(万|亿)?\s*美元"
     # 「Bitget Loses USD 351.6 Million」 (TRM, live 2026-11-05: no amount, so the theft stayed a separate event)
     r"|\bUSD\s?~?\s?([0-9][0-9,]*(?:\.[0-9]+)?)\s*(k|thousand|m|mn|million|b|bn|billion)?\b",
@@ -99,6 +105,45 @@ _ROUNDUP = re.compile(
 @_memo_text
 def is_roundup_report(title: str | None) -> bool:
     return bool(_ROUNDUP.search(title or ""))
+
+
+# A digest tells several stories under one headline: a weekly newsletter, a bulletin, a Patch Tuesday review, a market
+# wrap. It is not a report OF an event (roadmap R8.3). In one week digests were the largest single source of wrong
+# events: a bulletin lent the Apache event a $26M email scam and an "exploited" that was about Outlook; a newsletter
+# naming two CVEs opened a P0 of its own; a threat-intelligence weekly merged unrelated incidents.
+# "Security Bulletin" alone is a vendor's advisory (Android, NVIDIA, AWS) and is not matched.
+_DIGEST_TITLE = re.compile(
+    # "newsletter" / "weekly" as what the piece IS, not as its subject (「SEGA newsletter data breach」, 「Weekly Loss」)
+    r"\bnewsletter\s*(?:round|edition|issue|#|\d|[:–-])|\b(?:weekly|monthly|daily) (?:newsletter|recap|roundup|round-up"
+    r"|digest|review|report|update|threat|security|intel\w*)\b|\bweek in (?:security|review)\b|\bthis week in\b"
+    r"|\b(?:roundup|round-up|recap|month in review|patch tuesday|threat intelligence report|security update review)\b"
+    r"|\b(?:news|security|threat) digest\b|^(?:srsly )?risky (?:bulletin|biz|business)\b"
+    r"|(?:安全|威胁|情报|漏洞|行业)(?:日报|周报|月报)|周报|要闻一览|要闻速览|(?:^|[：:｜|\s])(?:加密)?[早晚]报"
+    r"|一周(?:安全)?(?:回顾|速览|盘点|要闻)|本周(?:安全)?(?:回顾|速览|要闻)"
+    # daily round-ups (R1.6, live 2026-11-15: 「每日安全动态推送(26/11/9)」 chained an OpenSSH event to a Linux TCP CVE and
+    # an APT flaw — one CVE key to one story, one name key to another)
+    r"|每日(?:安全)?(?:动态|简讯|简报|资讯|速递|推送|情报)|安全(?:动态|资讯)(?:推送|汇总|速递)"
+    # industry statistics across incidents (R1.3, corpus story "ark-report": ARK Invest's 「自2017年以来加密行业因黑客攻击
+    # 累计损失约269亿美元」 joined the Binance event through a body mention — 8 of its 15 reports)
+    r"|累计损失|行业(?:累计|全年|总)?损失|自\s*20\d\d\s*年(?:以)?来|首超链上收入"
+    r"|\bhack(?:ing)? losses (?:head|equal|hit|exceed|surpass|top)|\bsince 20\d\d\b[^.]{0,40}\blosses\b",
+    re.IGNORECASE)
+# a newsletter whose headline says nothing ("Never be afraid to ask questions"): it introduces itself in its opening
+_DIGEST_LEAD = re.compile(r"this week'?s (?:edition|newsletter|episode)|welcome to this week|threat source newsletter", re.IGNORECASE)
+
+
+def is_digest(title: str | None, text: str | None = None) -> bool:
+    return bool(_DIGEST_TITLE.search(title or "") or _DIGEST_LEAD.search((text or "")[:600]))
+
+
+def digest_kind(title: str | None, text: str | None = None) -> str | None:
+    """What kind of digest: the phrase that makes it one, as a slug ("patch-tuesday", "weekly-recap", "newsletter").
+    Two digests are the same thing only if they are the same kind (pipeline._digest_keys adds who and when)."""
+    m = _DIGEST_TITLE.search(title or "") or _DIGEST_LEAD.search((text or "")[:600])
+    if not m:
+        return None
+    slug = re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "-", m.group(0).lower()).strip("-")
+    return "newsletter" if "newsletter" in slug or "edition" in slug or "this-week" in slug else slug
 _CONTEXT = re.compile(
     r"\b(?:liquidat\w*|short(?:ed|ing|s)?|long(?:ed|s)?|profit\w*|arbitrag\w*|reserves?|market cap|volume|borrow\w*"
     r"|sold|sell(?:s|ing)?|dump\w*|swap\w*|holds?|holding"
@@ -149,6 +194,8 @@ def amount_kind(text: str | None) -> str:
     t = _NEGATED.sub("", text or "")
     if _FROZEN.search(t):
         return "frozen"
+    if _ATTACKER_LOSS.search(t):
+        return "context"
     if _LOSS_STATED.search(t) or not _CONTEXT.search(t):
         return "loss"
     return "context"
@@ -196,6 +243,47 @@ def _exploited_sentence(text: str) -> Exploited:
     if _NEG.search(text):
         return "no"
     return "yes" if _YES.search(text) else "unclear"
+
+
+def exploited_about(title: str, text: str, own_cves: set[str], event_cves: set[str]) -> bool:
+    """Does this report say that THE EVENT's vulnerability is being exploited? `exploited()` answers for a text; a text
+    is often about several things. Live 2026-11-14, three P0s: a disclosure-policy post (its sentence about "actively
+    exploited" bugs in general), a newsletter attached to the Apache event through one CVE (its exploited sentence was
+    about another story), a weekly digest. The claim counts when its sentence
+      - names a CVE of the event; or
+      - is the headline; or
+      - names no CVE, and the report is about this event only (every CVE it names is the event's); or
+      - names no CVE in a report that names none at all, and the sentence shares a name with the headline
+        ("SignDrop … exploited" under a SignDrop headline — not a remark in a policy essay)."""
+    head = {t for t in re.findall(r"[A-Za-z][A-Za-z0-9]{3,}", title or "")}
+    found = False
+    for n, s in enumerate([title or "", *_SENTENCE.split(text or "")]):
+        if _exploited_sentence(s) != "yes":
+            continue
+        found = True
+        named = {f"CVE-{y}-{m}" for y, m in _CVE.findall(s)}
+        if named:
+            # an event nobody gave a CVE yet (a media report whose CVE is not a key) has nothing to contradict the claim
+            if named & event_cves or not event_cves:
+                return True
+            continue
+        if n == 0 or (own_cves and own_cves <= event_cves):
+            return True
+        if not own_cves and head & set(re.findall(r"[A-Za-z][A-Za-z0-9]{3,}", s)) - _HEAD_COMMON:
+            return True
+    if found:
+        return False
+    # No sentence here says it, yet the report was judged "exploited": the sentence lies beyond the stored text (items
+    # keep 4,000 characters), or the judgement predates a rule (a status table's 「在野利用状态 未发现」 once read as yes).
+    # What is stored decides the second; for the first, a report about this event only is believed as before.
+    return exploited(f"{title or ''}\n{text or ''}") != "no" and own_cves <= event_cves
+
+
+_CVE = re.compile(r"(?<![A-Za-z0-9])CVE-(\d{4})-(\d{4,7})(?![A-Za-z0-9])", re.IGNORECASE)   # = keys.CVE_RE (keys imports nothing)
+# words a headline and any sentence share without naming anything
+_HEAD_COMMON = frozenset(["Vulnerability", "Vulnerabilities", "Security", "Exploit", "Exploited", "Exploits", "Attack",
+                          "Attacks", "Attackers", "Zero", "Critical", "Update", "Updates", "Advisory", "Patch", "Flaw",
+                          "With", "From", "That", "This", "Have", "Been", "Will", "Edition", "Policy"])
 
 
 def exploited(text: str) -> Exploited:
@@ -297,6 +385,11 @@ _LOSS_WORD = re.compile(r"\b(?:hack\w*|stolen|drain\w*|lost|loss(?:es)?|impact|e
 _CONVERSION = re.compile(r"\s*(?:约合|折合|约值|价值约?|合计约?|相当于|约为|worth|valued at|≈|~)", re.IGNORECASE)
 
 
+# the attacker LOSING funds is not the victim's loss (audit 02 Q1 #11: ZachXBT 「Binance hacker just lost $2.1M of the
+# stolen ETH to an MEV bot」 replaced the $6.3B headline). It outranks "lost … $" and "… stolen" (both read as the loss).
+# Order matters: 「users lost $5M to the hacker」 stays a loss — the attacker must be the one who lost.
+_ATTACKER_LOSS = re.compile(r"\b(?:hacker|attacker|exploiter|thief|scammer)s?\b[^.,;:]{0,20}?\b(?:just\s+)?(?:lost|loses|losing)\b"
+                            r"|(?:黑客|攻击者)[^，。,]{0,8}(?:亏损|损失了|亏掉)", re.IGNORECASE)
 _HISTORIC = re.compile(r"(?:\d+|[一二三四五六七八九十两]+)\s*年前|\d+\s+years?\s+ago", re.IGNORECASE)
 
 
@@ -305,6 +398,8 @@ def _stretch_kind(span: str) -> str | None:
     span = _NEGATED.sub("", span)
     if _FROZEN.search(span):
         return "frozen"
+    if _ATTACKER_LOSS.search(span):
+        return "context"
     if _HISTORIC.search(span):           # 「4 年前…被盗约2200万美元」: a past theft, even when stated as a loss
         return "context"
     if _LOSS_STATED.search(span):

@@ -24,6 +24,8 @@ class Store(Protocol):
     def get_source_state(self, source_id: str) -> dict[str, Any]: ...
     def put_source_state(self, source_id: str, state: dict[str, Any]) -> None: ...
     def delete_source_state(self, source_id: str) -> None: ...
+    def add_count(self, day: str, kind: str, n: int = 1) -> int: ...
+    def counts(self, day: str) -> dict[str, int]: ...
     def get_source_states(self, source_ids: list[str]) -> dict[str, dict[str, Any]]: ...
     # respond-station state lives beside the event, not in it: the process station rewrites events every
     # cycle and must never race with (or erase) an AWS job record
@@ -39,6 +41,14 @@ class MemoryStore:
         self.keys: dict[str, list[str]] = defaultdict(list)
         self.sources: dict[str, dict[str, Any]] = {}
         self.responses: dict[str, dict[str, Any]] = {}
+        self.spend: dict[str, dict[str, int]] = defaultdict(dict)
+
+    def add_count(self, day: str, kind: str, n: int = 1) -> int:
+        self.spend[day][kind] = self.spend[day].get(kind, 0) + n
+        return self.spend[day][kind]
+
+    def counts(self, day: str) -> dict[str, int]:
+        return dict(self.spend.get(day) or {})
 
     # values are stored as JSON round-trips so tests catch anything DynamoDB could not persist
     def get_item(self, item_id: str) -> Item | None:

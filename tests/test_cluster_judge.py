@@ -149,3 +149,18 @@ def test_the_sweep_finds_exactly_the_pairs_of_the_all_pairs_loop_and_is_fast():
     # compared outside the assert: pytest's diff of two long differing lists is quadratic and hung the CI mutation run
     same = got == want
     assert same and len(want) > 50, f"{len(got)} pairs vs {len(want)} expected; {len(set(got) ^ set(want))} differ"
+
+
+def test_r2_6_only_a_shard_that_changed_is_written():
+    from radar import cluster_judge
+    from radar.store import MemoryStore
+    store = MemoryStore()
+    pairs = {"ev_a|ev_b": {"verdict": "same", "by": "model", "a": "ev_a", "b": "ev_b"}}
+    cluster_judge.save(store, "__cj__", pairs)
+    writes = []
+    real = store.put_source_state
+    store.put_source_state = lambda k, v: writes.append(k) or real(k, v)
+    cluster_judge.save(store, "__cj__", pairs)
+    assert writes == []                                         # nothing changed: nothing written
+    cluster_judge.save(store, "__cj__", {**pairs, "ev_c|ev_d": {"verdict": "different", "by": "model", "a": "ev_c", "b": "ev_d"}})
+    assert len(writes) == 1                                     # one shard changed

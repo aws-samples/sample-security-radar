@@ -1,3 +1,4 @@
+import { FetchProblem } from '@/components/FetchProblem';
 import { useState } from 'react';
 import { useEvents } from '@/hooks/useEvents';
 import { EventCard } from '@/components/EventCard';
@@ -32,16 +33,11 @@ export function Web3Page() {
   const p0Count = web3Events.filter(e => e.severity === 'P0').length;
   const chainCount2 = Object.keys(chainCount).length;
 
-  if (error) {
-    return (
-      <div style={{ padding: '40px', color: 'var(--sev-p0)', fontFamily: 'var(--font-mono)' }}>
-        {error}
-      </div>
-    );
-  }
+  if (error && events.length === 0) return <FetchProblem error={error} hasData={false} />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {error && <FetchProblem error={error} hasData />}
 
       {/* Hero header with mesh gradient background */}
       <div style={{

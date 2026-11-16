@@ -27,15 +27,33 @@ _NUM = re.compile(r"\d+(?:[.,]\d+)*")
 Call = Callable[[str, str, int], llm.LlmResult]
 
 
-def trim_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    out, size = [], 0
-    for e in evidence:
-        e = dict(e, text=(e.get("text") or "")[:ITEM_TEXT_MAX])
-        size += len(json.dumps(e, ensure_ascii=False).encode())
-        if size > PROMPT_MAX_BYTES - 4_000:  # leave room for instructions
-            break
-        out.append(e)
-    return out
+def trim_evidence(evidence: list[dict[str, Any]], structured: set[str] | frozenset[str] = frozenset()) -> list[dict[str, Any]]:
+    """The evidence a brief is written from, within PROMPT_MAX_BYTES. All of it when it fits (unchanged: the
+    input_hash of every event that fits stays the same). When it does not (R1.8, audit 02 Q6 #2): the list was cut
+    oldest-first, so a 391-report event was briefed from its first 44 reports for ever — and the hash, taken after the
+    cut, never changed again. Now: structured records (`structured` item ids), the first report, then the newest of
+    each tier in turn (T1, T2, T3, …) until the budget; returned in time order."""
+    cut = [dict(e, text=(e.get("text") or "")[:ITEM_TEXT_MAX]) for e in evidence]
+    room = PROMPT_MAX_BYTES - 4_000                                   # leave room for instructions
+    size = lambda e: len(json.dumps(e, ensure_ascii=False).encode())
+    if sum(map(size, cut)) <= room:
+        return cut
+    order = list(range(len(cut)))                                    # input is time-ordered (handlers._evidence)
+    picks = [i for i in order if cut[i]["item_id"] in structured] + order[:1]
+    by_tier: dict[str, list[int]] = {}
+    for i in reversed(order):                                        # newest first within a tier
+        by_tier.setdefault(str(cut[i].get("tier") or "T9"), []).append(i)
+    queues = [by_tier[t] for t in sorted(by_tier)]
+    while any(queues):
+        for q in queues:
+            if q:
+                picks.append(q.pop(0))
+    chosen, used = set(), 0
+    for i in dict.fromkeys(picks):
+        if used + size(cut[i]) <= room:
+            chosen.add(i)
+            used += size(cut[i])
+    return [cut[i] for i in order if i in chosen]
 
 
 def render_prompt(evidence: list[dict[str, Any]]) -> str:
@@ -79,7 +97,8 @@ def _check(sentence: dict[str, Any], by_id: dict[str, str]) -> dict[str, Any]:
         src = _normalise(" ".join(by_id[c] for c in cites))
         for n in _NUM.findall(text):
             plain = n.replace(",", "")
-            if (len(plain) >= 2 or "." in plain) and plain not in src:
+            # whole numbers only (R1.8, audit 02 Q6 #1): "6" was grounded by "2026" and "1.5" by "11.5"
+            if (len(plain) >= 2 or "." in plain) and not re.search(rf"(?<![\d.]){re.escape(plain)}(?![\d]|\.\d)", src):
                 issues.append("ungrounded_number")
                 break
     return {"text": text, "cite": cites, "grounded": not issues, "issues": issues}

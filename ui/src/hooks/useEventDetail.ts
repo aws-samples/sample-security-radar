@@ -19,6 +19,8 @@ export interface EventDetailState {
   chainStages: ChainStage[];
   /** C4: events the model judged to be the same incident (advisory, not merged). */
   possibleDuplicates: PossibleDuplicate[];
+  /** when this page was written — its lifecycle / decisions are as of then, not now (audit 03 4.8) */
+  generatedAt: string | null;
   /** undefined = key absent (older publisher); null = not generated for this event. */
   analysis: Analysis | null | undefined;
   progress: ProgressStage[] | undefined;
@@ -41,7 +43,7 @@ export interface EventDetailState {
 }
 
 const EMPTY: Omit<EventDetailState, 'loading' | 'error'> = {
-  event: null, items: [], timeline: [], amountHistory: [], cveDetails: [], disclosure: null, sighting: null, tx: [], onchain: null, attackTxs: null, chainStages: [], possibleDuplicates: [],
+  event: null, items: [], timeline: [], amountHistory: [], cveDetails: [], disclosure: null, sighting: null, tx: [], onchain: null, attackTxs: null, chainStages: [], possibleDuplicates: [], generatedAt: null,
   analysis: undefined, progress: undefined, pipelineSteps: undefined, response: undefined, mitigation: undefined, rulePack: undefined,
   decisions: undefined,
 };
@@ -80,6 +82,7 @@ export function useEventDetail(eventId: string): EventDetailState {
           attackTxs: data.attack_txs ?? null,
           chainStages: data.chain_stages ?? [],
           possibleDuplicates: data.possible_duplicates ?? [],
+          generatedAt: typeof data.generated_at === 'string' ? data.generated_at : null,
           analysis: 'analysis' in data ? data.analysis : undefined,
           progress: data.progress,
           pipelineSteps: data.pipeline_steps,

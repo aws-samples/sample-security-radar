@@ -31,6 +31,18 @@ def record(ev: Event, published: bool = False, title: str | None = None) -> dict
     return row
 
 
+def source_url(url: str | None) -> str | None:
+    """A row's "r": http(s) only and ≤ 300 characters (the schema's rule) — anything else is no link, not a broken one."""
+    u = (url or "").strip()
+    return u if u.lower().startswith(("https://", "http://")) and len(u) <= 300 else None
+
+
+def first_item_id(ev: Event) -> str | None:
+    """The item that created the event (its timeline's `created` entry), else its first item id."""
+    return next((t.get("item_id") for t in ev.timeline or [] if t.get("kind") == "created" and t.get("item_id")),
+                (ev.item_ids or [None])[0])
+
+
 def month(ev: Event) -> str:
     return ev.first_seen[:7]
 
@@ -50,11 +62,16 @@ def merge(existing: list[dict[str, Any]], fresh: list[dict[str, Any]],
     """Upsert by id — a month's events not in this window are kept as they were — minus `drop`: events that no longer
     exist (merged, or removed by a repair; radar.removals), whose detail page publish deletes too.
     The "p" mark is sticky: an event's detail doc stays while the event exists, and an incremental publish rewrites only
-    the changed events' pages — an unchanged event whose page an earlier run wrote still has it."""
+    the changed events' pages — an unchanged event whose page an earlier run wrote still has it. "r" (source URL) is
+    sticky too, so publish reads an item only for a row that never had one (handlers._publish_search); a row with a
+    page does not carry it over (the page links its sources)."""
     by_id = {r["id"]: r for r in existing if r["id"] not in drop}
     for r in fresh:
-        was = by_id.get(r["id"])
-        by_id[r["id"]] = {**r, "p": True} if was is not None and was.get("p") else r
+        was = by_id.get(r["id"]) or {}
+        row = {**r, "p": True} if was.get("p") else dict(r)
+        if not row.get("p") and "r" not in row and was.get("r"):
+            row["r"] = was["r"]
+        by_id[r["id"]] = row
     return sorted(by_id.values(), key=lambda r: (r["f"], r["id"]), reverse=True)
 
 

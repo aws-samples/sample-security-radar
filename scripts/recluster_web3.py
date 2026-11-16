@@ -160,6 +160,9 @@ def main() -> int:
     ap.add_argument("--min-items", type=int, default=1, help="with --dump: only events with at least this many items")
     ap.add_argument("--event", action="append", default=[],
                     help="repair only these events (repeatable); a domain-wide replay re-seeds unrelated events' ids")
+    ap.add_argument("--split", action="store_true",
+                    help="with --event: the event holds several stories — keep every one-report event the replay splits "
+                         "off (the default folds them back into the largest, which is right for a story that lost a report)")
     args = ap.parse_args()
     out = json.loads((ROOT / "build" / "outputs.json").read_text())["SecurityRadar"]
     sess = boto3.Session(region_name="ap-northeast-1")
@@ -190,7 +193,7 @@ def main() -> int:
     mem = replay(items, now)
     new = {eid: Event.from_dict(d) for eid, d in mem.events.items()}
     adopt(old, new, {i.item_id: i for i in items}, now)
-    if args.event:
+    if args.event and not args.split:
         fold_strays(new, {i.item_id: i for i in items}, now, old)
 
     changed = changed_events(old, new)

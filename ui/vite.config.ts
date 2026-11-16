@@ -24,14 +24,29 @@ function mockData(): Plugin {
   }
 }
 
+// R3.3: one id per build — compiled into the page and written to version.json (uploaded no-cache by deploy-ui.sh); a
+// page whose id differs from the deployed version.json offers a reload instead of running old code for days.
+const BUILD_ID = process.env.RADAR_BUILD || `dev-${Date.now()}`
+function versionFile(): Plugin {
+  return {
+    name: 'radar-version',
+    generateBundle() { this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) }) },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), mockData()],
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
+  plugins: [react(), mockData(), versionFile()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
   },
   build: {
+    // R3.6: never inline fonts. Vite inlines assets under 4 KB as base64, and most @fontsource unicode-range
+    // subsets are that small, so 113 KB of the 128 KB render-blocking CSS (gzip) was fonts every page carried,
+    // whether or not it used them. As files they load only when a glyph in their range is drawn.
+    assetsInlineLimit: (file: string) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined),
     rollupOptions: {
       output: {
         manualChunks(id) {

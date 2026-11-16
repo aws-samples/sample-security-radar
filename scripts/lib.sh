@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared by every deploy script. STAGE (env) selects the deployment: empty = live, anything else = an independent
 # copy deployed with `cdk -c stage=$STAGE` (stacks SecurityRadar<Stage>, SecurityRadarContinuum<Stage>).
 export AWS_PROFILE=${AWS_PROFILE:?set AWS_PROFILE to a non-production profile}

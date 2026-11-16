@@ -408,7 +408,7 @@
    "url": "https://thehackernews.com/2026/10/someone-tried-to-exploit-php2shell-4.html",
    "title": "Someone Tried to Exploit PHP2Shell 4 Days Before the Vulnerabilities Were Publicly Disclosed",
    "published_at": "2026-10-22T06:34:10Z",
-   "excerpt": "Amazon's Threat Intelligence team on Wednesday said it detected an attempt to exploit the newly disclosed PHP2Shell vulnerabilities dating back to October 17, 2026, against its MadPot honeypot servic… [facts: October 17; 2; 17; 2026; exploitation in the wild]",
+   "excerpt": "Amazon's Threat Intelligence team on Wednesday said it detected an attempt to exploit the newly disclosed PHP2Shell vulnerabilities dating back to October 17, 2026, against its MadPot honeypot service, as the flaws come under broad exploitation in the wild following the release of the patches. [facts: October 17; 2; 17; 2026; exploitation in the wild]",
    "independent_group": 1,
    "signals": {
     "exploited": "yes",

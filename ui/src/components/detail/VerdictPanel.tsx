@@ -1,3 +1,4 @@
+import { judgedAgo } from '@/utils/siteStatus';
 import type { Analysis, Disclosure, EventSummary, ProgressStage, Response, Sighting } from '@/types/site-data';
 import { SeverityBadge } from '@/components/SeverityBadge';
 import { LevelBadge } from '@/components/LevelBadge';
@@ -39,10 +40,15 @@ interface Props {
   onEnv: () => void;
   disclosure?: Disclosure | null;
   sighting?: Sighting | null;
+  /** when the page was written (audit 03 4.8: its lifecycle is as of then) */
+  generatedAt?: string | null;
+  /** the event has a WAF rule pack (R3.4: the verdict offers it next to the actions) */
+  hasRulePack?: boolean;
 }
 
 /** L2 protagonist: what is it, how sure, how bad, does it hit us — one screen, before anything else. */
-export function VerdictPanel({ event, analysis, progress, response, impact, cite, onCite, onEnv, disclosure, sighting }: Props) {
+export function VerdictPanel({ event, analysis, progress, response, impact, cite, onCite, onEnv, disclosure, sighting, generatedAt, hasRulePack = false }: Props) {
+  const judged = judgedAgo(generatedAt ?? null, Date.now());
   const sight = sightingLine(sighting);
   const disc = disclosureLine(disclosure, fmtDisclosureAt);
   const ex = EXPLOITATION_WORD[event.exploitation];
@@ -75,7 +81,7 @@ export function VerdictPanel({ event, analysis, progress, response, impact, cite
         <SeverityBadge severity={event.severity} pulse={event.severity === 'P0'} />
         <LevelBadge level={event.level} />
         <span className={`dt-word tone-${ex.tone}`}>{ex.text}</span>
-        {event.lifecycle && <span className="dt-word tone-info">{LIFECYCLE_WORD[event.lifecycle]}</span>}
+        {event.lifecycle && <span className="dt-word tone-info">{LIFECYCLE_WORD[event.lifecycle]}{judged && <span className="dt-asof">（{judged}）</span>}</span>}
         <span style={{ marginLeft: 'auto' }}>
           <ImpactChip impact={impact.impact} context="detail" withContext />
         </span>
@@ -87,6 +93,22 @@ export function VerdictPanel({ event, analysis, progress, response, impact, cite
           <span> · 原标题：{f.original}</span>
         </p>); })()}
       {bluf}
+      {(() => {
+        // R3.4 「我该做什么」: the first grounded recommended actions (code-validated sentences, analyst.validate), and the
+        // event's WAF rule pack when one exists — at the verdict, not three sections down
+        const acts = (analysis?.actions ?? []).filter(a => a.grounded).slice(0, 3);
+        if (!acts.length && !hasRulePack) return null;
+        return (
+          <div className="dt-todo" data-testid="verdict-actions">
+            {acts.length > 0 && (
+              <ol className="dt-todo-list">
+                {acts.map((a, i) => <li key={i}><SentenceText s={a} cite={cite} onCite={onCite} /></li>)}
+              </ol>
+            )}
+            {hasRulePack && <button type="button" className="btn-ghost" data-testid="verdict-rulepack" onClick={onEnv}>WAF 规则包 →</button>}
+          </div>
+        );
+      })()}
       <div className="dt-timing">
         {disc && (
           <span data-testid="disclosure" className={disc.late ? 'tone-warn' : undefined}

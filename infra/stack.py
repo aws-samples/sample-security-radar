@@ -7,10 +7,12 @@ from pathlib import Path
 import continuum_stack
 import mitigate_stack
 from aws_cdk import CfnOutput, CfnResource, Duration, RemovalPolicy, SecretValue, Stack
+from aws_cdk import aws_apigateway as apigw
 from aws_cdk import aws_cloudfront as cf
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_cloudwatch as cw
 from aws_cdk import aws_cloudwatch_actions as cw_actions
+from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_dynamodb as ddb
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_events as events
@@ -30,6 +32,10 @@ from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
 
 ROOT = Path(__file__).resolve().parents[1]
+# R5.5 recovery windows: how long an overwritten / deleted object stays restorable (scripts/restore.py)
+ACCESS_LOG_DAYS = 30        # CloudFront standard logs (they carry reader IPs) are deleted after this
+RAW_NONCURRENT_DAYS = 30    # raw batches are append-only: a noncurrent version exists only after a delete
+SITE_NONCURRENT_DAYS = 7    # site data is rewritten every cycle: 7 days of history, not months
 CYCLE_MINUTES = 5   # = radar.limits.Limits.CYCLE_MINUTES (tests/test_collect_batching.py); research/17
 # Site CSP (tests/test_site_headers.py): third-party URLs reach the page (feed links, exchange notices) and one missed
 # safeHref was stored XSS (research/action/05 #2). Fitted to the built UI: one external module script, no eval;
@@ -41,7 +47,11 @@ SITE_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inl
             "frame-ancestors 'self'")
 # IAM actions of the respond Lambda (R1). Kept equal to the calls in src/radar/continuum_aws.py by
 # tests/test_iam_scope.py; resource types per action from the Service Authorization Reference.
-SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "ListFindings", "BatchGetFindings"]
+TABLE_ACTIONS = ["GetItem", "BatchGetItem", "Query", "PutItem", "UpdateItem", "DeleteItem", "BatchWriteItem"]
+TABLE_READ_ACTIONS = ["GetItem", "BatchGetItem", "Query"]
+COLLECT_WRITE_KEYS = ["SRC#*"]   # source state, SEEN, crash records, the row-size / station-time ledgers — nothing else
+SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "ListFindings", "BatchGetFindings",
+                     "ListCodeReviews", "ListCodeReviewJobsForCodeReview"]   # reuse an unstarted review (audit 04 6.6)
 SA_PACK_ACTIONS = ["ListSecurityRequirements", "BatchCreateSecurityRequirements", "BatchUpdateSecurityRequirements",
                    "BatchDeleteSecurityRequirements"]
 # mitigate station (M3): reads anywhere, writes only radar-prefixed web ACLs (B3; tests/test_iam_scope.py)
@@ -61,21 +71,28 @@ class RadarStack(Stack):
         keep = RemovalPolicy.DESTROY if ephemeral else RemovalPolicy.RETAIN
         name = continuum_stack.prefix(stage)
 
-        def bucket(name: str, **extra) -> s3.Bucket:
+        def bucket(name: str, noncurrent_days: int, lifecycle_rules: list[s3.LifecycleRule] = ()) -> s3.Bucket:
+            """Versioned (R5.5): an overwrite or a delete — a bad Publish, a wrong prune — is recoverable for
+            `noncurrent_days` (scripts/restore.py); older versions expire so the bucket does not grow without bound."""
             return s3.Bucket(self, name, block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-                             encryption=s3.BucketEncryption.S3_MANAGED, enforce_ssl=True,
-                             removal_policy=keep, auto_delete_objects=ephemeral, **extra)
+                             encryption=s3.BucketEncryption.S3_MANAGED, enforce_ssl=True, versioned=True,
+                             removal_policy=keep, auto_delete_objects=ephemeral,
+                             lifecycle_rules=[*lifecycle_rules, s3.LifecycleRule(
+                                 id="noncurrent", noncurrent_version_expiration=Duration.days(noncurrent_days),
+                                 abort_incomplete_multipart_upload_after=Duration.days(1))])
 
-        # raw batches are the evidence and the replay source (recluster, seed-board): kept, never expired — 30 days in
+        # raw batches are the evidence and the replay source (recluster): kept, never expired — 30 days in
         # Standard, then Intelligent-Tiering (research/19 B8: the 90-day expiry contradicted "keep everything"; after
         # incremental collection raw/ grows ~25 MB/day ≈ 9 GB/year)
-        raw = bucket("RawBucket", lifecycle_rules=[s3.LifecycleRule(transitions=[s3.Transition(
+        raw = bucket("RawBucket", RAW_NONCURRENT_DAYS, lifecycle_rules=[s3.LifecycleRule(transitions=[s3.Transition(
             storage_class=s3.StorageClass.INTELLIGENT_TIERING, transition_after=Duration.days(30))])])
-        site = bucket("SiteBucket")
+        site = bucket("SiteBucket", SITE_NONCURRENT_DAYS)   # ~20 documents rewritten every cycle ⇒ short window
 
         table = ddb.Table(self, "Table", partition_key=ddb.Attribute(name="pk", type=ddb.AttributeType.STRING),
                           sort_key=ddb.Attribute(name="sk", type=ddb.AttributeType.STRING),
                           billing_mode=ddb.BillingMode.PAY_PER_REQUEST, removal_policy=keep,
+                          deletion_protection=not ephemeral,
+                          time_to_live_attribute="ttl",         # R5.3: RAW markers + SPEND counters (radar.dynamo._expires)    # R5.5: a stack delete or a console slip cannot drop it
                           point_in_time_recovery_specification=ddb.PointInTimeRecoverySpecification(
                               point_in_time_recovery_enabled=True))
         table.add_global_secondary_index(index_name="gsi1",
@@ -91,20 +108,37 @@ class RadarStack(Stack):
         env = {"TABLE": table.table_name, "RAW_BUCKET": raw.bucket_name, "SITE_BUCKET": site.bucket_name,
                "RADAR_COMMIT": self.node.try_get_context("commit") or "unknown"}
 
-        def fn(name: str, handler: str, timeout_s: int, memory: int = 512, **extra) -> lambda_.Function:
+        def fn(name: str, handler: str, timeout_s: int, memory: int = 512, write_keys: list[str] | None = None,
+               **extra) -> lambda_.Function:
             f = lambda_.Function(self, name, runtime=lambda_.Runtime.PYTHON_3_12, architecture=lambda_.Architecture.ARM_64,
                                  handler=f"radar.handlers.{handler}", code=code, timeout=Duration.seconds(timeout_s),
                                  memory_size=memory, environment=env,
                                  log_group=logs.LogGroup(self, f"{name}Logs", retention=logs.RetentionDays.ONE_MONTH,
                                                          removal_policy=RemovalPolicy.DESTROY), **extra)
-            table.grant_read_write_data(f)
+            # R5.4: the actions radar.dynamo uses, nothing more — grant_read_write_data also gave Scan (whole-table
+            # reads) and ConditionCheckItem; no Lambda scans (tests/test_iam_scope.py)
+            res = [table.table_arn, f"{table.table_arn}/index/*"]
+            if write_keys is None:
+                f.add_to_role_policy(iam.PolicyStatement(actions=[f"dynamodb:{a}" for a in TABLE_ACTIONS], resources=res))
+            else:
+                # R5.4 LeadingKeys: writes only to rows whose partition key matches (tests/test_iam_scope.py runs the
+                # station and checks every key it writes); reads stay table-wide
+                f.add_to_role_policy(iam.PolicyStatement(
+                    actions=[f"dynamodb:{a}" for a in TABLE_ACTIONS if a in TABLE_READ_ACTIONS], resources=res))
+                f.add_to_role_policy(iam.PolicyStatement(
+                    actions=[f"dynamodb:{a}" for a in TABLE_ACTIONS if a not in TABLE_READ_ACTIONS], resources=res,
+                    conditions={"ForAllValues:StringLike": {"dynamodb:LeadingKeys": write_keys}}))
             return f
 
         plan_fn = fn("PlanFn", "plan", 30)
         # overlap guard: Plan lists this state machine's running executions (name pattern, no reference ⇒ no cycle)
         plan_fn.add_to_role_policy(iam.PolicyStatement(actions=["states:ListExecutions"], resources=[
             f"arn:aws:states:{self.region}:{self.account}:stateMachine:Cycle*"]))
-        collect_fn = fn("CollectFn", "collect_batch", 180)
+        # … and what a running one is doing (collect-only cycles, roadmap R2.2)
+        plan_fn.add_to_role_policy(iam.PolicyStatement(actions=["states:GetExecutionHistory"], resources=[
+            f"arn:aws:states:{self.region}:{self.account}:execution:Cycle*:*"]))
+        # the station that reads untrusted feed content can write only source-state rows (R5.4)
+        collect_fn = fn("CollectFn", "collect_batch", 180, write_keys=COLLECT_WRITE_KEYS)
         collect_fn.add_environment("SECRET_ARN", secret.secret_arn)
         secret.grant_read(collect_fn)
         raw.grant_put(collect_fn)
@@ -118,12 +152,12 @@ class RadarStack(Stack):
             resources=[f"arn:aws:bedrock:{self.region}:{self.account}:inference-profile/global.anthropic.claude-*",
                        "arn:aws:bedrock:*::foundation-model/anthropic.claude-*"]))
         publish_fn = fn("PublishFn", "publish_site", 300, memory=1769)   # 1769 MB = one full vCPU: page building is CPU-bound (2026-11-11)
-        site.grant_put(publish_fn)
+        site.grant_put(publish_fn, "data/*")             # site data only: index.html and the JS bundle are deploy-time (R5.4)
         site.grant_read(publish_fn, "data/search/*")     # search shards are merged, not rebuilt (radar.search)
         site.grant_delete(publish_fn, "data/events/*")   # removed events' stale detail pages (radar.removals)
 
         # respond station: AWS Security Agent here (Tokyo) + AWS Continuum in us-east-1 (CONTINUUM-INTEGRATION.md)
-        sa_code = bucket("SecurityAgentCodeBucket")
+        sa_code = bucket("SecurityAgentCodeBucket", RAW_NONCURRENT_DAYS)   # code bundles: replaced per deploy
         sa_role = iam.Role(self, "SecurityAgentServiceRole", assumed_by=iam.ServicePrincipal(
             "securityagent.amazonaws.com", conditions={"StringEquals": {"aws:SourceAccount": self.account}}))
         sa_code.grant_read(sa_role)
@@ -301,14 +335,17 @@ class RadarStack(Stack):
         # an earlier cycle still running ⇒ this one ends here (handlers.plan): no two cycles collect and process at once
         overlap = sfn.Choice(self, "Overlap").when(sfn.Condition.boolean_equals("$.skip", True),
                                                    sfn.Succeed(self, "SkippedOverlap"))
-        cycle = (fan_out
-                 .next(invoke("Process", process_fn, payload=sfn.TaskInput.from_object(
-                     {"results.$": "$.results", "full.$": "$.full", "slot.$": "$.slot"})))
-                 .next(analyze_step)
-                 .next(respond_step)
-                 .next(mitigate_step)
-                 .next(publish_task)
-                 .next(notify_step))
+        # an earlier cycle past collection ⇒ this one collected and ends here: Process stays one writer (handlers.plan)
+        collected_only = sfn.Choice(self, "CollectOnly").when(sfn.Condition.boolean_equals("$.collect_only", True),
+                                                              sfn.Succeed(self, "CollectedOnly"))
+        rest = (invoke("Process", process_fn, payload=sfn.TaskInput.from_object(
+                    {"results.$": "$.results", "full.$": "$.full", "slot.$": "$.slot"}))
+                .next(analyze_step)
+                .next(respond_step)
+                .next(mitigate_step)
+                .next(publish_task)
+                .next(notify_step))
+        cycle = fan_out.next(collected_only.otherwise(rest))
         definition = plan_task.next(overlap.otherwise(cycle))
         # every state transition logged (no execution data: payloads carry event ids only, still kept out) + X-Ray (cdk-nag SF1/SF2)
         cycle_logs = logs.LogGroup(self, "CycleLogs", retention=logs.RetentionDays.ONE_MONTH, removal_policy=RemovalPolicy.DESTROY)
@@ -376,7 +413,7 @@ class RadarStack(Stack):
         # UI credential: generated by Secrets Manager; only its hash reaches CloudFront (scripts/set-ui-auth.sh)
         ui_secret = sm.Secret(self, "UiBasicAuth", description="security-radar UI basic auth (username/password)",
                               generate_secret_string=sm.SecretStringGenerator(
-                                  secret_string_template='{"username": "demo"}', generate_string_key="password",  # nosec B106 (a username; the password is generated)
+                                  secret_string_template='{"username": "demo"}', generate_string_key="password",  # noqa: S106 # nosec B106 (a username; the password is generated)
                                   exclude_punctuation=True, password_length=24))
         auth_store = cf.KeyValueStore(self, "AuthStore", comment="security-radar basic auth hash")
         auth_fn = cf.Function(self, "BasicAuth", runtime=cf.FunctionRuntime.JS_2_0, key_value_store=auth_store,
@@ -393,8 +430,87 @@ class RadarStack(Stack):
                 strict_transport_security=cf.ResponseHeadersStrictTransportSecurity(
                     access_control_max_age=Duration.seconds(31536000), override=True),
                 xss_protection=cf.ResponseHeadersXSSProtection(protection=True, mode_block=True, override=True)))
+        # ---- token access for agents and scripts (roadmap R7.1) ----
+        # Amazon Cognito issues the tokens (client-credentials grant, one app client per consumer, created by
+        # scripts/radar-token.py); API Gateway's Cognito authorizer verifies signature, expiry and the scope. The radar
+        # mints and checks no token of its own. Read-only: one GET route, one Lambda that reads data/* of the site bucket.
+        api_users = cognito.UserPool(
+            self, "ApiUsers", user_pool_name=f"{name}-api", self_sign_up_enabled=False,   # no users: machine clients only
+            password_policy=cognito.PasswordPolicy(min_length=16, require_digits=True, require_lowercase=True,
+                                                   require_uppercase=True, require_symbols=True),
+            removal_policy=RemovalPolicy.DESTROY)
+        api_users.add_resource_server("ApiResource", identifier="radar", scopes=[
+            cognito.ResourceServerScope(scope_name="read", scope_description="read the radar's published documents"),
+            cognito.ResourceServerScope(scope_name="subscribe", scope_description="register the caller's own webhook subscriptions")])
+        api_domain = api_users.add_domain("ApiDomain", cognito_domain=cognito.CognitoDomainOptions(
+            domain_prefix=f"{name}-{self.account}"))
+        api_fn = lambda_.Function(
+            self, "ApiFn", runtime=lambda_.Runtime.PYTHON_3_12, architecture=lambda_.Architecture.ARM_64,
+            handler="radar.api.handler", code=code, timeout=Duration.seconds(10), memory_size=512,
+            environment={"SITE_BUCKET": site.bucket_name},
+            log_group=logs.LogGroup(self, "ApiFnLogs", retention=logs.RetentionDays.ONE_MONTH,
+                                    removal_policy=RemovalPolicy.DESTROY))
+        site.grant_read(api_fn, "data/*")
+        read_api = apigw.RestApi(
+            self, "ReadApi", rest_api_name=f"{name}-read", endpoint_types=[apigw.EndpointType.REGIONAL],
+            cloud_watch_role=True,   # access logs need the account-level API Gateway logging role (none was set)
+            deploy_options=apigw.StageOptions(
+                stage_name="v1", throttling_rate_limit=20, throttling_burst_limit=40,
+                logging_level=apigw.MethodLoggingLevel.ERROR,
+                access_log_destination=apigw.LogGroupLogDestination(logs.LogGroup(
+                    self, "ReadApiAccess", retention=logs.RetentionDays.ONE_MONTH, removal_policy=RemovalPolicy.DESTROY)),
+                access_log_format=apigw.AccessLogFormat.json_with_standard_fields(
+                    caller=False, http_method=True, ip=True, protocol=True, request_time=True, resource_path=True,
+                    response_length=True, status=True, user=False)))
+        api_auth = apigw.CognitoUserPoolsAuthorizer(self, "ReadAuth", cognito_user_pools=[api_users])
+        api_root = read_api.root.add_resource("api")
+        # self-service webhook subscriptions (R7.3): the API's only writes, under their own scope. The store is one
+        # secret (it holds the signing keys); this Lambda reads and writes that secret and nothing else, one at a time.
+        self_subs = sm.Secret(self, "SelfSubscriptions", description="security-radar: self-service webhook subscriptions (JSON)",
+                              removal_policy=RemovalPolicy.DESTROY)
+        subscribe_fn = lambda_.Function(
+            self, "SubscribeFn", runtime=lambda_.Runtime.PYTHON_3_12, architecture=lambda_.Architecture.ARM_64,
+            handler="radar.subscribe_api.handler", code=code, timeout=Duration.seconds(10), memory_size=512,
+            reserved_concurrent_executions=1, environment={"SELF_SUBSCRIPTIONS_ARN": self_subs.secret_arn,
+                                                           "TABLE": table.table_name},
+            log_group=logs.LogGroup(self, "SubscribeFnLogs", retention=logs.RetentionDays.ONE_MONTH,
+                                    removal_policy=RemovalPolicy.DESTROY))
+        self_subs.grant_read(subscribe_fn)
+        self_subs.grant_write(subscribe_fn)
+        # … and one item of the table: the notify station's status row, so a subscriber sees whether its webhook is
+        # being delivered (roadmap R8.7). LeadingKeys pins the read to that partition key.
+        subscribe_fn.add_to_role_policy(iam.PolicyStatement(
+            actions=["dynamodb:GetItem"], resources=[table.table_arn],
+            conditions={"ForAllValues:StringEquals": {"dynamodb:LeadingKeys": ["SRC#__notify_status__"]}}))
+        self_subs.grant_read(notify_fn)
+        notify_fn.add_environment("SELF_SUBSCRIPTIONS_ARN", self_subs.secret_arn)
+        subs_res = api_root.add_resource("subscriptions")
+        write = {"authorizer": api_auth, "authorization_type": apigw.AuthorizationType.COGNITO,
+                 "authorization_scopes": ["radar/subscribe"]}
+        for verb in ("GET", "POST"):
+            subs_res.add_method(verb, apigw.LambdaIntegration(subscribe_fn), **write)
+        subs_res.add_resource("{id}").add_method("DELETE", apigw.LambdaIntegration(subscribe_fn), **write)
+        api_root.add_proxy(any_method=False).add_method(
+            "GET", apigw.LambdaIntegration(api_fn), authorizer=api_auth,
+            authorization_type=apigw.AuthorizationType.COGNITO, authorization_scopes=["radar/read"])
+
+        # ROADMAP R3.6 veto: the phone layout waits for a week of access data. Standard logs (time, path, user agent,
+        # IP per request — no cookies, no headers) for ACCESS_LOG_DAYS, then deleted. Not versioned: nothing to restore.
+        access_logs = s3.Bucket(self, "AccessLogBucket", block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+                                encryption=s3.BucketEncryption.S3_MANAGED, enforce_ssl=True,
+                                object_ownership=s3.ObjectOwnership.OBJECT_WRITER,   # CloudFront writes logs with an ACL
+                                removal_policy=keep, auto_delete_objects=ephemeral,
+                                lifecycle_rules=[s3.LifecycleRule(id="expire", expiration=Duration.days(ACCESS_LOG_DAYS))])
         dist = cf.Distribution(
             self, "Site", default_root_object="index.html", price_class=cf.PriceClass.PRICE_CLASS_200,
+            enable_logging=True, log_bucket=access_logs, log_file_prefix="site/", log_includes_cookies=False,
+            # /api/* → the token-gated API (no Basic Auth function here: API Gateway is the gate; nothing is cached)
+            additional_behaviors={"api/*": cf.BehaviorOptions(
+                origin=origins.RestApiOrigin(read_api), viewer_protocol_policy=cf.ViewerProtocolPolicy.HTTPS_ONLY,
+                # POST / DELETE exist only on /api/subscriptions; every other method on every path is API Gateway's 403
+                allowed_methods=cf.AllowedMethods.ALLOW_ALL, cache_policy=cf.CachePolicy.CACHING_DISABLED,
+                origin_request_policy=cf.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+                response_headers_policy=site_headers)},
             default_behavior=cf.BehaviorOptions(
                 origin=origins.S3BucketOrigin.with_origin_access_control(site),
                 viewer_protocol_policy=cf.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -403,14 +519,19 @@ class RadarStack(Stack):
                 function_associations=[cf.FunctionAssociation(function=auth_fn,
                                                               event_type=cf.FunctionEventType.VIEWER_REQUEST)]))
 
-        notify_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")  # links in P3 messages
-        alert_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")   # the #/ops link in an alert
-        publish_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")  # links in data/feeds/*
-        mitigate_fn.add_environment("SITE_URL", f"https://{dist.distribution_domain_name}")  # Security Hub remediation links
+        # the address readers are sent to: a public entrance in front of the distribution when there is one (context
+        # public_url, infra/cdk.json), else the distribution itself
+        site_url = self.node.try_get_context("public_url") or f"https://{dist.distribution_domain_name}"
+        notify_fn.add_environment("SITE_URL", site_url)    # links in P3 messages
+        alert_fn.add_environment("SITE_URL", site_url)     # the #/ops link in an alert
+        publish_fn.add_environment("SITE_URL", site_url)   # links in data/feeds/*
+        mitigate_fn.add_environment("SITE_URL", site_url)  # Security Hub remediation links
         for k, v in {"SiteUrl": f"https://{dist.distribution_domain_name}", "DistributionId": dist.distribution_id,
-                     "SiteBucketName": site.bucket_name, "RawBucketName": raw.bucket_name, "TableName": table.table_name,
+                     "SiteBucketName": site.bucket_name, "AccessLogBucketName": access_logs.bucket_name, "RawBucketName": raw.bucket_name, "TableName": table.table_name,
                      "SecretArn": secret.secret_arn, "UiSecretArn": ui_secret.secret_arn, "DemoFleetRoSecretArn": fleet_ro.secret_arn, "NotifySecretArn": notify_cfg.secret_arn, "AuthStoreArn": auth_store.key_value_store_arn,
                      "StateMachineArn": machine.state_machine_arn, "SaCodeBucketName": sa_code.bucket_name,
                      "AgentSpaceId": space.get_att("AgentSpaceId").to_string(),
-                     "RequirementPackId": pack.get_att("PackId").to_string(), "ContinuumBucketName": cn_bucket}.items():
+                     "RequirementPackId": pack.get_att("PackId").to_string(), "ContinuumBucketName": cn_bucket,
+                     "ApiUserPoolId": api_users.user_pool_id,
+                     "ApiTokenUrl": f"https://{api_domain.domain_name}.auth.{self.region}.amazoncognito.com/oauth2/token"}.items():
             CfnOutput(self, k, value=v)

@@ -1,3 +1,4 @@
+import { FetchProblem } from '@/components/FetchProblem';
 import { useState } from 'react';
 import { useEvents } from '@/hooks/useEvents';
 import { EventCard } from '@/components/EventCard';
@@ -11,16 +12,11 @@ export function VulnPage() {
 
   const filtered = sortEvents(applyFilters(events, filters));
 
-  if (error) {
-    return (
-      <div style={{ padding: '40px', color: 'var(--sev-p0)', fontFamily: 'var(--font-mono)' }}>
-        {error}
-      </div>
-    );
-  }
+  if (error && events.length === 0) return <FetchProblem error={error} hasData={false} />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {error && <FetchProblem error={error} hasData />}
       <div style={{ padding: '12px 16px 0', borderBottom: '1px solid var(--border)' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 700, color: 'var(--domain-vuln)', marginBottom: '2px' }}>
           Vulnerabilities

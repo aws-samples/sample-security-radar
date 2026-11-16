@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Digest, EventSummary, Funnel, NowItem } from '@/types/site-data';
+import type { Digest, EventSummary, Funnel, NowItem, SecurityRadarSiteDataPublishedToS3ReadByTheUI } from '@/types/site-data';
+
+/** The publish window before the listing was cut (publish.window_counts). */
+export type ListingWindow = NonNullable<Extract<SecurityRadarSiteDataPublishedToS3ReadByTheUI, { kind: 'events' }>['window']>;
 
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -11,6 +14,8 @@ export interface EventsState {
   funnel: Funnel | null;
   /** C7 daily digest; null = not published yet (older backend, or before the first 08:00 HKT run). */
   digest: Digest | null;
+  /** null = an older publisher that did not say how much it left out — then nothing is claimed about the rest. */
+  window: ListingWindow | null;
   generatedAt: string | null;
   loading: boolean;
   error: string | null;
@@ -24,7 +29,7 @@ export interface EventsState {
 
 export function useEvents(): EventsState {
   const [state, setState] = useState<EventsState>({
-    events: [], now: null, headline: null, funnel: null, digest: null, generatedAt: null, loading: true, error: null,
+    events: [], now: null, headline: null, funnel: null, digest: null, window: null, generatedAt: null, loading: true, error: null,
     lastFetched: null, staleSecs: null,
   });
 
@@ -47,6 +52,7 @@ export function useEvents(): EventsState {
           headline: typeof data.headline === 'string' ? data.headline : null,
           funnel: data.funnel ?? null,
           digest: data.digest ?? null,
+          window: data.window ?? null,
           generatedAt: data.generated_at,
           loading: false,
           error: null,

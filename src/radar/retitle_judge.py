@@ -36,8 +36,12 @@ MIN_ITEMS = 3
 MAX_EVIDENCE = 14
 TEXT_CHARS = 700
 MAX_TOKENS = 600
-HEDGE = re.compile(r"\b(alleged(ly)?|may|might|possibl[ey]|suspect(ed)?|reportedly|likely|could|rumou?r(ed)?|unconfirmed|"
+HEDGE = re.compile(r"\b(alleged(ly)?|might|possibl[ey]|suspect(ed)?|reportedly|likely|could|rumou?r(ed)?|unconfirmed|"
                    r"believed)\b|据称|疑似|可能|或许|传闻|未经证实|据传|猜测", re.IGNORECASE)
+# "may" is case-sensitive (R1.7): "may have" hedges, "May 3" is a month. A capital May hedges only before a verb.
+MAY = re.compile(r"\bmay\b|\bMay\s+(?:have|be|not|also|still|well|been)\b")
+# R1.7: a cause term inside a negated clause is the opposite of a cause — "no private key was leaked" passed gate 4
+NEGATED = r"(?:\b(?:no|not|never|without|none|nor|neither|denie[sd]|deny|n't)\b|未|没有|并非|不是|否认|无)"
 
 
 def _norm(s: str) -> str:
@@ -88,13 +92,20 @@ def verify(ev: Event, ans: dict[str, Any], items: list[Item], groups: list[int])
     cited, _ = by_id[iid]
     if not quote or _norm(quote) not in _norm(f"{cited.title}\n{cited.text}"):
         return "rejected", "quote not found verbatim in the cited report"
-    if HEDGE.search(quote):
+    if HEDGE.search(quote) or MAY.search(quote):
         return "rejected", "quote is hedged (a hypothesis, not a stated cause)"
-    victim = ev.title.split(" — ")[0].strip()
-    if not title or len(title) > retitle.TITLE_MAX or not title.startswith(f"{victim} — ") or title == ev.title:
+    if " — " in ev.title:
+        victim = ev.title.split(" — ")[0].strip()
+        prefixed = title.startswith(f"{victim} — ")
+    else:   # R1.7: no prefix to keep — the proposal names a victim the current title already names
+        victim = title.split(" — ")[0].strip() if " — " in title else ""
+        prefixed = bool(victim) and _norm(victim) in _norm(ev.title)
+    if not title or len(title) > retitle.TITLE_MAX or not prefixed or title == ev.title:
         return "rejected", f"title must keep the victim prefix '{victim} — ', differ, ≤ {retitle.TITLE_MAX} chars"
     if not terms or any(_norm(t) not in _norm(quote) for t in terms):
         return "rejected", "cause terms missing or not in the quote"
+    if any(re.search(NEGATED + r"[^.;。；]{0,40}?" + re.escape(_norm(t)), _norm(quote)) for t in terms):
+        return "rejected", "a cause term is negated in the quote (it says what did NOT happen)"
     if cited.tier != "T1":
         mention = {g for i, g in zip(items, groups) if i.tier in ("T1", "T2")
                    and any(_norm(t) in _norm(f"{i.title}\n{i.text}") for t in terms)}
@@ -131,6 +142,7 @@ def run(evs: list[Event], get_items: Any, state: dict[str, Any], overrides: dict
     candidates are dropped (an operator adopted a title, the event aged out). Returns (state, model calls)."""
     cands = candidates(evs, overrides, now)
     live = {e.event_id for e in cands}
+    stats = adoption_tally(state, overrides, live)
     state = {k: v for k, v in state.items() if k in live}
     calls = 0
     for ev in cands:
@@ -141,5 +153,29 @@ def run(evs: list[Event], get_items: Any, state: dict[str, Any], overrides: dict
             break
         row = judge(ev, get_items(ev.item_ids), call)
         calls += 1
+        if row["verdict"] == "propose" and (prev.get("verdict"), prev.get("title")) != ("propose", row.get("title")):
+            stats["proposed"] += 1
         state[ev.event_id] = {**row, "key": cache_key(ev), "current": ev.title, "at": timeutil.iso(now)}
+    state[STATS] = stats
     return state, calls
+
+
+STATS = "_adoption"   # a reserved row in the shadow state: what became of every proposal (R1.7)
+
+
+def adoption_tally(state: dict[str, Any], overrides: dict[str, Any], live: set[str]) -> dict[str, int]:
+    """R1.7: the human adoption rate decides whether proposals may ever apply themselves (roadmap decision 5). A row
+    leaves the state when its event stops being a candidate — the moment an operator sets a title — so it is counted
+    then: adopted (the operator's title is the proposal), other (a different title), expired (no title, aged out)."""
+    stats = {"proposed": 0, "adopted": 0, "other": 0, "expired": 0, **(state.get(STATS) or {})}
+    for eid, row in state.items():
+        if eid == STATS or eid in live or row.get("verdict") != "propose":
+            continue
+        o = overrides.get(eid)
+        stats["adopted" if o and o.get("title") == row.get("title") else "other" if o else "expired"] += 1
+    return stats
+
+
+def adoption_line(stats: dict[str, Any] | None) -> str:
+    decided = sum((stats or {}).get(k, 0) for k in ("adopted", "other", "expired"))
+    return f"历史采纳 {stats['adopted']}/{decided}" if stats and decided else "尚无已决定的建议"

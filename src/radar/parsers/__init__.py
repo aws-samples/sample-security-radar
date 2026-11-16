@@ -6,7 +6,7 @@ import html
 import json
 import re
 from collections.abc import Callable
-from datetime import UTC, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import feedparser
@@ -339,8 +339,58 @@ def cve_record(body: str) -> dict[str, Any]:
             "product": aff.get("product") if aff.get("product") not in (None, "n/a") else None,
             "published": meta["published"], "assigner": meta["assigner"]}
 
+def msrc(body: str, source_id: str) -> list[RawItem]:
+    """Microsoft Security Update Guide (sug/v2.0 OData, R2.7): one row per CVE, newest revision first. `exploited` is
+    Microsoft's own "Exploitation Detected" — carried as extra.vendor_exploited (pipeline: exploited = yes), not left to
+    the text rules. The RSS feed was not used: it is the whole quarter (3.3 MB, 5,792 entries measured 2026-11-15)."""
+    out = []
+    for v in json.loads(body).get("value") or []:
+        cve = (v.get("cveNumber") or "").strip()
+        if not cve:
+            continue
+        exploited = v.get("exploited") == "Yes"
+        facts = [x for x in (v.get("severity"), v.get("impact"), v.get("tag")) if x]
+        if exploited:
+            facts.append("exploitation detected by Microsoft")
+        if v.get("publiclyDisclosed") == "Yes":
+            facts.append("publicly disclosed")
+        try:
+            cvss = float(v.get("baseScore") or "")
+        except ValueError:
+            cvss = None
+        out.append(RawItem(
+            source_id=source_id, url=f"https://msrc.microsoft.com/update-guide/vulnerability/{cve}",
+            title=f"{cve} {v.get('cveTitle') or ''}".strip(), text=" · ".join(facts),
+            published_at=timeutil.parse(v.get("releaseDate")), guid=cve,
+            extra={"cves": [cve], "vendor_exploited": exploited, "cvss": cvss, "entity": "Microsoft",
+                   "product": v.get("tag"), "revised_at": v.get("latestRevisionDate")}))
+    return out
+
+
+def broadcom(body: str, source_id: str) -> list[RawItem]:
+    """Broadcom support portal advisory list (VMSA, R2.7): {"data": {"list": [...]}} newest first. `published` is a
+    day ("28 October 2026", no zone ⇒ UTC midnight); `updated` marks a revision (VMSA-…-0006.1), which changes the
+    title, so the content hash re-hands it over."""
+    out = []
+    for v in (json.loads(body).get("data") or {}).get("list") or []:
+        doc = (v.get("documentId") or "").strip()
+        if not doc:
+            continue
+        cves = re.findall(r"CVE-\d{4}-\d{4,}", v.get("affectedCve") or "")
+        try:
+            day = datetime.strptime((v.get("published") or "").strip(), "%d %B %Y").replace(tzinfo=UTC)
+        except ValueError:
+            day = None
+        facts = [x for x in (v.get("severity"), v.get("supportProducts"), v.get("status")) if x]
+        out.append(RawItem(
+            source_id=source_id, url=v.get("notificationUrl") or "", title=(v.get("title") or doc).strip(),
+            text=" · ".join(facts), published_at=day, guid=doc,
+            extra={"cves": cves, "entity": "VMware", "product": v.get("supportProducts"), "revised_at": v.get("updated")}))
+    return out
+
+
 PARSERS: dict[str, Parser] = {
     "feed": feed, "kev": kev, "defillama": defillama, "slowmist": slowmist,
     "defihacklabs": defihacklabs, "twitterapi": twitterapi, "binance_cms": binance_cms, "rolie": rolie,
-    "zendesk": _exchanges.zendesk, "telegram": telegram, "feed_cst": feed_cst, "cvelist_delta": cvelist_delta, **{k: _exchanges.by_spec(k) for k in _exchanges.SPECS},
+    "zendesk": _exchanges.zendesk, "telegram": telegram, "feed_cst": feed_cst, "cvelist_delta": cvelist_delta, "msrc": msrc, "broadcom": broadcom, **{k: _exchanges.by_spec(k) for k in _exchanges.SPECS},
 }

@@ -107,3 +107,30 @@ describe('document language', () => {
     expect(html).toMatch(/<html lang="zh-CN">/);
   });
 });
+
+describe('R3.5 the page says when it shows only part of the matches, and loads the newest 3 months first', () => {
+  it('more than 200 matches ⇒ a notice with the count', () => {
+    const rows = Array.from({ length: 230 }, (_, k) => row(`ev_${k}`));
+    const html = renderToStaticMarkup(<MemoryRouter><SearchView months={[]} rows={rows} loaded={0} failed={[]} detailCap={500}
+      q={rows[0].t.split(' ')[0]} setQ={() => {}} /></MemoryRouter>);
+    expect(html).toContain('data-testid="search-capped"');
+    expect(html).toContain('共 230 条匹配');
+  });
+
+  it('the first batch is the newest 3 months', async () => {
+    const months = Array.from({ length: 10 }, (_, k) => ({ month: `2026-${String(12 - k).padStart(2, '0')}`, events: 1 }));
+    const asked: string[][] = [];
+    let batch: string[] = [];
+    const get = (u: string) => {
+      if (u.endsWith('index.json')) return ok({ kind: 'search-index', generated_at: 't', total: 10, months });
+      batch.push(u.split('/').pop()!.replace('.json', ''));
+      return ok({ kind: 'search-shard', events: [] });
+    };
+    const { s } = sink();
+    const sinkShards = s.shards;
+    s.shards = (r, n, f) => { asked.push(batch); batch = []; sinkShards(r, n, f); };
+    await loadSearch(get, () => true, s);
+    expect(asked[0]).toEqual(['2026-12', '2026-11', '2026-10']);
+    expect(asked[1]).toHaveLength(7);
+  });
+});

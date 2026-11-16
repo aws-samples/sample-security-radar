@@ -13,6 +13,10 @@ describe('freshness', () => {
   it('is fresh within two cycles', () => {
     expect(freshness('2026-10-23T05:50:00Z', 3, now)).toEqual({ kind: 'fresh', dataAgeSecs: 600 });
   });
+  it('says stale after 20 minutes without a publish — about twice the measured p90 gap — and not at a slow cycle', () => {
+    expect(freshness('2026-10-23T05:41:00Z', 3, now).kind).toBe('fresh');            // 19 min: one slow cycle
+    expect(freshness('2026-10-23T05:39:00Z', 3, now).kind).toBe('publish_stale');    // 21 min: it was 25 (5 missed triggers)
+  });
   it('is unknown before the first load', () => {
     expect(freshness(null, null, now)).toEqual({ kind: 'unknown' });
   });

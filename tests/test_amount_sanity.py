@@ -423,3 +423,30 @@ def test_a_dropped_headline_word_finds_a_story_only_through_the_figure():
                             "The protocol paused deposits after an oracle exploit drained $4.1 million from its vaults.",
                             datetime(2026, 9, 7, tzinfo=UTC)))       # inside the name window: a plain name would match
     assert len(store.events) == 2
+
+
+def test_a_targeted_repair_can_keep_what_the_replay_split_off():
+    """2026-11-14: repairing the 21-report FBI event, the default fold put the former agent's theft, the Binance suspect
+    and a seizure back into the largest successor ("as it was") — right for a story that lost a report, wrong for an
+    event that held several stories. --split says which it is."""
+    from pathlib import Path
+    src = (Path(__file__).parents[1] / "scripts" / "recluster_web3.py").read_text()
+    assert "if args.event and not args.split:\n        fold_strays(" in src and '"--split", action="store_true"' in src
+
+
+def test_the_attacker_losing_funds_is_not_the_victims_loss():
+    """Audit 02 Q1 #11 (reproduced): after two reports of the $6.3B Binance theft, ZachXBT's 「Binance hacker just lost
+    $2.1M of the stolen ETH to an MEV bot」 (T1) became the headline loss. Order matters: the victim losing to the hacker
+    is still the loss."""
+    assert signals.amount_mentions("Binance hacker just lost $2.1M of the stolen ETH to an MEV bot") == [(2_100_000.0, "context")]
+    assert signals.amount_mentions("Users lost $5M to the hacker") == [(5_000_000.0, "loss")]
+    assert [k for _, k in signals.amount_mentions("The exploiter stole $3M; the attacker lost $200K to MEV")] == ["loss", "context"]
+    T = datetime(2026, 10, 29, 12, tzinfo=UTC)
+    store = MemoryStore()
+    _ingest(store, _raw("panews", "币安遭黑客攻击，损失约63亿美元", "币安遭黑客攻击，热钱包损失约63亿美元。", T),
+            _raw("odaily", "币安热钱包被盗63亿美元", "据报道，币安热钱包被盗约63亿美元。", T.replace(hour=13)),
+            RawItem(source_id="x_security", url="https://x.example/zach", title="Binance hacker just lost $2.1M of the stolen "
+                    "ETH to an MEV bot", text="Binance hacker just lost $2.1M of the stolen ETH to an MEV bot.",
+                    published_at=T.replace(hour=14), guid=None, author="zachxbt", links=[], extra={}))
+    [ev] = store.events.values()
+    assert ev["amount_usd_latest"] == 6_300_000_000

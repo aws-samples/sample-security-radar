@@ -45,8 +45,8 @@ expect = tests/test_pipeline_replay.py::test_uncx_amount_dispute_is_flagged_not_
 
 [M08 KEV no longer confirms exploitation]
 file = src/radar/pipeline.py
-find = if any(i.signals["kev"] or (i.tier == "T1" and i.signals["exploited"] == "yes") for i in items):
-replace = if any(i.tier == "T1" and i.signals["exploited"] == "yes" and False for i in items):
+find = if any(i.signals["kev"] for i in items) or any(items[n].tier == "T1" for n in told):
+replace = if False:
 expect = tests/test_pipeline_replay.py::test_kev_entries_are_confirmed_and_only_fresh_ones_are_p0
 
 [M09 re-ingest treated as new content]
@@ -141,7 +141,7 @@ expect = tests/test_pipeline_replay.py::test_old_event_escalated_now_is_p0_again
 
 [M24 analysis number grounding disabled]
 file = src/radar/analyst.py
-find = if (len(plain) >= 2 or "." in plain) and plain not in src:
+find = if (len(plain) >= 2 or "." in plain) and not re.search(rf"(?<![\d.]){re.escape(plain)}(?![\d]|\.\d)", src):
 replace = if False:
 expect = tests/test_analyst.py::test_fabricated_number_is_flagged_not_dropped
 
@@ -393,8 +393,8 @@ expect = tests/test_deliver_prs.py::test_ambiguous_or_unmatched_patch_is_skipped
 
 [M66 IAM action list drifts from the calls in code (R1)]
 file = infra/stack.py
-find = SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "ListFindings", "BatchGetFindings"]
-replace = SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "BatchGetFindings"]
+find = SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "ListFindings", "BatchGetFindings",
+replace = SA_REVIEW_ACTIONS = ["CreateCodeReview", "StartCodeReviewJob", "BatchGetCodeReviewJobs", "BatchGetFindings",
 expect = tests/test_iam_scope.py::test_iam_actions_equal_the_calls_in_code
 
 [M67 Continuum context rows counted as inference units (R4)]
@@ -1534,14 +1534,14 @@ expect = tests/test_retitle_judge.py::test_each_gate_rejects_with_its_reason
 
 [M306 retitle shadow: a hedged quote passes]
 file = src/radar/retitle_judge.py
-find = if HEDGE.search(quote):
+find = if HEDGE.search(quote) or MAY.search(quote):
 replace = if False:
 expect = tests/test_retitle_judge.py::test_each_gate_rejects_with_its_reason
 
 [M307 retitle shadow: the victim prefix may be dropped]
 file = src/radar/retitle_judge.py
-find = or not title.startswith(f"{victim} — ")
-replace = or False
+find = prefixed = title.startswith(f"{victim} — ")
+replace = prefixed = True
 expect = tests/test_retitle_judge.py::test_each_gate_rejects_with_its_reason
 
 [M308 retitle shadow: one T2 report is enough]
@@ -1570,8 +1570,8 @@ expect = tests/test_retitle_judge.py::test_run_caches_per_title_and_report_count
 
 [M312 ops: a proposal for a title that has since changed is still shown]
 file = src/radar/ops.py
-find = if r.get("verdict") == "propose" and eid in titles and titles[eid] == r.get("current"):
-replace = if r.get("verdict") == "propose" and eid in titles:
+find = if eid != STATS and r.get("verdict") == "propose" and eid in titles and titles[eid] == r.get("current"):
+replace = if eid != STATS and r.get("verdict") == "propose" and eid in titles:
 expect = tests/test_retitle_judge.py::test_a_proposal_shows_in_ops_and_changes_no_title
 
 [M313 cost: title similarity is recomputed for every prefix replay (O(n³), the 300 s publish timeout)]
@@ -1588,8 +1588,8 @@ expect = tests/test_cvemeta.py::test_publish_defers_pages_it_has_no_time_for_mos
 
 [M315 publish: deferred pages are dropped instead of carried to the next run]
 file = src/radar/handlers.py
-find = changed = None if event.get("full") else set(event.get("changed") or []) | pending
-replace = changed = None if event.get("full") else set(event.get("changed") or [])
+find = changed = None if full else incoming | pending
+replace = changed = None if full else incoming
 expect = tests/test_stationtime.py::test_deferred_pages_are_published_by_the_next_run
 
 [M316 ops: a station near its timeout is not reported]
@@ -2050,14 +2050,14 @@ expect = tests/test_collect_batching.py::test_google_news_titles_lose_the_outlet
 
 [M392 plan: two cycles run at once]
 file = src/radar/handlers.py
-find = return any(x["executionArn"] != execution and x["startDate"] < me for x in running)
-replace = return False
+find = earlier = [x for x in running if x["executionArn"] != execution and x["startDate"] < me]
+replace = earlier = []
 expect = tests/test_collect_batching.py::test_a_cycle_skips_while_an_earlier_one_runs_but_a_full_publish_does_not
 
 [M393 plan: a manual full publish is skipped]
 file = src/radar/handlers.py
-find = if not full and _earlier_cycle_running(event.get("execution"), event.get("started")):
-replace = if _earlier_cycle_running(event.get("execution"), event.get("started")):
+find = other = "none" if full else _earlier_cycle_running(event.get("execution"), event.get("started"))
+replace = other = _earlier_cycle_running(event.get("execution"), event.get("started"))
 expect = tests/test_collect_batching.py::test_a_cycle_skips_while_an_earlier_one_runs_but_a_full_publish_does_not
 
 [M394 registry: a JSON announcement endpoint is parsed as RSS]
@@ -2146,8 +2146,8 @@ expect = tests/test_collect_batching.py::test_a_huge_event_of_distinct_reports_s
 
 [M409 raw: batches expire after 90 days again]
 file = infra/stack.py
-find = raw = bucket("RawBucket", lifecycle_rules=[s3.LifecycleRule(transitions=[s3.Transition(
-replace = raw = bucket("RawBucket", lifecycle_rules=[s3.LifecycleRule(expiration=Duration.days(90), transitions=[s3.Transition(
+find = raw = bucket("RawBucket", RAW_NONCURRENT_DAYS, lifecycle_rules=[s3.LifecycleRule(transitions=[s3.Transition(
+replace = raw = bucket("RawBucket", RAW_NONCURRENT_DAYS, lifecycle_rules=[s3.LifecycleRule(expiration=Duration.days(90), transitions=[s3.Transition(
 expect = tests/test_collect_batching.py::test_raw_batches_are_kept_not_expired
 
 [M410 window: a station run re-queries the whole event window on every call]
@@ -2391,7 +2391,7 @@ find = "impact": imp["status"], "affected": imp["affected"], "checked": imp["che
 replace = "impact": "not_affected" if r["status"] == "done" else imp["status"], "affected": imp["affected"], "checked": imp["checked"],
 expect = tests/test_publish.py::test_continuum_recent_says_unchecked_like_the_event_page_for_a_target_nobody_checked
 
-[M540 attach: a new event reuses an id another event holds and overwrites it]
+[M1422 attach: a new event reuses an id another event holds and overwrites it]
 file = src/radar/pipeline.py
 find = while store.get_event(eid) is not None:
 replace = while False:
@@ -2579,8 +2579,8 @@ expect = tests/test_collect_guards.py::test_a_redirect_off_the_allowlist_is_refu
 
 [M588 an allowlisted fetch goes through the default redirect-anywhere opener]
 file = src/radar/fetch.py
-find = if allow_hosts is not None:
-replace = if False:
+find = redirect = _GuardedRedirect(allow_hosts) if allow_hosts is not None else _SafeRedirect()
+replace = redirect = _SafeRedirect()
 expect = tests/test_collect_guards.py::test_a_redirect_off_the_allowlist_is_refused
 
 [M589 rolie csaf_url fetched without the host allowlist]
@@ -2673,25 +2673,25 @@ find = store.put_source_state(sh, shards[sh])
 replace = store.put_source_state(sh, {c: v for c, v in new.items() if _shard(c) == sh})
 expect = tests/test_enrich.py::test_the_epss_ledger_costs_linear_time_in_its_cves
 
-[M600 announcements: a javascript: notice URL reaches the board]
+[M1423 announcements: a javascript: notice URL reaches the board]
 file = src/radar/announcements.py
 find = if not _HTTP_URL.match(raw.url or ""):
 replace = if False:
 expect = tests/test_exchange_announcements.py::test_a_notice_url_that_is_not_http_never_reaches_the_board
 
-[M601 search: rows never say their event has a detail page]
+[M1424 search: rows never say their event has a detail page]
 file = src/radar/search.py
 find = if published:
 replace = if False:
 expect = tests/test_search.py::test_a_row_says_whether_its_event_has_a_detail_page_and_keeps_saying_it
 
-[M602 search: a later merge forgets that a page was published]
+[M1425 search: a later merge forgets that a page was published]
 file = src/radar/search.py
-find = by_id[r["id"]] = {**r, "p": True} if was is not None and was.get("p") else r
-replace = by_id[r["id"]] = r
+find = row = {**r, "p": True} if was.get("p") else dict(r)
+replace = row = dict(r)
 expect = tests/test_search.py::test_a_row_says_whether_its_event_has_a_detail_page_and_keeps_saying_it
 
-[M603 publish: the station does not tell search which detail docs it wrote]
+[M1426 publish: the station does not tell search which detail docs it wrote]
 file = src/radar/handlers.py
 find = months = _publish_search(bucket, now, published={p[len("events/"):-len(".json")] for p in docs if p.startswith("events/")})
 replace = months = _publish_search(bucket, now)
@@ -2733,7 +2733,7 @@ find = "total": sum(counts.values()), "detail_cap": Limits.PUBLISH_MAX_EVENTS}
 replace = "total": sum(counts.values())}
 expect = tests/test_search.py::test_the_index_states_the_publish_cap_so_the_ui_never_hardcodes_it
 
-[M610 Continuum patch link accepted when ".amazonaws.com/" appears anywhere in the URL]
+[M1427 Continuum patch link accepted when ".amazonaws.com/" appears anywhere in the URL]
 file = src/radar/continuum_aws.py
 find = if u.scheme != "https" or not (u.hostname or "").endswith(".amazonaws.com"):
 replace = if not url.startswith("https://") or ".amazonaws.com/" not in url:
@@ -3677,7 +3677,7 @@ expect = tests/test_notify_station.py::test_each_subscription_keeps_its_own_thre
 
 [M1115 a push-state row past the size limit is sent anyway]
 file = src/radar/notify_station.py
-find = if (n := _size(notify.record(mine, m["key"], "x" * 64))) > Limits.NOTIFY_STATE_ROW_MAX_BYTES:
+find = if (n := _size(notify.record(mine, m["key"], "x" * 64, m.get("also")))) > Limits.NOTIFY_STATE_ROW_MAX_BYTES:
 replace = if (n := 0) > 1:
 expect = tests/test_notify_station.py::test_a_state_row_that_would_pass_the_size_limit_is_refused_before_sending
 
@@ -3701,20 +3701,20 @@ expect = tests/test_notify_station.py::test_the_first_run_of_a_subscription_is_a
 
 [M1120 one failing subscription crashes the station for all]
 file = src/radar/notify_station.py
-find = except (OSError, ValueError, KeyError, fetch.FetchError) as ex:
-replace = except KeyError as ex:
+find = SEND_ERRORS = (OSError, ValueError, KeyError, fetch.FetchError)
+replace = SEND_ERRORS = (KeyError,)
 expect = tests/test_notify_station.py::test_a_failing_subscription_does_not_block_the_other
 
 [M1121 the notify station ignores its time budget]
 file = src/radar/notify_station.py
-find = elif time_left is not None and time_left() < Limits.NOTIFY_RESERVE_S:
-replace = elif False:
+find = if time_left is not None and time_left() < Limits.NOTIFY_RESERVE_S:
+replace = if False:
 expect = tests/test_notify_station.py::test_the_time_budget_stops_sending_and_the_next_run_continues
 
 [M1122 internal response state reaches a subscriber (canary)]
 file = src/radar/notify_station.py
-find = out.append(notify.view(row, bool((mit.get(e.event_id) or {}).get("plans")), prs))
-replace = out.append({**notify.view(row, bool((mit.get(e.event_id) or {}).get("plans")), prs), "raw": resp})
+find = v = notify.view(row, bool((mit.get(e.event_id) or {}).get("plans")), prs)
+replace = v = {**notify.view(row, bool((mit.get(e.event_id) or {}).get("plans")), prs), "raw": resp}
 expect = tests/test_notify_station.py::test_a_canary_internal_string_never_reaches_a_message
 
 [M1123 Notify no longer runs after Publish (B1)]
@@ -3755,8 +3755,8 @@ expect = tests/test_feeds.py::test_publish_writes_the_feeds_and_every_root_docum
 
 [M1124 a webhook answering 3xx crashes the notify station every cycle (FetchError escapes run)]
 file = src/radar/notify_station.py
-find = except (OSError, ValueError, KeyError, fetch.FetchError) as ex:
-replace = except (OSError, ValueError, KeyError) as ex:
+find = SEND_ERRORS = (OSError, ValueError, KeyError, fetch.FetchError)
+replace = SEND_ERRORS = (OSError, ValueError, KeyError)
 expect = tests/test_notify_station.py::test_a_webhook_answering_a_redirect_is_a_failed_send_not_a_crashed_station
 
 [M1125 re-enabling a paused subscription replays every fact of the pause]
@@ -4043,8 +4043,8 @@ expect = tests/test_search.py::test_a_removed_events_row_and_page_leave_the_site
 
 [M1173 search: a removed event in a month outside the window is never pruned]
 file = src/radar/handlers.py
-find = for m in sorted(set(fresh_by_month) | {r.get("m") for r in gone.values() if r.get("m")}):
-replace = for m in sorted(set(fresh_by_month)):
+find = for m in sorted(set(fresh_by_month) | {r.get("m") for r in gone.values() if r.get("m")}, reverse=True):
+replace = for m in sorted(set(fresh_by_month), reverse=True):
 expect = tests/test_search.py::test_a_removed_events_row_and_page_leave_the_site_and_a_live_again_id_keeps_its_own
 
 [M1174 search: publish prunes the same removed events every run]
@@ -4395,10 +4395,10 @@ find = return round(lag) if 0 <= lag <= Limits.LATENCY_MAX_HOURS * 60 else None
 replace = return round(lag) if 0 <= lag else None
 expect = tests/test_latency.py::test_ingest_samples_new_reports_only_and_leaves_backfills_out
 
-[M1232 latency: a report already held is sampled again on every revision]
+[M1232 latency: a backfill is sampled and a fresh report is not]
 file = src/radar/pipeline.py
 find = if (lag := latency.minutes(item.published_at, now)) is not None:
-replace = pass
+replace = if (lag := latency.minutes(item.published_at, now) or 0) == 0:
 expect = tests/test_latency.py::test_ingest_samples_new_reports_only_and_leaves_backfills_out
 
 [M1233 latency: samples older than a day stay in the summary]
@@ -4457,7 +4457,7 @@ expect = tests/test_pipeline_replay.py::test_a_report_about_someone_else_does_no
 
 [M1245 clustering: a word several web3 events hold still counts as a name (hyperliquid glued three hackers' stories)]
 file = src/radar/pipeline.py
-find = if item.domain == "web3" and not mine and len(store.event_ids_for_key(k)) >= Limits.GENERIC_NAME_EVENTS:
+find = if item.domain == "web3" and not mine and generic:
 replace = if False:
 expect = tests/test_pipeline_replay.py::test_a_word_held_by_several_events_names_none_of_them
 
@@ -4499,7 +4499,7 @@ expect = tests/test_collect_deferred.py::test_a_csaf_document_that_could_not_be_
 
 [M1252 collect: a CVE whose record failed is not kept for the next run (lost when delta.json is unchanged)]
 file = src/radar/collect.py
-find = put_off(r, missed=True)
+find = put_off(r, missed=not fetch.budget_spent(e))
 replace = pass
 expect = tests/test_collect_deferred.py::test_a_cve_whose_record_could_not_be_read_is_fetched_by_the_next_run_even_from_an_unchanged_list
 
@@ -4517,13 +4517,13 @@ expect = tests/test_collect_deferred.py::test_cves_over_the_cap_wait_in_the_pend
 
 [M1255 collect: the due slack is one minute (a source collected late in its cycle runs a cycle late)]
 file = src/radar/collect.py
-find = if last is None or now - last >= timedelta(minutes=s.cadence_min) - timedelta(minutes=Limits.CYCLE_MINUTES / 2):
-replace = if last is None or now - last >= timedelta(minutes=s.cadence_min) - timedelta(minutes=1):
+find = if last is None or now - last >= timedelta(minutes=cadence(s, st, surge)) - timedelta(minutes=Limits.CYCLE_MINUTES / 2):
+replace = if last is None or now - last >= timedelta(minutes=cadence(s, st, surge)) - timedelta(minutes=1):
 expect = tests/test_collect.py::test_a_source_collected_late_in_its_cycle_is_still_due_one_cadence_later
 
 [M1256 collect: every source is due every cycle]
 file = src/radar/collect.py
-find = if last is None or now - last >= timedelta(minutes=s.cadence_min) - timedelta(minutes=Limits.CYCLE_MINUTES / 2):
+find = if last is None or now - last >= timedelta(minutes=cadence(s, st, surge)) - timedelta(minutes=Limits.CYCLE_MINUTES / 2):
 replace = if True:
 expect = tests/test_collect.py::test_a_source_collected_late_in_its_cycle_is_still_due_one_cadence_later
 
@@ -4713,3 +4713,1222 @@ find = if dst_id and dst is None:
 replace = if False:
 expect = tests/test_moves.py::test_a_move_that_cannot_be_made_says_why
 
+[M1288 agentkit: an event id is used in a path without a check]
+file = src/radar/agentkit/client.py
+find = if not _EVENT_ID.fullmatch(event_id or ""):
+replace = if False:
+expect = tests/test_agentkit.py::test_bad_input_is_refused_with_a_code_before_anything_is_read
+
+[M1289 agentkit: credentials are sent over plain http to any host]
+file = src/radar/agentkit/client.py
+find = if u.scheme != "https" and not (u.scheme == "http" and local):
+replace = if False:
+expect = tests/test_agentkit.py::test_credentials_go_to_the_radar_only_over_https_and_never_follow_a_redirect
+
+[M1290 agentkit: a cut list reports only what it returned]
+file = src/radar/agentkit/client.py
+find = return {"generated_at": doc["generated_at"], "matched": len(rows), "returned": min(n, len(rows)),
+replace = return {"generated_at": doc["generated_at"], "matched": min(n, len(rows)), "returned": min(n, len(rows)),
+expect = tests/test_agentkit.py::test_recent_events_filter_and_say_how_many_matched
+
+[M1291 agentkit: unknown arguments are passed through to the method]
+file = src/radar/agentkit/client.py
+find = if extra or missing:
+replace = if False:
+expect = tests/test_agentkit.py::test_bad_input_is_refused_with_a_code_before_anything_is_read
+
+[M1292 agentkit: search matches any term instead of every term]
+file = src/radar/agentkit/client.py
+find = if all(t in hay for t in terms) and (not domain or e["d"] == domain) and (not severity or e["s"] == severity):
+replace = if any(t in hay for t in terms) and (not domain or e["d"] == domain) and (not severity or e["s"] == severity):
+expect = tests/test_agentkit.py::test_search_matches_every_term_and_cve_status_says_unknown
+
+[M1293 agentkit mcp: a tool error kills the answer instead of being returned]
+file = src/radar/agentkit/mcp.py
+find = return ok({"content": [{"type": "text", "text": json.dumps(e.detail, ensure_ascii=False)}], "isError": True})
+replace = raise
+expect = tests/test_agentkit.py::test_the_mcp_server_lists_the_table_as_read_only_tools_and_answers_calls
+
+[M1294 agentkit mcp: a notification is answered]
+file = src/radar/agentkit/mcp.py
+find = if mid is None:
+replace = if False:
+expect = tests/test_agentkit.py::test_the_mcp_server_lists_the_table_as_read_only_tools_and_answers_calls
+
+[M1295 api: a token without the read scope is served]
+file = src/radar/api.py
+find = if SCOPE not in str(claims.get("scope") or "").split():
+replace = if False:
+expect = tests/test_api_read.py::test_everything_else_is_refused_with_a_code
+
+[M1296 api: a scope that merely starts with the read scope is accepted]
+file = src/radar/api.py
+find = if SCOPE not in str(claims.get("scope") or "").split():
+replace = if SCOPE not in str(claims.get("scope") or ""):
+expect = tests/test_api_read.py::test_everything_else_is_refused_with_a_code
+
+[M1297 api: any object of the bucket can be read through the path]
+file = src/radar/api.py
+find = if not _PATH.fullmatch(path) or ".." in path:
+replace = if False:
+expect = tests/test_api_read.py::test_everything_else_is_refused_with_a_code
+
+[M1298 api: the path check stops at a trailing newline]
+file = src/radar/api.py
+find = if not _PATH.fullmatch(path) or ".." in path:
+replace = if not _PATH.match(path) or ".." in path:
+expect = tests/test_api_read.py::test_everything_else_is_refused_with_a_code
+
+[M1299 stack: the read route is deployed without the scope]
+file = infra/stack.py
+find = authorization_type=apigw.AuthorizationType.COGNITO, authorization_scopes=["radar/read"])
+replace = authorization_type=apigw.AuthorizationType.COGNITO)
+expect = tests/test_api_read.py::test_the_stack_gates_the_api_with_cognito_and_the_scope_and_grants_only_a_read
+
+[M1300 stack: the api Lambda can read the whole site bucket]
+file = infra/stack.py
+find = site.grant_read(api_fn, "data/*")
+replace = site.grant_read(api_fn)
+expect = tests/test_api_read.py::test_the_stack_gates_the_api_with_cognito_and_the_scope_and_grants_only_a_read
+
+[M1301 agentkit: a token is bought on every command]
+file = src/radar/agentkit/client.py
+find = if held["expires_at"] - 60 > now():
+replace = if False:
+expect = tests/test_api_read.py::test_the_client_exchanges_its_credential_once_and_caches_the_token_privately
+
+[M1302 agentkit: the token cache is world-readable]
+file = src/radar/agentkit/client.py
+find = fd = os.open(cache, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+replace = fd = os.open(cache, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+expect = tests/test_api_read.py::test_the_client_exchanges_its_credential_once_and_caches_the_token_privately
+
+[M1303 agentkit: a token is sent to the site path, which the API does not gate]
+file = src/radar/agentkit/client.py
+find = prefix = "api/" if headers.get("Authorization", "").startswith("Bearer ") else ""
+replace = prefix = ""
+expect = tests/test_api_read.py::test_a_token_reads_through_the_api_path_and_basic_auth_through_the_site
+
+[M1304 notify filters: an event without a loss figure passes a minimum loss]
+file = src/radar/notify.py
+find = if not isinstance(v.get(_BOUNDS[k]), int | float) or v[_BOUNDS[k]] < want:
+replace = if isinstance(v.get(_BOUNDS[k]), int | float) and v[_BOUNDS[k]] < want:
+expect = tests/test_notify.py::test_threshold_and_id_filters
+
+[M1305 notify filters: a disputed event passes a minimum level]
+file = src/radar/notify.py
+find = if v.get(_BOUNDS[k]) not in scale or scale.index(v[_BOUNDS[k]]) < scale.index(want):
+replace = if v.get(_BOUNDS[k]) in scale and scale.index(v[_BOUNDS[k]]) < scale.index(want):
+expect = tests/test_notify.py::test_threshold_and_id_filters
+
+[M1306 notify filters: true is accepted as a loss threshold]
+file = src/radar/notify.py
+find = if isinstance(v, bool) or not isinstance(v, int | float) or not 0 <= v < float("inf"):
+replace = if not isinstance(v, int | float) or not 0 <= v < float("inf"):
+expect = tests/test_notify.py::test_a_threshold_that_cannot_be_one_is_refused_with_a_code
+
+[M1307 subscribe: the read scope may register a webhook]
+file = src/radar/subscribe_api.py
+find = if SCOPE not in str(claims.get("scope") or "").split() or not client:
+replace = if not client:
+expect = tests/test_subscribe_api.py::test_everything_else_is_refused_with_a_code
+
+[M1308 subscribe: a client lists every client's subscriptions]
+file = src/radar/subscribe_api.py
+find = mine = [s for s in subs if s.get("owner_client") == client]
+replace = mine = list(subs)
+expect = tests/test_subscribe_api.py::test_a_client_sees_and_deletes_only_its_own
+
+[M1309 subscribe: an IP address is accepted as a webhook target]
+file = src/radar/subscribe_api.py
+find = return bad("target_is_ip", "the host must be a DNS name, not an IP address", "a DNS name")
+replace = pass
+expect = tests/test_subscribe_api.py::test_an_address_the_radar_will_not_post_to_is_refused_and_nothing_is_stored
+
+[M1310 subscribe: the per-client cap is not enforced]
+file = src/radar/subscribe_api.py
+find = if len(mine) >= Limits.SELF_SUBSCRIPTIONS_PER_CLIENT:
+replace = if False:
+expect = tests/test_subscribe_api.py::test_the_per_client_and_total_caps_hold
+
+[M1311 subscribe: listing returns the signing secret]
+file = src/radar/subscribe_api.py
+find = return {k: s.get(k) for k in ("id", "channel", "target", "filters", "created_at")}
+replace = return dict(s)
+expect = tests/test_subscribe_api.py::test_a_subscription_is_created_with_a_secret_shown_once_and_parses_for_the_station
+
+[M1312 subscribe: a stored row can make itself an owner subscription]
+file = src/radar/subscribe_api.py
+find = extra = [{**s, "channel": "webhook", "owner": False} for s in self_doc.get("subscriptions") or []
+replace = extra = [dict(s) for s in self_doc.get("subscriptions") or []
+expect = tests/test_subscribe_api.py::test_a_stored_row_cannot_make_itself_an_owner_or_another_channel_or_shadow_the_operators
+
+[M1314 notify: unreadable self-service subscriptions look like none]
+file = src/radar/notify.py
+find = if cfg.get("self_service_error"):
+replace = if False:
+expect = tests/test_subscribe_api.py::test_unreadable_self_subscriptions_are_reported_not_silently_empty
+
+[M1315 stack: the write routes accept the read scope]
+file = infra/stack.py
+find = "authorization_scopes": ["radar/subscribe"]}
+replace = "authorization_scopes": ["radar/read"]}
+expect = tests/test_api_read.py::test_the_write_routes_need_their_own_scope_and_the_writer_touches_one_secret
+
+[M1316 notify: the survivor of a merge announces itself as a new P0]
+file = src/radar/notify_station.py
+find = if to and "p0" in was["keys"]:
+replace = if False:
+expect = tests/test_notify_station.py::test_a_merged_event_is_corrected_once_in_its_thread_and_the_survivor_does_not_announce_itself_again
+
+[M1317 notify: a subscriber never told about an event is told it was withdrawn]
+file = src/radar/notify_station.py
+find = if not was.get("keys") or m["key"] in was["keys"]:
+replace = if m["key"] in (was.get("keys") or []):
+expect = tests/test_notify_station.py::test_a_withdrawn_event_is_said_withdrawn_and_someone_never_told_hears_nothing
+
+[M1318 notify: the correction is repeated every run]
+file = src/radar/notify_station.py
+find = store.put_source_state(ko, notify.record(was, m["key"], None))
+replace = pass
+expect = tests/test_notify_station.py::test_a_merged_event_is_corrected_once_in_its_thread_and_the_survivor_does_not_announce_itself_again
+
+[M1319 notify: a correction points at a successor that was itself merged away]
+file = src/radar/notify_station.py
+find = while to in led and store.get_event(to) is None and hops < 5:     # a successor that was merged away in turn
+replace = while False:
+expect = tests/test_notify_station.py::test_a_chain_of_merges_points_at_the_event_that_exists_and_old_removals_are_left_alone
+
+[M1320 notify: an event re-created by a replay is corrected as removed]
+file = src/radar/notify_station.py
+find = if (r.get("at") or "") < floor or store.get_event(eid) is not None:
+replace = if (r.get("at") or "") < floor:
+expect = tests/test_notify_station.py::test_a_chain_of_merges_points_at_the_event_that_exists_and_old_removals_are_left_alone
+
+[M1321 notify: a restated loss on the same step is pushed as an update]
+file = src/radar/notify.py
+find = return f"loss:{1 << (int(amount) // 1_000_000).bit_length() - 1}M"
+replace = return f"loss:{int(amount) // 1_000_000}M"
+expect = tests/test_notify.py::test_the_loss_step_doubles_and_small_or_missing_figures_have_none
+
+[M1322 notify: the P0 notice is followed by an update of what it just said]
+file = src/radar/notify.py
+find = keys = list(dict.fromkeys([*(sent.get("keys") or []), key, *(also or [])]))
+replace = keys = list(dict.fromkeys([*(sent.get("keys") or []), key]))
+expect = tests/test_notify.py::test_a_p0_notice_records_what_it_says_and_only_a_later_change_is_an_update
+
+[M1323 notify: updates are sent before the notice opened a thread]
+file = src/radar/notify.py
+find = if STANDING in done:   # updates belong to a thread whose notice recorded where the event stood
+replace = if True:
+expect = tests/test_notify.py::test_updates_are_for_a_p0_thread_that_exists
+
+[M1324 notify: every open P0 thread is "updated" on the first run after the deployment]
+file = src/radar/notify.py
+find = if STANDING in done:   # updates belong to a thread whose notice recorded where the event stood
+replace = if "p0" in done:
+expect = tests/test_notify.py::test_a_thread_opened_before_updates_existed_gets_none
+
+[M1325 signals: a dollar amount with a Chinese unit loses the unit ($137 万 → $137)]
+file = src/radar/signals.py
+find = \s*(k|thousand|m|mn|million|b|bn|billion|万|亿)?(?:\b|(?<=[万亿]))"
+replace = \s*(k|thousand|m|mn|million|b|bn|billion)?\b"
+expect = tests/test_keys_signals.py::test_a_dollar_sign_with_a_chinese_unit_keeps_the_unit
+
+[M1326 clustering: an agency or an attribution in the headline is a name that finds events]
+file = src/radar/pipeline.py
+find = if not a or not b or abs(a - b) > Limits.LATE_LOSS_EXACT_TOLERANCE * max(a, b):
+replace = if False:
+expect = tests/test_pipeline_replay.py::test_an_agency_or_an_attribution_in_the_headline_does_not_make_two_thefts_one
+
+[M1327 clustering: an attribution word never finds an event, so a victimless story splits per report]
+file = src/radar/pipeline.py
+find = if not a or not b or abs(a - b) > Limits.LATE_LOSS_EXACT_TOLERANCE * max(a, b):
+replace = if True:
+expect = tests/test_pipeline_replay.py::test_an_agency_or_an_attribution_in_the_headline_does_not_make_two_thefts_one
+
+[M1328 clustering: the word-plus-figure evidence is thrown away when several events hold the word]
+file = src/radar/pipeline.py
+find = generic = len(store.event_ids_for_key(k)) >= Limits.GENERIC_NAME_EVENTS and not attributed
+replace = generic = len(store.event_ids_for_key(k)) >= Limits.GENERIC_NAME_EVENTS
+expect = tests/test_pipeline_replay.py::test_an_agency_or_an_attribution_in_the_headline_does_not_make_two_thefts_one
+
+[M1329 exploitation: a digest's claim about another CVE makes the event it touches exploited]
+file = src/radar/signals.py
+find = if named & event_cves or not event_cves:
+replace = if True:
+expect = tests/test_keys_signals.py::test_an_exploitation_claim_counts_for_the_event_it_is_about
+
+[M1330 exploitation: a remark in an essay that names no vulnerability counts]
+file = src/radar/signals.py
+find = if not own_cves and head & set(re.findall(r"[A-Za-z][A-Za-z0-9]{3,}", s)) - _HEAD_COMMON:
+replace = if not own_cves:
+expect = tests/test_keys_signals.py::test_an_exploitation_claim_counts_for_the_event_it_is_about
+
+[M1331 exploitation: a digest's own CVE list counts as the event's]
+file = src/radar/pipeline.py
+find = rest = set().union(*(c for m, c in enumerate(named) if m != n)) if len(items) > 1 else named[n]
+replace = rest = set().union(*named)
+expect = tests/test_pipeline_replay.py::test_a_digest_does_not_make_the_event_it_touches_exploited
+
+[M1332 exploitation: a status table's "not found" reads as exploited in the wild]
+file = src/radar/signals.py
+find = r"|在野利用(?:状态|情况)?\s*[:：]?\s*(?:未发现|未知|暂无|无\b|否)",
+replace = r"|在野利用情况未知",
+expect = tests/test_keys_signals.py::test_a_status_table_saying_not_found_is_not_exploitation
+
+[M1333 exploitation: a claim beyond the stored text is dropped for a report about this event only]
+file = src/radar/signals.py
+find = return exploited(f"{title or ''}\n{text or ''}") != "no" and own_cves <= event_cves
+replace = return False
+expect = tests/test_keys_signals.py::test_a_claim_that_names_a_cve_counts_when_the_event_has_none_and_a_claim_beyond_the_stored_text_is_believed
+
+[M1334 recheck: the recompute report writes the recomputed events back]
+file = src/radar/recheck.py
+find = after = pipeline.recompute(Event.from_dict(ev.to_dict()), items, now)
+replace = after = pipeline.recompute(Event.from_dict(ev.to_dict()), items, now); store.put_event(after)
+expect = tests/test_recheck.py::test_a_changed_rule_lists_every_event_it_changes_with_before_and_after
+
+[M1335 recheck: a changed event is reported as unchanged]
+file = src/radar/recheck.py
+find = if fields:
+replace = if False:
+expect = tests/test_recheck.py::test_a_changed_rule_lists_every_event_it_changes_with_before_and_after
+
+[M1336 preflight: a report made for another commit passes]
+file = scripts/preflight.py
+find = if rep.get("commit") == head and not rep.get("dirty") and not rep.get("domain"):
+replace = if rep.get("commit"):
+expect = tests/test_recheck.py::test_a_judgement_change_since_the_last_deployment_needs_a_report_of_this_commit
+
+[M1337 preflight: a judgement change deploys without anyone having looked at the stored events]
+file = scripts/preflight.py
+find = elif (p := recompute_problem(ROOT)) is not None:
+replace = elif (p := None) is not None:
+expect = tests/test_recheck.py::test_the_deployment_records_what_is_live_only_after_its_checks
+
+[M1340 digest: a digest joins a story's event through one of the CVEs it lists]
+file = src/radar/pipeline.py
+find = if is_digest(item):      # a digest looks events up in its own key space only
+replace = if False:
+expect = tests/test_pipeline_replay.py::test_a_digest_never_joins_a_storys_event_and_claims_nothing_for_itself
+
+[M1341 digest: a digest lends its event the CVEs it lists]
+file = src/radar/pipeline.py
+find = if is_digest(item):      # … and lends an event nothing else
+replace = if False:
+expect = tests/test_pipeline_replay.py::test_a_digest_never_joins_a_storys_event_and_claims_nothing_for_itself
+
+[M1342 digest: a digest-only event claims exploitation]
+file = src/radar/pipeline.py
+find = exploitation = "none" if digest_only else _exploitation(ev.domain, items, level)
+replace = exploitation = _exploitation(ev.domain, items, level)
+expect = tests/test_pipeline_replay.py::test_a_digest_never_joins_a_storys_event_and_claims_nothing_for_itself
+
+[M1343 digest: a digest already in an event still counts as its evidence]
+file = src/radar/pipeline.py
+find = items = [i for i in members if not is_digest(i)] or members
+replace = items = members
+expect = tests/test_pipeline_replay.py::test_a_digest_already_in_an_event_stays_listed_but_is_evidence_for_nothing
+
+[M1344 digest: every outlet's Patch Tuesday review is its own event]
+file = src/radar/pipeline.py
+find = who = "" if kind == "patch-tuesday" else f":{item.org}"
+replace = who = f":{item.org}"
+expect = tests/test_pipeline_replay.py::test_the_same_digest_from_several_outlets_is_one_event_and_an_outlets_weekly_stays_its_own
+
+[M1345 digest: a vendor's "Security Bulletin" or a newsletter that was breached is taken for a digest]
+file = src/radar/signals.py
+find = r"\bnewsletter\s*(?:round|edition|issue|#|\d|[:–-])|\b(?:weekly|monthly|daily) (?:newsletter|recap|roundup|round-up"
+replace = r"\bnewsletter|bulletin|\b(?:weekly|monthly|daily) (?:newsletter|recap|roundup|round-up"
+expect = tests/test_pipeline_replay.py::test_digests_are_recognised_by_headline_or_by_how_they_open_and_advisories_are_not
+
+[M1347 signals: "stole" is not an incident word]
+file = src/radar/signals.py
+find = r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|stole|steals?|theft|heist|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull|drainer"
+replace = r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull|drainer"
+expect = tests/test_pipeline_replay.py::test_stole_steals_theft_and_heist_are_incident_words
+
+[M1348 token usage: a client that never read is left out of the usage list]
+file = scripts/radar-token.py
+find = rows += [{"name": n, "client_id": cid, "reads": 0, "last": ""} for n, cid in sorted(names.items()) if cid not in seen]
+replace = rows += []
+expect = tests/test_api_read.py::test_usage_names_the_clients_that_read_and_shows_the_ones_that_did_not
+
+[M1349 clustering: a report naming CVEs years apart merges their events]
+file = src/radar/pipeline.py
+find = if a.cves and b.cves and not set(a.cves) & set(b.cves) and _years_apart(a.cves, b.cves) >= Limits.MERGE_MAX_CVE_YEARS:
+replace = if False:
+expect = tests/test_pipeline_replay.py::test_a_report_naming_cves_years_apart_does_not_make_their_events_one
+
+[M1351 clustering: a multi-CVE entry lends the event it joins a CVE from another era]
+file = src/radar/pipeline.py
+find = return sorted(c for c in every if c in core or _years_apart([c], sorted(core)) < Limits.MERGE_MAX_CVE_YEARS)
+replace = return sorted(every)
+expect = tests/test_pipeline_replay.py::test_a_report_naming_cves_years_apart_does_not_make_their_events_one
+
+[M1352 latency: a P0 push is timed from the first report, not from when the event became P0]
+file = src/radar/notify_station.py
+find = v["became_at"] = max(e.first_seen or "", e.escalated_at or "")
+replace = v["became_at"] = e.first_seen or ""
+expect = tests/test_latency.py::test_a_push_is_timed_from_when_the_event_became_p0_not_from_its_first_report
+
+[M1353 subscribe: a send error's message (which can quote the target) reaches the subscriber]
+file = src/radar/subscribe_api.py
+find = **({"error": (row.get("error") or {}).get("error")} if row.get("status") == "error" else {})}
+replace = **({"error": row.get("error")} if row.get("status") == "error" else {})}
+expect = tests/test_subscribe_api.py::test_a_subscriber_sees_whether_its_webhook_is_delivered_and_nothing_of_anyone_elses
+
+[M1354 subscribe: an unreadable status reads as "not delivering"]
+file = src/radar/subscribe_api.py
+find = rows = [{**_public(s), "delivery": delivery(st, s["id"]) if unread is None else {"state": "unknown", "error": unread}}
+replace = rows = [{**_public(s), "delivery": delivery(st, s["id"])}
+expect = tests/test_subscribe_api.py::test_a_subscriber_sees_whether_its_webhook_is_delivered_and_nothing_of_anyone_elses
+
+[M1355 listing: an update today outranks severity again (the 2026-11-15 regression)]
+file = src/radar/publish.py
+find = return order[: Limits.PUBLISH_MAX_EVENTS]
+replace = return sorted(order, key=lambda e: e.last_updated >= day, reverse=True)[: Limits.PUBLISH_MAX_EVENTS]
+expect = tests/test_listing.py::test_no_listed_event_is_less_severe_than_one_left_out_over_random_windows
+
+[M1384 listing: severity no longer orders the list]
+file = src/radar/publish.py
+find = order.sort(key=lambda e: -SEVERITY_ORDER[e.severity])               # … within severity (stable sort), P0 on top
+replace = pass
+expect = tests/test_listing.py::test_severity_wins_over_recency_and_today_leads_each_severity
+
+[M1356 listing: the funnel counts the cut list, not the window]
+file = src/radar/publish.py
+find = p0=sum(1 for e in window if e.severity == "P0"), now=now)
+replace = p0=sum(1 for e in evs if e.severity == "P0"), now=now)
+expect = tests/test_listing.py::test_the_document_counts_the_window_before_the_cut_and_validates
+
+[M1357 overlap: a cycle skips while the earlier one only processes (half the triggers lost)]
+file = src/radar/handlers.py
+find = if not entered & POST_COLLECT_STATES:
+replace = if True:
+expect = tests/test_collect_batching.py::test_a_cycle_collects_while_an_earlier_one_processes_and_stops_before_process
+
+[M1358 overlap: a cycle collects next to one that is still collecting]
+file = src/radar/handlers.py
+find = return "collecting"
+replace = continue
+expect = tests/test_collect_batching.py::test_a_cycle_collects_while_an_earlier_one_processes_and_stops_before_process
+
+[M1359 process: one raw line that does not parse fails the whole run again]
+file = src/radar/handlers.py
+find = except (ValueError, TypeError, KeyError) as e:
+replace = except ZeroDivisionError as e:
+expect = tests/test_collect_batching.py::test_a_line_that_does_not_parse_is_skipped_and_counted_not_a_failed_run_forever
+
+[M1360 process: skipped raw lines are not counted on #/ops]
+file = src/radar/handlers.py
+find = _store.put_source_state(RAW_BAD_KEY, dict(sorted(led.items(), key=lambda kv: kv[1]["at"])[-50:]))
+replace = pass
+expect = tests/test_collect_batching.py::test_a_line_that_does_not_parse_is_skipped_and_counted_not_a_failed_run_forever
+
+
+[M1361 a collect-only cycle runs Process anyway (R2.2)]
+file = infra/stack.py
+find = cycle = fan_out.next(collected_only.otherwise(rest))
+replace = cycle = fan_out.next(rest)
+expect = tests/test_notify_stack.py::test_notify_runs_after_publish_in_the_cycle
+
+[M1362 a redirect may downgrade https to http (R2.8)]
+file = src/radar/fetch.py
+find = "https → http downgrade" if old.scheme.lower() == "https" and scheme == "http" else
+replace = "https → http downgrade" if False else
+expect = tests/test_fetch_redirects.py::test_a_redirect_the_general_policy_refuses
+
+[M1363 a redirect may reach an internal address (R2.8)]
+file = src/radar/fetch.py
+find = "internal address" if _internal_host(new.hostname or "") else "")
+replace = "internal address" if False else "")
+expect = tests/test_fetch_redirects.py::test_a_redirect_the_general_policy_refuses
+
+[M1364 a name that resolves to a private address passes (R2.8)]
+file = src/radar/fetch.py
+find = return any(bad(r[4][0]) for r in socket.getaddrinfo(h, None))
+replace = return False
+expect = tests/test_fetch_redirects.py::test_a_redirect_the_general_policy_refuses
+
+[M1365 a fetch without an allowlist follows any redirect again (R2.8)]
+file = src/radar/fetch.py
+find = redirect = _GuardedRedirect(allow_hosts) if allow_hosts is not None else _SafeRedirect()
+replace = redirect = _GuardedRedirect(allow_hosts) if allow_hosts is not None else urllib.request.HTTPRedirectHandler()
+expect = tests/test_fetch_redirects.py::test_every_open_without_an_allowlist_carries_the_general_policy
+
+[M1366 a firecrawl answer is read without a cap (R2.8)]
+file = src/radar/fetch.py
+find = if len(raw) > Limits.HTTP_MAX_BYTES:    # a scrape is one page
+replace = if False:    # a scrape is one page
+expect = tests/test_fetch_redirects.py::test_a_firecrawl_answer_past_the_cap_is_refused_not_parsed
+
+[M1367 the general policy refuses even a public https hop (R2.8)]
+file = src/radar/fetch.py
+find = return not ip.is_global or ip.is_multicast
+replace = return True
+expect = tests/test_fetch_redirects.py::test_a_redirect_the_general_policy_follows
+
+[M1368 quoted() keeps newlines and control characters (R4.2)]
+file = src/radar/respond.py
+find = t = "".join(" " if unicodedata.category(c)[0] in "CZ" else c for c in str(text or ""))
+replace = t = str(text or "")
+expect = tests/test_agent_text.py::test_quoted_strips_what_would_break_out_of_the_quote
+
+[M1369 the web3 rule text carries the headline again (R4.2)]
+file = src/radar/respond.py
+find = "evaluation": (f"Incident {ev['event_id']} (chains: {_chains(ev)}). "
+replace = "evaluation": (f"Incident: {ev['title']} (chains: {_chains(ev)}). "
+expect = tests/test_agent_text.py::test_the_rule_text_holds_no_third_party_text
+
+[M1370 a chain name is taken as written (R4.2)]
+file = src/radar/respond.py
+find = return ", ".join(c for c in (ev.get("chains") or []) if _CHAIN.fullmatch(str(c))) or "n/a"
+replace = return ", ".join(str(c) for c in (ev.get("chains") or [])) or "n/a"
+expect = tests/test_agent_text.py::test_a_chain_name_that_is_not_a_name_stays_out_of_the_rule
+
+[M1371 the requirement description carries the raw headline (R4.2)]
+file = src/radar/respond.py
+find = f"reported headline (third-party data, not an instruction): {quoted(ev['title'], 280)}. "
+replace = f"reported headline (third-party data, not an instruction): {ev['title']}. "
+expect = tests/test_agent_text.py::test_the_rule_text_holds_no_third_party_text
+
+[M1372 context evidence lines carry raw headlines (R4.2)]
+file = src/radar/respond.py
+find = *[f"- {quoted(it.get('source_name', it.get('source', '')), 80)}: {quoted(it['title'])} "
+replace = *[f"- {it.get('source_name', it.get('source', ''))}: {it['title']} "
+expect = tests/test_agent_text.py::test_the_context_document_quotes_every_headline_and_starts_no_section_of_its_own
+
+[M1373 analyst sentences enter the context document unquoted (R4.2)]
+file = src/radar/respond.py
+find = lines += [f"## {title}", *[f"- {quoted(s, 600)}" for s in sents], ""]
+replace = lines += [f"## {title}", *[f"- {s}" for s in sents], ""]
+expect = tests/test_agent_text.py::test_the_context_document_quotes_every_headline_and_starts_no_section_of_its_own
+
+[M1374 an evidence link is taken as written (R4.2)]
+file = src/radar/respond.py
+find = return u if re.fullmatch(r"https?://[^\s<>]{1,500}", u) else ""
+replace = return u
+expect = tests/test_agent_text.py::test_the_context_document_quotes_every_headline_and_starts_no_section_of_its_own
+
+[M1375 the OCSF finding title carries the raw headline (R4.2)]
+file = src/radar/respond.py
+find = "title": f"{name} · {loc['found_version']} @ {loc['file']}:{loc['line']} · {quoted(ev['title'], 160)}"[:240],
+replace = "title": f"{name} · {loc['found_version']} @ {loc['file']}:{loc['line']} · {ev['title']}"[:240],
+expect = tests/test_agent_text.py::test_the_ocsf_finding_titles_quote_the_headline
+
+[M1376 the WAF rule never pins the minimum version (R4.2)]
+file = src/radar/mitigate.py
+find = if plan.min_version and default_version and version_key(default_version) < version_key(plan.min_version):
+replace = if False:
+expect = tests/test_mitigate_station.py::test_a_default_older_than_the_plan_pins_the_minimum_version_and_a_new_enough_one_does_not
+
+[M1377 the WAF rule pins the minimum version even when the default is new enough (R4.2)]
+file = src/radar/mitigate.py
+find = if plan.min_version and default_version and version_key(default_version) < version_key(plan.min_version):
+replace = if plan.min_version:
+expect = tests/test_mitigate_station.py::test_a_default_older_than_the_plan_pins_the_minimum_version_and_a_new_enough_one_does_not
+
+[M1378 the station does not pass the group's default version to the writer (R4.2)]
+file = src/radar/mitigate_station.py
+find = {g: m.get("default_version") for g, m in meta.items()})
+replace = {})
+expect = tests/test_mitigate_station.py::test_a_default_older_than_the_plan_pins_the_minimum_version_and_a_new_enough_one_does_not
+
+[M1379 every review start creates a new review (R4.2)]
+file = src/radar/continuum_aws.py
+find = cr_id = _unstarted_review(sa, space, title)
+replace = cr_id = None
+expect = tests/test_review_start.py::test_a_start_that_failed_after_the_create_is_retried_on_the_same_review
+
+[M1380 a review that already ran is reused (R4.2)]
+file = src/radar/continuum_aws.py
+find = if not jobs.get("codeReviewJobSummaries"):
+replace = if True:
+expect = tests/test_review_start.py::test_a_review_that_already_ran_is_history_and_a_new_one_is_created
+
+[M1381 only the first page of reviews is read (R4.2)]
+file = src/radar/continuum_aws.py
+find = for _ in range(Limits.REVIEW_LIST_MAX_PAGES):
+replace = for _ in range(1):
+expect = tests/test_review_start.py::test_the_unstarted_review_is_found_past_the_first_page_and_only_by_its_own_title
+
+[M1382 Publish may write anywhere in the site bucket again (R5.4)]
+file = infra/stack.py
+find = site.grant_put(publish_fn, "data/*")
+replace = site.grant_put(publish_fn)
+expect = tests/test_iam_scope.py::test_publish_writes_only_site_data_and_its_code_writes_nowhere_else
+
+[M1383 a publish write lands outside data/ (R5.4)]
+file = src/radar/handlers.py
+find = _s3.put_object(Bucket=bucket, Key="data/search/index.json"
+replace = _s3.put_object(Bucket=bucket, Key="search/index.json"
+expect = tests/test_iam_scope.py::test_publish_writes_only_site_data_and_its_code_writes_nowhere_else
+
+[M1385 buckets are no longer versioned (R5.5)]
+file = infra/stack.py
+find = encryption=s3.BucketEncryption.S3_MANAGED, enforce_ssl=True, versioned=True,
+replace = encryption=s3.BucketEncryption.S3_MANAGED, enforce_ssl=True,
+expect = tests/test_recovery.py::test_every_bucket_is_versioned_and_its_old_versions_expire
+
+[M1386 noncurrent versions are kept for ever (R5.5)]
+file = infra/stack.py
+find = id="noncurrent", noncurrent_version_expiration=Duration.days(noncurrent_days),
+replace = id="noncurrent",
+expect = tests/test_recovery.py::test_every_bucket_is_versioned_and_its_old_versions_expire
+
+[M1387 the site keeps months of rewritten documents (R5.5)]
+file = infra/stack.py
+find = SITE_NONCURRENT_DAYS = 7
+replace = SITE_NONCURRENT_DAYS = 60
+expect = tests/test_recovery.py::test_every_bucket_is_versioned_and_its_old_versions_expire
+
+[M1388 the table loses deletion protection (R5.5)]
+file = infra/stack.py
+find = deletion_protection=not ephemeral,
+replace = deletion_protection=False,
+expect = tests/test_recovery.py::test_the_table_cannot_be_deleted_by_a_stack_delete_or_a_slip
+
+[M1389 restore: a key created after the moment is kept (R5.5)]
+file = src/radar/restore.py
+find = out.append(Step(key, "delete"))
+replace = continue
+expect = tests/test_restore.py::test_the_plan_brings_back_what_was_current_at_the_moment
+
+[M1390 restore: a delete marker counts as the object (R5.5)]
+file = src/radar/restore.py
+find = then_obj = None if then is None or then["marker"] else then
+replace = then_obj = then
+expect = tests/test_restore.py::test_the_plan_brings_back_what_was_current_at_the_moment
+
+[M1391 restore: a version written after the moment counts (R5.5)]
+file = src/radar/restore.py
+find = live = [r for r in rows if at is None or r["LastModified"] <= at]
+replace = live = list(rows)
+expect = tests/test_restore.py::test_a_moment_before_the_key_existed_and_a_moment_exactly_on_a_write
+
+[M1392 restore script: applies on an unversioned bucket (R5.5)]
+file = scripts/restore.py
+find = if args.apply and s3.get_bucket_versioning(Bucket=bucket).get("Status") != "Enabled":
+replace = if False:
+expect = tests/test_recovery.py::test_the_restore_script_knows_the_same_windows_as_the_stack
+
+[M1393 restore script: the site window drifts from the stack (R5.5)]
+file = scripts/restore.py
+find = WINDOW_DAYS = {"site": 7, "raw": 30, "code": 30}
+replace = WINDOW_DAYS = {"site": 30, "raw": 30, "code": 30}
+expect = tests/test_recovery.py::test_the_restore_script_knows_the_same_windows_as_the_stack
+
+[M1394 every search shard is rewritten every cycle again (R2.6)]
+file = src/radar/handlers.py
+find = if rows == old:
+replace = if False:
+expect = tests/test_search.py::test_a_shard_whose_rows_did_not_change_is_not_rewritten
+
+[M1395 an oversized row goes to DynamoDB anyway (R5.3)]
+file = src/radar/dynamo.py
+find = if n > Limits.ROW_MAX_BYTES:
+replace = if False:
+expect = tests/test_row_size.py::test_every_write_path_is_gated
+
+[M1396 a row past the warning line is not noted (R5.3)]
+file = src/radar/dynamo.py
+find = self.near_limit[key] = n
+replace = pass
+expect = tests/test_row_size.py::test_every_write_path_is_gated
+
+[M1397 response rows bypass the size gate (R5.3)]
+file = src/radar/dynamo.py
+find = "d": self._sized(f"EVENT#{event_id}/RESPONSE", json.dumps(state))})
+replace = "d": json.dumps(state)})
+expect = tests/test_row_size.py::test_every_write_path_is_gated
+
+[M1398 a station run does not flush the noted rows (R5.3)]
+file = src/radar/handlers.py
+find = _record_row_sizes(station)
+replace = pass
+expect = tests/test_row_size.py::test_every_timed_station_run_flushes_what_it_noted
+
+[M1399 the row-size rule never fires (R5.3)]
+file = src/radar/ops.py
+find = rows = f.get("row_sizes") or []
+replace = rows = []
+expect = tests/test_ops.py::test_each_rule_fires_on_its_fact
+
+[M1400 the change list is recorded only after a successful publish (R5.2)]
+file = src/radar/handlers.py
+find = if (full and not led.get("full")) or incoming - pending:
+replace = if False:
+expect = tests/test_publish_pending.py::test_a_publish_that_dies_keeps_the_change_list_and_the_next_one_publishes_it
+
+[M1401 a failed full publish is forgotten (R5.2)]
+file = src/radar/handlers.py
+find = full = bool(event.get("full") or led.get("full"))
+replace = full = bool(event.get("full"))
+expect = tests/test_publish_pending.py::test_a_full_publish_that_dies_makes_the_next_one_full
+
+[M1402 a Bedrock call past the daily cap is made anyway (R5.6)]
+file = src/radar/llm.py
+find = if gate is not None and not gate(model):
+replace = if False:
+expect = tests/test_daily_cap.py::test_past_the_daily_cap_the_call_is_not_made_and_ops_says_so
+
+[M1403 the daily counter is per run, not atomic in the table (R5.6)]
+file = src/radar/dynamo.py
+find = UpdateExpression="ADD n :n SET #t = if_not_exists(#t, :t)",
+replace = UpdateExpression="SET n = :n, #t = if_not_exists(#t, :t)",
+expect = tests/test_daily_cap.py::test_the_dynamo_counter_is_atomic_per_day_and_kind
+
+[M1404 the Lambda handlers do not install the gate (R5.6)]
+file = src/radar/handlers.py
+find = _llm.gate = _bedrock_gate
+replace = pass
+expect = tests/test_daily_cap.py::test_the_lambda_handlers_install_the_gate
+
+[M1405 the daily-cap rule never fires (R5.6)]
+file = src/radar/ops.py
+find = if kind.startswith("bedrock:") and n > (cap := llm.daily_cap(kind.split(":", 1)[1])):
+replace = if False and (cap := 0):
+expect = tests/test_ops.py::test_each_rule_fires_on_its_fact
+
+[M1406 raw markers never expire (R5.3)]
+file = src/radar/dynamo.py
+find = "ttl": _expires(Limits.RAW_MARKER_TTL_DAYS)})
+replace = })
+expect = tests/test_daily_cap.py::test_raw_markers_and_spend_counters_expire_and_the_table_reads_ttl
+
+[M1407 the table has no TTL attribute (R5.3)]
+file = infra/stack.py
+find = time_to_live_attribute="ttl",
+replace = time_to_live_attribute=None,
+expect = tests/test_daily_cap.py::test_raw_markers_and_spend_counters_expire_and_the_table_reads_ttl
+
+[M1408 Publish stops writing the freshness beacon (R3.3)]
+file = src/radar/publish.py
+find = docs: dict[str, dict[str, Any]] = {"status.json": {"kind": "status", "generated_at": timeutil.iso(now)},
+replace = docs: dict[str, dict[str, Any]] = {
+expect = tests/test_feeds.py::test_publish_writes_the_feeds_and_every_root_document_carries_schema_version
+
+[M1409 version.json is synced with the year-long immutable header (R3.3)]
+file = scripts/deploy-ui.sh
+find = --exclude "index.html" --exclude "version.json" --cache-control
+replace = --exclude "index.html" --cache-control
+expect = tests/test_deploy_ui.py::test_version_json_is_uploaded_no_cache_and_invalidated_never_immutable
+
+[M1413 the secret scan misses GitHub tokens (R6.4)]
+file = scripts/secret_scan.py
+find = "github_token": r"\b(?:ghp|gho|ghs|ghu)_[A-Za-z0-9]{36}\b|\bgithub_pat_[A-Za-z0-9_]{60,}",
+replace = "github_token": r"(?!x)x",
+expect = tests/test_secret_scan.py::test_every_listed_shape_is_caught_by_name_without_its_value
+
+
+[M1414 a mutant red only through a NameError counts as red again (R8.6)]
+file = tests/conftest.py
+find = return bool(messages) and all(crash(m) for m in messages)
+replace = return False
+expect = tests/test_mutation_strict.py
+
+[M1416 a negated cause passes the title gates (R1.7)]
+file = src/radar/retitle_judge.py
+find = if any(re.search(NEGATED + r"[^.;。；]{0,40}?" + re.escape(_norm(t)), _norm(quote)) for t in terms):
+replace = if False:
+expect = tests/test_retitle_judge.py::test_r1_7_a_negated_cause_a_month_and_a_title_without_prefix
+
+[M1417 "May" the month is a hedge again (R1.7)]
+file = src/radar/retitle_judge.py
+find = MAY = re.compile(r"\bmay\b|\bMay\s+(?:have|be|not|also|still|well|been)\b")
+replace = MAY = re.compile(r"\bmay\b", re.IGNORECASE)
+expect = tests/test_retitle_judge.py::test_r1_7_a_negated_cause_a_month_and_a_title_without_prefix
+
+[M1418 a title without a victim prefix can never get a proposal (R1.7)]
+file = src/radar/retitle_judge.py
+find = prefixed = bool(victim) and _norm(victim) in _norm(ev.title)
+replace = prefixed = False
+expect = tests/test_retitle_judge.py::test_r1_7_a_negated_cause_a_month_and_a_title_without_prefix
+
+[M1419 an adopted proposal is not counted (R1.7)]
+file = src/radar/retitle_judge.py
+find = stats["adopted" if o and o.get("title") == row.get("title") else "other" if o else "expired"] += 1
+replace = stats["other" if o else "expired"] += 1
+expect = tests/test_retitle_judge.py::test_r1_7_what_became_of_each_proposal_is_counted_once
+
+[M1420 the attacker losing funds reads as the victim's loss again (R1.4)]
+file = src/radar/signals.py
+find = if _ATTACKER_LOSS.search(span):
+replace = if False:
+expect = tests/test_amount_sanity.py::test_the_attacker_losing_funds_is_not_the_victims_loss
+
+[M1428 a guard that skips for a missing tool passes CI again (R6.3)]
+file = tests/conftest.py
+find = return any(t in reason for t in TOOL_SKIP)
+replace = return False
+expect = tests/test_mutation_strict.py::test_a_tool_skip_fails_in_ci_and_other_skips_do_not
+
+[M1430 a failing source is asked every run again (R2.5)]
+file = src/radar/collect.py
+find = if f >= Limits.SOURCE_BACKOFF_AFTER:
+replace = if False:
+expect = tests/test_source_backoff.py::test_the_interval_doubles_from_the_third_failure_and_is_capped
+
+[M1431 a backed-off source has no ceiling (R2.5)]
+file = src/radar/collect.py
+find = return float(min(Limits.SOURCE_BACKOFF_MAX_MIN, s.cadence_min * 2 ** (f - Limits.SOURCE_BACKOFF_AFTER + 1)))
+replace = return float(s.cadence_min * 2 ** (f - Limits.SOURCE_BACKOFF_AFTER + 1))
+expect = tests/test_source_backoff.py::test_the_interval_doubles_from_the_third_failure_and_is_capped
+
+[M1432 Retry-After is ignored by due() (R2.5)]
+file = src/radar/collect.py
+find = if hold is not None and now < hold:      # the server said when to come back (429 / 503 Retry-After)
+replace = if False:
+expect = tests/test_source_backoff.py::test_retry_after_holds_the_source_until_then
+
+[M1433 a 429's Retry-After is not stored (R2.5)]
+file = src/radar/collect.py
+find = st["retry_after_until"] = timeutil.iso(now + timedelta(seconds=min(ra, Limits.RETRY_AFTER_MAX_S)))
+replace = pass
+expect = tests/test_source_backoff.py::test_a_429_with_retry_after_is_stored_capped_and_a_success_clears_it
+
+[M1434 the fallback quota is spent back to back again (R2.5)]
+file = src/radar/collect.py
+find = return used < Limits.FEED_FIRECRAWL_FALLBACKS_PER_DAY and (last is None or now - last >= gap)
+replace = return used < Limits.FEED_FIRECRAWL_FALLBACKS_PER_DAY
+expect = tests/test_source_backoff.py::test_the_fallback_quota_is_spaced_over_the_day
+
+[M1435 a backed-off source reads as overdue (R2.5)]
+file = src/radar/publish.py
+find = limit = max(Limits.SOURCE_OVERDUE_CADENCES * cadence(s, st), Limits.SOURCE_OVERDUE_MIN_MINUTES)
+replace = limit = max(Limits.SOURCE_OVERDUE_CADENCES * s.cadence_min, Limits.SOURCE_OVERDUE_MIN_MINUTES)
+expect = tests/test_source_backoff.py::test_a_backed_off_or_held_source_is_not_reported_as_overdue
+
+[M1436 a target directory may climb out of integrations/ (R4.7)]
+file = src/radar/targets.py
+find = if not isinstance(r.get("dir"), str) or not _ID.fullmatch(r["dir"]):
+replace = if not isinstance(r.get("dir"), str):
+expect = tests/test_targets_data.py::test_a_bad_row_is_refused_with_its_field
+
+[M1437 an unknown channel is accepted (R4.7)]
+file = src/radar/targets.py
+find = if r.get("channel") not in CHANNELS:
+replace = if False:
+expect = tests/test_targets_data.py::test_a_bad_row_is_refused_with_its_field
+
+[M1438 two targets may share an id (R4.7)]
+file = src/radar/targets.py
+find = if tid in seen:
+replace = if False:
+expect = tests/test_targets_data.py::test_duplicates_and_an_empty_list_are_refused
+
+[M1439 a big event's brief is cut oldest-first again (R1.8)]
+file = src/radar/analyst.py
+find = picks = [i for i in order if cut[i]["item_id"] in structured] + order[:1]
+replace = picks = list(order)
+expect = tests/test_analyst.py::test_r1_8_a_big_event_is_briefed_from_its_records_first_report_and_newest_per_tier
+
+[M1440 a number is grounded inside a longer one again (R1.8)]
+file = src/radar/analyst.py
+find = (?<![\d.]){re.escape(plain)}(?![\d]|\.\d)
+replace = {re.escape(plain)}
+expect = tests/test_analyst.py::test_r1_8_a_number_is_grounded_only_as_a_whole_number
+
+[M1441 the analyst ignores structured records when cutting (R1.8)]
+file = src/radar/handlers.py
+find = ev_in = analyst.trim_evidence(_evidence(ev), _structured_ids(ev))
+replace = ev_in = analyst.trim_evidence(_evidence(ev))
+expect = tests/test_analyst.py::test_r1_8_the_analyze_station_keeps_a_structured_record_in_a_big_events_brief
+
+[M1442 the X window ignores the last success (R2.4)]
+file = src/radar/fetch.py
+find = minutes = max(2 * cadence_min, (since_minutes or 0) + cadence_min)
+replace = minutes = 2 * cadence_min
+expect = tests/test_x_window.py::test_the_window_reaches_back_to_the_last_success_and_is_capped
+
+[M1443 a cut X search is not said (R2.4)]
+file = src/radar/fetch.py
+find = truncated = True                 # pages left
+replace = truncated = False                 # pages left
+expect = tests/test_x_window.py::test_a_search_the_page_limit_cut_says_so
+
+[M1444 Chinese daily round-ups are stories again (R1.6)]
+file = src/radar/signals.py
+find = r"|每日(?:安全)?(?:动态|简讯|简报|资讯|速递|推送|情报)|安全(?:动态|资讯)(?:推送|汇总|速递)"
+replace = r""
+expect = tests/test_keys_signals.py::test_r1_6_chinese_daily_roundups_are_digests
+
+[M1445 surge never speeds a T1 source up (R2.3)]
+file = src/radar/collect.py
+find = if surge and s.tier == "T1" and s.parser != "twitterapi" and s.via != "firecrawl":   # paid paths are not doubled
+replace = if False:
+expect = tests/test_cadence.py::test_surge_halves_a_free_t1_source_but_never_a_paid_one
+
+[M1446 surge doubles paid X requests (R2.3)]
+file = src/radar/collect.py
+find = if surge and s.tier == "T1" and s.parser != "twitterapi" and s.via != "firecrawl":   # paid paths are not doubled
+replace = if surge and s.tier == "T1":
+expect = tests/test_cadence.py::test_surge_halves_a_free_t1_source_but_never_a_paid_one
+
+[M1447 an idle source is asked as often as a busy one (R2.3)]
+file = src/radar/collect.py
+find = if len(days) >= 14 and recent and not any(days[d] for d in recent) and s.cadence_min < Limits.SOURCE_IDLE_MAX_MIN:
+replace = if False:
+expect = tests/test_cadence.py::test_a_week_of_nothing_doubles_the_interval_but_a_short_history_does_not
+
+[M1448 a source with a short history is backed off as idle (R2.3)]
+file = src/radar/collect.py
+find = if len(days) >= 14 and recent and not any(days[d] for d in recent) and s.cadence_min < Limits.SOURCE_IDLE_MAX_MIN:
+replace = if recent and not any(days[d] for d in recent) and s.cadence_min < Limits.SOURCE_IDLE_MAX_MIN:
+expect = tests/test_cadence.py::test_a_week_of_nothing_doubles_the_interval_but_a_short_history_does_not
+
+[M1449 Plan does not read the surge flag (R2.3)]
+file = src/radar/handlers.py
+find = states = _store.get_source_states([*BY_ID, collect.SURGE_KEY])
+replace = states = _store.get_source_states(list(BY_ID))
+expect = tests/test_cadence.py::test_plan_reads_the_surge_flag_with_the_source_states
+
+[M1450 an old P0 keeps the radar in surge (R2.3)]
+file = src/radar/handlers.py
+find = if at is not None and at >= now - timedelta(hours=Limits.SURGE_HOURS):
+replace = if at is not None:
+expect = tests/test_cadence.py::test_publish_writes_the_surge_flag_from_a_recent_p0_and_plan_reads_it
+
+[M1451 the functions may Scan the table again (R5.4)]
+file = infra/stack.py
+find = TABLE_ACTIONS = ["GetItem", "BatchGetItem", "Query", "PutItem", "UpdateItem", "DeleteItem", "BatchWriteItem"]
+replace = TABLE_ACTIONS = ["GetItem", "BatchGetItem", "Query", "PutItem", "UpdateItem", "DeleteItem", "BatchWriteItem", "Scan"]
+expect = tests/test_iam_scope.py::test_the_functions_get_exactly_the_table_actions_the_store_uses_and_no_scan
+
+[M1452 the grant misses an operation the store uses (R5.4)]
+file = infra/stack.py
+find = TABLE_ACTIONS = ["GetItem", "BatchGetItem", "Query", "PutItem", "UpdateItem", "DeleteItem", "BatchWriteItem"]
+replace = TABLE_ACTIONS = ["GetItem", "BatchGetItem", "PutItem", "UpdateItem", "DeleteItem", "BatchWriteItem"]
+expect = tests/test_iam_scope.py::test_the_functions_get_exactly_the_table_actions_the_store_uses_and_no_scan
+
+[M1453 cdk-nag is exempted for the whole stack again (R5.4)]
+file = infra/nag.py
+find = NagSuppressions.add_resource_suppressions_by_path(
+replace = NagSuppressions.add_stack_suppressions(s, [], apply_to_nested_stacks=True) or NagSuppressions.add_resource_suppressions_by_path(
+expect = tests/test_nag_findings.py::test_exemptions_are_per_resource_never_per_stack
+
+[M1454 the findings parser misses IAM findings (R5.4)]
+file = scripts/nag_findings.py
+find = _HEAD = re.compile(r"^(?:ERROR|WARNING) (AwsSolutions-[A-Z0-9]+)(?:\[[^\]]*\])?:")
+replace = _HEAD = re.compile(r"^(?:ERROR|WARNING) (AwsSolutions-[A-Z0-9]+):")
+expect = tests/test_nag_findings.py::test_the_findings_parser_reads_both_finding_shapes
+
+[M1455 a confirmed attack tx never updates the P0 thread (R4.3)]
+file = src/radar/notify.py
+find = if v.get("tx_confirmed"):        # R4.3
+replace = if False:        # R4.3
+expect = tests/test_notify.py::test_r4_3_an_attack_tx_confirmed_on_chain_updates_the_p0_thread_once_per_count
+
+[M1456 a thread opened after the confirmation is told it again (R4.3)]
+file = src/radar/notify.py
+find = f"tx:{v['tx_confirmed']}" if v.get("tx_confirmed") else None,
+replace = None,
+expect = tests/test_notify.py::test_r4_3_an_attack_tx_confirmed_on_chain_updates_the_p0_thread_once_per_count
+
+[M1457 the published row counts every attack tx as confirmed (R4.3)]
+file = src/radar/publish.py
+find = "tx_confirmed": sum(1 for t in ev.tx or [] if t.get("verified") == "confirmed"),
+replace = "tx_confirmed": len(ev.tx or []),
+expect = tests/test_notify.py::test_r4_3_the_published_row_counts_only_confirmed_attack_transactions
+
+[M1458 the kinds filter is ignored (R4.4)]
+file = src/radar/notify_station.py
+find = msgs = [m for m in notify.plan(v, mine, site_url) if notify.wanted(s.filters, m)]   # R4.4: kinds filter
+replace = msgs = notify.plan(v, mine, site_url)
+expect = tests/test_notify_station.py::test_r4_4_a_kinds_filter_is_applied_by_the_station
+
+[M1459 a WAF pack is never told (R4.4)]
+file = src/radar/notify.py
+find = if v.get("has_waf_pack"):         # R4.4
+replace = if False:         # R4.4
+expect = tests/test_notify.py::test_r4_4_waf_and_not_affected_reach_an_existing_p0_thread_once_and_kinds_filter_messages
+
+[M1460 a pack that predates the thread is told as news (R4.4)]
+file = src/radar/notify.py
+find = "waf" if v.get("has_waf_pack") else None,
+replace = None,
+expect = tests/test_notify.py::test_r4_4_waf_and_not_affected_reach_an_existing_p0_thread_once_and_kinds_filter_messages
+
+[M1461 the kinds filter rejects every event (R4.4)]
+file = src/radar/notify.py
+find = if k == "kinds":                      # a message filter (wanted), not an event filter
+replace = if k == "kinds_never":                      # a message filter (wanted), not an event filter
+expect = tests/test_notify.py::test_r4_4_waf_and_not_affected_reach_an_existing_p0_thread_once_and_kinds_filter_messages
+
+[M1462 the WAF changelog is read once a day again (R4.5)]
+file = src/radar/mitigate_station.py
+find = else at is None or now - at >= timedelta(hours=Limits.WAF_CHANGELOG_REFRESH_H))
+replace = else cat.get("fetched_on") != today)
+expect = tests/test_mitigate_station.py::test_r4_5_the_waf_changelog_is_re_read_every_few_hours_not_once_a_day
+
+[M1463 industry statistics are stories again (R1.3)]
+file = src/radar/signals.py
+find = r"|累计损失|行业(?:累计|全年|总)?损失|自\s*20\d\d\s*年(?:以)?来|首超链上收入"
+replace = r""
+expect = tests/test_keys_signals.py::test_r1_3_industry_statistics_are_digests_and_incidents_are_not
+
+[M1464 exemptions are applied to stacks they do not belong to (R5.4)]
+file = infra/nag.py
+find = if path.startswith(f"/{s.stack_name}/"):
+replace = if True:
+expect = tests/test_nag_findings.py::test_an_exemption_names_a_resource_of_its_own_stack
+
+[M1465 every cluster-judge shard is rewritten every run again (R2.6)]
+file = src/radar/cluster_judge.py
+find = if store.get_source_state(sh) != new:   # R2.6
+replace = if True:   # R2.6
+expect = tests/test_cluster_judge.py::test_r2_6_only_a_shard_that_changed_is_written
+
+[M1466 a down host is asked for every source of the run (R2.5)]
+file = src/radar/handlers.py
+find = if failed_in_row >= Limits.HOST_BREAKER_AFTER:
+replace = if False:
+expect = tests/test_collect_batching.py::test_r2_5_a_host_that_fails_three_times_in_a_row_is_skipped_for_this_run
+
+[M1467 one success does not reset the host breaker (R2.5)]
+file = src/radar/handlers.py
+find = failed_in_row = 0 if out[-1]["ok"] else failed_in_row + 1
+replace = failed_in_row = failed_in_row + (0 if out[-1]["ok"] else 1)
+expect = tests/test_collect_batching.py::test_r2_5_a_host_that_fails_three_times_in_a_row_is_skipped_for_this_run
+
+[M1468 each call keeps its own timeout: a direct timeout plus its fallback outlast the source budget (R2.5)]
+file = src/radar/fetch.py
+find = return _open(req, timeout=_clamped(timeout, url), redirect=redirect)
+replace = return _open(req, timeout=timeout, redirect=redirect)
+expect = tests/test_fetch_budget.py::test_a_direct_timeout_and_its_fallback_share_one_budget
+
+[M1469 a spent budget still opens the next call (R2.5)]
+file = src/radar/fetch.py
+find = if left < Limits.SOURCE_BUDGET_MIN_CALL_S:
+replace = if left < -1e9:
+expect = tests/test_fetch_budget.py::test_a_spent_budget_refuses_the_next_call_without_opening_it
+
+[M1470 the budget outlives its block: the next source inherits a stale deadline (R2.5)]
+file = src/radar/fetch.py
+find = _DEADLINE.reset(tok)
+replace = pass
+expect = tests/test_fetch_budget.py::test_outside_a_budget_every_call_keeps_its_own_timeout_and_the_budget_ends_with_its_block
+
+[M1471 a CVE record put off for lack of time counts as a miss and is eventually given up (R2.5)]
+file = src/radar/collect.py
+find = put_off(r, missed=not fetch.budget_spent(e))
+replace = put_off(r, missed=True)
+expect = tests/test_fetch_budget.py::test_a_cve_record_put_off_for_lack_of_time_is_not_counted_as_a_miss
+
+[M1472 the collect station runs a source without a budget (R2.5)]
+file = src/radar/handlers.py
+find = with fetch.source_budget(Limits.SOURCE_BUDGET_S):     # R2.5
+replace = with fetch.source_budget(1e9):     # R2.5
+expect = tests/test_collect_batching.py::test_r2_5_every_source_runs_inside_the_source_budget
+
+[M1473 a PoC put off for lack of time counts as a miss and is handed over without its attack tx (R2.5)]
+file = src/radar/collect.py
+find = misses[g] = misses.get(g, 0) + (0 if fetch.budget_spent(e) else 1)
+replace = misses[g] = misses.get(g, 0) + 1
+expect = tests/test_collect_guards.py::test_a_poc_held_back_for_lack_of_time_is_never_given_up
+
+[M1474 the digest goes to every subscription, opted in or not (R4.4)]
+file = src/radar/notify.py
+find = return "digest" in (filters.get("kinds") or [])
+replace = return True
+expect = tests/test_notify_station.py::test_r4_4_an_opted_in_subscription_gets_todays_digest_once_with_only_its_grounded_sentences
+
+[M1475 an ungrounded digest sentence is sent as fact (R4.4)]
+file = src/radar/notify.py
+find = good = [x["text"] for x in said if x.get("grounded")]
+replace = good = [x["text"] for x in said]
+expect = tests/test_notify_station.py::test_r4_4_an_opted_in_subscription_gets_todays_digest_once_with_only_its_grounded_sentences
+
+[M1476 yesterday's or a failed digest is pushed (R4.4)]
+file = src/radar/notify.py
+find = if d.get("day") != day or d.get("status") not in ("ok", "partial"):
+replace = if not d:
+expect = tests/test_notify_station.py::test_r4_4_no_digest_is_sent_when_today_has_none_or_it_failed
+
+[M1477 the digest is pushed every run, not once a day (R4.4)]
+file = src/radar/notify_station.py
+find = if dmsg["key"] not in (drow.get("keys") or []):
+replace = if True:
+expect = tests/test_notify_station.py::test_r4_4_an_opted_in_subscription_gets_todays_digest_once_with_only_its_grounded_sentences
+
+[M1478 a new subscription is sent the digest that was already out (R4.4)]
+file = src/radar/notify_station.py
+find = if not baseline and not (stopped := _out_of_budget(sent_n, time_left)):
+replace = if not (stopped := _out_of_budget(sent_n, time_left)):
+expect = tests/test_notify_station.py::test_r4_4_a_new_subscription_does_not_get_the_digest_that_was_already_out_and_a_failed_send_is_retried
+
+[M1479 a failed digest send is recorded as sent and never retried (R4.4)]
+file = src/radar/notify_station.py
+find = if not err and not stopped:   # baseline
+replace = if True:   # baseline
+expect = tests/test_notify_station.py::test_r4_4_a_new_subscription_does_not_get_the_digest_that_was_already_out_and_a_failed_send_is_retried
+
+[M1480 site access logs (reader IPs) are kept for ever (R3.6 veto data)]
+file = infra/stack.py
+find = lifecycle_rules=[s3.LifecycleRule(id="expire", expiration=Duration.days(ACCESS_LOG_DAYS))])
+replace = lifecycle_rules=[])
+expect = tests/test_recovery.py::test_site_access_logs_are_kept_a_month_without_cookies_and_never_public
+
+[M1481 site access logs include cookies (R3.6 veto data)]
+file = infra/stack.py
+find = log_file_prefix="site/", log_includes_cookies=False,
+replace = log_file_prefix="site/", log_includes_cookies=True,
+expect = tests/test_recovery.py::test_site_access_logs_are_kept_a_month_without_cookies_and_never_public
+
+[M1482 the Basic Auth prompt (401) counts as a site open (R3.6 veto data)]
+file = scripts/phone_share.py
+find = r.get("sc-status") in ("200", "304")
+replace = r.get("sc-status") != "x"
+expect = tests/test_phone_share.py::test_only_page_loads_count_and_by_device
+
+[M1483 an iPhone counts as a desktop (R3.6 veto data)]
+file = scripts/phone_share.py
+find = "phone" if _PHONE.search(ua) else
+replace = "phone" if False else
+expect = tests/test_phone_share.py::test_device_kinds
+
+[M1484 a search row's source URL is not kept: every publish reads its item again (R3.5)]
+file = src/radar/search.py
+find = if not row.get("p") and "r" not in row and was.get("r"):
+replace = if False:
+expect = tests/test_search.py::test_r3_5_a_page_drops_the_source_url_and_the_url_must_be_http
+
+[M1486 a javascript: URL becomes a search row's source link (R3.5)]
+file = src/radar/search.py
+find = return u if u.lower().startswith(("https://", "http://")) and len(u) <= 300 else None
+replace = return u or None
+expect = tests/test_search.py::test_r3_5_a_row_without_a_page_carries_the_source_it_started_from_read_once
+
+[M1487 the source URL is taken from the first listed item, not the item that created the event (R3.5)]
+file = src/radar/search.py
+find = return next((t.get("item_id") for t in ev.timeline or [] if t.get("kind") == "created" and t.get("item_id")),
+replace = return next((t.get("item_id") for t in [] if t.get("kind") == "created" and t.get("item_id")),
+expect = tests/test_search.py::test_r3_5_a_row_without_a_page_carries_the_source_it_started_from_read_once
+
+[M1488 the source-URL reads are not capped per run (R3.5)]
+file = src/radar/handlers.py
+find = need = need[:max(0, Limits.SEARCH_URL_READS_PER_RUN - reads)]
+replace = need = need
+expect = tests/test_search.py::test_r3_5_source_urls_are_read_at_most_the_cap_per_run
+
+[M1489 the backfill spends the read cap on the oldest month first (R3.5)]
+file = src/radar/handlers.py
+find = for m in sorted(set(fresh_by_month) | {r.get("m") for r in gone.values() if r.get("m")}, reverse=True):
+replace = for m in sorted(set(fresh_by_month) | {r.get("m") for r in gone.values() if r.get("m")}):
+expect = tests/test_search.py::test_r3_5_source_urls_are_read_at_most_the_cap_per_run
+
+[M1490 a row that already has a source URL reads its item again every run (R3.5)]
+file = src/radar/handlers.py
+find = had = {r["id"] for r in old if r.get("r") or r.get("p")}
+replace = had = set()
+expect = tests/test_search.py::test_r3_5_a_row_without_a_page_carries_the_source_it_started_from_read_once
+
+[M1491 a lark_dm is sent as a group chat id (R4.4)]
+file = src/radar/notify.py
+find = r = _post(f"{base}/im/v1/messages?receive_id_type={lark_receive_type(sub.channel, sub.target)}",
+replace = r = _post(f"{base}/im/v1/messages?receive_id_type=chat_id",
+expect = tests/test_notify.py::test_r4_4_a_lark_dm_goes_to_the_person_by_open_id_or_email_and_replies_in_its_thread
+
+[M1492 a lark_dm target that is not a person is accepted (R4.4)]
+file = src/radar/notify.py
+find = if ch == "lark_dm" and lark_receive_type(ch, target.strip()) is None:
+replace = if False:
+expect = tests/test_notify.py::test_r4_4_a_lark_dm_target_that_is_not_a_person_is_refused_with_its_reason
+
+[M1493 an email lark_dm target is sent as an open_id (R4.4)]
+file = src/radar/notify.py
+find = return "email" if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", target) else None
+replace = return "open_id" if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", target) else None
+expect = tests/test_notify.py::test_r4_4_a_lark_dm_goes_to_the_person_by_open_id_or_email_and_replies_in_its_thread
+
+[M1494 an owner's lark_dm gets no alerts (R4.4)]
+file = src/radar/alert.py
+find = CHAT_CHANNELS = ("slack_dm", "slack_channel", "lark_chat", "lark_dm")
+replace = CHAT_CHANNELS = ("slack_dm", "slack_channel", "lark_chat")
+expect = tests/test_notify.py::test_r4_4_an_owner_lark_dm_receives_alerts
+
+[M1495 Collect gets table-wide writes again (R5.4 LeadingKeys)]
+file = infra/stack.py
+find = collect_fn = fn("CollectFn", "collect_batch", 180, write_keys=COLLECT_WRITE_KEYS)
+replace = collect_fn = fn("CollectFn", "collect_batch", 180)
+expect = tests/test_iam_scope.py::test_r5_4_collect_writes_only_rows_under_its_leading_keys
+
+[M1496 a write action escapes the LeadingKeys condition as a "read" (R5.4)]
+file = infra/stack.py
+find = TABLE_READ_ACTIONS = ["GetItem", "BatchGetItem", "Query"]
+replace = TABLE_READ_ACTIONS = ["GetItem", "BatchGetItem", "Query", "PutItem"]
+expect = tests/test_iam_scope.py::test_r5_4_collect_writes_only_rows_under_its_leading_keys
+
+[M1497 Collect's write keys miss its own source-state rows: live AccessDenied (R5.4)]
+file = infra/stack.py
+find = COLLECT_WRITE_KEYS = ["SRC#*"]
+replace = COLLECT_WRITE_KEYS = ["SRC#__*"]
+expect = tests/test_collect_batching.py::test_r5_4_the_collect_station_writes_only_source_state_rows
+
+[M1498 Microsoft's "Exploitation Detected" is left to the text rules (R2.7 MSRC)]
+file = src/radar/pipeline.py
+find = exploited = "yes" if raw.extra.get("kev") or raw.extra.get("vendor_exploited") else signals.exploited(blob)
+replace = exploited = "yes" if raw.extra.get("kev") else signals.exploited(blob)
+expect = tests/test_msrc.py::test_microsofts_exploited_flag_makes_the_item_exploited_and_opens_an_event_the_rest_corroborate
+
+[M1499 every MSRC CVE opens its own event (R2.7 MSRC)]
+file = src/radar/pipeline.py
+find = elif source.parser in ("cvelist_delta", "msrc"):
+replace = elif source.parser == "cvelist_delta":
+expect = tests/test_msrc.py::test_microsofts_exploited_flag_makes_the_item_exploited_and_opens_an_event_the_rest_corroborate
+
+[M1500 the MSRC parser reads every row as exploited (R2.7 MSRC)]
+file = src/radar/parsers/__init__.py
+find = exploited = v.get("exploited") == "Yes"
+replace = exploited = bool(v.get("exploited"))
+expect = tests/test_msrc.py::test_every_row_is_a_cve_item_with_microsofts_own_facts
+
+[M1501 an MSRC row without a CVE id becomes an item (R2.7 MSRC)]
+file = src/radar/parsers/__init__.py
+find = cve = (v.get("cveNumber") or "").strip()
+replace = cve = (v.get("cveNumber") or "").strip() or "CVE-UNKNOWN"
+expect = tests/test_msrc.py::test_a_row_without_a_cve_or_a_score_is_kept_safe
+
+[M1502 an API that answers only to POST is fetched with GET (R2.7 Broadcom)]
+file = src/radar/collect.py
+find = post_json=source.post_json)
+replace = post_json=None)
+expect = tests/test_broadcom.py::test_the_source_is_fetched_as_a_json_post_without_conditional_headers
+
+[M1503 a POST carries the GET's conditional headers (R2.7 Broadcom)]
+file = src/radar/fetch.py
+find = if post_json is not None:
+replace = if False:
+expect = tests/test_broadcom.py::test_the_source_is_fetched_as_a_json_post_without_conditional_headers
+
+[M1504 a VMware advisory's CVEs are not read (R2.7 Broadcom)]
+file = src/radar/parsers/__init__.py
+find = cves = re.findall(r"CVE-\d{4}-\d{4,}", v.get("affectedCve") or "")
+replace = cves = []
+expect = tests/test_broadcom.py::test_each_advisory_is_an_item_with_its_cves_day_and_page
+
+[M1505 a Broadcom row without a document id becomes an item (R2.7 Broadcom)]
+file = src/radar/parsers/__init__.py
+find = doc = (v.get("documentId") or "").strip()
+replace = doc = (v.get("documentId") or "").strip() or "UNKNOWN"
+expect = tests/test_broadcom.py::test_a_row_without_an_id_or_a_day_is_handled
+
+[M1511 with no credential the agent kit sends an empty Basic header instead of reading the open site (R7 open read)]
+file = src/radar/agentkit/client.py
+find = if env.get("RADAR_USER") and env.get("RADAR_PASSWORD"):
+replace = if True:
+expect = tests/test_agentkit.py::test_an_open_site_is_read_with_no_credential_at_all
+
+[M1514 subscribe API: a public-looking name that resolves to an internal address is accepted]
+file = src/radar/subscribe_api.py
+find = if fetch._internal_host(host):
+replace = if False and fetch._internal_host(host):
+expect = tests/test_subscribe_api.py::test_an_address_the_radar_will_not_post_to_is_refused_and_nothing_is_stored
+
+[M1515 webhook send: a target re-pointed to an internal address is posted to]
+file = src/radar/notify.py
+find = raise fetch.FetchError("webhook_internal", "the webhook host resolves to a non-public address")
+replace = pass
+expect = tests/test_notify.py::test_a_webhook_whose_name_now_resolves_internal_is_not_posted_to

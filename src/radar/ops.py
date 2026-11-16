@@ -162,11 +162,15 @@ def _title_proposals(f: Facts) -> list[Item]:
     page; an operator adopts one with scripts/retitle.py (or ignores it)."""
     titles = {e["event_id"]: e.get("title", "") for e in f.get("events") or []}
     out = []
-    for eid, r in sorted((f.get("title_proposals") or {}).items()):
-        if r.get("verdict") == "propose" and eid in titles and titles[eid] == r.get("current"):
+    from radar.retitle_judge import STATS, adoption_line
+    props = f.get("title_proposals") or {}
+    rate = adoption_line(props.get(STATS))
+    for eid, r in sorted(props.items()):
+        if eid != STATS and r.get("verdict") == "propose" and eid in titles and titles[eid] == r.get("current"):
             out.append({"level": "info", "title": f"标题建议（影子，未生效）：{r['title'][:70]}",
                         "detail": f"原：{titles[eid][:60]} · 依据「{r.get('quote', '')[:120]}」 — "
-                                  f"scripts/retitle.py {eid} \"{r['title']}\" --source {r.get('source') or '<url>'}",
+                                  f"scripts/retitle.py {eid} \"{r['title']}\" --source {r.get('source') or '<url>'}"
+                                  f" · {rate}",
                         "since": r.get("at"), "link": f"/events/{eid}"})
     return out
 
@@ -229,8 +233,8 @@ def _latency(f: Facts) -> list[Item]:
     LATENCY_WARN_P50_MIN on enough samples — the radar is behind its sources."""
     from radar.limits import Limits
     push = f.get("push_latency")
-    pushed = [{"level": "info", "title": f"时效：首报发布到 P0 推送，中位 {push['p50']} 分钟，90 分位 {push['p90']} 分钟（近 7 天 {push['n']} 次推送）",
-               "detail": "从事件第一条报道的发布时间到该事件第一次推给一个订阅；首报 48 小时后才升为 P0 的不计", "since": None,
+    pushed = [{"level": "info", "title": f"时效：成为 P0 到推送，中位 {push['p50']} 分钟，90 分位 {push['p90']} 分钟（近 7 天 {push['n']} 次推送）",
+               "detail": "从事件升为现在这一级（首报或升级所依据的最新报道的发布时间）到第一次推给一个订阅；超过 48 小时的不计", "since": None,
                "link": "/ops"}] if push else []
     s = f.get("latency")
     if not s:
@@ -289,6 +293,42 @@ def _anomalies(f: Facts) -> list[Item]:
              "since": a["at"], "link": f"/events/{a['event_id']}"} for a in f.get("anomalies") or []]
 
 
+def _raw_bad(f: Facts) -> list[Item]:
+    """Raw lines Process could not read in the last day: skipped, the rest of their batch processed (handlers.process)."""
+    rows = f.get("raw_bad") or []
+    if not rows:
+        return []
+    lines = sum(r["lines"] for r in rows)
+    return [{"level": "warn", "title": f"{lines} 条原始记录读不了，已跳过（{len(rows)} 个批次）",
+             "detail": "其余记录照常处理。首个：" + rows[0]["key"] + f" 第 {rows[0]['first_line']} 行 —— {rows[0]['error']}",
+             "since": rows[0]["at"], "link": "/ops"}]
+
+
+def _daily_caps(f: Facts) -> list[Item]:
+    """A paid call kind past its daily cap today (radar.llm.daily_cap): the calls after it were not made."""
+    from radar import llm
+    out = []
+    for kind, n in sorted((f.get("spend") or {}).items()):
+        if kind.startswith("bedrock:") and n > (cap := llm.daily_cap(kind.split(":", 1)[1])):
+            out.append({"level": "warn", "title": f"今天 Bedrock {kind.split(':', 1)[1]} 已到日上限 {cap} 次",
+                        "detail": f"之后的 {n - cap} 次没有调用（分析卡 / 判定照常降级为 failed，明天恢复）。"
+                                  "上限在 Limits.BEDROCK_CALLS_PER_DAY_*。",
+                        "since": None, "link": "/ops"})
+    return out
+
+
+def _row_sizes(f: Facts) -> list[Item]:
+    """Table rows written in the last day above Limits.ROW_WARN_BYTES (radar.dynamo: above ROW_MAX_BYTES the write fails)."""
+    from radar.limits import Limits
+    rows = f.get("row_sizes") or []
+    if not rows:
+        return []
+    top = "；".join(f"{r['key']} {r['bytes'] // 1000} KB（{r['station']}）" for r in rows[:3])
+    return [{"level": "warn", "title": f"{len(rows)} 行接近 DynamoDB 400 KB 上限",
+             "detail": f"最大的：{top}。超过 {Limits.ROW_MAX_BYTES // 1000} KB 写入会被拒绝，该工位那一轮失败。",
+             "since": min(r["at"] for r in rows), "link": "/ops"}]
+
+
 RULES: dict[str, Callable[[Facts], list[Item]]] = {
     "event_anomaly": _anomalies, "station_silent": _silent, "source_stalled": _stalled, "collect_latency": _latency,
     "source_unhealthy": _sources, "over_budget": _over_budget, "notify": _notify, "repo_channel_error": _repo_channels,
@@ -296,7 +336,8 @@ RULES: dict[str, Callable[[Facts], list[Item]]] = {
     "p0_untriaged": _untriaged, "duplicate_confirmed": _dup_confirmed, "event_split": _splits,
     "late_detection": _late, "title_proposal": _title_proposals,
     "station_slow": _slow, "enrich_degraded": _enrich, "publish_deferred": _deferred,
-    "amount_outlier": _amount_outliers, "amount_shared": _amount_shared,
+    "amount_outlier": _amount_outliers, "amount_shared": _amount_shared, "raw_lines_skipped": _raw_bad,
+    "row_near_limit": _row_sizes, "daily_cap_reached": _daily_caps,
 }
 
 

@@ -89,7 +89,11 @@ def _fallback_ok(source: Source, e: fetch.FetchError, st: dict[str, Any], now: d
         return False
     day = now.date().isoformat()
     used = st.get("fc_fallbacks", 0) if st.get("fc_fallback_day") == day else 0
-    return used < Limits.FEED_FIRECRAWL_FALLBACKS_PER_DAY
+    # spaced across the day (R2.5, audit 01 #10): a blocked 15-minute source spent its 24 in the first 6 hours and had
+    # no data for the other 18 — one fallback per 24 h / quota
+    last = timeutil.parse(st.get("fc_fallback_at"))
+    gap = timedelta(minutes=24 * 60 / Limits.FEED_FIRECRAWL_FALLBACKS_PER_DAY) - timedelta(minutes=Limits.CYCLE_MINUTES / 2)
+    return used < Limits.FEED_FIRECRAWL_FALLBACKS_PER_DAY and (last is None or now - last >= gap)
 
 
 def _parsed(source: Source, resp: fetch.Response) -> list[RawItem]:
@@ -110,6 +114,7 @@ def _fetch_parse(source: Source, st: dict[str, Any], now: datetime) -> tuple[fet
         day = now.date().isoformat()
         st["fc_fallbacks"] = (st.get("fc_fallbacks", 0) if st.get("fc_fallback_day") == day else 0) + 1
         st["fc_fallback_day"] = day
+        st["fc_fallback_at"] = timeutil.iso(now)
         try:
             resp = fetch.Response(200, fetch.firecrawl_raw(source.url))
             raws = _parsed(source, resp)
@@ -165,7 +170,7 @@ def _cve_records(source: Source, raws: list[RawItem], st: dict[str, Any], now: d
         try:
             d = parsers.cve_record(fetch.http_get(r.extra["record_url"], allow_hosts=FOLLOWUP_HOSTS["cvelist_delta"]).body)
         except (fetch.FetchError, ValueError, KeyError) as e:
-            put_off(r, missed=True)
+            put_off(r, missed=not fetch.budget_spent(e))   # out of time is not the record's miss: no give-up count
             log.warning(json.dumps({"source": source.source_id, "degraded": "cve_record_unavailable", "cve": r.guid,
                                     "error": str(e)[:200]}))
             continue
@@ -208,15 +213,46 @@ def batches(source_ids: list[str]) -> list[list[str]]:
     return heavy + out + ([cur] if cur else [])
 
 
+def cadence(s: Source, st: dict[str, Any], surge: bool = False) -> float:
+    """Minutes between runs, in precedence order:
+    1. failing (R2.5, audit 01 #5: a blocked host was hit 288 times a day): from the SOURCE_BACKOFF_AFTER-th failure in
+       a row the interval doubles per failure, capped; the first success resets it;
+    2. surge (R2.3): while a P0 is moving, T1 sources — vendors, CERTs, KEV — run at half their cadence (≥ one cycle);
+    3. idle (R2.3): nothing handed over for SOURCE_IDLE_DAYS (with ≥ 14 days of history) ⇒ twice the cadence, capped."""
+    f = int(st.get("consecutive_failures") or 0)
+    if f >= Limits.SOURCE_BACKOFF_AFTER:
+        return float(min(Limits.SOURCE_BACKOFF_MAX_MIN, s.cadence_min * 2 ** (f - Limits.SOURCE_BACKOFF_AFTER + 1)))
+    if surge and s.tier == "T1" and s.parser != "twitterapi" and s.via != "firecrawl":   # paid paths are not doubled
+        return float(max(Limits.CYCLE_MINUTES, s.cadence_min / 2))
+    days = st.get("days") or {}
+    recent = sorted(days)[-Limits.SOURCE_IDLE_DAYS:]
+    if len(days) >= 14 and recent and not any(days[d] for d in recent) and s.cadence_min < Limits.SOURCE_IDLE_MAX_MIN:
+        return float(min(Limits.SOURCE_IDLE_MAX_MIN, s.cadence_min * 2))
+    return float(s.cadence_min)
+
+
+SURGE_KEY = "__surge__"   # {"until": iso, "events": [...]} — written by Publish while a P0 is moving (R2.3)
+
+
+def surging(states: dict[str, dict[str, Any]], now: datetime) -> bool:
+    until = timeutil.parse((states.get(SURGE_KEY) or {}).get("until"))
+    return until is not None and now < until
+
+
 def due(states: dict[str, dict[str, Any]], now: datetime) -> list[str]:
+    surge = surging(states, now)
     out = []
     for s in SOURCES:
         if not s.enabled:
             continue
-        last = timeutil.parse(states.get(s.source_id, {}).get("last_run"))
+        st = states.get(s.source_id, {})
+        last = timeutil.parse(st.get("last_run"))
+        hold = timeutil.parse(st.get("retry_after_until"))
+        if hold is not None and now < hold:      # the server said when to come back (429 / 503 Retry-After)
+            continue
         # half a cycle of slack: `last_run` is when the source was collected, up to minutes into its cycle. With one
         # minute, a 15-minute source collected 90 s in was "not due" 15 minutes later and ran every 20 (audit 01 #12)
-        if last is None or now - last >= timedelta(minutes=s.cadence_min) - timedelta(minutes=Limits.CYCLE_MINUTES / 2):
+        if last is None or now - last >= timedelta(minutes=cadence(s, st, surge)) - timedelta(minutes=Limits.CYCLE_MINUTES / 2):
             out.append(s.source_id)
     return out
 
@@ -247,7 +283,11 @@ def _x_fallback(source: Source, state: dict[str, Any], now: datetime, why: fetch
 def _body(source: Source, state: dict[str, Any], now: datetime) -> fetch.Response:
     if source.parser == "twitterapi":
         try:
-            body = fetch.twitterapi_search(source.handles, source.cadence_min)
+            ok = timeutil.parse(state.get("last_success"))
+            since = (now - ok).total_seconds() / 60 if ok else None
+            body = fetch.twitterapi_search(source.handles, source.cadence_min, since_minutes=since)
+            if json.loads(body).get("truncated"):
+                state["x_truncated_at"] = timeutil.iso(now)      # said, not silent: the window had more pages
         except fetch.FetchError as e:
             if not fetch.twitterapi_unavailable(e):
                 raise
@@ -257,7 +297,8 @@ def _body(source: Source, state: dict[str, Any], now: datetime) -> fetch.Respons
         return fetch.Response(200, body)
     if source.via == "firecrawl":
         return fetch.Response(200, fetch.firecrawl_raw(source.url))
-    return fetch.http_get(source.url, etag=state.get("etag"), last_modified=state.get("last_modified"))
+    return fetch.http_get(source.url, etag=state.get("etag"), last_modified=state.get("last_modified"),
+                          post_json=source.post_json)
 
 
 def _csaf_reports(source: Source, raws: list[RawItem], now: datetime, known_item: Callable[[str, str], bool],
@@ -306,7 +347,7 @@ def _poc_headers(source: Source, raws: list[RawItem], known_item: Callable[[str,
         try:
             poc = parsers.defihacklabs_poc(fetch.http_get(r.extra["sol_url"], allow_hosts=FOLLOWUP_HOSTS["defihacklabs"]).body)
         except (fetch.FetchError, ValueError, KeyError) as e:
-            misses[g] = misses.get(g, 0) + 1
+            misses[g] = misses.get(g, 0) + (0 if fetch.budget_spent(e) else 1)  # out of time: held back, no miss
             gave_up = misses[g] >= Limits.POC_RETRIES
             log.warning(json.dumps({"source": source.source_id, "degraded": "poc_gave_up" if gave_up else "poc_unavailable",
                                     "entry": r.guid, "misses": misses[g], "error": str(e)[:200]}))
@@ -360,6 +401,7 @@ def collect(source: Source, state: dict[str, Any], now: datetime,
             seen.update(nxt)
         st.update(etag=resp.etag or st.get("etag"), last_modified=resp.last_modified or st.get("last_modified"),
                   last_success=timeutil.iso(now), consecutive_failures=0, last_status=resp.status)
+        st.pop("retry_after_until", None)
         if st.get("deferred"):
             # this run put entries off (over a per-run cap, a follow-up document unreadable). The list must be read
             # again next run — with its validators kept, an unchanged list answers 304 and the entries wait until it
@@ -370,6 +412,9 @@ def collect(source: Source, state: dict[str, Any], now: datetime,
         # keep going for other sources, but make the failure loud and distinguishable from "no news"
         st.update(last_error=str(e)[:300], last_error_at=timeutil.iso(now),
                   consecutive_failures=st.get("consecutive_failures", 0) + 1)
+        ra = getattr(e, "retry_after_s", None)
+        if ra:
+            st["retry_after_until"] = timeutil.iso(now + timedelta(seconds=min(ra, Limits.RETRY_AFTER_MAX_S)))
         raws = []
     day_ago = timeutil.iso(now - timedelta(days=1))
     st["runs"] = [r for r in st.get("runs", []) if r[0] >= day_ago] + [[timeutil.iso(now), len(raws)]]

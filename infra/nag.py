@@ -21,13 +21,35 @@ REASONS: dict[str, str] = {
     "AwsSolutions-CFR2": "The UI is behind a Basic Auth gate for the demo; the WAF demo distribution has AWS WAF. "
                          "For production put the UI behind Amazon Cognito / IAM Identity Center and AWS WAF.",
     "AwsSolutions-CFR3": "Sample: no CloudFront standard logs (cost, extra bucket). Enable for production.",
+    "AwsSolutions-APIG2": "Routes: GET /api/{proxy+} (path validated by the Lambda against the published layout, "
+                          "radar.api._PATH; no body) and /api/subscriptions GET / POST / DELETE {id} — the POST body is "
+                          "validated in the Lambda (radar.subscribe_api: size, fields, https target that resolves public).",
+    "AwsSolutions-APIG3": "Sample: no AWS WAF on the API (cost). It is throttled (20 rps); every request needs a Cognito "
+                          "token — the read scope for /api/data, the subscribe scope for /api/subscriptions (own rows "
+                          "only). Add AWS WAF for production.",
+    "AwsSolutions-COG2": "The user pool has no users and self sign-up is off: it only issues client-credentials tokens "
+                         "to app clients, where MFA does not apply.",
+    "AwsSolutions-COG8": "The Plus tier adds threat protection for user sign-in; this pool has no users (machine clients "
+                         "only), so there is no sign-in to protect.",
     "AwsSolutions-CFR4": "Default *.cloudfront.net certificate (no custom domain in a sample), which fixes the minimum "
                          "TLS policy; use a custom domain with TLSv1.2_2021 for production.",
 }
 
 
 def apply(stacks: list[Stack]) -> None:
+    """Exempt exactly the (rule, resource) pairs in nag_findings.json (scripts/nag_findings.py writes it), each with
+    its rule's reason (R5.4). It was add_stack_suppressions: every rule exempted for the whole stack, so a NEW resource
+    with an unexplained finding passed silently."""
+    import json
+    import os
+    from pathlib import Path
+    findings: dict[str, list[str]] = json.loads((Path(__file__).with_name("nag_findings.json")).read_text())
     for s in stacks:
         Aspects.of(s).add(AwsSolutionsChecks(verbose=True))
-        NagSuppressions.add_stack_suppressions(s, [NagPackSuppression(id=k, reason=v) for k, v in REASONS.items()],
-                                               apply_to_nested_stacks=True)
+        if os.environ.get("NAG_RAW") == "1":     # scripts/nag_findings.py: list every finding unexempted
+            continue
+        for rule, paths in findings.items():
+            for path in paths:
+                if path.startswith(f"/{s.stack_name}/"):
+                    NagSuppressions.add_resource_suppressions_by_path(
+                        s, path, [NagPackSuppression(id=rule, reason=REASONS[rule])], apply_to_children=True)

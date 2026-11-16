@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import jsonschema
+import pytest
 
 from radar import mitigate, mitigate_aws, mitigate_station, respond
 from radar.model import Event, Item
@@ -388,6 +389,7 @@ def test_failures_are_recorded_not_silent():
     # changelog down on a new day ⇒ yesterday's catalog keeps working, and the outage is on record
     waf.fail = {"changelog"}
     led["catalog"]["fetched_on"] = "2026-10-22"
+    led["catalog"]["fetched_at"] = "2026-10-22T00:00:00Z"     # staleness is by time since R4.5
     store.put_source_state(mitigate_station.MITIGATE_KEY, led)
     out = _run(store, waf)
     led = store.get_source_state(mitigate_station.MITIGATE_KEY)
@@ -559,3 +561,39 @@ def test_a_promoted_dns_rule_blocks_the_domains_approved_and_a_domain_found_late
     store.put_source_state(mitigate_station.PROMOTE_KEY, {})
     _run(store, waf)
     assert set(waf.dns["domains"]) == {*listed, "partner-api.example"}
+
+
+@pytest.mark.parametrize("default,pinned", [("Version_2.3", "Version_2.5"), ("Version_2.5", None),
+                                            ("Version_3.0", None), (None, None)])
+def test_a_default_older_than_the_plan_pins_the_minimum_version_and_a_new_enough_one_does_not(default, pinned):
+    """Audit 04 2.5 (reproduced): the plan needs Version_2.5 (the PHP2Shell rules); with the group's default at 2.3 the
+    rule went out unpinned — the CVE's rules were not in it — and the check could only say too_old afterwards."""
+    store = MemoryStore()
+    eid = _seed(store)
+    waf = FakeWaf({"demo-shop": {"name": ACL, "id": "a1"}})
+    real = waf.group_meta
+    waf.group_meta = lambda g: {**real(g), "default_version": default}
+    _run(store, waf)
+    [rule] = [r for r in waf.acls[ACL]["Rules"] if r["Name"].startswith(mitigate.RADAR_RULE_PREFIX)]
+    assert rule["Statement"]["ManagedRuleGroupStatement"].get("Version") == pinned
+    (plan,) = store.get_source_state(mitigate_station.MITIGATE_KEY)["events"][eid]["plans"]
+    assert plan["state"] == ("staged" if default else "too_old")      # pinned ⇒ the check reads the pin, not the default
+
+
+def test_r4_5_the_waf_changelog_is_re_read_every_few_hours_not_once_a_day():
+    from datetime import timedelta
+
+    from radar.limits import Limits
+    calls = []
+
+    class Aws:
+        def changelog_rows(self):
+            calls.append(1)
+            return []
+    led: dict = {}
+    t0 = NOW
+    mitigate_station._catalog(led, Aws(), t0.date().isoformat(), [], t0)
+    mitigate_station._catalog(led, Aws(), t0.date().isoformat(), [], t0 + timedelta(hours=Limits.WAF_CHANGELOG_REFRESH_H - 1))
+    assert len(calls) == 1
+    mitigate_station._catalog(led, Aws(), t0.date().isoformat(), [], t0 + timedelta(hours=Limits.WAF_CHANGELOG_REFRESH_H))
+    assert len(calls) == 2                                      # same day, but past the refresh interval

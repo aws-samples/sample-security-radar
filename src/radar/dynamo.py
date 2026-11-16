@@ -21,6 +21,24 @@ from radar.model import Event, Item
 
 log = logging.getLogger(__name__)
 
+def _expires(days: int) -> int:
+    """DynamoDB TTL value (epoch seconds) `days` from now — the table's TTL attribute is `ttl` (infra/stack.py)."""
+    import time
+    return int(time.time()) + days * 86_400
+
+
+ROW_SIZES_KEY = "__row_sizes__"   # {row key: {bytes, station, at}} — the newest 50 rows that crossed ROW_WARN_BYTES
+
+
+class RowTooLarge(ValueError):
+    """A row DynamoDB would reject (400 KB). Raised before the call so the error names the row (§5: code, message,
+    actual, limit) — a ValidationException from put_item says neither which row nor how big."""
+
+    def __init__(self, key: str, actual: int) -> None:
+        self.detail = {"error": "row_too_large", "message": f"row {key} is {actual} bytes", "key": key,
+                       "actual_bytes": actual, "max_bytes": Limits.ROW_MAX_BYTES}
+        super().__init__(json.dumps(self.detail))
+
 
 def compact_event(event: Event) -> Event:
     """Drop repeated timeline entries (same kind / from / to / item) and repeated amount points (same value / source /
@@ -71,6 +89,18 @@ class DynamoStore:
         self._src: dict[str, str | None] = {}
         self.window_queries = 0
         self.window_hits = 0
+        self.near_limit: dict[str, int] = {}     # row key → bytes, this run (flushed by handlers._timed)
+
+    def _sized(self, key: str, d: str) -> str:
+        """The one size gate every row write passes (R5.3): above ROW_MAX_BYTES refused, above ROW_WARN_BYTES noted."""
+        n = len(d.encode())
+        if n > Limits.ROW_MAX_BYTES:
+            raise RowTooLarge(key, n)
+        if n > Limits.ROW_WARN_BYTES:
+            self.near_limit[key] = n
+            log.error(json.dumps({"store": "put", "degraded": "row_near_limit", "key": key, "bytes": n,
+                                  "limit": 400_000}))
+        return d
 
     def _get(self, pk: str, sk: str) -> dict[str, Any] | None:
         # read-after-write inside one ingest run: eventual consistency would drop just-written rows
@@ -110,7 +140,7 @@ class DynamoStore:
 
     def put_item(self, item: Item) -> None:
         d = item.to_dict()
-        self.t.put_item(Item={"pk": f"ITEM#{item.item_id}", "sk": "META", "d": json.dumps(d)})
+        self.t.put_item(Item={"pk": f"ITEM#{item.item_id}", "sk": "META", "d": self._sized(f"ITEM#{item.item_id}", json.dumps(d))})
         self._items[item.item_id] = json.loads(json.dumps(d))
 
     def get_items(self, item_ids: list[str]) -> list[Item]:
@@ -138,7 +168,7 @@ class DynamoStore:
             d = json.dumps(compact_event(event).to_dict())
             log.error(json.dumps({"store": "put_event", "degraded": "event_row_compacted", "event_id": event.event_id,
                                   "bytes_after": len(d.encode())}))
-        self.t.put_item(Item={"pk": f"EVENT#{event.event_id}", "sk": "META", "d": d,
+        self.t.put_item(Item={"pk": f"EVENT#{event.event_id}", "sk": "META", "d": self._sized(f"EVENT#{event.event_id}", d),
                               "gsi1pk": "EVENT", "gsi1sk": event.last_updated})
         self._ev[event.event_id] = json.loads(d)
         if self._win_since is not None:            # write-through: the run reads its own writes from the window
@@ -207,7 +237,8 @@ class DynamoStore:
         return self._get(f"RAW#{key}", "DONE") is not None
 
     def mark_raw_processed(self, key: str, at: str) -> None:
-        self.t.put_item(Item={"pk": f"RAW#{key}", "sk": "DONE", "d": json.dumps({"at": at})})
+        self.t.put_item(Item={"pk": f"RAW#{key}", "sk": "DONE", "d": json.dumps({"at": at}),
+                              "ttl": _expires(Limits.RAW_MARKER_TTL_DAYS)})   # Process lists only today + yesterday
 
     def get_source_state(self, source_id: str) -> dict[str, Any]:
         if source_id not in self._src:
@@ -217,14 +248,24 @@ class DynamoStore:
         return json.loads(d) if d else {}       # a fresh object per call: callers mutate and put it back
 
     def put_source_state(self, source_id: str, state: dict[str, Any]) -> None:
-        d = json.dumps(state)
-        if len(d.encode()) > Limits.STATE_ROW_WARN_BYTES:
-            # every 413 so far came from a ledger that only grew (__cve_meta__, the event rows, __cluster_judge__):
-            # say so while there is still headroom, with the key, so the next one is fixed before it fails a cycle
-            log.error(json.dumps({"store": "put_source_state", "degraded": "state_row_near_limit", "key": source_id,
-                                  "bytes": len(d.encode()), "limit": 400_000}))
+        # every 413 so far came from a ledger that only grew (__cve_meta__, the event rows, __cluster_judge__): noted
+        # while there is still headroom, with the key, so the next one is fixed before it fails a cycle
+        d = self._sized(f"SRC#{source_id}", json.dumps(state))
         self.t.put_item(Item={"pk": f"SRC#{source_id}", "sk": "STATE", "d": d})
         self._src[source_id] = d
+
+    def add_count(self, day: str, kind: str, n: int = 1) -> int:
+        """Atomic per-day counter (paid calls, R5.6): ADD on one item per (day, kind), so parallel invocations — six
+        Collect lambdas at once — never lose an increment the way read-modify-write of a ledger row would."""
+        r = self.t.update_item(Key={"pk": f"SPEND#{day}", "sk": kind}, UpdateExpression="ADD n :n SET #t = if_not_exists(#t, :t)",
+                               ExpressionAttributeNames={"#t": "ttl"},
+                               ExpressionAttributeValues={":n": n, ":t": _expires(Limits.SPEND_TTL_DAYS)},
+                               ReturnValues="UPDATED_NEW")
+        return int(r["Attributes"]["n"])
+
+    def counts(self, day: str) -> dict[str, int]:
+        r = self.t.query(KeyConditionExpression=Key("pk").eq(f"SPEND#{day}"))
+        return {it["sk"]: int(it["n"]) for it in r.get("Items", [])}
 
     def delete_source_state(self, source_id: str) -> None:
         self.t.delete_item(Key={"pk": f"SRC#{source_id}", "sk": "STATE"})
@@ -262,7 +303,7 @@ class DynamoStore:
             self._resp[x] = got.get((f"EVENT#{x}", "RESPONSE"))
 
     def put_response(self, event_id: str, state: dict[str, Any]) -> None:
-        self.t.put_item(Item={"pk": f"EVENT#{event_id}", "sk": "RESPONSE", "d": json.dumps(state)})
+        self.t.put_item(Item={"pk": f"EVENT#{event_id}", "sk": "RESPONSE", "d": self._sized(f"EVENT#{event_id}/RESPONSE", json.dumps(state))})
         self._resp[event_id] = json.loads(json.dumps(state))
 
     def delete_response(self, event_id: str) -> None:

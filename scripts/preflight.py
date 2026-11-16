@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -22,11 +23,38 @@ ROOT = Path(__file__).resolve().parents[1]
 # R11 (620b1f5): the S3 channel state changed shape and is migrated on read — an older commit reads the new rows as
 # "never scanned" and buys every paid scan again (docs/research/14 §6.1).
 MIN_DEPLOYABLE = None
+# the code that decides what an event is: a change here changes stored events when they are next recomputed
+JUDGEMENT_PATHS = ("src/radar/pipeline.py", "src/radar/signals.py", "src/radar/keys.py")
+DEPLOYED_MARK = "build/deployed-commit"          # written by deploy-all.sh after its checks pass
+RECOMPUTE_REPORT = "build/recompute-check.json"  # written by scripts/recompute_check.py
 DEPLOYED_PATHS = ("src", "infra", "scripts", "ui/src", "ui/package.json", "ui/package-lock.json", "integrations")
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=False)
+
+
+def recompute_problem(root: Path) -> dict[str, Any] | None:
+    """The judgement code changed since the last deployment and nobody looked at what it does to the stored events
+    (roadmap R8.1). No record of a last deployment ⇒ nothing to compare with (a first deployment, a fresh clone)."""
+    mark = root / DEPLOYED_MARK
+    if not mark.is_file():
+        return None
+    last = mark.read_text().strip()
+    head = _git(root, "rev-parse", "HEAD").stdout.strip()
+    if _git(root, "cat-file", "-e", f"{last}^{{commit}}").returncode != 0:
+        return None                                # the marked commit is not in this clone: cannot tell what changed
+    if _git(root, "diff", "--quiet", last, "HEAD", "--", *JUDGEMENT_PATHS).returncode == 0:
+        return None
+    try:
+        rep = json.loads((root / RECOMPUTE_REPORT).read_text())
+    except (OSError, ValueError):
+        rep = {}
+    if rep.get("commit") == head and not rep.get("dirty") and not rep.get("domain"):
+        return None
+    return {"error": "recompute_report_missing", "actual": (rep.get("commit") or "no report")[:12], "limit": head[:12],
+            "message": "pipeline / signals / keys changed since the last deployment: run scripts/recompute_check.py and "
+                       "read what changes in the stored events (DEPLOY_SKIP_RECOMPUTE=1 to deploy without)"}
 
 
 def problems(root: Path, minimum: str | None = MIN_DEPLOYABLE, allow_dirty: bool = False) -> list[dict[str, Any]]:
@@ -54,6 +82,10 @@ def main() -> int:
     if allow:
         print("preflight: DEPLOY_ALLOW_DIRTY=1 — deploying the working tree as it is", file=sys.stderr)
     bad = problems(ROOT, allow_dirty=allow)
+    if os.environ.get("DEPLOY_SKIP_RECOMPUTE") == "1":
+        print("preflight: DEPLOY_SKIP_RECOMPUTE=1 — stored events not recomputed with this code", file=sys.stderr)
+    elif (p := recompute_problem(ROOT)) is not None:
+        bad.append(p)
     for p in bad:
         print(f"preflight FAIL {p['error']}: {p['message']} (actual {p['actual']!r}, limit {p['limit']!r})", file=sys.stderr)
     if bad:

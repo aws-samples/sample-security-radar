@@ -45,22 +45,7 @@ let pending = null; // { path, original }
 const restore = () => { if (pending) { writeFileSync(pending.path, pending.original); pending = null; } };
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { restore(); process.exit(130); });
 
-const LOAD_ERROR = /SyntaxError|Transform failed|Failed to load|Cannot find module|failed to resolve import/i;
-
-/**
- * Outcome from vitest's exit code + JSON report. Only a failing assertion counts as red; a suite that failed
- * to load/collect (0 assertion results, or a transform/syntax message) means the mutation broke the file.
- */
-export function judge(status, reportText) {
-  if (status === 0) return ['ALIVE?NO', 'test stayed green'];
-  if (!reportText) return ['NOT LANDED', `vitest rc=${status} wrote no JSON report (crash before collection)`];
-  let rep;
-  try { rep = JSON.parse(reportText); } catch { return ['NOT LANDED', 'vitest JSON report unparsable'] ; }
-  const broken = (rep.testResults ?? []).filter(t => t.status === 'failed' && ((t.assertionResults ?? []).length === 0 || LOAD_ERROR.test(t.message ?? '')));
-  if (broken.length) return ['NOT LANDED', `mutation does not compile/load: ${String(broken[0].message ?? '').split('\n')[0].slice(0, 120)}`];
-  if ((rep.numFailedTests ?? 0) > 0) return ['red', `${rep.numFailedTests} assertion(s) failed`];
-  return ['NOT LANDED', `vitest rc=${status} but no failed assertion (runner error)`];
-}
+import { judge } from './mutate-judge.mjs';
 
 function runOne(m) {
   if (!m.file || m.find === undefined || m.replace === undefined || !m.expect) return ['NOT LANDED', 'missing file/find/replace/expect'];

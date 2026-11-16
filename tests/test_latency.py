@@ -85,3 +85,24 @@ def test_ops_states_the_push_latency_next_to_the_collection_latency():
     latency.record(store, [["P0", 30]], NOW, latency.PUSH_KEY, latency.PUSH_HOURS)
     items = [i for i in publish.build(store, NOW)["ops.json"]["attention"] if i["code"] == "collect_latency"]
     assert any("推送" in i["title"] for i in items)
+
+
+def test_a_push_is_timed_from_when_the_event_became_p0_not_from_its_first_report(monkeypatch):
+    """Live 2026-11-14: median 1,597 minutes over 6 pushes — events first reported days earlier and raised to P0
+    later. That number measured how long the story took to become urgent, not how late the push was."""
+    import dataclasses
+
+    from test_notify_station import CFG, ev
+
+    from radar import notify, notify_station
+    store = MemoryStore()
+    monkeypatch.setattr(publish, "_response", lambda e, s, now: None)
+    senders = {c: (lambda cfg, sub, msg, thread, cache: "T") for c in notify.CHANNELS}
+    now = datetime(2026, 11, 11, 4, 0, tzinfo=UTC)
+    notify_station.run(store, CFG, now, "https://site", senders)                         # baseline on an empty store
+    raised = dataclasses.replace(ev("ev_00000000000000a2", "P0", "vuln", "Raised late"),
+                                 first_seen="2026-11-10T06:00:00Z", escalated_at="2026-11-11T03:30:00Z")
+    store.put_event(raised)
+    notify_station.run(store, CFG, now, "https://site", senders)
+    s = latency.summary(store, now, latency.PUSH_KEY, latency.PUSH_HOURS)
+    assert s["n"] == 1 and s["p50"] == 30                                                # not 22 hours

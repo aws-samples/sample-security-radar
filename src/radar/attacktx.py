@@ -36,7 +36,7 @@ NATIVE_ID = {"ethereum": "coingecko:ethereum", "arbitrum": "coingecko:ethereum",
 PRICE_SOURCE = (f"DefiLlama coins API：交易区块时间前后 4 小时内的历史价；DefiLlama 置信度低于 {Limits.PRICE_MIN_CONFIDENCE} "
                 "或查不到的代币不换算（刚被攻击的代币价格本身不可信）")
 KEY_PREFIX = "__attacktx__"
-TOKEN_KEY = "__tokenmeta__"
+TOKEN_KEY = "__tokenmeta__"  # noqa: S105 — a ledger key, not a token
 NOT_DECODED = ("原生币（ETH / BNB / AVAX）在合约内部的转移：公共节点不提供 trace",
                "NFT（ERC-721）转移")
 

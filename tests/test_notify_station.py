@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 import pytest
 from test_notify import loopback  # noqa: F401  (fixture: real loopback HTTP servers)
 
-from radar import notify, notify_station, publish, retitle, triage
+from radar import fetch, notify, notify_station, publish, retitle, triage
 from radar.limits import Limits
 from radar.model import Event
 from radar.store import MemoryStore
@@ -103,7 +103,7 @@ def test_one_state_row_per_event_and_subscription_threads_replies(world):
     _baseline(store, senders)
     notify_station.run(store, CFG, NOW, "https://site", senders)
     row = store.get_source_state(notify_station.state_key("ev_00000000000000b0", "web3-all"))
-    assert row == {"keys": ["p0"], "thread": "T-web3-all-ev_00000000000000b0"}
+    assert row == {"keys": ["p0", "standing"], "thread": "T-web3-all-ev_00000000000000b0"}
     assert store.get_source_state(notify_station.state_key("ev_00000000000000a0", "p0-only"))["thread"] == "T-p0-only-ev_00000000000000a0"
     assert "__notify__" not in store.sources                     # no single row holds everybody's state (B6)
 
@@ -164,11 +164,12 @@ def test_a_failing_subscription_does_not_block_the_other(world):
     assert {s for s, *_ in sent} == {"web3-all"}
 
 
-def test_a_webhook_answering_a_redirect_is_a_failed_send_not_a_crashed_station(world, loopback):  # noqa: F811
+def test_a_webhook_answering_a_redirect_is_a_failed_send_not_a_crashed_station(world, loopback, monkeypatch):  # noqa: F811
     """A real 3xx: send_webhook refuses it with fetch.FetchError (a plain Exception). It escaped run(), so the
     station crashed every cycle, the subscriptions after the webhook never got a push and #/ops showed nothing."""
     store, sent, senders = world
     base, elsewhere = loopback
+    monkeypatch.setattr(fetch, "_internal_host", lambda host: False)   # the loopback server stands for a public host
     cfg = {**CFG, "subscriptions": [CFG["subscriptions"][1], CFG["subscriptions"][0]]}   # the webhook first
     _baseline(store, senders, cfg)
 
@@ -327,6 +328,13 @@ def test_the_station_selects_with_the_tables_window_and_severities(world, monkey
     assert ids() == {"ev_00000000000000a0", "ev_00000000000000b0"}
     monkeypatch.setattr(decisions, "window_start", lambda action, code, n: "2026-11-11T03:30:00Z")
     assert ids() == set()
+    # … and a WIDER table window reaches further back than the station's old hand-written 7 days. (CI 2026-11-14: the
+    # narrowing above passes through notify_due alone, so a hand-restated query bound survived — it had only ever been
+    # red because the mutant's `timedelta` was not imported.)
+    old = dataclasses.replace(ev("ev_00000000000000d0", "P0", "vuln", "three weeks old"), last_updated="2026-10-21T00:00:00Z")
+    store.put_event(old)
+    monkeypatch.setattr(decisions, "window_start", lambda action, code, n: "2026-10-01T00:00:00Z")
+    assert "ev_00000000000000d0" in ids()
 
 
 def test_a_cycle_that_could_not_read_the_secret_does_not_make_the_next_one_swallow_messages(world):
@@ -355,11 +363,12 @@ def test_a_subscription_is_baselined_once_and_the_record_is_its_own_row(world):
     assert set(store.get_source_state(notify_station.BASELINED_KEY)) == {"web3-all"}  # a paused one baselines again later
 
 
-def test_a_failed_send_never_puts_the_webhook_address_on_the_ops_page(world, loopback):  # noqa: F811
+def test_a_failed_send_never_puts_the_webhook_address_on_the_ops_page(world, loopback, monkeypatch):  # noqa: F811
     """Audit 04 §4.8: the error text of a refused redirect carries the redirect target and the webhook URL; it was stored
     in the status ledger and shown on #/ops. A webhook URL is often a bearer secret."""
     store, _sent, senders = world
     base, _elsewhere = loopback
+    monkeypatch.setattr(fetch, "_internal_host", lambda host: False)   # the loopback server stands for a public host
     cfg = {**CFG, "subscriptions": [CFG["subscriptions"][1]]}
     _baseline(store, senders, cfg)
 
@@ -373,3 +382,142 @@ def test_a_failed_send_never_puts_the_webhook_address_on_the_ops_page(world, loo
     bad = notify.parse_config({"subscriptions": [{"id": "h", "channel": "webhook", "secret": "s" * 32,
                                                   "target": "http://hooks.example/T000/SECRET-PATH-TOKEN"}]}).invalid
     assert bad and "SECRET-PATH-TOKEN" not in str(bad) and bad[0]["actual"] == "http"
+
+
+# ---------------------------------------------------------------- R4.3: pushes follow the story
+
+def _merge(store, old, to, at="2026-11-11T03:30:00Z"):
+    from radar import removals
+    first = store.get_event(old).first_seen
+    store.delete_event(old)
+    removals.record(store, [(old, first[:7], to)], at)
+
+
+def test_a_merged_event_is_corrected_once_in_its_thread_and_the_survivor_does_not_announce_itself_again(world):
+    store, sent, senders = world
+    _baseline(store, senders)
+    notify_station.run(store, CFG, NOW, "https://site", senders)                 # p0-only was told about a0 (and b0)
+    thread = store.get_source_state(notify_station.state_key("ev_00000000000000a0", "p0-only"))["thread"]
+    store.put_event(ev("ev_00000000000000a9", "P0", "vuln", "Ivanti EPMM RCE (the real one)"))
+    _merge(store, "ev_00000000000000a0", "ev_00000000000000a9")
+    del sent[:]
+    notify_station.run(store, CFG, NOW, "https://site", senders)
+    got = [(sid, eid, key) for sid, eid, key, _ in sent if sid == "p0-only"]
+    assert got == [("p0-only", "ev_00000000000000a0", "moved:ev_00000000000000a9")]     # one correction, no second P0
+    body = sent[0][3]
+    assert "已并入「Ivanti EPMM RCE (the real one)」" in body and "https://site/#/events/ev_00000000000000a9" in body
+    surv = store.get_source_state(notify_station.state_key("ev_00000000000000a9", "p0-only"))
+    assert surv["keys"] == ["p0", "standing"] and surv["thread"] == thread       # later updates continue in the old thread
+    del sent[:]
+    notify_station.run(store, CFG, NOW, "https://site", senders)
+    assert sent == []                                                            # said once
+
+
+def test_a_withdrawn_event_is_said_withdrawn_and_someone_never_told_hears_nothing(world):
+    store, sent, senders = world
+    _baseline(store, senders)
+    notify_station.run(store, CFG, NOW, "https://site", senders)
+    _merge(store, "ev_00000000000000a0", None)                                   # p0-only was told; web3-all never was
+    _merge(store, "ev_00000000000000b2", None)                                   # a P2: nobody was told
+    del sent[:]
+    notify_station.run(store, CFG, NOW, "https://site", senders)
+    assert [(s, e, k) for s, e, k, _ in sent] == [("p0-only", "ev_00000000000000a0", "moved:withdrawn")]
+    assert "已撤下" in sent[0][3]
+
+
+def test_a_chain_of_merges_points_at_the_event_that_exists_and_old_removals_are_left_alone(world):
+    from datetime import timedelta
+    store, _, _ = world
+    store.put_event(ev("ev_00000000000000c9", "P0", "vuln", "final"))
+    _merge(store, "ev_00000000000000a0", "ev_00000000000000a1")
+    _merge(store, "ev_00000000000000a1", "ev_00000000000000c9")
+    _merge(store, "ev_00000000000000b0", "ev_00000000000000b1", at="2026-11-01T00:00:00Z")      # long ago
+    got = notify_station.moved(store, NOW)
+    assert got == {"ev_00000000000000a0": "ev_00000000000000c9", "ev_00000000000000a1": "ev_00000000000000c9"}
+    store.put_event(ev("ev_00000000000000a0", "P0", "vuln", "re-created by a replay"))
+    assert "ev_00000000000000a0" not in notify_station.moved(store, NOW)         # it exists again: not removed
+    assert notify_station.moved(store, NOW + timedelta(hours=Limits.NOTIFY_FOLLOW_HOURS + 1)) == {}
+
+
+def test_a_failed_correction_is_retried_and_still_keeps_the_survivor_quiet(world):
+    store, sent, senders = world
+    _baseline(store, senders)
+    notify_station.run(store, CFG, NOW, "https://site", senders)
+    store.put_event(ev("ev_00000000000000a9", "P0", "vuln", "survivor"))
+    _merge(store, "ev_00000000000000a0", "ev_00000000000000a9")
+    del sent[:]
+
+    def broken(cfg, sub, msg, thread, cache):
+        raise OSError("slack down")
+    st = notify_station.run(store, CFG, NOW, "https://site", {**senders, "slack_channel": broken})
+    assert st["subscriptions"]["p0-only"]["status"] == "error"
+    assert "p0" in store.get_source_state(notify_station.state_key("ev_00000000000000a9", "p0-only"))["keys"]
+    notify_station.run(store, CFG, NOW, "https://site", senders)
+    assert [(s, k) for s, _, k, _ in sent if s == "p0-only"] == [("p0-only", "moved:ev_00000000000000a9")]
+
+
+def test_r4_4_a_kinds_filter_is_applied_by_the_station(world):
+    store, sent, senders = world
+    cfg = {**CFG, "subscriptions": [{"id": "verdicts", "owner": True, "channel": "slack_channel", "target": "C-V",
+                                     "filters": {"domain": ["web3"], "kinds": ["verdict"]}}]}
+    _baseline(store, senders, cfg)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert {(s, e, k) for s, e, k, _ in sent} == {("verdicts", "ev_00000000000000b1", "affected:1")}   # no P0 notice
+
+
+DIGEST = {"day": "2026-11-11", "status": "partial", "header": {"events": 3, "p0": 1, "p1": 2, "new": 1, "escalated": 2},
+          "summary": [{"text": "Ivanti EPMM 遭在野利用。", "cite": ["ev_00000000000000a0"], "grounded": True},
+                      {"text": "损失已超过 9 亿美元。", "cite": ["ev_00000000000000b0"], "grounded": False}],
+          "highlights": [{"text": "Bybit 被盗，资金仍在移动。", "cite": ["ev_00000000000000b0"], "grounded": True}],
+          "watch": []}
+DIGEST_SUB = {"id": "daily", "owner": True, "channel": "slack_channel", "target": "C-D",
+              "filters": {"severity": ["P0"], "kinds": ["digest"]}}
+
+
+def test_r4_4_an_opted_in_subscription_gets_todays_digest_once_with_only_its_grounded_sentences(world):
+    store, sent, senders = world
+    cfg = {**CFG, "subscriptions": [*CFG["subscriptions"], DIGEST_SUB]}
+    _baseline(store, senders, cfg)
+    store.put_source_state("__digest__", DIGEST)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    got = [(s, k, body) for s, e, k, body in sent if k.startswith("digest:")]
+    assert [(s, k) for s, k, _ in got] == [("daily", "digest:2026-11-11")]          # not p0-only / web3-all: opt-in
+    body = got[0][2]
+    assert "Ivanti EPMM 遭在野利用" in body and "Bybit 被盗" in body and "3 个事件 · P0 1 · P1 2" in body
+    assert "9 亿" not in body and "1 句未通过核对" in body                          # an ungrounded sentence is never sent
+    assert not [k for s, e, k, _ in sent if s == "daily" and not k.startswith("digest:")]  # kinds: digest only
+    sent.clear()
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert sent == []                                                                # once a day
+
+
+@pytest.mark.parametrize("d", [{**DIGEST, "day": "2026-11-10"}, {**DIGEST, "status": "failed"}, {}])
+def test_r4_4_no_digest_is_sent_when_today_has_none_or_it_failed(world, d):
+    store, sent, senders = world
+    cfg = {**CFG, "subscriptions": [DIGEST_SUB]}
+    _baseline(store, senders, cfg)
+    store.put_source_state("__digest__", d)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert sent == []
+
+
+def test_r4_4_a_new_subscription_does_not_get_the_digest_that_was_already_out_and_a_failed_send_is_retried(world):
+    store, sent, senders = world
+    cfg = {**CFG, "subscriptions": [DIGEST_SUB]}
+    store.put_source_state("__digest__", DIGEST)
+    notify_station.run(store, cfg, NOW, "https://site", senders)                    # baseline run of "daily"
+    assert sent == []
+    store.put_source_state("__digest__", {**DIGEST, "day": "2026-11-12"})
+    later = datetime(2026, 11, 12, 1, 0, tzinfo=UTC)
+
+    def down(cfg_, sub, msg, thread, cache):
+        raise OSError("slack is down")
+    st = notify_station.run(store, cfg, later, "https://site", {c: down for c in notify.CHANNELS})
+    assert st["subscriptions"]["daily"]["error"]["error"] == "send_failed"
+    notify_station.run(store, cfg, later, "https://site", senders)
+    assert [k for _, _, k, _ in sent] == ["digest:2026-11-12"]
+
+
+def test_r4_4_a_quiet_day_digest_says_so():
+    m = notify.digest_message({"day": "2026-11-11", "status": "ok", "header": {"events": 0}}, "2026-11-11", "https://site/")
+    assert m["kind"] == "digest" and "没有 P0 / P1 事件" in m["text"] and m["text"].endswith("https://site/")

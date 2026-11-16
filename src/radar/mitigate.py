@@ -283,7 +283,8 @@ def paste_priority(group: str) -> int:
     return PASTE_PRIORITY_BASE + list(WAF_GROUPS).index(group)
 
 
-def waf_rule(plan: WafPlan, priority: int, block: bool = False, group_rules: list[str] | tuple[str, ...] = ()) -> dict[str, Any]:
+def waf_rule(plan: WafPlan, priority: int, block: bool = False, group_rules: list[str] | tuple[str, ...] = (),
+             default_version: str | None = None) -> dict[str, Any]:
     """The web ACL rule for a plan — the ONLY renderer (the page, the PR text and apply all use this one).
     Staged (block=False): OverrideAction Count — EVERY rule of the group counts, the named ones included; nothing the
       radar stages ever blocks. Live bug 2026-11-11 (01-waf.md Bug-1): staging was OverrideAction None + Count on the
@@ -292,8 +293,13 @@ def waf_rule(plan: WafPlan, priority: int, block: bool = False, group_rules: lis
     Promoted (block=True, a human's step): OverrideAction None. A plan naming rules lets ONLY those block: every other
       rule of the group (`group_rules`, from DescribeManagedRuleGroup) is overridden to Count — without that list the
       render is refused (ValueError), never a blind whole-group Block. A whole-group plan blocks at the group's own actions.
-    Default version on purpose (AWS: 'we recommend the default version'); check() verifies the default is new enough."""
+    Default version on purpose (AWS: 'we recommend the default version') — unless the group's default is known to be
+    older than the plan's minimum: then the rule pins Version = min_version, since the default would not contain the
+    CVE's rules (audit 04 2.5: the write went out unpinned and check() could only report too_old). Once the default
+    catches up, the next render drops the pin by itself. Unknown default (DescribeManagedRuleGroup failed) ⇒ no pin."""
     stmt: dict[str, Any] = {"VendorName": "AWS", "Name": plan.group}
+    if plan.min_version and default_version and version_key(default_version) < version_key(plan.min_version):
+        stmt["Version"] = plan.min_version
     name = rule_name(plan.group)
     if not block:
         return _acl_rule(name, priority, stmt, {"Count": {}})   # staged: the whole group counts
@@ -356,7 +362,8 @@ ACL_CARRY_FIELDS = ("Description", "CustomResponseBodies", "CaptchaConfig", "Cha
 
 
 def merge_acl_rules(rules: list[dict[str, Any]], wanted: list[tuple[WafPlan, bool]],
-                    group_rules: dict[str, list[str]] | None = None) -> list[dict[str, Any]] | None:
+                    group_rules: dict[str, list[str]] | None = None,
+                    default_versions: dict[str, str | None] | None = None) -> list[dict[str, Any]] | None:
     """The web ACL's new rule list, or None when nothing changes. Only rules named radar-* are ever written —
     every other rule is kept byte-for-byte (a web ACL may be shared). A radar rule keeps its priority; a new one goes
     after the highest priority in use. `wanted` = (plan, block) — block=True only after a human promoted the plan, one
@@ -371,7 +378,8 @@ def merge_acl_rules(rules: list[dict[str, Any]], wanted: list[tuple[WafPlan, boo
         name = rule_name(plan.group)
         i = by_name.get(name)
         new = waf_rule(plan, out[i]["Priority"] if i is not None else nxt, block=block,
-                       group_rules=group_rules.get(plan.group) or ())
+                       group_rules=group_rules.get(plan.group) or (),
+                       default_version=(default_versions or {}).get(plan.group))
         if i is None:
             out.append(new)
             by_name[name] = len(out) - 1

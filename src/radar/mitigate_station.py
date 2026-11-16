@@ -38,14 +38,21 @@ def _cwes_of(items: list[Any]) -> dict[str, list[str]]:
     return out
 
 
-def _catalog(led: dict[str, Any], aws: Any, today: str, errors: list[dict[str, str]]) -> dict[str, list[mitigate.CveRules]]:
+def _catalog(led: dict[str, Any], aws: Any, today: str, errors: list[dict[str, str]],
+             now: datetime | None = None) -> dict[str, list[mitigate.CveRules]]:
+    """AWS's managed-rule changelog, re-read every Limits.WAF_CHANGELOG_REFRESH_H hours (R4.5: it was once a day, so a
+    rule AWS added for a CVE in the morning was not planned until the next day)."""
     cat = led.setdefault("catalog", {})
-    if cat.get("fetched_on") != today:
+    at = timeutil.parse(cat.get("fetched_at"))
+    stale = (cat.get("fetched_on") != today if now is None
+             else at is None or now - at >= timedelta(hours=Limits.WAF_CHANGELOG_REFRESH_H))
+    if stale:
         rows = aws.changelog_rows()
         if isinstance(rows, dict):   # keep yesterday's rows, visibly
             errors.append({"channel": "waf", "what": "changelog", "error": rows["error"]})
         else:
-            cat.update({"fetched_on": today, "rows": [dataclasses.asdict(r) for r in rows]})
+            cat.update({"fetched_on": today, "fetched_at": timeutil.iso(now) if now else None,
+                        "rows": [dataclasses.asdict(r) for r in rows]})
     rows = [mitigate.ChangelogRow(**{**r, "rules": tuple(r["rules"]), "cves": tuple(r["cves"])}) for r in cat.get("rows") or []]
     return mitigate.waf_catalog(rows)
 
@@ -163,7 +170,7 @@ def run(store: Store, aws: Any, now: datetime) -> dict[str, Any]:
     led = store.get_source_state(MITIGATE_KEY)
     promoted = (store.get_source_state(PROMOTE_KEY).get("waf") or {})
     errors: list[dict[str, str]] = []
-    catalog = _catalog(led, aws, today, errors)
+    catalog = _catalog(led, aws, today, errors, now)
     by_target = _inspector(led, aws, today, errors)
     acl_refs = aws.web_acls()
     since = decisions.window_start("waf_stage", "M_OUT_OF_WINDOW", now)   # the decision table's window (page reads it too)
@@ -235,7 +242,8 @@ def run(store: Store, aws: Any, now: datetime) -> dict[str, Any]:
             errors.append({"channel": "waf", "what": f"promote {g} on {ref['name']}",
                            "error": "rule list of the group unavailable (DescribeManagedRuleGroup) — left as is"})
         pairs = [(p, b) for p, b in pairs if p.group not in blind]
-        new_rules = mitigate.merge_acl_rules(acl.get("Rules") or [], pairs, group_rules)
+        new_rules = mitigate.merge_acl_rules(acl.get("Rules") or [], pairs, group_rules,
+                                             {g: m.get("default_version") for g, m in meta.items()})
         if new_rules is not None:
             put = aws.put_rules(ref, acl, got["lock"], new_rules)
             if "error" in put:

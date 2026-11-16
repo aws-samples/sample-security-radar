@@ -20,6 +20,8 @@ from radar import (
     chain,
     collect,
     cost,
+    digest,
+    fetch,
     keys,
     latency,
     pipeline,
@@ -45,6 +47,38 @@ _store = DynamoStore(boto3.resource("dynamodb").Table(os.environ["TABLE"])) if o
 MAX_CHANGED_IDS = 2000  # keeps the Step Functions payload far below 256 KB
 FUNNEL_KEY = "__funnel__"  # not a registered source; sources_doc only iterates the registry
 MAX_ANALYSES_PER_CYCLE = 6  # ~30 s each (2026-10-23 probe) ⇒ bounded station time
+
+
+def _bedrock_gate(model: str) -> bool:
+    """R5.6: one atomic count per Bedrock call per UTC day; past llm.daily_cap the call is not made. The counter
+    failing lets the call through (the station's other table writes would fail first) and says so."""
+    from radar import llm
+    if _store is None:                       # installed only with a store (below); a test calling it bare is ungated
+        return True
+    try:
+        return _store.add_count(timeutil.iso(timeutil.now())[:10], f"bedrock:{model}") <= llm.daily_cap(model)
+    except (BotoCoreError, ClientError) as e:
+        log.warning(json.dumps({"ledger": "llm", "degraded": "daily_cap_unchecked", "error": str(e)[:200]}))
+        return True
+
+
+if _store is not None:
+    from radar import llm as _llm
+    _llm.gate = _bedrock_gate
+
+
+def _record_row_sizes(station: str) -> None:
+    """Rows this run wrote above Limits.ROW_WARN_BYTES (DynamoStore._sized) ⇒ the newest 50 in one small ledger, read
+    by #/ops row_near_limit — a row creeping toward 400 KB is seen days before it fails a cycle (R5.3)."""
+    from radar.dynamo import ROW_SIZES_KEY
+    near = getattr(_store, "near_limit", None)
+    if not near:
+        return
+    at = timeutil.iso(timeutil.now())
+    led = _store.get_source_state(ROW_SIZES_KEY)
+    led.update({k: {"bytes": n, "station": station, "at": at} for k, n in near.items()})
+    _store.put_source_state(ROW_SIZES_KEY, dict(sorted(led.items(), key=lambda kv: kv[1]["at"], reverse=True)[:50]))
+    near.clear()
 
 
 def _timed(station: str):
@@ -75,40 +109,62 @@ def _timed(station: str):
                 try:
                     if _store is not None:
                         stationtime.record(_store, station, el, limit, timeutil.now(), ok=ok)
+                        _record_row_sizes(station)
                 except (BotoCoreError, ClientError) as e:
                     log.warning(json.dumps({"station": station, "degraded": "timing_not_recorded", "error": str(e)[:200]}))
         return run
     return wrap
 
 
-def _earlier_cycle_running(execution: str | None, started: str | None) -> bool:
-    """Is an earlier execution of this state machine still running? Live 2026-11-10 00:50: a scheduled cycle and a
-    deploy-check cycle started 6 s apart; the second's Process was throttled (reserved concurrency 1) and failed. The
-    state machine ARN is derived from the execution ARN (no env var, no CDK reference cycle). A failed check is logged
-    and the cycle runs — the stations' throttle retry is the second line."""
+# the states after collection: an earlier cycle in one of them no longer collects, so this one may (roadmap R2.2)
+POST_COLLECT_STATES = frozenset({"Process", "Analyze", "Respond", "Mitigate", "Publish", "Notify",
+                                 "AnalyzeFailed", "RespondFailed", "MitigateFailed", "NotifyFailed"})
+
+
+def _earlier_cycle_running(execution: str | None, started: str | None) -> str:
+    """What earlier executions of this state machine are doing: "none", "past_collect" (every earlier one is in
+    Process or later — this cycle may collect, and stops before Process: one writer of events at a time), or
+    "collecting" (one is still collecting — this cycle ends here: two collections of one source would race on its
+    state). Live 2026-11-10 00:50: two cycles 6 s apart, the second's Process throttled and failed. Measured
+    2026-11-15: half of the 5-minute triggers were skipped this way, so the site published every 10 minutes and a
+    report waited up to two cycles to be fetched. The state machine ARN is derived from the execution ARN. A failed
+    check is logged and the cycle runs in full — the stations' throttle retry is the second line."""
     if not execution or not started:
-        return False
+        return "none"
     sm = execution.replace(":execution:", ":stateMachine:").rsplit(":", 1)[0]
+    me = timeutil.parse(started)
+    sfn = boto3.client("stepfunctions")
     try:
-        running = boto3.client("stepfunctions").list_executions(stateMachineArn=sm, statusFilter="RUNNING",
-                                                                 maxResults=20)["executions"]
+        running = sfn.list_executions(stateMachineArn=sm, statusFilter="RUNNING", maxResults=20)["executions"]
+        earlier = [x for x in running if x["executionArn"] != execution and x["startDate"] < me]
+        if not earlier:
+            return "none"
+        for x in earlier:
+            hist = sfn.get_execution_history(executionArn=x["executionArn"], reverseOrder=True, maxResults=100)["events"]
+            entered = {(e.get("stateEnteredEventDetails") or {}).get("name") for e in hist}
+            if not entered & POST_COLLECT_STATES:
+                return "collecting"
+        return "past_collect"
     except (BotoCoreError, ClientError) as e:
         log.warning(json.dumps({"station": "plan", "degraded": "overlap_check_unavailable", "error": str(e)[:200]}))
-        return False
-    me = timeutil.parse(started)
-    return any(x["executionArn"] != execution and x["startDate"] < me for x in running)
+        return "none"
 
 
 def plan(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     now = timeutil.now()
     inp = event.get("input", event) or {}            # the cycle passes {input, execution, started}; manual calls the input
     full = bool(inp.get("full", False))
-    if not full and _earlier_cycle_running(event.get("execution"), event.get("started")):
-        log.info(json.dumps({"station": "plan", "skipped": "earlier_cycle_running"}))
-        return {"skip": True, "slot": timeutil.iso(now), "sources": [], "full": False}
-    states = _store.get_source_states(list(BY_ID))           # one BatchGetItem per 100 sources (research/17 §0)
+    other = "none" if full else _earlier_cycle_running(event.get("execution"), event.get("started"))
+    if other == "collecting":
+        log.info(json.dumps({"station": "plan", "skipped": "earlier_cycle_collecting"}))
+        return {"skip": True, "collect_only": False, "slot": timeutil.iso(now), "sources": [], "full": False}
+    if other == "past_collect":
+        # the raw batches this cycle writes are picked up by the next full cycle's Process (it reads every batch after
+        # its watermark, up to its own slot)
+        log.info(json.dumps({"station": "plan", "collect_only": "earlier_cycle_past_collect"}))
+    states = _store.get_source_states([*BY_ID, collect.SURGE_KEY])   # one BatchGetItem per 100 sources (research/17 §0)
     # `full` (manual full republish) must survive to Publish: Plan's output is the state every later step reads
-    return {"skip": False, "slot": timeutil.iso(now),
+    return {"skip": False, "collect_only": other == "past_collect", "slot": timeutil.iso(now),
             "sources": [{"source_ids": b} for b in collect.batches(collect.due(states, now))], "full": full}
 
 
@@ -121,8 +177,9 @@ def _collect_source(store: Any, sid: str, slot: str) -> dict[str, Any]:
     state = store.get_source_state(sid)
     seen = dict((store.get_source_state(SEEN_PREFIX + sid) or {}).get("h") or {})
     before = dict(seen)
-    raws, state = collect.collect(source, state, now, seen=seen,
-                                  known_item=lambda s, g: store.get_item(keys.item_id(s, g)) is not None)
+    with fetch.source_budget(Limits.SOURCE_BUDGET_S):     # R2.5: one source cannot hold its host's thread past this
+        raws, state = collect.collect(source, state, now, seen=seen,
+                                      known_item=lambda s, g: store.get_item(keys.item_id(s, g)) is not None)
     key = None
     if raws:
         key = f"raw/{slot[:10]}/{slot}/{sid}.jsonl"
@@ -154,14 +211,23 @@ def collect_batch(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
         return local.s
 
     def run_group(ids: list[str]) -> list[dict[str, Any]]:
-        out = []
+        out, failed_in_row = [], 0
         for sid in ids:
+            # R2.5 host breaker: a host's sources run serially here (24 WeChat feeds on wechat2rss, 21 Telegram channels
+            # on t.me). After HOST_BREAKER_AFTER failures in a row the host is down for this run — the rest are skipped,
+            # their state untouched, so they are due next cycle instead of each waiting out its own timeout now.
+            if failed_in_row >= Limits.HOST_BREAKER_AFTER:
+                log.warning(json.dumps({"station": "collect", "source": sid, "skipped": "host_breaker",
+                                        "host": collect._host(BY_ID[sid])}))
+                out.append({"source_id": sid, "key": None, "count": 0, "ok": False, "skipped": "host_breaker"})
+                continue
             if time.monotonic() > t_end:
                 log.warning(json.dumps({"station": "collect", "source": sid, "skipped": "batch_deadline"}))
                 out.append({"source_id": sid, "key": None, "count": 0, "ok": False, "skipped": "batch_deadline"})
                 continue
             try:
                 out.append(_collect_source(store(), sid, slot))
+                failed_in_row = 0 if out[-1]["ok"] else failed_in_row + 1
             except Exception as e:  # noqa: BLE001 — logged + reported per source; batch-mates' results must survive
                 log.error(json.dumps({"station": "collect", "source": sid, "error": f"{type(e).__name__}: {e}"[:300]}))
                 try:      # the failure goes on the source's record, or #/sources keeps saying ok
@@ -171,6 +237,7 @@ def collect_batch(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
                     log.error(json.dumps({"station": "collect", "source": sid, "degraded": "crash_not_recorded",
                                           "error": str(e2)[:200]}))
                 out.append({"source_id": sid, "key": None, "count": 0, "ok": False, "error": type(e).__name__})
+                failed_in_row += 1
         return out
     groups: dict[str, list[str]] = {}
     for sid in event["source_ids"]:
@@ -180,12 +247,8 @@ def collect_batch(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     return {"results": results}
 
 
-def collect_one(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
-    """One source (manual invocation, scripts)."""
-    return _collect_source(_store, event["source_id"], event["slot"])
-
-
 WATERMARK_KEY = "__raw_watermark__"
+RAW_BAD_KEY = "__raw_bad__"  # {batch key: {lines, first_line, error, at}} — the newest 50; #/ops raw_lines_skipped
 REFRESH_KEY = "__refresh__"  # {"at": the last time-driven refresh} — single writer: the process station
 
 
@@ -220,9 +283,26 @@ def process(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     slot = event.get("slot")
     pending = _pending_raw_keys(now, slot)
     raws: list[RawItem] = []
+    bad: dict[str, dict[str, Any]] = {}
     for key in pending:
-        body = _s3.get_object(Bucket=os.environ["RAW_BUCKET"], Key=key)["Body"].read().decode()
-        raws += [RawItem.from_dict(json.loads(line)) for line in body.splitlines() if line.strip()]
+        body = _s3.get_object(Bucket=os.environ["RAW_BUCKET"], Key=key)["Body"].read().decode("utf-8", "replace")
+        for n, line in enumerate(body.splitlines(), 1):
+            if not line.strip():
+                continue
+            # one line that does not parse used to fail the whole run; the watermark stayed behind, every later run
+            # re-read and failed on it, and after two days the batch fell out of the listing unprocessed — everything
+            # in it lost without a word (audit 05 1.6). Now the line is skipped and counted; the batch is processed.
+            try:
+                raws.append(RawItem.from_dict(json.loads(line)))
+            except (ValueError, TypeError, KeyError) as e:
+                b = bad.setdefault(key, {"lines": 0, "first_line": n, "error": f"{type(e).__name__}: {str(e)[:120]}"})
+                b["lines"] += 1
+    if bad:
+        log.error(json.dumps({"station": "process", "degraded": "raw_lines_skipped", "batches": len(bad),
+                              "lines": sum(b["lines"] for b in bad.values())}))
+        led = _store.get_source_state(RAW_BAD_KEY)
+        led.update({k: {**v, "at": timeutil.iso(now)} for k, v in bad.items()})
+        _store.put_source_state(RAW_BAD_KEY, dict(sorted(led.items(), key=lambda kv: kv[1]["at"])[-50:]))
     raws.sort(key=lambda x: x.published_at or now)
     res = pipeline.ingest(raws, _store, now)
     latency.record(_store, res.held, now)     # published → held, for #/ops collect_latency (roadmap R0.5)
@@ -268,6 +348,12 @@ def _evidence(ev: Any) -> list[dict[str, Any]]:
              "tier": i.tier, "published_at": i.published_at, "title": i.title, "text": i.text} for i in items]
 
 
+def _structured_ids(ev: Any) -> set[str]:
+    """Reports from hack databases / KEV (Source.always_eventful): a brief keeps them whatever its size (R1.8)."""
+    return {it.item_id for it in _store.get_items(ev.item_ids)
+            if BY_ID.get(it.source_id) and BY_ID[it.source_id].always_eventful}
+
+
 @_timed("analyze")
 def analyze_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     """Analyst station: P0/P1 events whose evidence changed get a (re)generated, code-validated brief."""
@@ -278,7 +364,7 @@ def analyze_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     for ev in _store.events_updated_since(since):
         if ev.severity not in ("P0", "P1"):
             continue
-        ev_in = analyst.trim_evidence(_evidence(ev))
+        ev_in = analyst.trim_evidence(_evidence(ev), _structured_ids(ev))
         if (ev.analysis or {}).get("input_hash") != analyst.input_hash(ev_in):
             todo.append((0 if ev.severity == "P0" else 1, ev.last_updated, ev, ev_in))
     todo.sort(key=lambda t: (t[0], -_ts(t[1])))
@@ -296,7 +382,7 @@ def analyze_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     return {"changed": changed[:MAX_CHANGED_IDS], "full": bool(event.get("full")), "analysis_backlog": len(todo) - len(done)}
 
 
-DIGEST_KEY = "__digest__"  # C7: the latest daily digest (single writer: the analyze station)
+DIGEST_KEY = digest.KEY  # C7: the latest daily digest (single writer: the analyze station)
 DUP_KEY = "__cluster_judge__"  # C4: {"pairs": {pair_key: verdict row}} (single writer: the analyze station)
 
 
@@ -321,9 +407,9 @@ def _retitle_shadow(now: datetime) -> None:
     with scripts/retitle.py; no published title changes here."""
     from radar import retitle, retitle_judge
     evs = _store.events_updated_since(timeutil.iso(now - timedelta(days=retitle_judge.RECENT_DAYS)))
-    st, calls = retitle_judge.run(evs, _store.get_items, _store.get_source_state(retitle_judge.KEY),
-                                  _store.get_source_state(retitle.KEY), now)
-    if calls:
+    stored = _store.get_source_state(retitle_judge.KEY)
+    st, calls = retitle_judge.run(evs, _store.get_items, stored, _store.get_source_state(retitle.KEY), now)
+    if calls or st != stored:            # an adopted proposal leaves (and is tallied) without a model call
         _store.put_source_state(retitle_judge.KEY, st)
         log.info(json.dumps({"station": "analyze", "retitle_shadow_calls": calls,
                              "proposals": sum(1 for v in st.values() if v.get("verdict") == "propose")}))
@@ -332,7 +418,6 @@ def _retitle_shadow(now: datetime) -> None:
 def _daily_digest(now: datetime) -> None:
     """C7: once a day after 08:00 HKT (digest.due), ≤ MAX_ATTEMPTS tries; the outcome — ok, partial, failed with
     a reason, or a quiet day — is stored and published as is."""
-    from radar import digest
     st = _store.get_source_state(DIGEST_KEY)
     if not digest.due(st, now):
         return
@@ -406,6 +491,8 @@ def _publish_search(bucket: str, now: Any, events: list[Any] | None = None, publ
     (radar.search). The window read is the station's cached one (DynamoStore.events_updated_since).
     published = ids whose detail doc this run wrote: their rows are marked linkable (search.record "p").
     Events that stopped existing (radar.removals) leave their shard and their detail page here."""
+    if _store is None:      # installed at import when TABLE is set; a publish without a table is a wiring error
+        raise RuntimeError("publish: no store (TABLE is not set)")
     if events is None:
         events = _store.events_updated_since(timeutil.iso(now - timedelta(days=Limits.PUBLISH_WINDOW_DAYS)))
     at = timeutil.iso(now)
@@ -416,12 +503,29 @@ def _publish_search(bucket: str, now: Any, events: list[Any] | None = None, publ
     idx = _read_site_json(bucket, "data/search/index.json") or {"months": []}
     counts = {m["month"]: m["events"] for m in idx.get("months") or []}
     fresh_by_month = search.shards(events, published or set(), titles)
-    for m in sorted(set(fresh_by_month) | {r.get("m") for r in gone.values() if r.get("m")}):
+    by_id = {e.event_id: e for e in events}
+    reads = 0
+    # newest month first: during the R3.5 backfill the per-run read cap goes to the rows readers search most
+    for m in sorted(set(fresh_by_month) | {r.get("m") for r in gone.values() if r.get("m")}, reverse=True):
         old = (_read_site_json(bucket, f"data/search/{m}.json") or {}).get("events") or []
         if m not in fresh_by_month and not {r["id"] for r in old} & gone.keys():
             continue                                  # a removed event's month that never had its row
+        # R3.5: a row without a detail page gets its source URL ("r"), read once — merge keeps it after that. Capped per
+        # run: the first runs after this change backfill the window a few hundred rows at a time.
+        had = {r["id"] for r in old if r.get("r") or r.get("p")}
+        need = [r for r in fresh_by_month.get(m, []) if not r.get("p") and r["id"] not in had]
+        need = need[:max(0, Limits.SEARCH_URL_READS_PER_RUN - reads)]
+        first = {r["id"]: fid for r in need if (fid := search.first_item_id(by_id[r["id"]]))}
+        if first:
+            reads += len(first)
+            urls = {it.item_id: search.source_url(it.url) for it in _store.get_items(sorted(set(first.values())))}
+            for r in need:
+                if (u := urls.get(first.get(r["id"], ""))):
+                    r["r"] = u
         rows = search.merge(old, fresh_by_month.get(m, []), drop=gone.keys())
         counts[m] = len(rows)
+        if rows == old:
+            continue                                  # R2.6: same rows ⇒ no rewrite (≈ 50 shards, 2+ MB every cycle)
         _s3.put_object(Bucket=bucket, Key=f"data/search/{m}.json", ContentType="application/json",
                        CacheControl="max-age=300", Body=json.dumps(search.shard_doc(m, rows, at), ensure_ascii=False).encode())
     _s3.put_object(Bucket=bucket, Key="data/search/index.json", ContentType="application/json", CacheControl="max-age=60",
@@ -450,12 +554,42 @@ def _publish_feeds(bucket: str, rows: list[dict[str, Any]], now: datetime, defer
         _s3.put_object(Bucket=bucket, Key=f"data/{path}", Body=body, ContentType=ctype, CacheControl="max-age=60")
 
 
+def _surge(rows: list[dict[str, Any]], now: datetime) -> None:
+    """R2.3: an event that BECAME P0 within Limits.SURGE_HOURS (first seen as one, or escalated) ⇒ T1 sources run at
+    half cadence until SURGE_HOURS after that moment (collect.cadence). Not "a P0 updated": big P0s update every cycle,
+    which would make the surge permanent (measured: +30 % runs, 22.8k → 29.8k a day). Written only when it changes;
+    Plan reads it with the source states."""
+    if _store is None:
+        return
+    became: dict[str, datetime] = {}
+    for r in rows:
+        ev = _store.get_event(r["event_id"]) if r.get("severity") == "P0" else None
+        at = timeutil.parse(max(ev.first_seen or "", ev.escalated_at or "")) if ev else None
+        if at is not None and at >= now - timedelta(hours=Limits.SURGE_HOURS):
+            became[r["event_id"]] = at
+    hot = sorted(became)
+    until = timeutil.iso(max(became.values()) + timedelta(hours=Limits.SURGE_HOURS)) if became else None
+    old = _store.get_source_state(collect.SURGE_KEY)
+    new = {"until": until, "events": hot} if hot else {}
+    if new != old:
+        _store.put_source_state(collect.SURGE_KEY, new)
+
+
 @_timed("publish")
 def publish_site(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     now = timeutil.now()
     left = _time_left(_ctx)
-    pending = set(_store.get_source_state(PENDING_KEY).get("ids") or [])
-    changed = None if event.get("full") else set(event.get("changed") or []) | pending
+    led = _store.get_source_state(PENDING_KEY)
+    pending = set(led.get("ids") or [])
+    full = bool(event.get("full") or led.get("full"))
+    incoming = set(event.get("changed") or [])
+    changed = None if full else incoming | pending
+    # R5.2 (audit 05 1.5): the cycle's change list lived only in this invocation's input — a Publish that timed out or
+    # failed lost it, and those events' pages stayed stale until they changed again. Recorded before the build; a run
+    # that finishes replaces it with what it deferred (below), a run that dies leaves it for the next one.
+    if (full and not led.get("full")) or incoming - pending:
+        _store.put_source_state(PENDING_KEY, {"ids": sorted(pending | incoming), "full": full, "at": timeutil.iso(now)})
+        pending |= incoming
     import time
     from concurrent.futures import ThreadPoolExecutor
     deferred: list[str] = []
@@ -478,7 +612,8 @@ def publish_site(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     with ThreadPoolExecutor(16) as ex:
         list(ex.map(put, docs.items()))
     t.append(time.monotonic())
-    if deferred or pending:
+    _surge(docs["events.json"]["events"], now)
+    if deferred or pending or led.get("full") or full:
         _store.put_source_state(PENDING_KEY, {"ids": deferred, "at": timeutil.iso(now)})
     _publish_feeds(bucket, docs["events.json"]["events"], now, set(deferred))
     # only these events have a page; the shards hold the whole window (live: most search hits were 「事件不存在」)
@@ -816,6 +951,16 @@ def notify_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
         _store.put_source_state(notify_station.STATUS_KEY, st)
         log.warning(json.dumps({"station": "notify", "degraded": "secret_unreadable", "error": str(e)[:300]}))
         return {"status": "error"}
+    # self-service webhooks (R7.3) live in their own secret; unreadable ⇒ the operator's subscriptions still go out
+    # and the failure is an invalid row on #/ops — "could not read" must not look like "nobody subscribed"
+    if os.environ.get("SELF_SUBSCRIPTIONS_ARN") and isinstance(cfg, dict) and cfg:
+        from radar import subscribe_api
+        try:
+            raw = boto3.client("secretsmanager").get_secret_value(SecretId=os.environ["SELF_SUBSCRIPTIONS_ARN"])["SecretString"]
+            cfg = subscribe_api.merge(cfg, json.loads(raw) if raw.strip().startswith("{") else {})
+        except (ClientError, BotoCoreError, ValueError) as e:
+            cfg = {**cfg, "self_service_error": str(e)[:200]}
+            log.warning(json.dumps({"station": "notify", "degraded": "self_subscriptions_unreadable", "error": str(e)[:300]}))
     st = notify_station.run(_store, cfg, now, os.environ.get("SITE_URL", ""), time_left=_time_left(_ctx))
     sent = {k: v.get("sent", 0) for k, v in st["subscriptions"].items()}
     log.info(json.dumps({"station": "notify", "status": st["status"], "sent": sent, "invalid": len(st["invalid"])}))

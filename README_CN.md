@@ -10,22 +10,20 @@
 
 > **预览说明**：本示例调用 AWS Continuum 代码扫描，该功能处于**公开预览**，API 与行为可能变化。请使用非生产账号。
 
-## v1.2.0 更新了什么
+## v1.3.0 更新了什么
 
 完整条目见 [CHANGELOG.md](CHANGELOG.md)。
 
-| 方向 | 变化 |
+| 方面 | 变化 |
 |---|---|
-| **错了能知道** | 事件在一轮内变形、站点连续失败或停摆、信源停采或沉默，都上运维页；5 个 CloudWatch 告警经 SNS 通知负责人 |
-| **聚类** | 只有事件本身的报道才能合并两个事件；名字只指向它命名的事件。`scripts/move_item.py` 可移动单条报道 |
-| **时效** | 「发布 → 持有」与「首报 → P0 推送」的中位与 90 分位在运维页；短列表每 5–10 分钟读一次 |
-| **缓解** | 批准的 WAF / DNS Firewall 规则只拦批准时的范围；之后的扩大会被报告，不会生效 |
-| **WAF 规则包** | 每个事件一份，取自模板或证据原文的特征，离线校验，可导出 wafv2 JSON / CloudFormation / Terraform / CLI |
-| **响应决策** | 一张决策表；事件页显示每个动作的结果、原因码与时间 |
-| **通知** | 订阅（Slack、Lark、webhook）与 Atom / JSON feed |
-| **信源** | CVE List、CISA CSAF、AWS 公告、厂商 PSIRT、CERT、交易所公告板、Telegram 预览、公众号 feed，全部经准入试跑；5 分钟增量采集 |
-| **页面** | 搜索发布过的每个事件；交易所公告板 |
-| **部署护栏** | 部署前检查，部署后比对站点 |
+| **Agent 访问** | Amazon Cognito 客户端凭证令牌 → 经 Amazon API Gateway 只读访问 `GET /api/data/*`；`scripts/radar-token.py` 发放与吊销 |
+| **Agent 工具包** | CLI、stdio MCP 服务、`security-radar` skill、`llms.txt` —— 对已发布文档的只读工具 |
+| **订阅** | 令牌客户端可自助登记自己的 https webhook（`radar/subscribe`，只能动自己的行）；可按 CVE、利用状态、真实性、损失额与消息类型（含 `digest`）筛选；新渠道 `lark_dm`；新增 `#/subscribe` 页 |
+| **信源** | 微软安全更新指南（JSON API）、经 Broadcom 列表 API 的 VMware（第一个 POST 信源）、SonicWall、Ivanti、Google Cloud；每个源每轮 60 秒预算、按主机熔断、退避并遵守 `Retry-After` |
+| **可恢复** | 桶开启版本控制、表开启删除保护、`scripts/restore.py`（默认演练） |
+| **最小权限** | 每个工位只拿它用到的表操作（无 `Scan`）；Collect 只能写信源状态行（`dynamodb:LeadingKeys`）；Publish 只能写 `data/*` |
+| **聚类** | 汇总类文章不合并任何事件；相隔多年的 CVE 不合并；「已被利用」只在说的是该事件时才算 |
+| **界面** | 入口 chunk ≤ 120 KB gzip，其余页面按需加载；按首次发现排序；事件页按代码目标给出动作一览；搜索命中直达原文 |
 
 ## 它是什么
 
@@ -75,12 +73,12 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界 —
 | **定位到行** | 钉死的受影响版本或 IOC（地址、密钥）在仓库里出现 ⇒ 带文件与行号的 finding；版本无法比较时如实说明，交给 Security Agent |
 | **链上证据** | Web3 事件的攻击交易在公共 RPC 上查回执，成功即升为「已佐证」；新事件用公开 JSON-RPC 复盘（ERC-20 流出、发行方冻结），每笔已证实的攻击交易按代币拆解 |
 | **聚类用数字管** | 一起事件、多篇报道：按硬链接（CVE、交易、引用的原文）和受害者名称合并 —— 名字只指向它命名的事件，不指向报道里提到它的每个事件；放错的单条报道可以移动（`scripts/move_item.py`），移动后不会回流 |
-| **错了能知道** | 事件在一轮内变形、站点连续失败或停摆、信源停采或沉默，都是运维页上的条目；5 个 Amazon CloudWatch 告警经 Amazon SNS 通知负责人；「发布 → 持有」与「首报 → P0 推送」的时效每轮都在量 |
+| **错了能知道** | 事件在一轮内变形、站点连续失败或停摆、信源停采或沉默，都是运维页上的条目；5 个 Amazon CloudWatch 告警经 Amazon SNS 通知负责人；「发布 → 持有」与「成为 P0 → 推送」的时效每轮都在量 |
 | **一张响应决策表** | 评审、finding、扫描、补丁交付、通知、缓解，每个动作都由代码里的一张表决定；事件页显示结果、原因码与时间，「没评估」与「没触发」长得不一样 |
 | **三种托管、同一条链** | 每个目标只进一个 Continuum 环境：S3（补丁文件）/ GitHub（原生 PR）/ GitLab（原生 MR） |
 | **成本护栏** | 只为验证已提交成功的雷达 finding 才扫描；每个环境 24 小时最多一次；关闭定时扫描；日预算线在运维页标出 |
 | **值班视角** | 每日 08:00 HKT 简报（代码选事件与计数，LLM 写带引用的句子）、疑似重复提示、「需要人处理的事」运维页、搜索发布过的每个事件、交易所公告板 |
-| **通知** | 按渠道订阅（Slack、Lark、带签名的 webhook），可设筛选，由 Publish 之后的独立工位发送；另有已发布事件的 Atom / JSON feed。用 `scripts/set-notify.sh` 配置 |
+| **通知** | 按渠道订阅（Slack 频道 / 私信、Lark 群 / 私信、带签名的 webhook），可设筛选与消息类型，由 Publish 之后的独立工位发送；另有已发布事件的 Atom / JSON feed。用 `scripts/set-notify.sh` 配置，或由令牌客户端自助登记 webhook（见下） |
 
 ## 快路：补丁上线前先缓解
 
@@ -96,6 +94,48 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界 —
 
 缓解 ≠ 修复：升级到修复版本才是唯一完整的修复。
 
+## Agent 访问与订阅
+
+界面仍然只读。Agent 和脚本经令牌把关的 API 读同一批已发布文档；这个 API 唯一的写操作是订阅者登记**自己的** webhook。
+
+- **令牌**：运维者给每个使用方发一个 Amazon Cognito 应用客户端（客户端凭证模式，scope `radar/read`，令牌一小时有效），
+  把它写出的 0600 文件交给对方 —— 密钥从不打印：
+  ```bash
+  AWS_PROFILE=<profile> uv run python scripts/radar-token.py create <name> [--subscribe]
+  AWS_PROFILE=<profile> uv run python scripts/radar-token.py list
+  AWS_PROFILE=<profile> uv run python scripts/radar-token.py revoke <name> --yes
+  AWS_PROFILE=<profile> uv run python scripts/radar-token.py usage --days 7   # 谁读了多少
+  ```
+  文件里是 `RADAR_URL`、`RADAR_TOKEN_URL`（`https://<domain-prefix>.auth.<region>.amazoncognito.com/oauth2/token`，
+  即栈输出 `ApiTokenUrl`）、`RADAR_CLIENT_ID`、`RADAR_CLIENT_SECRET`。吊销后拿不到新令牌，手里的令牌一小时内过期。
+- **能读什么**：`GET <site>/api/data/*` —— CloudFront 把 `/api/*` 转给 Amazon API Gateway REST API，由 Cognito
+  授权器校验签名、有效期与 scope；一个 Lambda 只读站点桶的 `data/*`。全部文档见 `ui/public/llms.txt`，结构见
+  `schemas/site-data.schema.json`。
+- **CLI 与 MCP 服务**（`src/radar/agentkit/`，只用标准库；凭证取自环境变量，遇重定向不外发）：
+  ```bash
+  set -a; source ~/.config/security-radar/clients/<name>.env; set +a   # radar-token.py 写出的文件
+  uv run python -m radar.agentkit.cli recent_events --severity P0 --hours 24
+  uv run python -m radar.agentkit.cli cve_status --cve CVE-2026-12345
+  uv run python -m radar.agentkit.cli --list
+  ```
+  同一组工具（`recent_events`、`get_event`、`search_events`、`cve_status`、`rule_pack`、`health`、`feeds`）也以 stdio
+  MCP 服务提供，不开任何端口：
+  ```json
+  {"mcpServers": {"security-radar": {"command": "uv", "args": ["run", "--directory", "<radar checkout>", "python", "-m", "radar.agentkit.mcp"],
+    "env": {"RADAR_URL": "https://<your radar site>"}}}}
+  ```
+  给编码 agent 用的 skill 在 `integrations/skill/security-radar/SKILL.md`。
+- **自助 webhook**：带 `--subscribe` 发放的客户端（scope `radar/subscribe`）可以列出、添加、删除自己的 https webhook；
+  别人的订阅一律「不存在」。签名密钥写进 0600 文件，用它校验 `X-Radar-Signature`。这不在 agent 工具里 —— 登记端点由人决定：
+  ```bash
+  uv run python -m radar.agentkit.subscriptions add --target https://<your-endpoint> --filters '{"severity": ["P0"], "kinds": ["p0", "update", "digest"]}'
+  uv run python -m radar.agentkit.subscriptions list
+  uv run python -m radar.agentkit.subscriptions remove --id <id>
+  ```
+- **消息类型**（`kinds` 筛选）：`p0`、`update`（P0 线程跟着事件走；事件被合并或撤回时补发一次更正）、`waf`、`verdict`、
+  `pr`、`digest`（每日简报，列出才发）。事件筛选：`severity`、`domain`、`cves`、`exploitation`、`min_level`、
+  `min_loss_usd`。运维者配置的渠道新增 `lark_dm`（按 open_id 或邮箱发给个人）。`#/subscribe` 页列出 feed、webhook 与 agent 三种方式。
+
 ## 架构
 
 <picture>
@@ -105,7 +145,7 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界 —
 
 AWS 无服务器，5 分钟一轮：EventBridge → Step Functions（plan → collect → process → analyze → respond → mitigate →
 publish → notify）→ Lambda + DynamoDB + S3 → CloudFront。采集是增量、分批的；上一轮没跑完时这一轮自己跳过。
-CloudWatch 告警 → SNS → 一个小 Lambda 通知负责人。AWS Security Agent 与雷达同区；AWS Continuum 在 `us-east-1`。
+CloudWatch 告警 → SNS → 一个小 Lambda 通知负责人。Agent 经 Amazon API Gateway 读取（`/api/*`，Amazon Cognito 令牌）。AWS Security Agent 与雷达同区；AWS Continuum 在 `us-east-1`。
 
 ## 部署
 
@@ -138,6 +178,7 @@ Security Hub 导出需 `-c security_hub=on` 才开通（账号级服务，本示
 - 可选付费回退：配置了 `FIRECRAWL_API_KEY` 时，被封的 feed 抓取会经 Firecrawl API 重试一次（该 feed 的 URL 会发送到 `api.firecrawl.dev`）（每个源每天有上限），该源标为降级；没有 key 就不会向它发任何请求
 - 测试夹具只录制一次；第三方新闻正文只保留标题、链接、日期和一句话（见 `NOTICE`）
 - UI 在 CloudFront 上用 HTTP Basic Auth 做演示门；超出演示用途请改用 Amazon Cognito 或 AWS IAM Identity Center
+- `/api/*` 不走这道门：只认带正确 scope 的有效 Amazon Cognito 令牌
 
 ## 安全
 

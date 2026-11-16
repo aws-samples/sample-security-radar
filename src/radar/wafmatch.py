@@ -235,7 +235,8 @@ def match(stmt: dict[str, Any], req: Request, ip_sets: dict[str, list[str]] | No
         return True
     if raw is None:
         return False
-    assert isinstance(raw, str)
+    if not isinstance(raw, str):        # was an assert (gone under python -O): a non-text field is a bug, said loudly
+        raise TypeError(f"field value must be text, got {type(raw).__name__}")
     value = transform(raw, s.get("TextTransformations") or [{"Priority": 0, "Type": "NONE"}])
     if kind == "ByteMatchStatement":
         search = s["SearchString"]
