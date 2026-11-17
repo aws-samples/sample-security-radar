@@ -153,7 +153,7 @@ def test_notify_station_baselines_first_then_threads_new_facts_and_survives_a_ch
     h._store.put_event(Event(**{**ev.to_dict(), "event_id": "ev_2", "title": "New P0"}))
     h.notify_events({})
     st = h._store.get_source_state(notify_station.STATUS_KEY)
-    assert sent == [("slack", "[P0]", None)] and st["subscriptions"]["slack"]["status"] == "ok"
+    assert sent == [("slack", "🚨 [P", None)] and st["subscriptions"]["slack"]["status"] == "ok"
     assert st["subscriptions"]["lark"]["status"] == "error" and "not installed" in st["subscriptions"]["lark"]["error"]["message"]
     assert st["status"] == "degraded"
     h.notify_events({})

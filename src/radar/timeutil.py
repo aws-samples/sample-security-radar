@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import email.utils
 import re
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta, timezone
 
 _TWITTER_FMT = "%a %b %d %H:%M:%S %z %Y"  # "Fri Oct 23 03:39:57 +0000 2026" (the X data source createdAt)
 _X_EPOCH_MS = 1288834974657               # snowflake epoch for X status ids
@@ -53,3 +53,12 @@ def iso(dt: datetime) -> str:
 
 def now() -> datetime:
     return datetime.now(UTC)
+
+
+UTC8 = timezone(timedelta(hours=8))   # the team's clock (Hong Kong / Singapore); messages show it, storage stays UTC
+
+
+def utc8(value: str | float | None) -> str | None:
+    """"2026-11-16 11:05（UTC+8）" for a stored UTC time; None when it does not parse (the caller says "unknown")."""
+    dt = parse(value)
+    return dt.astimezone(UTC8).strftime("%Y-%m-%d %H:%M（UTC+8）") if dt else None

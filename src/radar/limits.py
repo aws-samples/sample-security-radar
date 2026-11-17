@@ -156,6 +156,11 @@ class Limits:
     CONTINUUM_SCHEDULED_SCAN = "PT0H"   # no scheduled scans (API allows only PT0H / P1D / P2D / P7D): the radar triggers the scans it needs
     COST_REFRESH_H = 6               # Cost Explorer read for the ledger ($0.01/request; CE data lags ~24 h anyway)
     NOTIFY_MAX_PER_CYCLE = 10        # messages per subscription per cycle; the rest go next cycle (C3 / P3)
+    AMOUNT_REFINE_RATIO = 0.05      # a body figure within 5% of the headline's loss refines it (signals.loss_amount)
+    NOTIFY_HEADLINE_MIN_CHARS = 4   # a P0 notice's cleaned headline (notify.gate G4)
+    NOTIFY_P0_MAX_CHARS = 900       # … and the whole plain-text notice
+    NOTIFY_P0_DEDUP_HOURS = 72      # the same CVE / victim again within this window is not a new P0 (gate G3)
+    NOTIFY_P0_LEDGER_MAX = 200      # sent P0s remembered per subscription for G3 (a row, bounded)
     SELF_SUBSCRIPTIONS_PER_CLIENT = 3   # self-service webhooks one token client may hold (radar.subscribe_api)
     SELF_SUBSCRIPTIONS_MAX = 20         # … and in all; with the operator's own they stay under NOTIFY_SUBSCRIPTIONS_MAX
     NOTIFY_SUBSCRIPTIONS_MAX = 50    # subscriptions read from the NotifyConfig secret; more are reported, not used
@@ -188,3 +193,13 @@ class Limits:
     RULEPACK_MAX_WCU = 500           # a pack above this would take a third of a default web ACL's 1,500 WCU ⇒ capacity over_budget
     RULEPACK_CAPACITY_CHECKS_PER_RUN = 20   # CheckCapacity calls per run (free, read-only); a pack is re-checked only when it changes
     RULEPACK_RATE_LIMIT = 300        # rate template default: requests per IP per 5-minute window (a template value, not evidence)
+
+    # --- C4 v2 cluster judge (radar.cluster_judge; Neo 2026-11-17: evidence candidates, grounded verdicts, shadow merge) ---
+    CLUSTER_WINDOW_H = 48            # web3 pairs first seen this close are candidates (Lighter 11-16: the two halves were hours apart)
+    CLUSTER_LOSS_TOLERANCE = 0.15    # two headline loss figures within ±15 % of the larger one count as "the same loss"
+    CLUSTER_HEADLINES = 5            # report headlines per side in the prompt (and the grounding check's corpus)
+    CLUSTER_ITEMS_READ = 20          # reports read per candidate event to pick them (first 10 + last 10: bounded store reads)
+    CLUSTER_MERGE_TIME_H = 24        # code evidence "first seen close together" (tighter than the candidate window)
+    CLUSTER_MIN_EVIDENCE = 2         # code evidences a grounded 'same' needs before it would merge
+    CLUSTER_AUTO_MERGE = False       # SHADOW: would_merge is computed and shown on #/ops; nothing merges until this is True
+    CLUSTER_MERGES_PER_CYCLE = 2     # with auto-merge on: pairs merged per analyze run (each one is undoable, see merge())

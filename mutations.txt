@@ -728,11 +728,11 @@ find = if k in state:
 replace = if False:
 expect = tests/test_cluster_judge.py::test_a_same_verdict_shows_on_both_pages_and_is_not_asked_again
 
-[M125 pairs sharing a blocking key are re-judged (the rules already decided them)]
+[M125 judge: pairs that share a key are skipped again (the 2026-11-16 Lighter miss)]
 file = src/radar/cluster_judge.py
-find = if a.domain != b.domain or ka & kb:
-replace = if a.domain != b.domain:
-expect = tests/test_cluster_judge.py::test_candidates_are_similar_unkeyed_same_domain_events_within_72_hours
+find = if na & nb or sa & sb or close_loss(a, b):
+replace = if not ka & kb and (na & nb or sa & sb or close_loss(a, b)):
+expect = tests/test_cluster_judge_v2.py::test_the_lighter_pair_is_a_candidate_although_it_shares_a_key_and_has_no_similar_title
 
 [M126 a failing source does not reach the ops list]
 file = src/radar/ops.py
@@ -934,8 +934,8 @@ expect = tests/test_keys_signals.py::test_chinese_crypto_reports_are_web3
 
 [M162 signals: a Chinese report that names the hacker (黑客) is not a web3 incident]
 file = src/radar/signals.py
-find = |被盗|被黑|攻击|漏洞|损失|盗取|黑客",
-replace = |被盗|被黑|攻击|漏洞|损失|盗取",
+find = r"|leak(?:ed)? (?:api |private )?keys?)\b|被盗|被黑|攻击|漏洞|盗取|黑客|安全事件|泄露",
+replace = r"|leak(?:ed)? (?:api |private )?keys?)\b|被盗|被黑|攻击|漏洞|盗取|安全事件|泄露",
 expect = tests/test_keys_signals.py::test_a_chinese_report_naming_the_hacker_is_a_web3_incident
 
 [M163 title: a later structured entry rewrites the title again (root-cause hypotheses become headlines)]
@@ -1714,8 +1714,8 @@ expect = tests/test_cvemeta.py::test_cards_get_a_cve_date_in_the_same_run_it_was
 
 [M336 amounts: the largest number in a report is its loss again (a bank's $235B balance sheet)]
 file = src/radar/signals.py
-find = losses = [v for v, k in amount_mentions(title) if k == "loss"] + stated_losses(text)
-replace = losses = [parse_amount(text)] if parse_amount(text) else []
+find = body = stated_losses(text)
+replace = body = [parse_amount(text)] if parse_amount(text) else []
 expect = tests/test_amount_sanity.py::test_the_loss_is_the_stated_loss_not_the_largest_number
 
 [M337 amounts: a victim's size reads as a loss]
@@ -1860,7 +1860,7 @@ expect = tests/test_amount_sanity.py::test_usd_prefix_amounts_are_parsed
 file = src/radar/pipeline.py
 find = same_domain = ev.domain == item.domain or (k.startswith("amt:") and {ev.domain, item.domain} <= {"web3", "incident"})
 replace = same_domain = ev.domain == item.domain
-expect = tests/test_amount_sanity.py::test_an_incident_report_of_the_same_figure_joins_the_web3_story
+expect = tests/test_amount_sanity.py::test_an_incident_report_of_the_same_figure_joins_the_web3_story[bleepingcomputer]
 
 [M361 split check: a backfilled story (old first report, opened recently) is never checked]
 file = src/radar/pipeline.py
@@ -4235,14 +4235,14 @@ expect = tests/test_stationtime.py::test_the_published_ops_page_reports_a_silent
 
 [M1205 alert: an ops alarm goes to every subscription, not only the owner's]
 file = src/radar/alert.py
-find = owners = [s for s in notify.parse_config(cfg).subscriptions if s.owner and s.channel in CHAT_CHANNELS]
-replace = owners = [s for s in notify.parse_config(cfg).subscriptions if s.channel in CHAT_CHANNELS]
+find = owners = [s for s in notify.parse_config(cfg).subscriptions if s.owner and s.channel in CHAT_CHANNELS
+replace = owners = [s for s in notify.parse_config(cfg).subscriptions if s.channel in CHAT_CHANNELS
 expect = tests/test_alert.py::test_an_alarm_goes_to_the_owners_chat_subscriptions_only
 
 [M1206 alert: an alarm is posted to webhooks too]
 file = src/radar/alert.py
-find = owners = [s for s in notify.parse_config(cfg).subscriptions if s.owner and s.channel in CHAT_CHANNELS]
-replace = owners = [s for s in notify.parse_config(cfg).subscriptions if s.owner]
+find = owners = [s for s in notify.parse_config(cfg).subscriptions if s.owner and s.channel in CHAT_CHANNELS
+replace = owners = [s for s in notify.parse_config(cfg).subscriptions if s.owner and True
 expect = tests/test_alert.py::test_an_alarm_goes_to_the_owners_chat_subscriptions_only
 
 [M1207 alert: a delivery that reached nobody returns normally]
@@ -5045,8 +5045,8 @@ expect = tests/test_pipeline_replay.py::test_digests_are_recognised_by_headline_
 
 [M1347 signals: "stole" is not an incident word]
 file = src/radar/signals.py
-find = r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|stole|steals?|theft|heist|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull|drainer"
-replace = r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull|drainer"
+find = r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|stole|steals?|theft|heist|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull"
+replace = r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull"
 expect = tests/test_pipeline_replay.py::test_stole_steals_theft_and_heist_are_incident_words
 
 [M1348 token usage: a client that never read is left out of the usage list]
@@ -5938,3 +5938,333 @@ file = src/radar/notify.py
 find = with fetch.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S, allow_hosts=frozenset()) as r:
 replace = with fetch.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S) as r:
 expect = tests/test_notify.py::test_a_chat_api_call_never_follows_a_redirect
+
+[M1517 P0 gate G1: a notice for a non-P0 event passes]
+file = src/radar/notify.py
+find = if v.get("severity") != "P0":
+replace = if False:
+expect = tests/test_notify_gate.py::test_a_problem_names_code_message_actual_and_limit
+
+[M1518 P0 gate G4: an empty headline passes]
+file = src/radar/notify.py
+find = if len(h) < Limits.NOTIFY_HEADLINE_MIN_CHARS:
+replace = if False:
+expect = tests/test_notify_gate.py::test_each_gate_rule_refuses_with_its_code
+
+[M1519 P0 gate G4: a URL in the headline passes]
+file = src/radar/notify.py
+find = if _URL.search(h) or "t.co/" in h:
+replace = if False:
+expect = tests/test_notify_gate.py::test_each_gate_rule_refuses_with_its_code
+
+[M1520 P0 gate G5: a link that is not the event page passes]
+file = src/radar/notify.py
+find = if p.get("link") != want:
+replace = if False:
+expect = tests/test_notify_gate.py::test_each_gate_rule_refuses_with_its_code
+
+[M1521 P0 gate G6: our repository findings in a P0 notice pass]
+file = src/radar/notify.py
+find = if "section=env" in text or "代码目标" in text or "补丁 PR" in text:
+replace = if "section=env" in text:
+expect = tests/test_notify_gate.py::test_each_gate_rule_refuses_with_its_code
+
+[M1522 P0 gate G7: a replacement character passes]
+file = src/radar/notify.py
+find = if "\ufffd" in text or _CTRL.search(text):
+replace = if False:
+expect = tests/test_notify_gate.py::test_each_gate_rule_refuses_with_its_code
+
+[M1523 P0 gate: an over-long notice passes]
+file = src/radar/notify.py
+find = if len(m.get("text") or "") > Limits.NOTIFY_P0_MAX_CHARS:
+replace = if False:
+expect = tests/test_notify_gate.py::test_each_gate_rule_refuses_with_its_code
+
+[M1524 P0 gate G3: the same victim / CVE again is not a duplicate]
+file = src/radar/notify.py
+find = same = (cves & set(r.get("cves") or [])) or (names & set(r.get("names") or []))
+replace = same = set()
+expect = tests/test_notify_gate.py::test_the_same_victim_or_cve_within_the_window_is_a_duplicate_but_a_shared_word_is_not
+
+[M1525 the station sends without asking the gate]
+file = src/radar/notify_station.py
+find = if probs := notify.gate(m, v, site_url, recent):
+replace = if probs := []:
+expect = tests/test_notify_gate.py::test_a_second_event_for_the_same_victim_is_blocked_named_on_ops_and_never_retried
+
+[M1526 alarms reach an owner channel that asked for P0s only]
+file = src/radar/alert.py
+find = and (not s.filters.get("kinds") or "alarm" in s.filters["kinds"])]
+replace = ]
+expect = tests/test_notify_gate.py::test_alarms_go_to_owner_chats_that_list_alarm_and_never_to_a_p0_only_channel
+
+[M1527 a summary with a broken character is sent]
+file = src/radar/notify.py
+find = if "\ufffd" in summary or _CTRL.search(summary):
+replace = if False:
+expect = tests/test_notify_gate.py::test_a_summary_with_a_broken_character_is_dropped_not_sent
+
+[M1528 a security account's alert tag stays in the headline]
+file = src/radar/notify.py
+find = t = _ALERT_TAG.sub("", t)
+replace = t = t
+expect = tests/test_notify_gate.py::test_the_headline_has_no_link_quote_marker_or_alert_tag_and_keeps_the_victim
+
+[M1529 a tweet's link stays in the headline]
+file = src/radar/notify.py
+find = t = _URL.sub(" ", title or "")
+replace = t = title or ""
+expect = tests/test_notify_gate.py::test_the_headline_has_no_link_quote_marker_or_alert_tag_and_keeps_the_victim
+
+[M1530 Slack unfurls the links of a P0 notice]
+file = src/radar/notify.py
+find = "unfurl_links": False, "unfurl_media": False, **({"thread_ts": thread} if thread else {})},
+replace = **({"thread_ts": thread} if thread else {})},
+expect = tests/test_notify_gate.py::test_slack_gets_its_mrkdwn_without_unfurling
+
+[M1531 a sent P0 is not remembered for the duplicate rule]
+file = src/radar/notify_station.py
+find = recent.append(notify.ledger_entry(v, nowi))
+replace = pass
+expect = tests/test_notify_gate.py::test_a_second_event_for_the_same_victim_is_blocked_named_on_ops_and_never_retried
+
+[M1532 P0 gate G8: a notice without its first-report time passes]
+file = src/radar/notify.py
+find = if first and f"首报 {first}" not in (m.get("text") or ""):
+replace = if False:
+expect = tests/test_notify_gate.py::test_the_first_report_time_is_always_said_and_the_gate_refuses_a_notice_without_it
+
+[M1533 the first-report time is shown in UTC, not on the team's clock]
+file = src/radar/timeutil.py
+find = return dt.astimezone(UTC8).strftime("%Y-%m-%d %H:%M（UTC+8）") if dt else None
+replace = return dt.strftime("%Y-%m-%d %H:%M（UTC+8）") if dt else None
+expect = tests/test_notify_gate.py::test_a_web3_p0_notice_has_emoji_the_summary_the_figures_and_the_event_page_said_for_what_it_is
+
+[M1534 a loss word alone makes a company result or a trader's position a Web3 incident again]
+file = src/radar/signals.py
+find = return bool(_LOSS_WORD_INCIDENT.search(t)) and not _NOT_INCIDENT_LOSS.search(t)
+replace = return bool(_LOSS_WORD_INCIDENT.search(t))
+expect = tests/test_loss_board_20261116.py::test_a_result_a_position_or_a_valuation_is_not_a_web3_incident
+
+[M1535 a body figure outbids the headline's loss again (Protos $17M → $6B)]
+file = src/radar/signals.py
+find = return max(close or head)
+replace = return max(head + body)
+expect = tests/test_loss_board_20261116.py::test_the_headline_decides_the_loss_a_body_figure_does_not_outbid_it
+
+[M1536 a body that refines the headline figure is ignored]
+file = src/radar/signals.py
+find = return max(close or head)
+replace = return max(head)
+expect = tests/test_loss_board_20261116.py::test_a_body_that_states_the_headline_figure_more_precisely_refines_it
+
+[M1537 a security breach is not a Web3 incident]
+file = src/radar/signals.py
+find = |phishing|private key|flash ?loan|breach(?:ed)?|security incident|(?:key|api|credential)s? leak(?:ed|s)?"
+replace = |phishing|private key|flash ?loan|(?:key|api|credential)s? leak(?:ed|s)?"
+expect = tests/test_loss_board_20261116.py::test_a_theft_a_breach_or_a_loss_by_an_exploit_is_one
+
+[M1538 judge: a shared name is no candidate trigger]
+file = src/radar/cluster_judge.py
+find = if na & nb or sa & sb or close_loss(a, b):
+replace = if sa & sb or close_loss(a, b):
+expect = tests/test_cluster_judge_v2.py::test_the_lighter_pair_is_a_candidate_although_it_shares_a_key_and_has_no_similar_title
+
+[M1539 judge: a shared token word (USDC) counts as a name]
+file = src/radar/cluster_judge.py
+find = - NOT_NAMES
+replace = - set()
+expect = tests/test_cluster_judge_v2.py::test_a_shared_token_word_alone_is_not_a_name
+
+[M1540 judge: the 48 h web3 window is not applied]
+file = src/radar/cluster_judge.py
+find = if tb - ta > w3:
+replace = if False:
+expect = tests/test_cluster_judge_v2.py::test_the_lighter_pair_is_a_candidate_although_it_shares_a_key_and_has_no_similar_title
+
+[M1541 judge: the loss tolerance is 50% not 15%]
+file = src/radar/cluster_judge.py
+find = <= Limits.CLUSTER_LOSS_TOLERANCE * max(x, y)
+replace = <= 0.5 * max(x, y)
+expect = tests/test_cluster_judge_v2.py::test_loss_figures_within_15_percent_make_a_candidate
+
+[M1542 judge: report reads are unbounded]
+file = src/radar/cluster_judge.py
+find = pick = ids if len(ids) <= n else [*ids[: n // 2], *ids[-(n - n // 2):]]
+replace = pick = ids
+expect = tests/test_cluster_judge_v2.py::test_reports_are_read_only_for_judged_pairs_and_bounded
+
+[M1543 judge: the prompt shows the event title, not its report headlines]
+file = src/radar/cluster_judge.py
+find = side(b, hb or [_clean(b.title)])
+replace = side(b, [_clean(b.title)])
+expect = tests/test_cluster_judge_v2.py::test_the_prompt_shows_report_headlines_amount_and_first_seen
+
+[M1544 grounding: a token word is accepted as the victim]
+file = src/radar/cluster_judge.py
+find = if len(v) < 2 or v.lower() in NOT_NAMES:
+replace = if len(v) < 2:
+expect = tests/test_cluster_judge_v2.py::test_kava_and_lighter_both_naming_usdc_are_not_merged
+
+[M1545 grounding: the victim need not appear on both sides]
+file = src/radar/cluster_judge.py
+find = if not any(_named_in(v, h) for h in ha) or not any(_named_in(v, h) for h in hb):
+replace = if False:
+expect = tests/test_cluster_judge_v2.py::test_kava_and_lighter_both_naming_usdc_are_not_merged
+
+[M1546 grounding: a quote not in B's headlines is accepted]
+file = src/radar/cluster_judge.py
+find = if len(qb) < 3 or not any(qb in h for h in hb):
+replace = if False:
+expect = tests/test_cluster_judge_v2.py::test_a_same_whose_quote_is_not_in_the_headlines_is_downgraded
+
+[M1547 evidence: one headline per side counts as a shared name]
+file = src/radar/cluster_judge.py
+find = if na >= 2 and nb >= 2:
+replace = if na >= 1 and nb >= 1:
+expect = tests/test_cluster_judge_v2.py::test_a_grounded_same_with_one_code_evidence_is_shown_but_would_not_merge
+
+[M1548 evidence: the time evidence window is 72 h]
+file = src/radar/cluster_judge.py
+find = timedelta(hours=Limits.CLUSTER_MERGE_TIME_H)
+replace = timedelta(hours=72)
+expect = tests/test_cluster_judge_v2.py::test_a_grounded_same_with_one_code_evidence_is_shown_but_would_not_merge
+
+[M1549 would_merge needs no code evidence]
+file = src/radar/cluster_judge.py
+find = len(ev) >= Limits.CLUSTER_MIN_EVIDENCE
+replace = len(ev) >= 0
+expect = tests/test_cluster_judge_v2.py::test_a_grounded_same_with_one_code_evidence_is_shown_but_would_not_merge
+
+[M1550 merge runs with the flag off]
+file = src/radar/cluster_judge.py
+find = if not (Limits.CLUSTER_AUTO_MERGE if enabled is None else enabled):
+replace = if False:
+expect = tests/test_cluster_judge_v2.py::test_flag_off_nothing_merges
+
+[M1551 merge: no per-cycle cap]
+file = src/radar/cluster_judge.py
+find = if len(out) >= Limits.CLUSTER_MERGES_PER_CYCLE:
+replace = if False:
+expect = tests/test_cluster_judge_v2.py::test_flag_on_merges_the_smaller_into_the_larger_with_an_undo_and_a_cap
+
+[M1552 merge: the larger event moves into the smaller]
+file = src/radar/cluster_judge.py
+find = key=lambda e: (-len(e.item_ids), e.first_seen, e.event_id)
+replace = key=lambda e: (len(e.item_ids), e.first_seen, e.event_id)
+expect = tests/test_cluster_judge_v2.py::test_flag_on_merges_the_smaller_into_the_larger_with_an_undo_and_a_cap
+
+[M1553 merge: the undo command is not runnable]
+file = src/radar/cluster_judge.py
+find = cmd.format(moved[0], into, "new")
+replace = cmd.format(moved[0], into, "<new>")
+expect = tests/test_cluster_judge_v2.py::test_flag_on_merges_the_smaller_into_the_larger_with_an_undo_and_a_cap
+
+[M1554 merge: a pair that would not merge is merged]
+file = src/radar/cluster_judge.py
+find = if not row.get("would_merge") or row.get("merged"):
+replace = if row.get("merged"):
+expect = tests/test_cluster_judge_v2.py::test_flag_on_merges_the_smaller_into_the_larger_with_an_undo_and_a_cap
+
+[M1555 ops: every judged pair is suggested]
+file = src/radar/ops.py
+find = if not row.get("would_merge") or row.get("merged") or a not in titles
+replace = if row.get("merged") or a not in titles
+expect = tests/test_cluster_judge_v2.py::test_ops_shows_each_would_merge_pair_with_its_evidence_and_command
+
+[M1556 ops: an operator-labelled pair is still suggested]
+file = src/radar/ops.py
+find = or "|".join(sorted((a, b))) in labels:
+replace = or False:
+expect = tests/test_cluster_judge_v2.py::test_ops_shows_each_would_merge_pair_with_its_evidence_and_command
+
+[M1557 ops: the merge suggestions never reach #/ops]
+file = src/radar/ops.py
+find = "cluster_merge_suggested": lambda f: _judge_merges(f, {e["event_id"]: e.get("title", "") for e in f.get("events") or []}),
+replace = "cluster_merge_suggested": lambda f: [],
+expect = tests/test_ops.py::test_each_rule_fires_on_its_fact
+
+[M1558 amounts: a stablecoin amount is no amount]
+file = src/radar/signals.py
+find = r"(?:USDC|USDT|DAI|FDUSD|USDe|PYUSD|BUSD)(?![A-Za-z0-9])"
+replace = r"(?!x)x"
+expect = tests/test_lighter_20261116.py::test_a_dollar_stablecoin_amount_reads_as_usd
+
+[M1559 amounts: a version number before USDC is an amount]
+file = src/radar/signals.py
+find = r"|(?<![A-Za-z0-9.,])([0-9]
+replace = r"|([0-9]
+expect = tests/test_lighter_20261116.py::test_a_stablecoin_word_without_its_own_figure_is_no_amount
+
+[M1560 domain: a crypto outlet's report falls into incident]
+file = src/radar/pipeline.py
+find = and org in CRYPTO_MEDIA_ORGS)
+replace = and False)
+expect = tests/test_lighter_20261116.py::test_a_crypto_outlet_report_without_crypto_words_is_web3
+
+[M1561 domain: every outlet is treated as crypto media]
+file = src/radar/pipeline.py
+find = and org in CRYPTO_MEDIA_ORGS)
+replace = and True)
+expect = tests/test_lighter_20261116.py::test_the_same_words_from_a_general_outlet_stay_an_incident
+
+[M1562 domain: a crypto outlet's CVE story becomes web3]
+file = src/radar/pipeline.py
+find =         return "vuln" if vuln and not signals.web3_incident(text) else "web3"
+replace =         return "web3"
+expect = tests/test_lighter_20261116.py::test_a_crypto_outlet_cve_story_stays_a_vulnerability
+
+[M1563 keys: a $15M headline figure is a name key]
+file = src/radar/keys.py
+find =         if _FIGURE.fullmatch(m):
+replace =         if False:
+expect = tests/test_lighter_20261116.py::test_two_victims_with_the_same_round_figure_share_no_name
+
+[M1564 a market move ("closes with 2.5% loss") is a Web3 incident again]
+file = src/radar/signals.py
+find = r"|\b\d+(?:\.\d+)?\s?%\s+(?:\w+\s+)?loss(?:es)?\b|跌幅"
+replace = r"|跌幅"
+expect = tests/test_loss_board_20261116.py::test_a_result_a_position_or_a_valuation_is_not_a_web3_incident
+
+[M1565 --reclassify keeps a stored non-incident eventful]
+file = scripts/recluster_web3.py
+find = it.eventful = pipeline.normalize(raw, BY_ID[it.source_id], timeutil.parse(it.fetched_at) or timeutil.now()).eventful
+replace = it.eventful = it.eventful
+expect = tests/test_loss_board_20261116.py::test_reclassify_turns_a_stored_non_incident_into_context_and_keeps_a_theft
+
+[M1566 --reclassify keeps a tweet's old flag]
+file = scripts/recluster_web3.py
+find = it.eventful = it.eventful and signals.web3_incident(f"{it.title}\n{it.text}")
+replace = it.eventful = it.eventful
+expect = tests/test_loss_board_20261116.py::test_reclassify_turns_a_stored_non_incident_into_context_and_keeps_a_theft
+
+[M1567 a liquidated position is a Web3 incident again]
+file = src/radar/signals.py
+find = r"|\bliquidat(?:ed|ion|ions)\b|爆仓|强平|遭(?:完全)?清算|仓位[^，。]{0,12}清算"
+replace = r"|爆仓"
+expect = tests/test_loss_board_20261116.py::test_a_result_a_position_or_a_valuation_is_not_a_web3_incident
+
+[M1568 a leveraged long / short position is a Web3 incident again]
+file = src/radar/signals.py
+find = r"|\b(?:leveraged\s+)?(?:long|short)\s+positions?\b|杠杆(?:多|空)单",   # 「Machi … to fund leveraged long positions」
+replace = r"|杠杆(?:多|空)单",
+expect = tests/test_loss_board_20261116.py::test_a_result_a_position_or_a_valuation_is_not_a_web3_incident
+
+[M1569 a prune before the latest removal counts as pruned again]
+file = src/radar/removals.py
+find = if eid not in done or done[eid] < (r.get("at") or "")}
+replace = if eid not in done}
+expect = tests/test_search.py::test_an_id_removed_again_after_a_prune_loses_its_page_again
+
+[M1570 a kinds-filtered subscription hears every correction again]
+file = src/radar/notify_station.py
+find = if not notify.wanted(s.filters, m):             # recorded as handled: not re-checked every run
+replace = if False:             # recorded as handled: not re-checked every run
+expect = tests/test_notify_station.py::test_the_team_channel_hears_a_withdrawal_but_not_a_merge
+
+[M1571 a merge correction carries the withdrawn kind]
+file = src/radar/notify_station.py
+find = "kind": "merged" if to else "withdrawn",
+replace = "kind": "withdrawn",
+expect = tests/test_notify_station.py::test_the_team_channel_hears_a_withdrawal_but_not_a_merge

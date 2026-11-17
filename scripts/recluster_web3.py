@@ -26,11 +26,27 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from radar import keys, pipeline, removals, respond, signals, timeutil
 from radar.dynamo import DynamoStore
-from radar.model import Event, Item
+from radar.model import Event, Item, RawItem
 from radar.registry import BY_ID
 from radar.store import MemoryStore
 
 TEXT_PREFIXES = ("tok:", "tt:")
+
+
+def reclassify(it: Item) -> Item:
+    """--reclassify: is the report still eventful under today's rules? The same pipeline.normalize the collector runs,
+    on the report's own title / text / links / structured fields; only `eventful` is taken back (id, times, keys, pin
+    stay — keys follow rekey / reextract). Neo 2026-11-17: BitMine's unrealised loss, a whale's closed position and
+    Dunamu's Q3 result were stored as eventful under the old "loss" rule; replayed as context they open no event and
+    their events leave the site (radar.removals). A tweet's tier comes from its author handle, which is not stored:
+    it is judged by the incident rule alone (the rule that changed) — eventful only while its text is still an incident."""
+    if BY_ID[it.source_id].parser == "twitterapi":
+        it.eventful = it.eventful and signals.web3_incident(f"{it.title}\n{it.text}")
+        return it
+    raw = RawItem(source_id=it.source_id, url=it.url, title=it.title, text=it.text,
+                  published_at=timeutil.parse(it.published_at), links=list(it.links), extra=dict(it.extra))
+    it.eventful = pipeline.normalize(raw, BY_ID[it.source_id], timeutil.parse(it.fetched_at) or timeutil.now()).eventful
+    return it
 
 
 def rekey(it: Item) -> Item:
@@ -160,6 +176,9 @@ def main() -> int:
     ap.add_argument("--min-items", type=int, default=1, help="with --dump: only events with at least this many items")
     ap.add_argument("--event", action="append", default=[],
                     help="repair only these events (repeatable); a domain-wide replay re-seeds unrelated events' ids")
+    ap.add_argument("--reclassify", action="store_true",
+                    help="with --event: judge each report's eventful flag again with today's rules (a non-incident "
+                         "stored as one under an old rule then opens no event)")
     ap.add_argument("--split", action="store_true",
                     help="with --event: the event holds several stories — keep every one-report event the replay splits "
                          "off (the default folds them back into the largest, which is right for a story that lost a report)")
@@ -189,6 +208,15 @@ def main() -> int:
         print(f"{args.domain}: {len(keep)} events, {len(stored)} items → {args.dump}")
         return 0
     items = [rekey(i) for i in store.get_items(sorted({i for e in old.values() for i in e.item_ids}))]
+    if args.reclassify:
+        if not args.event and args.apply:
+            # a domain-wide dry run lists what would change; writing it is a separate, reviewed decision per event
+            print("refusing: --reclassify --apply needs --event (a domain-wide re-judgement is a separate decision)",
+                  file=sys.stderr)
+            return 2
+        flips = [(i.item_id, i.title) for i in items if i.eventful and not reclassify(i).eventful]
+        for iid, title in flips:
+            print(f"  reclassify {iid}: eventful → context  {title[:70]}")
     now = timeutil.now()
     mem = replay(items, now)
     new = {eid: Event.from_dict(d) for eid, d in mem.events.items()}

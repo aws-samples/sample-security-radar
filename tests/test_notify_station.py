@@ -138,7 +138,7 @@ def test_the_retitled_title_is_pushed(world):
                       "", "ops", NOW)
     notify_station.run(store, CFG, NOW, "https://site", senders)
     text = next(b for s, e, _, b in sent if s == "p0-only" and e == "ev_00000000000000a0")
-    assert text.startswith("[P0] Ivanti EPMM auth bypass chain")
+    assert text.startswith("🚨 [P0 · ") and "] Ivanti EPMM auth bypass chain" in text.splitlines()[0]
 
 
 def test_the_rollout_gate_holds_back_non_owner_subscriptions_visibly(world):
@@ -423,6 +423,28 @@ def test_a_withdrawn_event_is_said_withdrawn_and_someone_never_told_hears_nothin
     notify_station.run(store, CFG, NOW, "https://site", senders)
     assert [(s, e, k) for s, e, k, _ in sent] == [("p0-only", "ev_00000000000000a0", "moved:withdrawn")]
     assert "已撤下" in sent[0][3]
+
+
+def test_the_team_channel_hears_a_withdrawal_but_not_a_merge(world):
+    """Neo 2026-11-17: the team channel (kinds p0 + withdrawn) gets one message per event; a P0 that turned out wrong
+    gets its one correction line, a merge says nothing there — and the survivor still does not announce itself."""
+    store, sent, senders = world
+    team = {"id": "team", "owner": True, "channel": "slack_channel", "target": "C-TEAM",
+            "filters": {"severity": ["P0"], "kinds": ["p0", "withdrawn"]}}
+    cfg = {**CFG, "subscriptions": [team]}                                       # rollout stays owner_only
+    _baseline(store, senders, cfg)
+    notify_station.run(store, cfg, NOW, "https://site", senders)                 # team was told about a0 and b0
+    assert {(s, e, k) for s, e, k, _ in sent} == {("team", "ev_00000000000000a0", "p0"), ("team", "ev_00000000000000b0", "p0")}
+    store.put_event(ev("ev_00000000000000a9", "P0", "vuln", "survivor"))
+    _merge(store, "ev_00000000000000a0", "ev_00000000000000a9")
+    _merge(store, "ev_00000000000000b0", None)
+    del sent[:]
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert [(s, e, k) for s, e, k, _ in sent] == [("team", "ev_00000000000000b0", "moved:withdrawn")]
+    assert "moved:ev_00000000000000a9" in store.get_source_state(notify_station.state_key("ev_00000000000000a0", "team"))["keys"]
+    del sent[:]
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert sent == []                                                            # neither repeats
 
 
 def test_a_chain_of_merges_points_at_the_event_that_exists_and_old_removals_are_left_alone(world):

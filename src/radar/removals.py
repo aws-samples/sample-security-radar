@@ -32,9 +32,13 @@ def record(store: Any, removed: list[tuple[str, str, str | None]], at: str) -> N
 
 
 def pending(store: Any) -> dict[str, dict[str, Any]]:
-    """Removed events whose site traces the publish station has not pruned yet."""
+    """Removed events whose site traces the publish station has not pruned since their latest removal.
+    Live 2026-11-17: ev_248138 was removed on 11-12 and marked pruned, a repair re-seeded the id, and a second removal on
+    11-17 left its detail page up — `eid not in done` said "already pruned". A prune only counts if it came after the
+    removal (both are ISO UTC strings, so they compare as text)."""
     done = store.get_source_state(PRUNED_KEY)
-    return {eid: r for eid, r in store.get_source_state(REMOVED_KEY).items() if eid not in done}
+    return {eid: r for eid, r in store.get_source_state(REMOVED_KEY).items()
+            if eid not in done or done[eid] < (r.get("at") or "")}
 
 
 def mark_pruned(store: Any, ids: list[str], at: str) -> None:

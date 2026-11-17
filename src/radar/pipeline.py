@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 from radar import anomaly, chain, keys, latency, removals, respond, signals, timeutil
 from radar.limits import Limits
 from radar.model import EXPLOITATION_ORDER, LEVEL_ORDER, SEVERITY_ORDER, Domain, Event, Item, RawItem, Tier
-from radar.registry import BY_ID, EXCHANGE_NAMES, REPORTER_TOKENS, Source, handle_info
+from radar.registry import BY_ID, CRYPTO_MEDIA_ORGS, EXCHANGE_NAMES, REPORTER_TOKENS, Source, handle_info
 from radar.store import Store
 
 _TIER_RANK = {"T1": 1, "T2": 2, "T3": 3}
@@ -63,14 +63,20 @@ class IngestResult:
 
 # ---------------------------------------------------------------- normalize
 
-def _classify(base: Domain | None, text: str, has_cve: bool) -> Domain:
+# CRYPTO_MEDIA_ORGS lives in radar.registry (the sources' facts); imported above.
+
+
+def _classify(base: Domain | None, text: str, has_cve: bool, crypto_source: bool = False) -> Domain:
     if base == "web3":
         return "vuln" if has_cve and not signals.web3_incident(text) else "web3"
     if base:
         return base
     if _CRYPTO.search(text):
         return "web3"
-    return "vuln" if has_cve or _VULN.search(text) else "incident"
+    vuln = has_cve or bool(_VULN.search(text))
+    if crypto_source:   # a crypto outlet's CVE / patch story is a vulnerability, its theft story a theft
+        return "vuln" if vuln and not signals.web3_incident(text) else "web3"
+    return "vuln" if vuln else "incident"
 
 
 def amount_keys(losses: list[float]) -> list[str]:
@@ -111,7 +117,7 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
         tier, org, base = source.tier, source.org, source.domain
     blob = f"{raw.title}\n{raw.text}"
     cve_list = sorted(set(keys.cves(blob)) | set(raw.extra.get("cves") or []))
-    domain = _classify(base, blob, bool(cve_list))
+    domain = _classify(base, blob, bool(cve_list), source.parser != "twitterapi" and org in CRYPTO_MEDIA_ORGS)
     links = [keys.canonical_url(u) for u in raw.links if u]
     canon = keys.canonical_url(raw.url)
 

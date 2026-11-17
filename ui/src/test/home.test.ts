@@ -129,18 +129,20 @@ describe('signalCells', () => {
 });
 
 describe('web3Loss24h', () => {
-  it('sums web3 first_seen within 24 h; excludes backfills, other domains and null amounts', () => {
+  it('sums corroborated web3 first_seen within 24 h; excludes single-source, backfills, other domains, null amounts', () => {
     const r = web3Loss24h([
-      ev({ domain: 'web3', first_seen: '2026-10-23T00:00:00Z', amount_usd_latest: 385000 }),
-      ev({ domain: 'web3', first_seen: '2026-10-23T07:37:00Z', amount_usd_latest: 2600000 }),
+      ev({ domain: 'web3', level: 'V2', first_seen: '2026-10-23T00:00:00Z', amount_usd_latest: 385000 }),
+      ev({ domain: 'web3', level: 'V4', first_seen: '2026-10-23T07:37:00Z', amount_usd_latest: 2600000 }),
+      // live 2026-11-17: a single-source repost ($6.4M, V1) of a corroborated theft, and a trader's "loss" — not counted
+      ev({ domain: 'web3', level: 'V1', first_seen: '2026-10-23T07:40:00Z', amount_usd_latest: 6400000 }),
       ev({ domain: 'web3', first_seen: '2021-05-26T00:00:00Z', last_updated: '2026-10-23T17:18:00Z', amount_usd_latest: 550000 }),
       ev({ domain: 'vuln', first_seen: '2026-10-23T07:00:00Z', amount_usd_latest: 999 }),
       ev({ domain: 'web3', first_seen: '2026-10-23T07:00:00Z', amount_usd_latest: null }),
     ], NOW);
     expect(r).toEqual({ usd: 2985000, count: 2 });
   });
-  it('mock sample: $2.99M from 2 events', () => {
-    expect(web3Loss24h(mock.events, NOW)).toEqual({ usd: 2985000, count: 2 });
+  it('mock sample: its two recent web3 events are single-source (V1 Kimchi, V0 Cysic) — counted as nothing', () => {
+    expect(web3Loss24h(mock.events, NOW)).toEqual({ usd: 0, count: 0 });
   });
 });
 

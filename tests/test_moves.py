@@ -112,10 +112,12 @@ def test_misplaced_reports_are_listed_and_pinned_ones_are_not(store):
     dst = other(store, src.event_id)
     moved = next(i for i in src.item_ids if store.items[i]["source_id"] == "defihacklabs")
     moves.move_item(store, moved, src.event_id, dst.event_id, NOW)
-    assert moves.misplaced_candidates(store, evs()) == base              # pinned = a human's decision
+    # pinned = a human's decision: the moved report is never a candidate. (Since stablecoin amounts read as USD, its
+    # siblings may become candidates — they now carry the same figure; that is the rules being consistent.)
+    assert moved not in {c.get("item_id") for c in moves.misplaced_candidates(store, evs())}
     it = store.get_item(moved)
     it.extra.pop("event_pin")
     store.put_item(it)
-    new = [c for c in moves.misplaced_candidates(store, evs()) if c not in base]
+    new = [c for c in moves.misplaced_candidates(store, evs()) if c not in base and c["item_id"] == moved]
     assert [(c["item_id"], c["event_id"], c["kind"], c["to"]) for c in new] == [(moved, dst.event_id, "elsewhere", src.event_id)]
     assert moves.misplaced_candidates(store, evs(), limit=0)[-1] == {"truncated": True, "limit": 0}

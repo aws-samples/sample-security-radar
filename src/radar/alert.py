@@ -49,7 +49,10 @@ def deliver(cfg: dict[str, Any], texts: list[str], site_url: str,
     anything (the invocation fails ⇒ Lambda retries it and its Errors metric shows it); with no owner chat subscription
     it returns a `degraded` marker instead — a retry cannot create one."""
     senders = senders if senders is not None else notify.SENDERS
-    owners = [s for s in notify.parse_config(cfg).subscriptions if s.owner and s.channel in CHAT_CHANNELS]
+    # an owner chat with a `kinds` filter gets alarms only if it lists `alarm` (a team channel set to ["p0"] stays
+    # event-only — Neo 2026-11-16); an owner chat without `kinds` keeps getting them, as before
+    owners = [s for s in notify.parse_config(cfg).subscriptions if s.owner and s.channel in CHAT_CHANNELS
+              and (not s.filters.get("kinds") or "alarm" in s.filters["kinds"])]
     out: dict[str, Any] = {"messages": len(texts), "sent": 0, "errors": []}
     if not owners:
         return {**out, "degraded": "no_owner_chat_subscription"}

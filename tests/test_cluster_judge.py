@@ -17,9 +17,11 @@ def ev(eid, title, first="2026-10-27T03:00:00Z", domain="vuln", sev="P2", keys=(
 def model(verdict="same", status="ok"):
     calls = []
 
-    def call(prompt, m, max_tokens):
+    def call(prompt, m, max_tokens):   # v2: a 'same' names the victim and quotes both sides (grounding check)
         calls.append(prompt)
-        return llm.LlmResult(status, json.dumps({"verdict": verdict, "why": "same victim, same day"}), {}, m, 0.1)
+        return llm.LlmResult(status, json.dumps({"verdict": verdict, "why": "same victim, same day",
+                                                 "victim": "Quest Diagnostics", "evidence_a": "Quest Diagnostics Data Breach",
+                                                 "evidence_b": "Quest Diagnostics confirms"}), {}, m, 0.1)
     call.calls = calls
     return call
 
@@ -101,19 +103,24 @@ def test_the_sweep_finds_exactly_the_pairs_of_the_all_pairs_loop_and_is_fast():
     from difflib import SequenceMatcher
 
     from radar import cluster_judge, timeutil
+    from radar.limits import Limits
     from radar.model import Event
 
     def reference(evs):
         out = []
         for a, b in itertools.combinations(evs, 2):
-            if a.domain != b.domain or set(a.keys) & set(b.keys):
+            web3 = a.domain == "web3"
+            # v2: web3 pairs sharing a key are candidates too (the rules kept them apart anyway), window 48 h
+            if a.domain != b.domain or (not web3 and set(a.keys) & set(b.keys)):
                 continue
             ta, tb = timeutil.parse(a.first_seen), timeutil.parse(b.first_seen)
-            if not ta or not tb or abs(ta - tb) > timedelta(hours=cluster_judge.WINDOW_H):
+            w = Limits.CLUSTER_WINDOW_H if web3 else cluster_judge.WINDOW_H
+            if not ta or not tb or abs(ta - tb) > timedelta(hours=w):
                 continue
             if cluster_judge.contradiction(a, b) is not None:
                 continue
             if {e.lower() for e in a.entities} & {e.lower() for e in b.entities} or \
+                    (web3 and (cluster_judge._names(a) & cluster_judge._names(b) or cluster_judge.close_loss(a, b))) or \
                     SequenceMatcher(None, a.title.lower(), b.title.lower()).ratio() >= cluster_judge.TITLE_SIMILARITY:
                 out.append((a, b))
         out.sort(key=lambda p: -max({"P0": 2, "P1": 1}.get(p[0].severity, 0), {"P0": 2, "P1": 1}.get(p[1].severity, 0)))

@@ -174,6 +174,9 @@ _URL_RE = re.compile(r"https?://\S+")
 _CAP_WORD = re.compile(r"(?<![A-Za-z0-9])(?:[A-Z][A-Za-z0-9]{2,}|[a-z]{1,3}[A-Z][A-Za-z0-9]+)(?![A-Za-z0-9])")
 
 
+_FIGURE = re.compile(r"\d+(?:k|m|mn|b|bn)?", re.IGNORECASE)
+
+
 def entity_tokens(text: str) -> set[str]:
     """Candidate entity tokens in free text (handles, $TICKERS, capitalised words, Chinese exchange names) for matching
     against existing events. Matching, not discovery: a token only matters if an event has it. URLs are dropped first
@@ -181,6 +184,8 @@ def entity_tokens(text: str) -> set[str]:
     text = _URL_RE.sub(" ", text or "")
     toks: set[str] = set()
     for m in re.findall(r"[@$]([A-Za-z0-9_]{2,30})", text):
+        if _FIGURE.fullmatch(m):     # 「$15M」 is a dollar figure, not a $ticker (live 2026-11-16: tok:15m / tt:15m joined
+            continue                 # every "$15M" theft by name — Lighter's reports and any other victim's alike)
         k = entity_key(m)
         if k:
             toks.add(k)

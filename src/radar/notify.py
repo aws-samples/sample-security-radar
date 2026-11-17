@@ -32,7 +32,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
-from radar import fetch, products, wallets
+from radar import fetch, products, timeutil, wallets
 from radar.limits import Limits
 
 CHANNELS = ("slack_channel", "slack_dm", "lark_chat", "lark_dm", "webhook")
@@ -63,9 +63,10 @@ FILTER_FIELDS: dict[str, tuple[str, tuple[str, ...] | None, str]] = {
     "min_level": ("atleast", LEVELS, "verification level at least this (a disputed event, level X, never matches)"),
     "min_loss_usd": ("number", None, "headline loss in USD at least this; an event without a loss figure never matches"),
     # R4.4: a filter on the MESSAGE, not the event (matches() skips it; wanted() applies it per message)
-    "kinds": ("list", ("p0", "update", "waf", "verdict", "pr", "digest"),
+    "kinds": ("list", ("p0", "update", "waf", "verdict", "pr", "digest", "alarm", "withdrawn", "merged"),
               ("message kinds to receive (absent: every event kind). `digest` — the daily digest, one message a day, "
-              "event filters not applied — only when listed")),
+              "event filters not applied — only when listed. `withdrawn` / `merged` — the one correction in the thread "
+              "of a notified event that was withdrawn / merged into another")),
 }
 
 
@@ -309,6 +310,120 @@ def _usd(amount: float) -> str:
     return f"${amount / 1e9:.2f}B" if amount >= 1e9 else f"${amount / 1e6:.1f}M"
 
 
+# The P0 notice (Neo 2026-11-16: one message per P0, the event itself, a summary, emoji, the link said for what it is).
+# Built only from the public view — the radar's own repository findings are other kinds and never in it.
+_LEVEL = {"V0": "传闻", "V1": "单一来源", "V2": "多方互证", "V3": "已确认", "V4": "已定论"}
+_EXPLOITED = {"confirmed": "已确认在野利用", "reported": "有在野利用报道", "poc": "已有 PoC"}
+_URL = re.compile(r"https?:/+\S*|\bt\.co/\S*")   # … also a URL the feed cut short ("… $XMR https:/")
+_CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+# a security account's own alert tag ("#PeckShieldAlert", "#CertiKAlert"): the source, not the story
+_ALERT_TAG = re.compile(r"#\w*Alerts?\b\s*", re.IGNORECASE)
+
+
+def headline(title: str, limit: int = 100) -> str:
+    """A title fit for one chat line: no URLs (a tweet's t.co link), no quote marker, no leading hashtag run, other
+    hashtags as plain words (live 2026-11-16: "[P0] https://t.co/… > We are actively investigating …")."""
+    t = _URL.sub(" ", title or "")
+    t = re.sub(r"(^|\s)>\s*", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    t = _ALERT_TAG.sub("", t)
+    t = re.sub(r"#(?=\w)", "", t).strip(" ·-—>:")
+    return t if len(t) <= limit else t[:limit - 1].rstrip() + "…"
+
+
+def p0_parts(v: dict[str, Any], link: str) -> dict[str, Any]:
+    """The P0 notice's lines, unescaped: rendered as Slack mrkdwn (slack_p0) or plain text (Lark, webhook)."""
+    web3 = v.get("domain") == "web3"
+    kind = "Web3 被盗" if web3 else "漏洞在野利用" if v.get("exploitation") in ("confirmed", "reported") else "高危漏洞"
+    facts = []
+    if web3 and v.get("amount_usd"):
+        facts.append(f"💰 损失 {_usd(v['amount_usd'])}")
+    if not web3 and v.get("cves"):
+        facts.append("🧩 " + ", ".join(v["cves"][:3]) + (f" 等 {len(v['cves'])} 个" if len(v["cves"]) > 3 else ""))
+    if not web3 and v.get("exploitation") in _EXPLOITED:
+        facts.append(f"🔥 {_EXPLOITED[v['exploitation']]}")
+    lv = v.get("level") or ""
+    facts.append(f"✅ {lv} {_LEVEL.get(lv, '')}".rstrip())
+    if v.get("tx_confirmed"):
+        facts.append(f"⛓️ 链上攻击交易已确认 {v['tx_confirmed']} 笔")
+    what = "原始来源 · 时间线 · 链上证据" if web3 else "原始来源 · 受影响版本与补丁 · 时间线"
+    summary = (v.get("summary") or "").strip()
+    if "\ufffd" in summary or _CTRL.search(summary):
+        summary = ""        # a cut multibyte character (live 2026-11-16: "可被串联,�蜜罐"): no summary beats a broken one
+    # first report = the event's first_seen: the publication time of the earliest report the radar holds (Neo
+    # 2026-11-16: every notice says when it was first reported)
+    first = timeutil.utc8(v.get("first_seen"))
+    return {"tag": f"P0 · {kind}", "headline": headline(v.get("title") or ""), "summary": summary,
+            "first": f"🕐 首报 {first}" if first else "🕐 首报时间未知",
+            "facts": facts, "link": link, "link_label": f"雷达事件页（{what}）"}
+
+
+def p0_text(parts: dict[str, Any]) -> str:
+    lines = [f"🚨 [{parts['tag']}] {parts['headline']}"]
+    if parts["summary"]:
+        lines.append(f"📝 {parts['summary']}")
+    lines += [parts["first"], " ｜ ".join(parts["facts"]), f"🔗 {parts['link_label']}：{parts['link']}"]
+    return "\n".join(lines)
+
+
+def gate(m: dict[str, Any], v: dict[str, Any], site_url: str, recent: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The send gate of a P0 notice (Neo 2026-11-16: the Slack path must be a harness). Every rule is a check on the
+    message itself, made right before the send; any problem ⇒ not sent, recorded with its code (notify_station).
+    `recent` = the P0s this subscription already sent within Limits.NOTIFY_P0_DEDUP_HOURS (other events)."""
+    if m.get("kind") != "p0":
+        return []
+    p, out = m.get("parts") or {}, []
+
+    def bad(code: str, message: str, actual: Any, limit: Any) -> None:
+        out.append({"error": code, "message": message, "actual": actual, "limit": limit})
+    if v.get("severity") != "P0":                                                                   # G1
+        bad("not_p0", "a P0 notice for an event that is not P0", v.get("severity"), "P0")
+    h = p.get("headline") or ""
+    if len(h) < Limits.NOTIFY_HEADLINE_MIN_CHARS:                                                   # G4
+        bad("no_headline", "the headline is empty after cleaning", h, f">= {Limits.NOTIFY_HEADLINE_MIN_CHARS} chars")
+    if _URL.search(h) or "t.co/" in h:
+        bad("url_in_headline", "a URL in the headline", h[:80], "no URL")
+    want = f"{site_url.rstrip('/')}/#/events/{v.get('event_id')}"
+    if p.get("link") != want:                                                                       # G5
+        bad("link_not_event_page", "the link is not this event's page on the site", p.get("link"), want)
+    text = f"{m.get('text', '')}\n{m.get('slack', '')}"
+    if "section=env" in text or "代码目标" in text or "补丁 PR" in text:                              # G6
+        bad("repository_content", "a P0 notice carries the radar's own repository findings", "env / PR text", "the event only")
+    if "\ufffd" in text or _CTRL.search(text):                                                      # G7
+        bad("bad_characters", "a replacement or control character in the message", "\\ufffd / control", "none")
+    first = timeutil.utc8(v.get("first_seen"))                                                      # G8
+    if first and f"首报 {first}" not in (m.get("text") or ""):
+        bad("no_first_report_time", "the notice does not say when the event was first reported", None, first)
+    if len(m.get("text") or "") > Limits.NOTIFY_P0_MAX_CHARS:
+        bad("too_long", "the notice is longer than one screen line block", len(m.get("text") or ""), Limits.NOTIFY_P0_MAX_CHARS)
+    cves, names = set(v.get("cves") or []), {n.lower() for n in (v.get("entities") or []) if len(n) >= 3}   # G3
+    for r in recent:
+        if r.get("e") == v.get("event_id"):
+            continue
+        same = (cves & set(r.get("cves") or [])) or (names & set(r.get("names") or []))
+        if same:
+            bad("duplicate_p0", f"a P0 for the same {'CVE' if cves & set(r.get('cves') or []) else 'victim'} was sent "
+                f"within {Limits.NOTIFY_P0_DEDUP_HOURS} h", sorted(same)[:3], r.get("e"))
+            break
+    return out
+
+
+def ledger_entry(v: dict[str, Any], at: str) -> dict[str, Any]:
+    """What the duplicate rule (gate G3) remembers of a sent P0: its CVEs and its victim names, never free text."""
+    return {"e": v.get("event_id"), "at": at, "cves": sorted(v.get("cves") or [])[:20],
+            "names": sorted({n.lower() for n in (v.get("entities") or []) if len(n) >= 3})[:20]}
+
+
+def slack_p0(parts: dict[str, Any]) -> str:
+    """Slack mrkdwn: every third-party piece escaped (slack_escape), the link the radar's own (<url|label>)."""
+    e = slack_escape
+    lines = [f"🚨 *[{e(parts['tag'])}]* {e(parts['headline'])}"]
+    if parts["summary"]:
+        lines.append(f"📝 {e(parts['summary'])}")
+    lines += [e(parts["first"]), e(" ｜ ".join(parts["facts"])), f"🔗 <{parts['link']}|{e(parts['link_label'])}>"]
+    return "\n".join(lines)
+
+
 def standing(v: dict[str, Any]) -> list[str]:
     """What the P0 notice itself already says about the event's state: recorded with it, so only a later CHANGE is an
     update (roadmap R4.3) — the loss step and the verification level at that moment."""
@@ -332,7 +447,9 @@ def plan(v: dict[str, Any], sent: dict[str, Any], site_url: str) -> list[dict[st
     link = f"{site_url.rstrip('/')}/#/events/{v['event_id']}"
     out: list[dict[str, Any]] = []
     if v["severity"] == "P0":
-        out.append({"key": "p0", "kind": "p0", "text": f"[P0] {v['title']}\n{v.get('level_reason') or ''}\n{link}", "also": standing(v)})
+        parts = p0_parts(v, link)
+        out.append({"key": "p0", "kind": "p0", "text": p0_text(parts), "slack": slack_p0(parts), "parts": parts,
+                    "also": standing(v)})
         if STANDING in done:   # updates belong to a thread whose notice recorded where the event stood
             rung = loss_rung(v.get("amount_usd"))
             if rung:
@@ -395,7 +512,10 @@ def send_slack(cfg: dict[str, Any], sub: Subscription, msg: dict[str, Any], thre
                cache: dict[str, Any]) -> str:
     """chat.postMessage to a channel id or (slack_dm) a user id; returns the message ts (the thread id)."""
     r = _post("https://slack.com/api/chat.postMessage",
-              {"channel": sub.target, "text": slack_escape(msg["text"]), **({"thread_ts": thread} if thread else {})},
+              # a P0 notice carries its own mrkdwn (escaped piece by piece, the link the radar's); other kinds plain text.
+              # No unfurl: one compact message, the event page is the place for detail
+              {"channel": sub.target, "text": msg.get("slack") or slack_escape(msg["text"]),
+               "unfurl_links": False, "unfurl_media": False, **({"thread_ts": thread} if thread else {})},
               {"Authorization": f"Bearer {cfg['slack_bot_token']}"})
     if not r.get("ok"):
         raise ValueError(f"slack: {r.get('error')}")

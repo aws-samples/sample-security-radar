@@ -40,6 +40,8 @@ import { WallCenterStage } from '@/components/WallCenterStage';
 import { LevelBadge } from '@/components/LevelBadge';
 import { SeverityBadge } from '@/components/SeverityBadge';
 import type { EventSummary, SourceHealth } from '@/types/site-data';
+import { lossBoard, lossLabel } from '@/utils/lossBoard';
+import { web3Loss24h } from '@/utils/home';
 
 // ── Animated counter (count-up on mount) ──────────────────────────────────────
 function useCountUp(target: number, duration = 700): number {
@@ -289,7 +291,7 @@ function LossRow({ ev, maxAmount, rank }: { ev: EventSummary; maxAmount: number;
         fontSize: 11, color: 'var(--text-1)', flex: 1,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', zIndex: 1,
       }}>
-        {ev.entities[0] ?? ev.title.split(' ')[0]}
+        {lossLabel(ev)}
       </span>
       <span className="tabular" style={{
         fontFamily: 'var(--font-mono)', fontSize: 11, flexShrink: 0,
@@ -702,13 +704,7 @@ export function WallPage() {
   const stream = useMarquee(isPaused || !!drawerId, 22, streamEvents.map(e => e.event_id).join());
 
   const web3Events = useMemo(() => events.filter(e => e.domain === 'web3'), [events]);
-  const web3ByAmount = useMemo(() =>
-    [...web3Events]
-      .filter(e => e.amount_usd_latest !== null)
-      .sort((a, b) => (b.amount_usd_latest ?? 0) - (a.amount_usd_latest ?? 0))
-      .slice(0, 6),
-    [web3Events],
-  );
+  const web3ByAmount = useMemo(() => lossBoard(web3Events), [web3Events]);   // V2+ only (utils/lossBoard)
   const maxLoss = web3ByAmount[0]?.amount_usd_latest ?? 1;
 
   const vulnEvents = useMemo(() =>
@@ -757,9 +753,7 @@ export function WallPage() {
   const new24h    = events.filter(e => new Date(e.first_seen).getTime() >= dayAgo).length;
   const p0Count   = events.filter(e => e.severity === 'P0').length;
   const v3plus    = events.filter(e => e.level === 'V3' || e.level === 'V4').length;
-  const web3Total = web3Events
-    .filter(e => new Date(e.first_seen).getTime() >= dayAgo)
-    .reduce((s, e) => s + (e.amount_usd_latest ?? 0), 0);
+  const web3Total = web3Loss24h(events).usd;   // one definition (utils/home), V2+ only — was an inline copy
 
   const fresh = freshness(generatedAt, staleSecs, Date.now());
   const isStale = fresh.kind === 'publish_stale' || fresh.kind === 'fetch_failing';

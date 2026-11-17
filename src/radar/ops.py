@@ -47,6 +47,11 @@ def _notify(f: Facts) -> list[Item]:
         out.append({"level": "error", "title": f"订阅配置无效：{bad.get('id') or '（无 id）'}",
                     "detail": f"{bad.get('error')}: {bad.get('message')}（实际 {bad.get('actual')!r}，允许 {bad.get('allowed')!r}）"[:300],
                     "since": at, "link": None})
+    for b in st.get("blocked") or []:    # the send gate (notify.gate): a notice refused is said, never silent
+        p = (b.get("problems") or [{}])[0]
+        out.append({"level": "warn", "title": f"推送门禁拦下一条 {b.get('key')}（订阅 {b.get('subscription')}）",
+                    "detail": f"{p.get('error')}: {p.get('message')}（实际 {p.get('actual')!r}，要求 {p.get('limit')!r}）"[:300],
+                    "since": at, "link": f"#/events/{b.get('event_id')}" if b.get("event_id") else None})
     for sid, row in sorted((st.get("subscriptions") or {}).items()):
         if row.get("status") == "error":
             err = row.get("error") or {}
@@ -135,6 +140,27 @@ def _dup_confirmed(f: Facts) -> list[Item]:
             out.append({"level": "info", "title": f"人工确认重复，待合并：{titles[a][:40]}",
                         "detail": f"scripts/recluster_web3.py --domain <域> --since <日期> --event {a} --event {b}",
                         "since": lab.get("at"), "link": f"/events/{a}"})
+    return out
+
+
+def _judge_merges(f: Facts, titles: dict[str, str]) -> list[Item]:
+    """C4 v2 shadow: pairs the cluster judge would merge (grounded 'same' + ≥ 2 code evidences, radar.cluster_judge)
+    while both events are still published and no operator has labelled the pair — info: nothing merged (unless
+    Limits.CLUSTER_AUTO_MERGE); the operator confirms with scripts/dup_label.py, which queues the repair above.
+    Filed under duplicate_confirmed's rule (same queue, one rule table entry) — facts["cluster_judge"] is the ledger
+    publish loads (cluster_judge.load(store, "__cluster_judge__"))."""
+    labels = f.get("dup_labels") or {}
+    out = []
+    for row in sorted((f.get("cluster_judge") or {}).values(), key=lambda r: (r.get("a", ""), r.get("b", ""))):
+        a, b = row.get("a"), row.get("b")
+        if not row.get("would_merge") or row.get("merged") or a not in titles or b not in titles \
+                or "|".join(sorted((a, b))) in labels:
+            continue
+        ev = "；".join(e.get("detail", "") for e in row.get("evidence") or [])
+        out.append({"level": "info", "title": f"聚类裁判建议合并：{titles[a][:40]} ↔ {titles[b][:40]}",
+                    "detail": f"受害方「{row.get('victim', '')}」 · {ev} · {row.get('why', '')[:120]} — "
+                              f"scripts/dup_label.py {a} {b} same --note \"聚类裁判 v2\"（不同则 different；影子模式，未合并）",
+                    "since": row.get("at"), "link": f"/events/{a}"})
     return out
 
 
@@ -334,6 +360,8 @@ RULES: dict[str, Callable[[Facts], list[Item]]] = {
     "source_unhealthy": _sources, "over_budget": _over_budget, "notify": _notify, "repo_channel_error": _repo_channels,
     "cost_unavailable": _cost, "chain_rpc_error": _chain, "digest_not_ok": _digest, "mitigate": _mitigate,
     "p0_untriaged": _untriaged, "duplicate_confirmed": _dup_confirmed, "event_split": _splits,
+    # cluster judge v2 (shadow): a grounded "same" with enough code evidence — its own code, not duplicate_confirmed's
+    "cluster_merge_suggested": lambda f: _judge_merges(f, {e["event_id"]: e.get("title", "") for e in f.get("events") or []}),
     "late_detection": _late, "title_proposal": _title_proposals,
     "station_slow": _slow, "enrich_degraded": _enrich, "publish_deferred": _deferred,
     "amount_outlier": _amount_outliers, "amount_shared": _amount_shared, "raw_lines_skipped": _raw_bad,

@@ -432,6 +432,8 @@ def ops_doc(store: Store, now: datetime, srcs: dict[str, Any], evs: list[Event])
                            "digest": store.get_source_state("__digest__"), "dup_labels": store.get_source_state(duplabels.KEY),
                            "splits": _splits(store, now, evs), "late": _late_detections(store, now, evs),
                            "title_proposals": store.get_source_state(retitle_judge.KEY),
+                           # the judge's verdict ledger (handlers.DUP_KEY): #/ops lists its would-merge pairs (shadow mode)
+                           "cluster_judge": cluster_judge.load(store, "__cluster_judge__"),
                            "slow_stations": stationtime.slow(stationtime.facts(store)),
                            "enrich": store.get_source_state(ENRICH_KEY), "pending": store.get_source_state(PENDING_KEY),
                            **dict(zip(("amount_outliers", "amount_shared"), _amount_checks(evs))),

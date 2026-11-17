@@ -52,7 +52,8 @@ def test_record_keeps_the_first_thread():
 def test_the_message_uses_the_retitled_title():
     """research/action/03 B4: the page shows the operator's sourced fix; the push showed the raw feed title."""
     row = {**ROW, "title": "Fixed root-cause title"}     # publish._summary applies title_override
-    assert notify.plan(notify.view(row, False), {}, "s")[0]["text"].startswith("[P0] Fixed root-cause title")
+    first = notify.plan(notify.view(row, False), {}, "s")[0]["text"].splitlines()[0]
+    assert first.startswith("🚨 [P0 · ") and first.endswith("] Fixed root-cause title")
 
 
 # ---------------------------------------------------------------- subscriptions

@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.3.0] - 2026-11-16
+## [1.3.0] - 2026-11-17
 
 Agents and subscribers can read the radar without the UI, collection covers more vendors within a fixed budget, and a
 bad write can be undone.
@@ -39,10 +39,23 @@ bad write can be undone.
 - **Clustering rules**: a digest (newsletter, daily round-up, bulletin) is a report of no single event; a report naming
   CVEs years apart merges nothing; "exploited" counts only when it is said about that event; an attacker's own loss is
   not the victim's.
+- **P0 send gate**: every P0 notice is checked right before it is sent — it is P0, has a headline without links,
+  links to its own event page, carries no repository findings, no broken characters, says when the event was first
+  reported (UTC+8) and fits one block; a second P0 for the same CVE or victim within 72 h is held. A notice that fails
+  is not sent, not retried, and listed on the ops page with its code. Each subscription keeps a bounded ledger of the
+  P0s it announced. Corrections have kinds (`withdrawn`, `merged`), so a channel can hear a withdrawal and not a merge;
+  CloudWatch alarms go only to owner chats that list `alarm` (or set no kinds).
+- **Duplicate-event suggestions (shadow)**: candidate pairs are chosen in code from report evidence (shared names,
+  close losses, strong keys); a model answers same / different / unsure and must quote the shared victim and one
+  headline per side, which code verifies. Grounded suggestions appear on the ops page; nothing merges automatically
+  (`Limits.CLUSTER_AUTO_MERGE` is off until labelled precision is measured).
+- **Web3 losses**: an earnings result, a position, a valuation, a market move, a liquidation or a leveraged long /
+  short is not a theft; a headline figure may be refined by a close body figure; `scripts/recluster_web3.py
+  --reclassify` replays one event under these rules (writes need `--event`).
 - **UI**: an entry-chunk size gate (≤ 120 KB gzip, every lazy page its own chunk), fonts off the render-blocking path;
   a first-seen order and "new since your last visit" on the home page; an action pack per code target on the event
   page; a freshness line and a reload offer after a deployment; search hits without an event page link to their source.
-- Fixes: severity always wins over recency in the listing; a raw line that does not parse is skipped and counted
+- Fixes: an event removed again after an earlier prune loses its page again; severity always wins over recency in the listing; a raw line that does not parse is skipped and counted
   instead of failing its batch; redirects to http or internal addresses are refused; Firecrawl answers are
   size-capped; analyst briefs of large events are written from structured records plus the first and newest reports.
 

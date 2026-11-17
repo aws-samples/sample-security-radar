@@ -313,9 +313,9 @@ replace = `${CHANNEL_WORD[t.channel ?? 's3'].env} · ${CHANNEL_WORD[t.channel ??
 expect = src/test/continuum.test.ts
 
 [UK14 single-source P1s (level V1) count as corroborated — the triage number hides the events to look at first]
-file = src/utils/home.ts
-find = const CORROBORATED = new Set(['V2', 'V3', 'V4']);
-replace = const CORROBORATED = new Set(['V1', 'V2', 'V3', 'V4']);
+file = src/utils/lossBoard.ts
+find = export const CORROBORATED: ReadonlySet<string> = new Set(['V2', 'V3', 'V4']);
+replace = export const CORROBORATED: ReadonlySet<string> = new Set(['V1', 'V2', 'V3', 'V4']);
 expect = src/test/home.test.ts
 
 [UK15 a digest sentence that failed validation renders like a grounded one (shown as fact)]
@@ -1141,3 +1141,21 @@ file = src/utils/search.ts
 find = const href = safeHref(r.r);
 replace = const href = r.r;
 expect = src/test/search.test.ts
+
+[UM947 the loss board ranks single-source events again]
+file = src/utils/lossBoard.ts
+find = .filter(e => e.domain === 'web3' && e.amount_usd_latest !== null && CORROBORATED.has(e.level))
+replace = .filter(e => e.domain === 'web3' && e.amount_usd_latest !== null)
+expect = src/test/lossBoard.test.ts
+
+[UM948 the loss board labels a row with the title's first word again]
+file = src/utils/lossBoard.ts
+find = if (ev.entities[0]) return ev.entities[0];
+replace = return ev.entities[0] ?? ev.title.split(' ')[0];
+expect = src/test/lossBoard.test.ts
+
+[UM949 the 24h loss sums single-source events again (live: $6.02B, one mis-read figure and reposts)]
+file = src/utils/home.ts
+find = const hit = events.filter(e => e.domain === 'web3' && e.amount_usd_latest !== null && CORROBORATED.has(e.level)
+replace = const hit = events.filter(e => e.domain === 'web3' && e.amount_usd_latest !== null
+expect = src/test/home.test.ts

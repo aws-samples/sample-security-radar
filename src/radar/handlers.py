@@ -387,18 +387,27 @@ DUP_KEY = "__cluster_judge__"  # C4: {"pairs": {pair_key: verdict row}} (single 
 
 
 def _cluster_judge(now: datetime) -> list[str]:
-    """C4: judge new candidate pairs (≤ MAX_PAIRS_PER_CYCLE Haiku calls); returns the events whose possible-duplicate
-    list changed, so publish rebuilds their pages. Advisory only — nothing is merged."""
+    """C4: judge new candidate pairs (≤ MAX_PAIRS_PER_CYCLE Haiku calls; reports read only for the events of the pairs
+    judged); returns the events whose possible-duplicate list changed, or that a merge touched, so publish rebuilds
+    their pages. SHADOW unless Limits.CLUSTER_AUTO_MERGE: would_merge rows only show in #/ops."""
     from radar import cluster_judge
-    held = cluster_judge.load(_store, DUP_KEY)
+    store = _store
+    if store is None:      # the station runs with its table; no table is a wiring fault, said — never a silent skip
+        raise RuntimeError("cluster judge: no store")
+    held = cluster_judge.load(store, DUP_KEY)
     before = {k: v.get("verdict") for k, v in held.items()}
-    evs = _store.events_updated_since(timeutil.iso(now - timedelta(days=publish.Limits.PUBLISH_WINDOW_DAYS)))
-    pairs, calls = cluster_judge.run(evs, held, timeutil.iso(now))
-    cluster_judge.save(_store, DUP_KEY, pairs)
+    evs = store.events_updated_since(timeutil.iso(now - timedelta(days=publish.Limits.PUBLISH_WINDOW_DAYS)))
+    pairs, calls = cluster_judge.run(evs, held, timeutil.iso(now), get_items=store.get_items)
+    merged = cluster_judge.merge(store, pairs, now)        # [] while Limits.CLUSTER_AUTO_MERGE is False
+    cluster_judge.save(store, DUP_KEY, pairs)
     touched = sorted({e for k, v in pairs.items() if v.get("verdict") == "same" and before.get(k) != "same"
-                      for e in (v["a"], v["b"])})
-    if calls or touched:
-        log.info(json.dumps({"station": "analyze", "cluster_judge_calls": calls, "possible_duplicates_new": len(touched) // 2}))
+                      for e in (v["a"], v["b"])} | {e for m in merged for e in (m["into"], m["from"])})
+    would = sum(1 for v in pairs.values() if v.get("would_merge") and not v.get("merged"))
+    if calls or touched or merged:
+        log.info(json.dumps({"station": "analyze", "cluster_judge_calls": calls, "possible_duplicates_new": len(touched) // 2,
+                             "would_merge": would, "auto_merge": Limits.CLUSTER_AUTO_MERGE}))
+    for m in merged:                 # the ledger row leaves with the smaller event: the log keeps the undo
+        log.info(json.dumps({"station": "analyze", "cluster_merge": m}, ensure_ascii=False))
     return touched
 
 

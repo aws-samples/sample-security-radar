@@ -212,6 +212,22 @@ def test_a_page_that_could_not_be_deleted_is_retried_next_run(env, monkeypatch):
     assert "ev_9" in removals.pending(h._store)
 
 
+def test_an_id_removed_again_after_a_prune_loses_its_page_again(env):
+    """Live 2026-11-17: ev_248138 was removed and pruned on 11-12, a repair re-seeded the id (its page came back), and
+    the 11-17 removal left that page up because the ledger still said "pruned"."""
+    from radar import removals
+    h, s3 = env
+    removals.record(h._store, [("ev_9", "2026-11", None)], "2026-11-12T00:00:00Z")
+    h._publish_search("site", datetime(2026, 11, 12, 1, tzinfo=UTC), events=[ev(1, "2026-11-01T00:00:00Z")])
+    assert removals.pending(h._store) == {}
+    s3.put_object(Bucket="site", Key="data/events/ev_9.json", Body=b"{}")   # re-seeded, published, then removed again
+    removals.record(h._store, [("ev_9", "2026-11", None)], "2026-11-17T03:04:56Z")
+    assert "ev_9" in removals.pending(h._store)
+    h._publish_search("site", datetime(2026, 11, 17, 4, tzinfo=UTC), events=[ev(1, "2026-11-01T00:00:00Z")])
+    pages = {o["Key"] for o in s3.list_objects_v2(Bucket="site", Prefix="data/events/").get("Contents", [])}
+    assert "data/events/ev_9.json" not in pages and removals.pending(h._store) == {}
+
+
 def test_a_shard_whose_rows_did_not_change_is_not_rewritten(env, monkeypatch):
     """R2.6: every cycle rewrote ~50 month shards (2+ MB) whose rows were the same; the bucket is versioned (R5.5), so
     each rewrite was also an old version kept for a week. The index is still written (it carries the publish time)."""

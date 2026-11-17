@@ -34,6 +34,7 @@ LEGACY_STATE_KEY = "__notify__"
 BASELINED_KEY = "__notify_baselined__"
 
 
+LEDGER_ID = "__p0_sent__"   # state_key(LEDGER_ID, sub): the P0s a subscription sent (notify.gate G3 reads it)
 DIGEST_ID = "__digest__"   # the digest's push row: state_key(DIGEST_ID, sub) — keys `digest:<day>`, no thread
 
 
@@ -92,7 +93,9 @@ def correction(eid: str, to: str | None, title: str | None, site_url: str) -> di
         text = "更正：这条推送对应的事件已撤下（与其他事件重复，或不再成立）。此前的链接不再有效。"
     else:
         text = f"更正：这条推送对应的事件已并入{f'「{title}」' if title else '另一个事件'}，后续更新在那里。\n{link}"
-    return {"key": f"moved:{to or 'withdrawn'}", "text": text, "link": link}
+    # kind: a subscription's `kinds` filter decides whether it hears corrections (Neo 2026-11-17, the team channel: only
+    # a withdrawal — a P0 that was wrong — gets its one line; a merge is silent there, the survivor stays quiet anyway)
+    return {"key": f"moved:{to or 'withdrawn'}", "kind": "merged" if to else "withdrawn", "text": text, "link": link}
 
 
 # what a send may raise without being a bug: urllib errors are OSError, in-band API errors ValueError, a refused redirect
@@ -128,6 +131,7 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
     """One run: parse subscriptions, match, send, record. Returns (and stores) the status ledger."""
     senders = senders if senders is not None else notify.SENDERS
     nowi = timeutil.iso(now)
+    blocked: list[dict[str, Any]] = []     # notices the send gate refused this run (shown on #/ops)
     prev = (store.get_source_state(STATUS_KEY).get("subscriptions") or {})
     based = store.get_source_state(BASELINED_KEY)
     based_before = dict(based)       # compared at the end: the row is written only when it changed
@@ -200,6 +204,9 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
                     surv = notify.record(surv, "p0", was.get("thread"), said)
                     store.put_source_state(ks, surv)
                     rows[ks] = surv
+            if not notify.wanted(s.filters, m):             # recorded as handled: not re-checked every run
+                store.put_source_state(ko, notify.record(was, m["key"], was.get("thread")))
+                continue
             stopped = _out_of_budget(sent_n, time_left)
             if stopped:
                 break
@@ -210,6 +217,10 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
                 break
             store.put_source_state(ko, notify.record(was, m["key"], None))
             sent_n += 1
+        kl = state_key(LEDGER_ID, s.id)
+        ledger = list((store.get_source_state(kl) or {}).get("rows") or [])
+        since = timeutil.iso(now - timedelta(hours=Limits.NOTIFY_P0_DEDUP_HOURS))
+        recent = [r for r in ledger if (r.get("at") or "") >= since]
         for v in ([] if err or stopped else hits[s.id]):
             k = state_key(v["event_id"], s.id)
             mine = rows.get(k) or {}
@@ -231,6 +242,16 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
                     err = {"error": "state_row_too_large", "message": "push state row would exceed the limit",
                            "actual": n, "limit": Limits.NOTIFY_STATE_ROW_MAX_BYTES, "event_id": v["event_id"]}
                     break
+                # the send gate (notify.gate): a notice that fails any rule is not sent, never retried, and named on
+                # #/ops — "blocked" must look unlike "sent" (degradation leaves a trace). No `also`: a blocked P0
+                # opens no thread, so no update can follow it
+                if probs := notify.gate(m, v, site_url, recent):
+                    mine = notify.record(mine, m["key"], None)
+                    store.put_source_state(k, mine)
+                    after[k] = mine
+                    blocked.append({"subscription": s.id, "event_id": v["event_id"], "key": m["key"],
+                                    "problems": probs[:3]})
+                    continue
                 try:
                     thread = senders[s.channel](cfg, s, {**m, "view": v}, mine.get("thread"), cache)
                 # urllib errors are OSError; in-band API errors ValueError; a refused redirect (a webhook answering
@@ -241,6 +262,10 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
                     break
                 mine = notify.record(mine, m["key"], thread, m.get("also"))
                 store.put_source_state(k, mine)   # right after the send: at most once, even if the run dies next
+                if m["key"] == "p0":   # gate G3's memory: CVEs and victim names of what this subscription announced
+                    recent.append(notify.ledger_entry(v, nowi))
+                    ledger = [*recent, *(r for r in ledger if r not in recent)][-Limits.NOTIFY_P0_LEDGER_MAX:]
+                    store.put_source_state(kl, {"rows": ledger})
                 if m["key"] == "p0" and (lag := latency.minutes(v.get("became_at") or v.get("first_seen") or "", now)) is not None:
                     pushed.append(["P0", lag])    # became P0 → this push (roadmap R0.5 / R8.8)
                 after[k] = mine
@@ -277,6 +302,8 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
             store.put_source_state(BASELINED_KEY, based)  # before the status row: a timeout must not lose the flag
             based_before = dict(based)
         store.put_source_state(STATUS_KEY, status)    # per subscription: a timeout keeps what already happened
+    if blocked:
+        status["blocked"] = blocked[-20:]
     if any(r.get("status") == "error" for r in subs.values()):
         status["status"] = "degraded"
     store.put_source_state(STATUS_KEY, status)

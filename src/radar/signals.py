@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 
+from radar.limits import Limits
 from radar.model import Exploited
 
 
@@ -51,12 +52,9 @@ _YES = re.compile(
 _POC = re.compile(r"\b(proof[- ]of[- ]concept|PoC (?:exploit|released|published|available)|exploit code (?:released|published))\b"
                   r"|PoC已公开|POC公开|公开了?(?:PoC|POC|利用代码)", re.IGNORECASE)
 
-_WEB3_INCIDENT = re.compile(
-    # stole / steals / theft / heist: 「North Korean hackers stole $1.5 billion from Bybit」 was not an incident headline
-    r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|stole|steals?|theft|heist|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull|drainer"
-    r"|phishing|private key|flash ?loan|loss)\b|被盗|被黑|攻击|漏洞|损失|盗取|黑客",   # 黑客: 「冻结币安黑客约3050万美元」
-    re.IGNORECASE,
-)
+# the loss words: on their own they make an incident only outside a result / position / valuation (web3_incident).
+# The theft words are _THEFT, next to web3_incident — one list, not two (two copies left M162 / M1347 testing a dead one)
+_LOSS_WORD_INCIDENT = re.compile(r"\b(?:loss|lost)\b|损失", re.IGNORECASE)
 _SEC_EVENT = re.compile(
     r"\b(zero-?day|0-?day|ransomware|data breach|breach(?:ed)?|hack(?:ed)?|exploit(?:ed|ation)?|backdoor"
     r"|supply[- ]chain attack|malware|leak(?:ed)?|vulnerabilit(?:y|ies)|RCE|remote code execution)\b"
@@ -70,6 +68,10 @@ _AMOUNT = re.compile(
     # $137 and, being T1, replaced the event's $1.37M headline). 万 / 亿 end a number without a word boundary before 美元.
     r"(?:US)?\$\s?~?\s?([0-9][0-9,]*(?:\.[0-9]+)?)\s*(k|thousand|m|mn|million|b|bn|billion|万|亿)?(?:\b|(?<=[万亿]))"
     r"|([0-9][0-9,]*(?:\.[0-9]+)?)\s*(万|亿)?\s*美元"
+    # a dollar stablecoin is dollars (live 2026-11-16, Lighter: 「提取约 1039 万 USDC」 / 「约 1039 万 USDC 被转出」 named no
+    # amount, so the first two reports opened no event and their name never reached the one that formed later)
+    r"|(?<![A-Za-z0-9.,])([0-9][0-9,]*(?:\.[0-9]+)?)\s*(k|thousand|m|mn|million|b|bn|billion|万|亿)?\s*枚?\s*"
+    r"(?:USDC|USDT|DAI|FDUSD|USDe|PYUSD|BUSD)(?![A-Za-z0-9])"
     # 「Bitget Loses USD 351.6 Million」 (TRM, live 2026-11-05: no amount, so the theft stayed a separate event)
     r"|\bUSD\s?~?\s?([0-9][0-9,]*(?:\.[0-9]+)?)\s*(k|thousand|m|mn|million|b|bn|billion)?\b",
     re.IGNORECASE,
@@ -300,8 +302,36 @@ def poc(text: str) -> bool:
     return bool(_POC.search(text or ""))
 
 
+# A loss that is not an incident: a company's result, a trader's position, a holding's mark-to-market. Live 2026-11-16
+# the loss board's top three non-Binance rows were these — 「BitMine … $8.83 billion loss」 (unrealised), 「Whale … closing
+# his long … at a $2.45M loss」, 「Dunamu Swings to $13.8 Million Q3 Net Loss」 — each became a "Web3 theft" because the
+# word "loss" alone made one. Only a theft word makes such a text an incident.
+_NOT_INCIDENT_LOSS = re.compile(
+    r"\b(?:net|operating|quarterly|annual|Q[1-4]|unreali[sz]ed|paper|trading)\s+(?:\w+\s+)?loss(?:es)?\b"
+    r"|\bfirst\s+operating\s+loss\b|\bswings?\s+to\b[^.]{0,40}\bloss\b"
+    r"|\bclos(?:es|ed|ing)\s+(?:his|her|their|its|a|the)\s+(?:\w+\s+)?(?:long|short)\b|\bat\s+a\s+\$?[\d.,]+\s*[KMB]?\s+loss\b"
+    r"|\bworst\s+asset\b|净亏损|经营亏损|营业亏损|季度亏损|财报|浮亏|账面亏损|平仓"
+    # a market move: 「Nasdaq closes with 2.5% loss」 (CoinDesk live updates, 2026-11-16, in Dunamu's event)
+    r"|\b\d+(?:\.\d+)?\s?%\s+(?:\w+\s+)?loss(?:es)?\b|跌幅"
+    # a liquidated position: 「Machi … got liquidated again」, 「多头仓位…遭完全清算，损失1769万美元」 (live, 2026-11)
+    r"|\bliquidat(?:ed|ion|ions)\b|爆仓|强平|遭(?:完全)?清算|仓位[^，。]{0,12}清算"
+    r"|\b(?:leveraged\s+)?(?:long|short)\s+positions?\b|杠杆(?:多|空)单",   # 「Machi … to fund leveraged long positions」
+    re.IGNORECASE)
+# stole / steals / theft / heist: 「North Korean hackers stole $1.5 billion from Bybit」 was not an incident headline;
+# 黑客: 「冻结币安黑客约3050万美元」
+_THEFT = re.compile(
+    r"\b(drained|exploit(?:ed)?|hack(?:ed)?|stolen|stole|steals?|theft|heist|attack(?:ed|er)?|compromis(?:e|ed)|rug ?pull"
+    r"|drainer|(?<=[\dKMBkmb] )drains?|drains? (?:on|of|from)|draining|phishing|private key|flash ?loan|breach(?:ed)?|security incident|(?:key|api|credential)s? leak(?:ed|s)?"
+    r"|leak(?:ed)? (?:api |private )?keys?)\b|被盗|被黑|攻击|漏洞|盗取|黑客|安全事件|泄露",
+    re.IGNORECASE)   # breach / security incident: 「Lighter Halts Withdrawals After $15.5M Security Breach」 was no incident
+
+
 def web3_incident(text: str) -> bool:
-    return bool(_WEB3_INCIDENT.search(text or ""))
+    """A theft word, or a loss word in a text that is not about a result, a position or a valuation."""
+    t = text or ""
+    if _THEFT.search(t):
+        return True
+    return bool(_LOSS_WORD_INCIDENT.search(t)) and not _NOT_INCIDENT_LOSS.search(t)
 
 
 def security_event(text: str) -> bool:
@@ -311,7 +341,7 @@ def security_event(text: str) -> bool:
 def _amount_spans(text: str):
     """(value, start, end) of every amount in text."""
     for m in _AMOUNT.finditer(text):
-        num, unit = next(((m.group(i), m.group(i + 1)) for i in (1, 3, 5) if m.group(i)), (None, None))
+        num, unit = next(((m.group(i), m.group(i + 1)) for i in (1, 3, 5, 7) if m.group(i)), (None, None))
         if not num:
             continue
         try:
@@ -365,9 +395,17 @@ def loss_amount(title: str | None, text: str | None) -> float | None:
     the loss — that is what 快讯 headlines are), else the largest loss its body states (stated_losses); None when it
     states none. Live 2026-11-04: the largest number in 「损失超1.33亿美元的…银行…该行资产规模达2350亿美元」 is the bank's
     size, and the radar showed a $235B Web3 loss."""
-    losses = [v for v, k in amount_mentions(title) if k == "loss"] + stated_losses(text)
-    if losses:
-        return max(losses)
+    # the headline decides when it states a loss (the docstring's rule; the code took the max over headline AND body —
+    # live 2026-11-16: Protos 「Abraxas may have lost $17M in Lighter API leak」 became $6B from its body, Unchained's
+    # 「$15M Lost」 $388M, and the Lighter event's figure followed the latest report to $6.00B)
+    head = [v for v, k in amount_mentions(title) if k == "loss"]
+    body = stated_losses(text)
+    if head:
+        # … unless the body states the same figure more precisely ("$5.5 Billion" in the title, "$5.57 billion" below)
+        close = [b for b in body if any(abs(b - h) <= Limits.AMOUNT_REFINE_RATIO * h for h in head)]
+        return max(close or head)
+    if body:
+        return max(body)
     # no stated loss: the report's own figure still matters as another measure (「Tether冻结9.71亿美元」, 「用户资产约
     # 1651.2亿美元」) — pipeline._amounts decides which; a body figure no clause states as a loss is never one
     return max((v for v, _ in amount_mentions(title)), default=None) or parse_amount(text)

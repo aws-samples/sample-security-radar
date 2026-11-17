@@ -4,6 +4,8 @@ the 「Web3 损失排行」 $235B?). PANews: 「遭攻击损失超1.33亿美元�
 SlowMist's named record)."""
 from datetime import UTC, datetime
 
+import pytest
+
 from radar import pipeline, signals
 from radar.model import RawItem
 from radar.store import MemoryStore
@@ -14,6 +16,8 @@ ARKEA = ("PANews 11月4日消息，链上侦探ZachXBT 更新调查 称，遭攻
 
 def test_the_loss_is_the_stated_loss_not_the_largest_number():
     assert signals.loss_amount("ZachXBT：被盗1.33亿美元的欧盟实体据称是法国银行Crédit Mutuel Arkéa", ARKEA) == 133_000_000
+    # … and from the body alone (a headline without a figure): still the stated loss, not the bank's size
+    assert signals.loss_amount("ZachXBT：欧盟实体据称是法国银行Crédit Mutuel Arkéa", ARKEA) == 133_000_000
     assert dict(signals.amount_mentions(ARKEA))[235_000_000_000] == "context"
 
 
@@ -283,13 +287,16 @@ def test_usd_prefix_amounts_are_parsed():
     assert dict(signals.amount_mentions("TRM traced USD 351.6 million stolen from Bitget"))[351.6e6] == "loss"
 
 
-def test_an_incident_report_of_the_same_figure_joins_the_web3_story():
+@pytest.mark.parametrize("outlet", ["bleepingcomputer", "theblock"])
+def test_an_incident_report_of_the_same_figure_joins_the_web3_story(outlet):
     """The Block's 「French bank Crédit Mutuel Arkéa exploited for over $133 million, ZachXBT says」 (no crypto word ⇒
-    incident) stood apart from the web3 Arkéa event with the same $133M."""
+    incident) stood apart from the web3 Arkéa event with the same $133M. Since crypto outlets are web3 (2026-11-17),
+    The Block's report joins as web3; the same words from a general outlet are an INCIDENT report and must still join
+    through the figure (the cross-domain amt: link, M360)."""
     store = MemoryStore()
     _ingest(store, _raw("panews", "ZachXBT：被盗1.33亿美元的欧盟实体据称是法国银行Crédit Mutuel Arkéa", ARKEA,
                         datetime(2026, 11, 4, 2, tzinfo=UTC)),
-            _raw("theblock", "French bank Crédit Mutuel Arkéa exploited for over $133 million, ZachXBT says",
+            _raw(outlet, "French bank Crédit Mutuel Arkéa exploited for over $133 million, ZachXBT says",
                  "ZachXBT said he has a 'high degree of confidence' that the attacker is not associated with Lazarus.",
                  datetime(2026, 11, 4, 4, 57, tzinfo=UTC)))
     assert len(store.events) == 1

@@ -4,6 +4,7 @@
  * so RadarPage / NowBoard / EventCard cannot each guess differently. Pure; tested in src/test/home.test.ts.
  */
 import type { EventSummary, Funnel, Level, Lifecycle, NowItem, SourceHealth } from '@/types/site-data';
+import { CORROBORATED } from '@/utils/lossBoard';
 import type { FilterState } from '@/utils/filters';
 import { DEFAULT_FILTERS, sortEvents } from '@/utils/filters';
 import { agoZh } from '@/utils/timeZh';
@@ -150,13 +151,16 @@ export function signalCells(level: Level): { filled: number; disputed: boolean }
 // ── L0 side stats ───────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * Web3 24h loss — same rule as the wall's "Web3 24h 损失" (WallPage, inline there; this is the tested copy):
- * web3 events whose first_seen is within 24 h, summing amount_usd_latest. Backfilled 2021 hacks are excluded
- * by construction (first_seen is the incident date). `count` lets the caller tell "$0 from 0 events" apart.
+ * Web3 24h loss — THE one definition (the wall and the radar page both call it): corroborated (V2+) web3 events whose
+ * first_seen is within 24 h, summing amount_usd_latest — the loss board's rule (utils/lossBoard). Live 2026-11-17 the
+ * wall's inline copy summed every web3 event: $6.02B, of which $6.00B was one mis-read figure, plus a single-source
+ * repost of a corroborated theft and a trader's loss. Backfilled 2021 hacks are excluded by construction (first_seen
+ * is the incident date). `count` lets the caller tell "$0 from 0 events" apart.
  */
 export function web3Loss24h(events: EventSummary[], nowMs: number = Date.now()): { usd: number; count: number } {
   const cut = nowMs - DAY_MS;
-  const hit = events.filter(e => e.domain === 'web3' && e.amount_usd_latest !== null && Date.parse(e.first_seen) >= cut);
+  const hit = events.filter(e => e.domain === 'web3' && e.amount_usd_latest !== null && CORROBORATED.has(e.level)
+    && Date.parse(e.first_seen) >= cut);
   return { usd: hit.reduce((s, e) => s + (e.amount_usd_latest ?? 0), 0), count: hit.length };
 }
 
@@ -215,7 +219,6 @@ export function toHomeQuery(filters: FilterState, tab: MonitorTab): URLSearchPar
  * high-severity events: the ones a human should look at first. One definition, computed from the published levels.
  */
 export interface CorroborationView { high: number; corroborated: number; single: number; pct: number | null }
-const CORROBORATED = new Set(['V2', 'V3', 'V4']);
 export function corroborationView(events: { severity: string; level: string }[]): CorroborationView {
   const high = events.filter(e => e.severity === 'P0' || e.severity === 'P1');
   const ok = high.filter(e => CORROBORATED.has(e.level)).length;

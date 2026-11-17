@@ -36,6 +36,19 @@ class Source:
     post_json: str | None = None   # an API answered only to POST (Broadcom's advisory list): the JSON body to send
 
 
+# Crypto media: outlets that cover nothing but crypto (orgs of this registry; their feeds stay domain=None because their CVE
+# stories are vulnerabilities). A report of theirs without a crypto word is still crypto — live 2026-11-16, Protos'
+# 「Tether-backed Abraxas may have lost $17M in Lighter API leak」 and Unchained's 「Lighter Pins Drain on Trader's Leaked
+# API Key…」 read as "incident", so the Lighter theft's figures and names never met its web3 event. A source fact, not
+# more keywords: "lighter" / "api leak" name crypto only because of who wrote them. Every org must be a registry org
+# (tests/test_lighter_20261116.py) — a typo would silently classify nothing.
+CRYPTO_MEDIA_ORGS = frozenset({
+    "theblock", "coindesk", "decrypt", "cointelegraph", "thedefiant", "odaily", "panews", "bitcoinmagazine",
+    "cryptonews", "cryptoslate", "dlnews", "protos", "techflowpost", "utoday", "beincrypto", "chaincatcher",
+    "cryptopolitan", "unchained", "w3igg", "wublock", "blockbeats", "foresight", "jinse", "abmedia", "bwenews",
+})
+
+
 # Admitted feeds whose AWS egress later stopped working: fetched through firecrawl instead (collect: via="firecrawl").
 # Each row says when and what was measured — the generated table (registry_feeds) stays as onboarding produced it.
 FEED_EGRESS_OVERRIDES: dict[str, tuple[str, int, str]] = {
