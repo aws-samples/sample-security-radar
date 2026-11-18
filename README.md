@@ -236,6 +236,26 @@ or address from them.**
   not an identity system — for anything beyond a demo, put the site behind Amazon Cognito or AWS IAM Identity Center.
   `/api/*` is not behind that gate: it answers only a valid Amazon Cognito token with the right scope.
 
+## Security considerations
+
+Before you run this beyond a demo account, review these three points.
+
+- **Access logs hold reader IPs.** Amazon CloudFront standard logs (site requests: client IP, user agent, path; no
+  cookies, no headers) go to a private bucket and are deleted after 30 days (`ACCESS_LOG_DAYS` in `infra/stack.py`).
+  Amazon API Gateway access logs (client IP, method, path, status) are kept in Amazon CloudWatch Logs for one month.
+  Shorten or extend both to match your own privacy and retention policy, and say so to the people who use the site.
+- **Put AWS WAF in front of the site and the API in production.** The sample deploys no web ACL of its own. The
+  CloudFront distribution and the API Gateway stage are both reachable from the internet; the `execute-api` URL can be
+  called directly, not only through CloudFront. Every data route sits behind the same Amazon Cognito authorizer either
+  way, and the stage is throttled (20 requests/s, burst 40), but a web ACL with the AWS managed rule groups and a rate
+  rule on both entry points is the production baseline.
+- **Self-service webhooks are off until you turn them on.** A signed-in client can register an https webhook, but the
+  notify station sends nothing to it while the notification config says `"rollout": "owner_only"` (the default); only
+  subscriptions marked `owner: true` receive messages. The radar checks that a target is https on port 443 with a DNS
+  name that resolves to public addresses — it does **not** verify that the caller owns that endpoint. Before you set
+  `"rollout": "all"`, decide who may sign in and add an ownership check (for example a confirmation request) if
+  clients outside your team can register.
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.

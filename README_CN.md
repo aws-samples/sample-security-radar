@@ -180,6 +180,21 @@ Security Hub 导出需 `-c security_hub=on` 才开通（账号级服务，本示
 - UI 在 CloudFront 上用 HTTP Basic Auth 做演示门；超出演示用途请改用 Amazon Cognito 或 AWS IAM Identity Center
 - `/api/*` 不走这道门：只认带正确 scope 的有效 Amazon Cognito 令牌
 
+## 安全考虑
+
+在演示账户以外运行之前，请先看这三点。
+
+- **访问日志含读者 IP。** Amazon CloudFront 标准日志（站点请求：客户端 IP、User-Agent、路径；不含 Cookie 与请求头）
+  写入私有存储桶，30 天后删除（`infra/stack.py` 中的 `ACCESS_LOG_DAYS`）；Amazon API Gateway 访问日志（客户端 IP、
+  方法、路径、状态码）在 Amazon CloudWatch Logs 保留一个月。请按你自己的隐私与保留策略调整，并告知站点使用者。
+- **生产环境请在站点与 API 前面加 AWS WAF。** 本示例不部署自己的 web ACL。CloudFront 分发与 API Gateway 阶段都可从
+  公网访问，`execute-api` 地址可以绕过 CloudFront 直接调用。无论哪条路径，所有数据路由都在同一个 Amazon Cognito
+  授权器之后，且阶段有限流（每秒 20 次、突发 40），但生产基线是在两个入口都挂上带 AWS 托管规则组与限速规则的 web ACL。
+- **自助 webhook 默认关闭。** 已登录的客户端可以登记 https webhook，但通知配置为 `"rollout": "owner_only"`（默认）时，
+  通知站不会向它发送任何内容，只有标记 `owner: true` 的订阅会收到消息。雷达只检查目标是 443 端口的 https、
+  且 DNS 名称解析到公网地址 —— **不验证**登记者是否拥有该端点。改成 `"rollout": "all"` 之前，请先确定谁可以登录；
+  如果团队以外的客户端也能登记，请加上所有权校验（例如确认请求）。
+
 ## 安全
 
 见 [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications)。
