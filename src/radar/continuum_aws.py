@@ -299,7 +299,7 @@ def _start_review(op: respond.Op, ev: dict[str, Any], *_: Any) -> dict[str, Any]
     if cr_id is None:
         cr = sa.create_code_review(title=title, agentSpaceId=space,
                                    assets=review_assets(tid, os.environ),
-                                   serviceRole=os.environ["SA_SERVICE_ROLE_ARN"], codeRemediationStrategy="AUTOMATIC",
+                                   serviceRole=os.environ["SA_SERVICE_ROLE_ARN"], codeRemediationStrategy=respond.SA_REMEDIATION,
                                    maxTaskHours=20.0)  # API minimum (an upper bound, not the billed amount)
         cr_id = cr.get("codeReviewId") or cr["id"]
     job = sa.start_code_review_job(agentSpaceId=space, codeReviewId=cr_id)

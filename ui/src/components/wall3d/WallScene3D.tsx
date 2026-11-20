@@ -13,6 +13,9 @@ import { CORE, R_WORLD, polarToXZ } from '@/utils/radar3dLayout';
 import type { ShieldChannel } from '@/utils/mitigate';
 import { ageMsToRadiusFrac } from '@/utils/radarLayout';
 import { LeaderLabels } from '@/components/radar/LeaderLabels';
+import { useTheme } from '@/contexts/ThemeContext';
+import { DotTip } from '@/components/radar/DotTip';
+import { coreCaption, ringLabel } from '@/utils/stageKey';
 import type { LeaderLabelItem } from '@/components/radar/LeaderLabels';
 import type { QualityTier } from './engine/quality';
 
@@ -42,6 +45,8 @@ export default function WallScene3D({
   width,
   height,
 }: WallScene3DProps) {
+  const { theme } = useTheme();
+  const [hover, setHover] = useState<{ dot: Dot3D; x: number; y: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<EngineHandle | null>(null);
 
@@ -67,6 +72,8 @@ export default function WallScene3D({
 
     engineRef.current = engine;
     engine.onPick(onSelect);
+    // the pillar under the pointer: its tip above the NOW labels, which dim meanwhile (it was the browser's title)
+    engine.onHover((dot, x, y) => setHover(dot ? { dot, x, y } : null));
 
     return () => {
       engine.dispose();
@@ -76,6 +83,8 @@ export default function WallScene3D({
   }, []);
 
   useEffect(() => { engineRef.current?.resize(width, height); }, [width, height]);
+  // R9.3: the scene follows the page theme (it was a fixed near-black instrument in both)
+  useEffect(() => { engineRef.current?.setTheme(theme); }, [theme]);
   useEffect(() => { engineRef.current?.setDots(dots); }, [dots]);
   useEffect(() => { engineRef.current?.setLinks(links); }, [links]);
   useEffect(() => { engineRef.current?.setShield(shield.map(c => c.state)); }, [shield]);
@@ -116,7 +125,7 @@ export default function WallScene3D({
       if (changed) { last = next; setScreen(next); }
     };
     run();
-    const t = window.setInterval(() => { if (engineRef.current?.isCameraMoving()) run(); }, 250);
+    const t = window.setInterval(() => { if (engineRef.current?.isCameraMoving()) run(); }, 100);   // labels follow a drag
     return () => window.clearInterval(t);
   }, [worldPoints, width, height]);
 
@@ -154,8 +163,11 @@ export default function WallScene3D({
       <StageHud links={links} shield={shield} />
 
       {labels.length > 0 && (
-        <LeaderLabels items={labels} anchors={screen} width={width} height={height} onSelect={onSelect} />
+        <LeaderLabels items={labels} anchors={screen} width={width} height={height} onSelect={onSelect}
+          focusId={hover?.dot.eventId ?? selectedEventId ?? null} />
       )}
+      {hover && <DotTip dot={hover.dot} x={hover.x} y={hover.y} box={{ w: width, h: height }} />}
+      <div className="stage-hint" aria-hidden="true">拖动旋转 · 双击复位</div>
 
       <table
         aria-label="雷达事件列表"
@@ -225,7 +237,7 @@ function DomLabels({ screen }: { screen: Record<string, ScreenPoint> }) {
             fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
             letterSpacing: '0.12em',
             color: DOMAIN_COLORS[label] ?? 'var(--text-3)',
-            background: 'color-mix(in srgb, #05070D 70%, transparent)',
+            background: 'color-mix(in srgb, var(--bg-0) 70%, transparent)',
             padding: '2px 6px', borderRadius: 3,
             border: `1px solid ${DOMAIN_COLORS[label] ?? 'var(--line)'}`,
           }}>{label}</div>
@@ -239,7 +251,7 @@ function DomLabels({ screen }: { screen: Record<string, ScreenPoint> }) {
             position: 'absolute', left: pos.x, top: pos.y,
             transform: 'translate(-50%, -50%)',
             fontFamily: 'var(--font-mono)', fontSize: 10,
-            color: '#8291AB',
+            color: 'var(--text-3)',
           }}>{label}</div>
         );
       })}
@@ -255,34 +267,36 @@ const SHIELD_KEY = '__shield__';
 const SHIELD_TONE: Record<ShieldChannel['state'], string> = {
   on: 'var(--status-ok)', error: 'var(--p1)', off: 'var(--text-3)', unknown: 'var(--text-3)',
 };
-const SHIELD_WORD: Record<ShieldChannel['state'], string> = { on: '', error: '失败', off: '', unknown: '未读取' };
 
 const mono = { fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' } as const;
 
 function CoreLabels({ screen, shield, links }: { screen: Record<string, ScreenPoint>; shield: ShieldChannel[]; links: ThreatLink[] }) {
   const core = screen[CORE_KEY];
   const hits = links.filter(l => l.kind === 'affected').length;
+  const cap = coreCaption(hits, links.length - hits);     // R9.4: the sphere says what is known, an empty state too
   return (
     <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       {core?.visible && (
         <div style={{
           position: 'absolute', left: core.x, top: core.y, transform: 'translate(-50%, 0)', textAlign: 'center',
-          ...mono, fontSize: 10, fontWeight: 700, color: hits ? 'var(--p0)' : '#5CE1E6', whiteSpace: 'nowrap',
-          textShadow: '0 0 8px rgba(5,7,13,.9)',
+          ...mono, fontSize: 10, fontWeight: 700, color: hits ? 'var(--p0)' : 'var(--accent)', whiteSpace: 'nowrap',
+          textShadow: '0 0 8px var(--bg-0)',
         }}>
-          YOUR CODE<div style={{ fontWeight: 400, fontSize: 9, color: '#8291AB' }}>
-            {hits ? `${hits} 个事件命中你的代码` : '你的代码 · 未见命中'}</div>
+          你的代码<div style={{ fontWeight: 400, fontSize: 10, color: cap.tone === 'hit' ? 'var(--p0)' : 'var(--text-2)' }}>
+            {cap.text}</div>
         </div>
       )}
       {shield.map((c, i) => {
         const pos = screen[`${SHIELD_KEY}${i}`];
-        if (!pos?.visible) return null;
+        // a ring in place says nothing (the HUD counts 「3/3 边缘缓解在位」); one that is off, failing or unread is named —
+        // three labels around a 0.9-unit core ran into one another (「生效DNS Firewall」, R9.4 calm 2026-11-19)
+        if (!pos?.visible || c.state === 'on') return null;
         return (
           <div key={c.key} style={{
             position: 'absolute', left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)',
             ...mono, fontSize: 9, fontWeight: 700, color: SHIELD_TONE[c.state], whiteSpace: 'nowrap',
-            textShadow: '0 0 6px rgba(5,7,13,.95)', opacity: c.state === 'unknown' ? 0.7 : 1,
-          }}>{c.key}{SHIELD_WORD[c.state] && ` · ${SHIELD_WORD[c.state]}`}</div>
+            textShadow: '0 0 6px var(--bg-0)', opacity: c.state === 'unknown' ? 0.7 : 1,
+          }}>{ringLabel(c)}</div>
         );
       })}
     </div>
@@ -295,33 +309,21 @@ function StageHud({ links, shield }: { links: ThreatLink[]; shield: ShieldChanne
   const checking = links.length - hits;
   const on = shield.filter(c => c.state === 'on').length;
   const read = shield.some(c => c.state !== 'unknown');
-  const edge = '1.5px solid rgba(92,225,230,.55)';
+  const edge = '1.5px solid color-mix(in srgb, var(--accent) 55%, transparent)';
   const corner = (pos: React.CSSProperties, v: 'Top' | 'Bottom', h: 'Left' | 'Right') => (
     <div style={{ position: 'absolute', width: 18, height: 18, ...pos, [`border${v}`]: edge, [`border${h}`]: edge }} />
   );
-  const box: React.CSSProperties = { position: 'absolute', ...mono, fontSize: 9.5, color: '#8291AB', lineHeight: 1.7 };
-  const sw = (bg: string, extra: React.CSSProperties = {}) => (
-    <span style={{ display: 'inline-block', width: 14, height: 3, background: bg, marginRight: 6, verticalAlign: 'middle', ...extra }} />
-  );
+  const box: React.CSSProperties = { position: 'absolute', ...mono, fontSize: 9.5, color: 'var(--text-3)', lineHeight: 1.7 };
   return (
     <div aria-hidden="true" data-testid="stage-hud" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3 }}>
       {corner({ left: 10, top: 10 }, 'Top', 'Left')}
       {corner({ right: 10, top: 10 }, 'Top', 'Right')}
       {corner({ left: 10, bottom: 10 }, 'Bottom', 'Left')}
       {corner({ right: 10, bottom: 10 }, 'Bottom', 'Right')}
-      <div style={{ ...box, left: 22, top: 18 }}>
-        <div style={{ color: '#5CE1E6', fontWeight: 700, letterSpacing: '0.16em' }}>THREAT SCOPE · 7D</div>
-        <div>扇区 = 领域 · 半径 = 首报时间 · 光柱 = P0</div>
-      </div>
       <div style={{ ...box, right: 22, top: 18, textAlign: 'right' }}>
         <div><span style={{ color: 'var(--p0)', fontWeight: 700, fontSize: 13 }}>{hits}</span> 命中你的代码</div>
-        <div><span style={{ color: '#5CE1E6', fontWeight: 700, fontSize: 13 }}>{checking}</span> AWS agent 核查中</div>
+        <div><span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13 }}>{checking}</span> AWS agent 核查中</div>
         <div><span style={{ color: 'var(--status-ok)', fontWeight: 700, fontSize: 13 }}>{read ? `${on}/${shield.length}` : '—'}</span> 边缘缓解在位</div>
-      </div>
-      <div style={{ ...box, left: 22, bottom: 18 }}>
-        <div>{sw('var(--p0)', { height: 3 })}已命中 · 事件 → 你的代码</div>
-        <div>{sw('repeating-linear-gradient(90deg,#5CE1E6 0 4px,transparent 4px 7px)')}核查中 · Continuum / Security Agent</div>
-        <div>{sw('var(--status-ok)')}护盾 · WAF / DNS Firewall / Inspector</div>
       </div>
     </div>
   );

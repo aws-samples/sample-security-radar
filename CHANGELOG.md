@@ -1,5 +1,108 @@
 # Changelog
 
+## [1.6.5] - 2026-11-20
+
+Review follow-ups: the GitHub advisory lookup can no longer stop the Analyze step (ASCII owner / repository names, network
+and parse errors are a failed lookup, the call is guarded); the published lookup state carries an error code only; the X
+source allows the operator's own `X_SEARCH_URL` host; secret temp files are deleted; comments name requirements, not
+people; the attack-path prompt marks the evidence as untrusted data; the deck describes one patch per flaw.
+
+## [1.6.4] - 2026-11-20
+
+One patch per flaw: the radar locates the line, Continuum validates and patches it. Security Agent keeps the rules (the
+requirement pack); the radar no longer starts a review per event (`SA_EVENT_REVIEWS=1` turns it back on), and a review
+never fixes on its own.
+
+## [1.6.3] - 2026-11-20
+
+A vendor advisory listing several CVEs of one product keys all of them (up to 12); a long report about one of the many
+CVEs it names keys that one; 「9.8-rated」 reads as critical.
+
+## [1.6.2] - 2026-11-20
+
+A CVE a report names only to set it apart ("distinct from CVE-…") is no longer the event's; the CVE publication date
+is the one the event's title names.
+
+## [1.6.1] - 2026-11-19
+
+GitHub advisory ids are linked to their CVEs.
+
+- **GHSA → CVE**: for vulnerability events that name a GitHub advisory and no CVE, the analyze station asks GitHub's
+  REST API with a read-only token (Secrets Manager; `scripts/set-ghsa-token.sh`): the global advisory, else the
+  repository advisory, and the unreviewed advisories whose references name the GHSA. A link merges the two events of one
+  flaw; #/ops warns when the lookup is not configured and before the token expires.
+
+## [1.6.0] - 2026-11-19
+
+Fewer rewrites, checked summaries, a measured duplicate judge, and GitHub advisory ids as identifiers.
+
+- **Briefs**: a brief is rewritten only when a fact the code decided changed — severity or exploitation (at once), the
+  CVE set or the loss amount (at most once per 6 h), a cited report that left the event, or a failed brief. Another
+  report repeating the story no longer rewrites it (7-day replay: ~203 rewrites a day → ~10). The analyze station builds
+  attack paths first and starts no model call with less than 120 s left.
+- **Summaries**: the first grounded BLUF sentence becomes the summary only if it does not contradict the code's CVEs,
+  exploitation or amount; otherwise the code's own summary is used and the reason is published (`summary_rejected`).
+- **Duplicate judge (shadow)**: candidates must share a distinctive word (51,404 → 599 pairs on a 60-day replay), web3
+  pairs first, error verdicts retried, a larger token budget. Its quality is measured without labelling: on the
+  labelled corpus (`scripts/judge_eval.py`) and daily against delayed truth (shared attack tx / attacker / CVE, two
+  records of one hack database), shown on #/ops with the auto-merge bar.
+- **GitHub advisory ids**: GHSA ids are identifiers and strong keys; a vulnerability P0 needs a CVE or a GHSA; a notice
+  names its identifier when its headline does not, so a CVE assigned later edits the sent notice.
+- **Sources**: VulnCheck, ProjectDiscovery, CERT/CC Vulnerability Notes, ZDI published advisories, GreyNoise, Tenable
+  Research Advisories (225 in all).
+- **Deploys**: the preflight runs the per-commit CI checks (lint, types, UI tests / build, axe) where the maintainer
+  pipeline exists, and the deployment synthesizes with cdk-nag; a failed verify check prints why.
+
+## [1.5.0] - 2026-11-19
+
+The site reads on a phone and an iPad, the wall says what it shows, and an event page explains how the attack works.
+
+- **Navigation**: the sidebar collapses to an icon rail (remembered); the wall opens with it collapsed and needs no back
+  button. Under 800 px the sidebar is a top bar with a full-screen menu.
+- **Phone and iPad**: the wall re-flows by the width of the main area (stage on its own row under 1280 px, one column
+  under 760 px); wide tables scroll in their box; grids and the event breadcrumb never push a page wider than the screen.
+- **Wall**: the 2D scope and the 3D scene follow the light / dark theme (in the light theme the 3D effects become ink);
+  a key 「怎么读这张图」 names every glyph; the centre sphere is captioned with the state of your code; the rings name
+  their channel and state. P0 halos and crosshairs scale about themselves (they drew far from their dots).
+- **Attack path** (`radar.attack_path`): for P0 / P1 vulnerabilities, entry → condition → trigger → impact in grounded,
+  cited sentences, and each defence placed at the step it stops — immediate block, temporary mitigation, long-term fix;
+  the radar's own WAF rule pack and AWS's fixed builds are placed by code.
+- **Judgement and notices**: a catalog announcement naming no CVE (「CISA Adds Four Known Exploited Vulnerabilities to
+  Catalog」) is never P0 / P1; a P0 notice is held, not sent, when its first report gives only a day or a vulnerability
+  names no CVE (it is sent once that resolves); a notice deleted by hand gets no later correction.
+
+## [1.4.0] - 2026-11-19
+
+Critical vulnerabilities reach P0 on discovery, sent notices stay current, AWS's own fix status is shown, and the
+security review's hardening recommendations are in.
+
+- **P0 on discovery**: a vulnerability whose reports say it is critical (unauthenticated / pre-auth RCE, or CVSS
+  9.0–10.0) is P0 once two independent reporting sources say so; catalog listings (CVE records, KEV, CSAF, exploit and
+  distro catalogs) are not reports. A 30-day backtest: +15 P0s with reporting sources only, +118 had catalogs counted.
+- **Notices stay current**: within 7 days of the send, a Slack P0 notice whose content changed (the AWS line appeared, a
+  title or summary was corrected) is edited in place after the same send gate; a vulnerability that turns out exploited
+  gets one thread reply. The notice head is shorter: no repeated CVE id or subject, no "a fix was released" clause.
+- **AWS fix status** (`radar.awsfix`): for the CVEs of P0 / P1 vulnerability events, the Amazon Linux Security Center's
+  per-CVE page — fixed / pending / no fix / not affected per platform, the ALAS advisories — on the event page, and one
+  line in the P0 notice. Pages are re-read every 2 h for 3 days after the first read.
+- **WAF rule pack**: a new extractor turns an endpoint the vendor's advisory names as vulnerable (or to remove / block)
+  into a Count rule on the URI path (URL-decoded, normalized, lower-cased), quoted verbatim and gated offline.
+- **Re-normalize from raw** (`scripts/renormalize.py`): re-reads stored reports from their raw batches under today's
+  rules and reports what would change (dry run); `--apply-signals` writes judgement fields only.
+- **Security hardening** (review recommendations):
+  - Webhook targets with a space, CR / LF or a control character are refused at registration and at load;
+    `http.client` errors cost one delivery, never the Notify run; the webhook path fails closed on DNS errors;
+    NAT64 `64:ff9b::/96` is internal.
+  - Self-service subscriptions never receive the operator's code-impact verdict or patch PR links.
+  - Every credentialed call follows no redirect off its host (a structural test checks each one).
+  - cdk-nag IAM4 / SMG4 / CFR3 reasons say exactly what they exempt; the retained API Gateway CloudWatch role is
+    explicit and documented.
+  - The agent kit's token cache opens with `O_NOFOLLOW` in a 0700 directory; MCP tool descriptions say results are
+    untrusted third-party text.
+- **Fixes**: more negations of exploitation ("no exploitation … reported", "not listed in KEV", "none … under active
+  attack", FAQ questions); a report listing more than three CVEs merges no events; a source that gives only a day is
+  shown as a day, not a made-up time.
+
 ## [1.3.0] - 2026-11-17
 
 Agents and subscribers can read the radar without the UI, collection covers more vendors within a fixed budget, and a

@@ -297,6 +297,33 @@
           "type": "integer",
           "minimum": 0,
           "description": "Attack transactions whose receipt was read on chain as successful (radar.chain); a rise updates P0 push threads."
+        },
+        "summary_source": {
+          "enum": [
+            "brief",
+            "code"
+          ],
+          "description": "brief = the first grounded BLUF sentence that does not contradict the code's fields; code = the code's own summary."
+        },
+        "summary_rejected": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "cve_not_in_event",
+              "exploited_claim_not_in_code",
+              "denies_confirmed_exploitation",
+              "amount_not_event"
+            ]
+          },
+          "description": "Why grounded BLUF sentences were passed over (analyst.contradiction)."
+        },
+        "ghsas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$"
+          },
+          "description": "GitHub Security Advisory ids named by the event's reports (the identifier before a CVE is assigned)."
         }
       }
     },
@@ -1362,6 +1389,7 @@
             "S_IN_FLIGHT",
             "B_SCAN_INTERVAL",
             "B_SCAN_THIS_CYCLE",
+            "R_CONTINUUM_FIXES",
             "T_NOT_RELEVANT",
             "R_SEVERITY",
             "U_SAME_TRIGGER",
@@ -2084,6 +2112,13 @@
         },
         "capacity": {
           "$ref": "#/$defs/RulePackCapacity"
+        },
+        "no_rule": {
+          "description": "Why nothing can be deployed at the edge for this event (no managed group, no rule from a template or the evidence); null / absent when the pack has something.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "renderings": {
           "type": "array",
@@ -3665,6 +3700,303 @@
           "description": "Path under data/ (application/atom+xml)."
         }
       }
+    },
+    "AwsFix": {
+      "description": "AWS's own fix status for the event's CVE, from the Amazon Linux Security Center (radar.awsfix). null when the event has no CVE Amazon Linux tracks, or it has not been read yet.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cve",
+        "url",
+        "checked_at",
+        "summary",
+        "line"
+      ],
+      "properties": {
+        "cve": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "line": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "advisories"
+          ],
+          "properties": {
+            "fixed": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "package",
+                  "platforms"
+                ],
+                "properties": {
+                  "package": {
+                    "type": "string"
+                  },
+                  "platforms": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "pending": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "package",
+                  "platforms"
+                ],
+                "properties": {
+                  "package": {
+                    "type": "string"
+                  },
+                  "platforms": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "not_affected": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "package",
+                  "platforms"
+                ],
+                "properties": {
+                  "package": {
+                    "type": "string"
+                  },
+                  "platforms": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "no_fix": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "package",
+                  "platforms"
+                ],
+                "properties": {
+                  "package": {
+                    "type": "string"
+                  },
+                  "platforms": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "other": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "package",
+                  "platforms"
+                ],
+                "properties": {
+                  "package": {
+                    "type": "string"
+                  },
+                  "platforms": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "advisories": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "arm64_not_affected": {
+              "type": "boolean",
+              "description": "the page's description says ARM64 (Graviton) is not affected"
+            }
+          }
+        }
+      }
+    },
+    "AttackPathSentence": {
+      "description": "One grounded sentence of an attack path (radar.attack_path): its cited items and whether code found every number in them.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "cite",
+        "grounded"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "cite": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "grounded": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AttackPath": {
+      "description": "R9.5: how a vulnerability is attacked — entry → condition → trigger → impact, each a list of grounded sentences — and the defences, each placed at the step it stops: block (before the request reaches the code), temporary (a host / configuration change until the fix), fix (the update). Defences with source radar / aws are the radar's own (its WAF rule pack, AWS's fixed builds), placed by code. null when the event is not a P0 / P1 vulnerability or no path was built.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "generated_at",
+        "steps",
+        "defenses"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "partial"
+          ]
+        },
+        "generated_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "steps": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "entry",
+            "condition",
+            "trigger",
+            "impact"
+          ],
+          "properties": {
+            "entry": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AttackPathSentence"
+              }
+            },
+            "condition": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AttackPathSentence"
+              }
+            },
+            "trigger": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AttackPathSentence"
+              }
+            },
+            "impact": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AttackPathSentence"
+              }
+            }
+          }
+        },
+        "defenses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "text",
+              "stage",
+              "horizon"
+            ],
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "cite": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "grounded": {
+                "type": "boolean"
+              },
+              "stage": {
+                "type": "string",
+                "enum": [
+                  "entry",
+                  "condition",
+                  "trigger",
+                  "impact"
+                ]
+              },
+              "horizon": {
+                "type": "string",
+                "enum": [
+                  "block",
+                  "temporary",
+                  "fix"
+                ]
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "radar",
+                  "aws"
+                ]
+              },
+              "link": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "type": "object",
@@ -3957,6 +4289,26 @@
         },
         "schema_version": {
           "$ref": "#/$defs/SchemaVersion"
+        },
+        "aws_fix": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AwsFix"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attack_path": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AttackPath"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },

@@ -1,5 +1,6 @@
 """Code bases the respond station checks ("your environment"). Each is uploaded as a zip to
-s3://<continuum bucket>/code/<target_id>.zip (and the Security Agent bucket) by scripts/sync-continuum-targets.sh.
+s3://<continuum bucket>/code/<target_id>.zip (and the Security Agent bucket): scripts/build-targets.sh zips them and
+the CDK BucketDeployments upload them on `cdk deploy`. How to add your own: docs/ADD-YOUR-PROJECT.md.
 Continuum quota: ≤10 repositories per environment.
 
 The rows are DATA (roadmap R4.7): src/radar/targets.json, validated here at import — adding a target is one row there

@@ -22,8 +22,10 @@ CFG = {"slack_bot_token": "xoxb-" + CANARY, "rollout": "owner_only", "subscripti
 
 
 def ev(eid, sev, domain, title, **kw):
-    return Event(event_id=eid, domain=domain, title=title, first_seen=AT, last_updated=AT, item_ids=[], keys=[],
-                 severity=sev, **kw)
+    if domain == "vuln":     # a vulnerability notice names a CVE (gate G10); one per event, never shared (G3)
+        kw.setdefault("cves", [f"CVE-2026-{int(eid[-6:], 16) % 90000 + 10000}"])
+    kw.setdefault("first_seen", AT)
+    return Event(event_id=eid, domain=domain, title=title, last_updated=AT, item_ids=[], keys=[], severity=sev, **kw)
 
 
 RESP = {"ev_00000000000000b1": {"status": "done", "targets": [{"verdict": "affected"}], "issues": []}}
@@ -103,7 +105,8 @@ def test_one_state_row_per_event_and_subscription_threads_replies(world):
     _baseline(store, senders)
     notify_station.run(store, CFG, NOW, "https://site", senders)
     row = store.get_source_state(notify_station.state_key("ev_00000000000000b0", "web3-all"))
-    assert row == {"keys": ["p0", "standing"], "thread": "T-web3-all-ev_00000000000000b0"}
+    assert {k: row[k] for k in ("keys", "thread")} == {"keys": ["p0", "standing"], "thread": "T-web3-all-ev_00000000000000b0"}
+    assert set(row) == {"keys", "thread", "rendered", "sent_at"}    # what it said and when: a later change edits it
     assert store.get_source_state(notify_station.state_key("ev_00000000000000a0", "p0-only"))["thread"] == "T-p0-only-ev_00000000000000a0"
     assert "__notify__" not in store.sources                     # no single row holds everybody's state (B6)
 
@@ -169,7 +172,7 @@ def test_a_webhook_answering_a_redirect_is_a_failed_send_not_a_crashed_station(w
     station crashed every cycle, the subscriptions after the webhook never got a push and #/ops showed nothing."""
     store, sent, senders = world
     base, elsewhere = loopback
-    monkeypatch.setattr(fetch, "_internal_host", lambda host: False)   # the loopback server stands for a public host
+    monkeypatch.setattr(fetch, "_internal_host", lambda host, **_: False)   # the loopback server stands for a public host
     cfg = {**CFG, "subscriptions": [CFG["subscriptions"][1], CFG["subscriptions"][0]]}   # the webhook first
     _baseline(store, senders, cfg)
 
@@ -368,7 +371,7 @@ def test_a_failed_send_never_puts_the_webhook_address_on_the_ops_page(world, loo
     in the status ledger and shown on #/ops. A webhook URL is often a bearer secret."""
     store, _sent, senders = world
     base, _elsewhere = loopback
-    monkeypatch.setattr(fetch, "_internal_host", lambda host: False)   # the loopback server stands for a public host
+    monkeypatch.setattr(fetch, "_internal_host", lambda host, **_: False)   # the loopback server stands for a public host
     cfg = {**CFG, "subscriptions": [CFG["subscriptions"][1]]}
     _baseline(store, senders, cfg)
 
@@ -543,3 +546,119 @@ def test_r4_4_a_new_subscription_does_not_get_the_digest_that_was_already_out_an
 def test_r4_4_a_quiet_day_digest_says_so():
     m = notify.digest_message({"day": "2026-11-11", "status": "ok", "header": {"events": 0}}, "2026-11-11", "https://site/")
     assert m["kind"] == "digest" and "没有 P0 / P1 事件" in m["text"] and m["text"].endswith("https://site/")
+
+
+# ---------------------------------------------------------------- follow-up (Neo 2026-11-18: 发现就推，后面持续更新)
+
+def _team_cfg():
+    return {**CFG, "subscriptions": [{"id": "team", "owner": True, "channel": "slack_channel", "target": "C-TEAM",
+                                      "filters": {"severity": ["P0"], "kinds": ["p0", "withdrawn", "exploited"]}}]}
+
+
+def test_a_sent_notice_is_edited_in_place_when_what_it_says_changes_and_only_then(world):
+    store, sent, senders = world
+    edits = []
+    senders = {**senders, "slack_update": lambda cfg, sub, msg, ts: edits.append((ts, msg["slack"]))}
+    cfg = _team_cfg()
+    _baseline(store, senders, cfg)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert edits == []                                           # just sent: nothing to change
+    e = store.get_event("ev_00000000000000a0")
+    e.title = "Ivanti EPMM RCE — corrected title"
+    store.put_event(e)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert [ts for ts, _ in edits] == ["T-team-ev_00000000000000a0"] and "corrected title" in edits[0][1]
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert len(edits) == 1                                       # said once: no edit loop
+    assert not [k for _, _, k, _ in sent if k not in ("p0", "exploited")]
+
+
+def test_a_deleted_notice_is_left_alone(world):
+    store, _sent, senders = world
+
+    def gone(cfg, sub, msg, ts):
+        raise ValueError("slack: message_not_found")
+    senders = {**senders, "slack_update": gone}
+    cfg = _team_cfg()
+    _baseline(store, senders, cfg)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    e = store.get_event("ev_00000000000000a0")
+    e.title = "changed"
+    store.put_event(e)
+    st = notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert st["subscriptions"]["team"]["status"] == "ok"
+    assert store.get_source_state(notify_station.state_key("ev_00000000000000a0", "team"))["gone"] is True
+
+
+def test_a_vulnerability_that_turns_out_exploited_gets_one_thread_reply(world):
+    store, sent, senders = world
+    cfg = _team_cfg()
+    _baseline(store, senders, cfg)
+    e = store.get_event("ev_00000000000000a0")
+    e.exploitation = "none"
+    store.put_event(e)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert not [k for _, _, k, _ in sent if k == "exploited"]
+    e.exploitation = "confirmed"
+    store.put_event(e)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    replies = [(eid, body) for _, eid, k, body in sent if k == "exploited"]
+    assert len(replies) == 1 and replies[0][0] == "ev_00000000000000a0" and replies[0][1].startswith("⚠️ 已确认在野利用 · 证据见事件页")
+    assert "confirmed:" not in replies[0][1] and "T1" not in replies[0][1]       # no internal grading words
+
+
+def test_a_notice_sent_as_exploited_gets_no_exploited_reply(world):
+    store, sent, senders = world
+    cfg = _team_cfg()
+    _baseline(store, senders, cfg)
+    e = store.get_event("ev_00000000000000a0")
+    e.exploitation = "confirmed"
+    store.put_event(e)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    notify_station.run(store, cfg, NOW, "https://site", senders)
+    assert not [k for _, _, k, _ in sent if k == "exploited"]
+
+
+def test_a_notice_deleted_by_hand_gets_no_correction_later(world):
+    """Neo 2026-11-19: a web3 P0 under the new $10M team threshold (K3 Capital, $3.4M) was deleted in the channel and its
+    state row marked gone. A later withdrawal must not post 「已撤下」 under a message that no longer exists (the send
+    would fail every run and the station would show degraded)."""
+    store, sent, senders = world
+    _baseline(store, senders)
+    notify_station.run(store, CFG, NOW, "https://site", senders)
+    k = notify_station.state_key("ev_00000000000000a0", "p0-only")
+    store.put_source_state(k, {**store.get_source_state(k), "gone": True})
+    _merge(store, "ev_00000000000000a0", None)
+    del sent[:]
+    st = notify_station.run(store, CFG, NOW, "https://site", senders)
+    assert sent == [] and st["subscriptions"]["p0-only"]["status"] == "ok"
+
+
+@pytest.mark.parametrize("change", ["no_cve", "day_only"])
+def test_a_p0_without_a_cve_or_with_a_day_only_first_report_is_held_then_sent_once_it_resolves(world, change):
+    """Neo 2026-11-19 (live: 4 KEV notices withdrawn — 「CISA Adds Four …」 / 「We added 4 CVEs …」 named no CVE, and two
+    KEV entries said 首报 2026-11-18（来源只给日期）). Held = not sent, not recorded, shown on #/ops as held; the next
+    run checks again, and the notice goes out once a CVE is attached / a report with a time is the first report."""
+    store, sent, senders = world
+    _baseline(store, senders)
+    eid = "ev_00000000000000c0"
+    bad = {"cves": []} if change == "no_cve" else {"first_seen": "2026-11-11T00:00:00Z"}
+    store.put_event(ev(eid, "P0", "vuln", "Vendor appliance pre-auth RCE", **bad))
+    for _ in range(2):                          # held on every run, never recorded as handled
+        st = notify_station.run(store, CFG, NOW, "https://site", senders)
+        assert eid not in {e for _s, e, *_ in sent}
+        assert any(b["event_id"] == eid and b.get("held") for b in st["blocked"])
+        assert "p0" not in ((store.get_source_state(notify_station.state_key(eid, "p0-only")) or {}).get("keys") or [])
+    fixed = {"cves": ["CVE-2026-55555"]} if change == "no_cve" else {"first_seen": "2026-11-11T02:41:00Z"}
+    store.put_event(ev(eid, "P0", "vuln", "Vendor appliance pre-auth RCE", **fixed))
+    notify_station.run(store, CFG, NOW, "https://site", senders)
+    assert ("p0-only", eid, "p0") in {(s, e, k) for s, e, k, _ in sent}
+
+
+def test_a_web3_p0_names_no_cve_and_is_not_held_for_it(world):
+    store, sent, senders = world
+    _baseline(store, senders)
+    store.put_event(ev("ev_00000000000000c1", "P0", "web3", "Bridge drained"))
+    notify_station.run(store, CFG, NOW, "https://site", senders)
+    assert ("web3-all", "ev_00000000000000c1", "p0") in {(s, e, k) for s, e, k, _ in sent}

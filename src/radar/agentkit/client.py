@@ -9,15 +9,18 @@
 
 Credentials are read from the environment, never printed, and never follow a redirect: the client secret goes only to
 RADAR_TOKEN_URL, the token and the Basic credential only to RADAR_URL. A fetched token is cached until shortly before
-it expires (memory, and a 0600 file under ~/.cache/security-radar) so a command does not buy a token each time.
+it expires (memory, and a 0600 file, opened without following symlinks, in a 0700 ~/.cache/security-radar) so a command does not buy a token each time.
 """
 from __future__ import annotations
 
 import base64
+import errno
 import hashlib
 import json
 import os
 import re
+import stat
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -73,7 +76,7 @@ def fetch_token(env: dict[str, str], post: Callable[[str, bytes, dict[str, str]]
     _https(url, "radar_token_url")
     cache = cache or _cache_file(cid, url, scope)
     try:
-        held = json.loads(cache.read_text())
+        held = json.loads(_read_nofollow(cache))
         if held["expires_at"] - 60 > now():
             return str(held["access_token"])
     except (OSError, ValueError, KeyError, TypeError):
@@ -96,13 +99,31 @@ def fetch_token(env: dict[str, str], post: Callable[[str, bytes, dict[str, str]]
     except (ValueError, KeyError, TypeError):
         raise RadarError("token_malformed", "the token endpoint did not return an access token", None, "access_token") from None
     try:
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(cache, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        _private_dir(cache.parent)
+        # O_NOFOLLOW: a symlink planted at the cache path is refused (ELOOP), never written through (security review, 2026-11)
+        fd = os.open(cache, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
         with os.fdopen(fd, "w") as f:
             json.dump({"access_token": token, "expires_at": now() + ttl}, f)
-    except OSError:
-        pass    # an unwritable cache costs one token request per process, nothing else
+    except OSError as e:
+        # an unwritable cache costs one token request per process — said on stderr, so "not cached" is visible
+        print(f"security-radar: token cache not written ({type(e).__name__}: {e.strerror or e})", file=sys.stderr)
     return token
+
+
+def _private_dir(d: Path) -> None:
+    """The cache directory: created 0700, and tightened to 0700 if it already exists as a real directory of ours."""
+    d.mkdir(mode=0o700, parents=True, exist_ok=True)
+    st = os.lstat(d)
+    if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():
+        raise OSError(errno.EPERM, "the cache directory is a symlink or not owned by this user", str(d))
+    if stat.S_IMODE(st.st_mode) != 0o700:
+        os.chmod(d, 0o700)
+
+
+def _read_nofollow(p: Path) -> str:
+    fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW)
+    with os.fdopen(fd, encoding="utf-8") as f:
+        return f.read(64_000)
 
 
 def _post(url: str, body: bytes, headers: dict[str, str]) -> bytes:

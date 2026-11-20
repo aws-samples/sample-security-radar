@@ -45,7 +45,7 @@ def site_reader(url: str, user: str, password: str) -> Callable[[str], bytes]:
 
     def get(path: str) -> bytes:
         req = urllib.request.Request(f"{url.rstrip('/')}/data/{path}", headers={"Authorization": auth})
-        with fetch.urlopen(req, timeout=30) as r:
+        with fetch.urlopen(req, timeout=30, allow_hosts=frozenset()) as r:   # Basic auth: never follow a redirect
             return r.read()
     return get
 

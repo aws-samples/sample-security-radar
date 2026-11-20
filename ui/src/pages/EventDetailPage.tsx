@@ -1,3 +1,4 @@
+import { AttackPathPanel } from '@/components/detail/AttackPathPanel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { attackFlow, showFlow } from '@/utils/attackFlow';
@@ -9,6 +10,7 @@ import { VerdictPanel } from '@/components/detail/VerdictPanel';
 import { ProgressPanel } from '@/components/detail/ProgressPanel';
 import { AnalysisCard } from '@/components/detail/AnalysisCard';
 import { KeyData } from '@/components/detail/KeyData';
+import { AwsFixPanel } from '@/components/detail/AwsFixPanel';
 import { AttackFlow } from '@/components/detail/AttackFlow';
 import { OnchainPanel } from '@/components/detail/OnchainPanel';
 import { AttackTxPanel } from '@/components/detail/AttackTxPanel';
@@ -118,7 +120,7 @@ export function EventDetailPage() {
   const hasFlow = showFlow(attackFlow(d.items, d.chainStages), ev.domain === 'web3') || Boolean(ev.attribution) || Boolean(d.onchain) || Boolean(d.attackTxs);
   // section numbers of the incident tab follow what is shown (no gaps)
   const n = (() => {
-    const order = ['an', ...(hasFlow ? ['flow'] : []), ...(hasKeyData ? ['kd'] : []), 'progress', 'why', 'ev'];
+    const order = ['an', ...(d.attackPath ? ['path'] : []), ...(hasFlow ? ['flow'] : []), ...(hasKeyData ? ['kd'] : []), 'progress', 'why', 'ev'];
     return Object.fromEntries(order.map((k, i) => [k, String(i + 1).padStart(2, '0')])) as Record<string, string>;
   })();
 
@@ -154,6 +156,16 @@ export function EventDetailPage() {
               <AnalysisCard analysis={d.analysis} cite={id => numbers.get(id)} onCite={onCite} />
             </section>
 
+            {/* R9.5: how it is attacked and where each defence stops it (vulnerability P0 / P1; absent ⇒ not rendered) */}
+            {d.attackPath && (
+              <section className="dt-section" aria-labelledby="dt-h-path">
+                <h2 className="dt-h2" id="dt-h-path"><span className="dt-step">{n.path}</span>攻击链路 <span className="dt-en">Attack path</span>
+                  <span className="dt-aside">入口 → 前提 → 触发 → 后果 · 每条处置标在它拦住的那一步</span></h2>
+                <AttackPathPanel path={d.attackPath} cite={id => numbers.get(id)} onCite={onCite}
+                  onEnv={() => { setTab('env'); requestAnimationFrame(() => scrollTo('dt-tabs')); }} />
+              </section>
+            )}
+
             {/* attack flow (M4) — rendered when the story has ≥ 2 phases, an attribution or an on-chain reconstruction */}
             <AttackFlow event={ev} items={d.items} chain={d.chainStages} onCite={onCite} step={n.flow}>
               {d.attackTxs && <AttackTxPanel data={d.attackTxs} />}
@@ -163,6 +175,7 @@ export function EventDetailPage() {
             {hasKeyData && (
               <section className="dt-section" aria-labelledby="dt-h-kd">
                 <h2 className="dt-h2" id="dt-h-kd"><span className="dt-step">{n.kd}</span>关键数据 <span className="dt-en">Key data</span></h2>
+                <AwsFixPanel fix={d.awsFix} />
                 <KeyData event={ev} cves={d.cveDetails} amounts={d.amountHistory} tx={d.tx} />
               </section>
             )}

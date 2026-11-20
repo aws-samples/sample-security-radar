@@ -85,7 +85,8 @@ class FakeAws:
 @pytest.fixture
 def station(env, monkeypatch):  # noqa: F811
     h, _s3 = env
-    for k, v in {"SA_AGENT_SPACE_ID": "as", "SA_PACK_ID": "pk", "CN_GITHUB_REPO": "o/fleet"}.items():
+    # per-event reviews on: these tests exercise the review machinery (production default off — respond.event_reviews_on)
+    for k, v in {"SA_AGENT_SPACE_ID": "as", "SA_PACK_ID": "pk", "CN_GITHUB_REPO": "o/fleet", "SA_EVENT_REVIEWS": "1"}.items():
         monkeypatch.setenv(k, v)
     fake = FakeAws()
     for name in ("ensure_environment", "load_targets", "execute", "resources", "requirement_names", "delete_requirements"):
@@ -205,3 +206,14 @@ def test_the_station_remembers_when_it_evaluated_an_event(station):
     h.respond_events({"changed": []})
     led = h._store.get_source_state(h.CONTINUUM_KEY)
     assert led["evaluated"] == {_eid(): timeutil.iso(clock["now"])}
+
+
+def test_by_default_the_station_starts_no_review_but_still_submits_to_continuum(station, monkeypatch):
+    """2026-11-20: Continuum fixes, Security Agent keeps the rules — no SA_EVENT_REVIEWS ⇒ no start_review, while the
+    rule sync and the radar's own findings to Continuum go on as before."""
+    monkeypatch.delenv("SA_EVENT_REVIEWS")
+    h, fake, _clock = station
+    h.respond_events({"changed": []})
+    kinds = {o[0] for o in fake.ops}
+    assert "start_review" not in kinds
+    assert "sync_requirement" in kinds and "submit_finding_gh" in kinds

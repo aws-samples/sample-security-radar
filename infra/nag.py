@@ -6,8 +6,11 @@ from aws_cdk import Aspects, Stack
 from cdk_nag import AwsSolutionsChecks, NagPackSuppression, NagSuppressions
 
 REASONS: dict[str, str] = {
-    "AwsSolutions-IAM4": "AWSLambdaBasicExecutionRole (CloudWatch Logs only) on the CDK-created Lambda roles; every "
-                         "service permission is an explicit inline statement.",
+    "AwsSolutions-IAM4": "Two AWS managed policies, both logs-only: AWSLambdaBasicExecutionRole on the CDK-created "
+                         "Lambda roles (the radar's functions and the CDK BucketDeployment custom resource), and "
+                         "AmazonAPIGatewayPushToCloudWatchLogs on ReadApi/CloudWatchRole — the account-level role API "
+                         "Gateway needs for access logs, kept when the stack is deleted (other APIs in the account and "
+                         "Region may use it; README, Deploy). Every service permission is an explicit inline statement.",
     "AwsSolutions-IAM5": "Wildcards are (a) CDK grant_* object/index scopes on the stack's own buckets and table "
                          "(bucket/*, table/index/*), (b) read-only APIs without resource-level permissions "
                          "(wafv2 List/Get/Describe/CheckCapacity, inspector-scan:ScanSbom, ce:GetCostAndUsage, route53resolver List*), "
@@ -15,12 +18,18 @@ REASONS: dict[str, str] = {
                          "WAF / DNS Firewall are scoped to the radar's own resources (verified with simulate-principal-policy).",
     "AwsSolutions-L1": "Python 3.12 is pinned to match CI and the test environment; upgrade together with them.",
     "AwsSolutions-S1": "Sample: no S3 server access logging (cost, extra bucket). Enable it for production.",
-    "AwsSolutions-SMG4": "Secrets hold third-party API keys and a generated demo credential; they cannot be rotated "
-                         "by a Lambda rotation function. Rotate with the issuer.",
+    "AwsSolutions-SMG4": "None of these can be rotated by a Lambda rotation function, because the issuer is outside "
+                         "AWS or the value is shared with a party that must change it too: CollectorSecret (third-party "
+                         "API keys), DemoFleetGithubRO and GhsaLookupToken (read-only GitHub tokens) — rotate with the issuer; "
+                         "NotifyConfig (Slack bot token, Lark app secret, webhook HMAC keys) — rotate with the chat app "
+                         "and the webhook receiver; SelfSubscriptions (per-subscription signing keys) — a client rotates "
+                         "by deleting and re-creating its subscription; UiBasicAuth (a generated demo credential) — "
+                         "re-run scripts/deploy-all.sh to rotate.",
     "AwsSolutions-CFR1": "Demo distributions: no geo restriction (audience not region-bound).",
     "AwsSolutions-CFR2": "The UI is behind a Basic Auth gate for the demo; the WAF demo distribution has AWS WAF. "
                          "For production put the UI behind Amazon Cognito / IAM Identity Center and AWS WAF.",
-    "AwsSolutions-CFR3": "Sample: no CloudFront standard logs (cost, extra bucket). Enable for production.",
+    "AwsSolutions-CFR3": "The WAF demo distribution only (an empty origin that exists to show AWS WAF blocking): no "
+                         "standard logs. The site distribution has them (AccessLogBucket, 30 days).",
     "AwsSolutions-APIG2": "Routes: GET /api/{proxy+} (path validated by the Lambda against the published layout, "
                           "radar.api._PATH; no body) and /api/subscriptions GET / POST / DELETE {id} — the POST body is "
                           "validated in the Lambda (radar.subscribe_api: size, fields, https target that resolves public).",

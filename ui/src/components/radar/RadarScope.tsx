@@ -32,8 +32,6 @@ const R_MAX = SCOPE.rMax; // outer data circle
 const R_RIM = 200;    // sector arc rim
 const R_TICK = 208;   // outer edge of short bearing tick
 const R_LONG_TICK = 213; // outer edge of long bearing tick (every 30°)
-const R_LABEL = 225;  // bearing number placement
-const R_TEXT = 242;   // outer ring text path radius
 const R_SECTOR_LABEL = 226; // sector capsule center radius
 const VIEWBOX = SCOPE.viewBox;
 
@@ -62,6 +60,11 @@ function arcPath(startDeg: number, endDeg: number, r: number): string {
   const large = endDeg - startDeg > 180 ? 1 : 0;
   return `M${s.x.toFixed(2)},${s.y.toFixed(2)} A${r},${r} 0 ${large},1 ${e.x.toFixed(2)},${e.y.toFixed(2)}`;
 }
+
+/** A CSS transform on an SVG shape scales about the shape itself, not the canvas origin. Without it (transform-box
+ *  defaults to view-box) scale(2.2) moves a dot at (x, y) to about (2.2x, 2.2y): the P0 halos drew as big faint circles
+ *  far from their dots and the crosshair jumped on every sweep pass (live 2026-11-19). */
+export const ABOUT_ITSELF = { transformBox: 'fill-box', transformOrigin: 'center' } as const;
 
 function sweepSectorPath(angleDeg: number, sweepBack: number, r: number): string {
   const startDeg = angleDeg - sweepBack;
@@ -98,8 +101,6 @@ function BearingScale() {
     const isLong = deg % 30 === 0;
     const inner = toXY(deg, R_MAX + 2);
     const outer = toXY(deg, isLong ? R_LONG_TICK : R_TICK);
-    const lp    = toXY(deg, R_LABEL);
-    const label = String(deg).padStart(3, '0');
     ticks.push(
       <g key={deg}>
         <line
@@ -107,17 +108,7 @@ function BearingScale() {
           stroke="var(--text-3)" strokeWidth={isLong ? 1 : 0.5}
           opacity={isLong ? 0.6 : 0.3}
         />
-        {isLong && deg !== 0 && (
-          <text
-            x={lp.x} y={lp.y}
-            textAnchor="middle" dominantBaseline="middle"
-            fill="var(--text-3)"
-            fontSize={7} fontFamily="var(--font-mono)"
-            opacity={0.55}
-          >
-            {label}
-          </text>
-        )}
+        {/* R9.4 calm (2026-11-19): no compass bearings (030, 060 …) — they say nothing about an event; ticks only */}
       </g>,
     );
   }
@@ -255,35 +246,6 @@ function SectorRims() {
   );
 }
 
-// ── Outer ring orbiting text ───────────────────────────────────────────────────
-function OuterRingText({ lastSync, countdown }: { lastSync: string; countdown: number }) {
-  const text = `SECURITY RADAR · LIVE · LAST SYNC ${lastSync} UTC · NEXT ${countdown}s · `;
-  const _circumference = 2 * Math.PI * R_TEXT; void _circumference;
-  const pathId = 'radar-ring-text-path';
-
-  return (
-    <g aria-hidden="true">
-      <defs>
-        <path
-          id={pathId}
-          d={`M${CX},${CY - R_TEXT} A${R_TEXT},${R_TEXT} 0 1,1 ${CX - 0.001},${CY - R_TEXT}`}
-        />
-      </defs>
-      <text
-        fill="var(--text-3)"
-        fontSize={7}
-        fontFamily="var(--font-mono)"
-        letterSpacing="0.08em"
-        opacity={0.5}
-      >
-        <textPath href={`#${pathId}`} startOffset="0%">
-          {text.repeat(3)}
-        </textPath>
-      </text>
-    </g>
-  );
-}
-
 // ── Rim glow ───────────────────────────────────────────────────────────────────
 function RimGlow() {
   return (
@@ -335,7 +297,7 @@ function DotMarker({ item, pixelX, pixelY, onHover, onActivate, groupRef }: DotP
         stroke={color}
         strokeWidth={1.5}
         opacity={0}
-        style={{ transformOrigin: `${x}px ${y}px`, pointerEvents: 'none' }}
+        style={{ ...ABOUT_ITSELF, pointerEvents: 'none' }}
         aria-hidden="true"
       />
       <circle
@@ -345,13 +307,13 @@ function DotMarker({ item, pixelX, pixelY, onHover, onActivate, groupRef }: DotP
         stroke={color}
         strokeWidth={1}
         opacity={0}
-        style={{ transformOrigin: `${x}px ${y}px`, pointerEvents: 'none' }}
+        style={{ ...ABOUT_ITSELF, pointerEvents: 'none' }}
         aria-hidden="true"
       />
 
       {/* P0 lockout crosshair arms (4 L-brackets, animated when .locked class added) */}
       {isP0 && (
-        <g className="lockout-crosshair" opacity={0} aria-hidden="true">
+        <g className="lockout-crosshair" opacity={0} aria-hidden="true" style={ABOUT_ITSELF}>
           {/* TL */}
           <path d={`M${x - 8},${y - 4} L${x - 8},${y - 8} L${x - 4},${y - 8}`}
             stroke={color} strokeWidth={1.5} fill="none" />
@@ -379,7 +341,7 @@ function DotMarker({ item, pixelX, pixelY, onHover, onActivate, groupRef }: DotP
       {item.shape === 'circle' && (
         <circle cx={x} cy={y} r={r}
           fill={color}
-          opacity={isP0 ? 1 : 0.75}
+          opacity={isP0 ? 1 : item.severity === 'P1' ? 0.8 : 0.45}   /* R9.4 calm: P2 steps back */
           filter={isP0 ? 'url(#dot-glow)' : undefined}
         />
       )}
@@ -392,11 +354,11 @@ function DotMarker({ item, pixelX, pixelY, onHover, onActivate, groupRef }: DotP
         />
       )}
 
-      {/* P0 ambient halo */}
+      {/* P0 halo: still at rest; it swells once when the sweep passes (.radar-dot-pinging). Neo 2026-11-19: 「雷达扫描还没
+          有扫到这些圈圈，它自己先不要做一些变化」 — it pulsed on its own clock, out of step with the sweep. */}
       {isP0 && (
-        <circle cx={x} cy={y} r={r + 5}
+        <circle className="p0-halo" style={ABOUT_ITSELF} cx={x} cy={y} r={r + 5}
           fill={color} opacity={0.12}
-          style={{ animation: 'pulse-ring 2.2s ease-out infinite' }}
           aria-hidden="true"
         />
       )}
@@ -484,8 +446,8 @@ export interface RadarScopeProps {
   selectedId?: string;
   sweepPeriodS?: number;
   size?: number;
-  lastSync?: string;
-  countdown?: number;
+  /** Hover reported to the stage, which draws the tip above the NOW labels (then no tip is drawn inside the SVG). */
+  onHoverDot?: (dot: RadarDot | null) => void;
 }
 
 export function RadarScope({
@@ -494,8 +456,7 @@ export function RadarScope({
   selectedId: _selectedId,
   sweepPeriodS: _sweepPeriodS = 6,
   size = 440,
-  lastSync = '--:--',
-  countdown = 60,
+  onHoverDot,
 }: RadarScopeProps) {
   const reducedMotion = useReducedMotion();
 
@@ -503,7 +464,6 @@ export function RadarScope({
   const sweepArmRef   = useRef<SVGLineElement>(null);
   const sweepGlowRef  = useRef<SVGLineElement>(null);
   const _sweepCenterRef = useRef<SVGCircleElement>(null); void _sweepCenterRef;
-  const ringTextGroupRef = useRef<SVGGElement>(null);
   const dotGroupsRef  = useRef<Map<string, SVGGElement>>(new Map());
   const scanAngleRef  = useRef(0);
   const prevAngleRef  = useRef(0);
@@ -529,8 +489,9 @@ export function RadarScope({
   }, [onSelect]);
 
   const handleHover = useCallback((dot: RadarDot | null, x: number, y: number) => {
+    if (onHoverDot) { onHoverDot(dot); return; }      // the stage draws it, above the NOW labels
     setHovered(dot ? { dot, px: x, py: y } : null);
-  }, []);
+  }, [onHoverDot]);
 
   // ── RAF scan animation ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -586,14 +547,6 @@ export function RadarScope({
           sweepGlowRef.current.setAttribute('x2', armEnd.x.toFixed(2));
           sweepGlowRef.current.setAttribute('y2', armEnd.y.toFixed(2));
         }
-        // Counter-rotate outer text
-        if (ringTextGroupRef.current) {
-          const a = (-(newAngle * 0.12)) % 360;
-          (ringTextGroupRef.current as SVGGElement).setAttribute(
-            'transform',
-            `rotate(${a.toFixed(2)},${CX},${CY})`,
-          );
-        }
       }
       lastTime = now;
       raf = requestAnimationFrame(tick);
@@ -613,6 +566,9 @@ export function RadarScope({
     style.textContent = `
       .radar-dot-pinging .ping-ring-1 {
         animation: radar-ping-scale 600ms ease-out forwards !important;
+      }
+      .radar-dot-pinging .p0-halo {
+        animation: pulse-ring 900ms ease-out 1 !important;
       }
       .radar-dot-pinging .ping-ring-2 {
         animation: radar-ping-scale 600ms ease-out 150ms forwards !important;
@@ -642,6 +598,7 @@ export function RadarScope({
       @media (prefers-reduced-motion: reduce) {
         .radar-dot-pinging .ping-ring-1,
         .radar-dot-pinging .ping-ring-2,
+        .radar-dot-pinging .p0-halo,
         .radar-dot-locked .lockout-crosshair { animation: none !important; }
       }
     `;
@@ -799,10 +756,7 @@ export function RadarScope({
       {/* ── Time ring labels ── */}
       <TimeRingLabels />
 
-      {/* ── Outer ring text (counter-rotates in RAF) ── */}
-      <g ref={ringTextGroupRef} aria-hidden="true">
-        <OuterRingText lastSync={lastSync} countdown={countdown} />
-      </g>
+      {/* (no orbiting 「SECURITY RADAR · LIVE · LAST SYNC …」 ring — R9.4 calm: the wall's status bar shows sync and countdown) */}
 
       {/* ── Tooltip ── */}
       {hovered && (

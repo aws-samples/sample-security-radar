@@ -1,202 +1,93 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { PageBoundary } from '@/components/PageBoundary';
 import { SiteStatus } from '@/components/SiteStatus';
+import { NavIcon, type NavIconName } from '@/components/nav/NavIcon';
 import { useTheme } from '@/contexts/ThemeContext';
+import { initialNavMode, isWallPath, storeNavMode, type NavMode } from '@/utils/navMode';
 
-const navItems = [
-  { to: '/',        label: 'Radar',   icon: '⬡', exact: true },
-  { to: '/vuln',    label: 'Vulns',   icon: '◈' },
-  { to: '/web3',    label: 'Web3',    icon: '◎' },
-  { to: '/wall',    label: '大屏',    icon: '⊞' },
-  { to: '/continuum', label: 'Continuum', icon: '⟲', aria: 'AWS Continuum 融入' },
-  { to: '/search', label: '搜索', icon: '⌕', aria: '搜索全部事件' },
-  { to: '/announcements', label: '公告', icon: '✦', aria: '交易所公告' },
-  { to: '/subscribe', label: '订阅', icon: '⇣', aria: '订阅：feed / webhook / agent' },
-  { to: '/sources', label: 'Sources', icon: '◉' },
-  { to: '/ops',     label: 'Ops',     icon: '⚑', aria: '需要人处理的事' },
-  { to: '/mitigate', label: '缓解',  icon: '⛨', aria: '缓解（WAF / DNS Firewall / Inspector）' },
+const navItems: { to: string; label: string; icon: NavIconName; exact?: boolean; aria?: string }[] = [
+  { to: '/',        label: 'Radar',   icon: 'radar', exact: true },
+  { to: '/vuln',    label: 'Vulnerabilities', icon: 'vuln' },
+  { to: '/web3',    label: 'Web3',    icon: 'web3' },
+  { to: '/wall',    label: 'Dashboard', icon: 'wall', aria: 'Dashboard（大屏）' },
+  { to: '/continuum', label: 'Continuum', icon: 'continuum', aria: 'AWS Continuum 融入' },
+  { to: '/search', label: 'Search', icon: 'search', aria: 'Search · 搜索全部事件' },
+  { to: '/announcements', label: 'Exchange Notices', icon: 'announce', aria: 'Exchange Notices · 交易所公告' },
+  { to: '/subscribe', label: 'Subscribe', icon: 'subscribe', aria: 'Subscribe · 订阅：feed / webhook / agent' },
+  { to: '/sources', label: 'Sources', icon: 'sources' },
+  { to: '/ops',     label: 'Ops',     icon: 'ops', aria: 'Ops · 需要人处理的事' },
+  { to: '/mitigate', label: 'Mitigation', icon: 'mitigate', aria: 'Mitigation · 缓解（WAF / DNS Firewall / Inspector）' },
 ];
 
+/** The app shell (styles/layout.css): sidebar ↔ icon rail from 800 px (R9.1), top bar + menu below (R9.2). */
 export function Layout() {
   const { pathname } = useLocation();
   const { theme, toggle } = useTheme();
+  const [mode, setMode] = useState<NavMode>(initialNavMode);
+  const [open, setOpen] = useState(false);            // the phone menu; any navigation closes it
+  const onWall = isWallPath(pathname);
+  useEffect(() => { setOpen(false); }, [pathname]);
+  // Neo 2026-11-19: opening the wall collapses the sidebar to its rail (the wall gets the room); leaving it restores
+  // the remembered choice. Expanding on the wall is for that visit only — it is not stored.
+  useEffect(() => { setMode(onWall ? 'rail' : initialNavMode()); }, [onWall]);
+  const rail = mode === 'rail';
+  const flip = () => { const next: NavMode = rail ? 'full' : 'rail'; setMode(next); if (!onWall) storeNavMode(next); };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      {/* Sidebar */}
-      <nav
-        aria-label="Main navigation"
-        style={{
-          width: 'var(--sidebar-w)',
-          flexShrink: 0,
-          background: 'var(--bg-surface)',
-          borderRight: '1px solid var(--border)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflowY: 'auto',
-          boxShadow: 'var(--shadow-sm)',
-          zIndex: 10,
-        }}
-      >
-        {/* Accent stripe */}
+    <div className={`app-shell${rail ? ' is-rail' : ''}`} data-nav={mode}>
+      <nav aria-label="Main navigation" className={`app-nav${open ? ' is-open' : ''}`}>
         <div className="accent-stripe" />
 
-        {/* Wordmark */}
-        <div style={{
-          padding: '16px 16px 14px',
-          borderBottom: '1px solid var(--border)',
-        }}>
-          {/* Logo: try image, fall back to text */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <img
-              src="./logo.svg"
-              alt=""
-              aria-hidden="true"
-              width={36}
-              height={36}
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              style={{ flexShrink: 0 }}
-            />
+        <div className="app-nav-brand">
+          <button type="button" className="app-nav-btn app-nav-toggle" aria-expanded={open} aria-controls="app-nav-menu"
+            aria-label={open ? '收起导航' : '展开导航'} onClick={() => setOpen(o => !o)}>
+            <NavIcon name={open ? 'close' : 'menu'} />
+          </button>
+          <div className="app-nav-logo">
+            <img src="./logo.svg" alt="" aria-hidden="true" width={36} height={36}
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} style={{ flexShrink: 0 }} />
             <div>
-              <div style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '15px',
-                fontWeight: 700,
-                background: 'var(--grad-accent)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                letterSpacing: '-0.01em',
-                lineHeight: 1.1,
-              }}>
-                Security
-              </div>
-              <div style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '15px',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.01em',
-                lineHeight: 1.1,
-              }}>
-                Radar
-              </div>
+              <div className="app-nav-word is-accent">Security</div>
+              <div className="app-nav-word" style={{ color: 'var(--text-primary)' }}>Radar</div>
             </div>
           </div>
-
-          {/* Live indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ position: 'relative', display: 'inline-flex', width: '8px', height: '8px' }}>
-              <span style={{
-                position: 'absolute', inset: 0,
-                borderRadius: '50%',
-                background: 'var(--status-ok)',
-                animation: 'pulse-ring 1.8s ease-out infinite',
-              }} aria-hidden="true" />
-              <span style={{
-                position: 'relative',
-                width: '8px', height: '8px', borderRadius: '50%',
-                background: 'var(--status-ok)',
-                display: 'block',
-              }} aria-hidden="true" />
+          <div className="app-nav-live">
+            <span style={{ position: 'relative', display: 'inline-flex', width: 8, height: 8 }}>
+              <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'var(--status-ok)',
+                animation: 'pulse-ring 1.8s ease-out infinite' }} aria-hidden="true" />
+              <span style={{ position: 'relative', width: 8, height: 8, borderRadius: '50%', background: 'var(--status-ok)',
+                display: 'block' }} aria-hidden="true" />
             </span>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              live
-            </span>
+            <span>live</span>
           </div>
         </div>
 
-        {/* Nav links */}
-        <div style={{ padding: '8px 0', flex: 1 }}>
+        <div id="app-nav-menu" className="app-nav-links">
           {navItems.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.exact}
-              aria-label={'aria' in item ? item.aria : item.label}
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '9px 16px',
-                fontFamily: 'var(--font-body)',
-                fontSize: '13px',
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                background: isActive ? 'var(--bg-surface-2)' : 'transparent',
-                borderLeft: `3px solid ${isActive ? 'var(--text-accent)' : 'transparent'}`,
-                textDecoration: 'none',
-                transition: 'color 0.15s, background 0.15s, border-color 0.15s',
-              })}
-              onMouseEnter={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                if (!el.classList.contains('active') && el.style.borderLeftColor === 'transparent') {
-                  el.style.background = 'var(--bg-surface-2)';
-                }
-              }}
-              onMouseLeave={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                if (!el.getAttribute('aria-current')) {
-                  el.style.background = 'transparent';
-                }
-              }}
-            >
-              <span aria-hidden="true" style={{ fontSize: '14px', opacity: 0.75 }}>{item.icon}</span>
-              {item.label}
+            <NavLink key={item.to} to={item.to} end={item.exact} className="app-nav-link"
+              aria-label={item.aria ?? item.label} title={rail ? item.label : undefined}>
+              <NavIcon name={item.icon} />
+              <span className="app-nav-label">{item.label}</span>
             </NavLink>
           ))}
         </div>
 
-        {/* Theme toggle + footer */}
-        <div style={{
-          padding: '10px 12px',
-          borderTop: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <SiteStatus />
-          <button
-            onClick={toggle}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-            style={{
-              background: 'var(--bg-surface-2)',
-              border: '1px solid var(--border)',
-              borderRadius: '20px',
-              padding: '4px 10px',
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              transition: 'background 0.15s, color 0.15s',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-surface-3)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-surface-2)';
-            }}
-          >
-            <span aria-hidden="true">{theme === 'light' ? '🌙' : '☀️'}</span>
-            <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
+        <div className="app-nav-foot">
+          <div className="app-nav-status"><SiteStatus /></div>
+          <button type="button" className="app-nav-btn" onClick={toggle}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}>
+            <NavIcon name={theme === 'light' ? 'moon' : 'sun'} size={15} />
+            <span className="app-nav-btn-text">{theme === 'light' ? 'Dark' : 'Light'}</span>
+          </button>
+          <button type="button" className="app-nav-btn app-nav-collapse" onClick={flip} data-testid="nav-collapse"
+            aria-label={rail ? '展开侧栏' : '收起侧栏'} title={rail ? '展开侧栏' : '收起侧栏'} aria-pressed={rail}>
+            <NavIcon name={rail ? 'expand' : 'collapse'} size={16} />
           </button>
         </div>
       </nav>
 
-      {/* Main content */}
-      <main
-        style={{
-          flex: 1,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'var(--bg-base)',
-        }}
-      >
+      <main className="app-main">
         <PageBoundary resetKey={pathname}>
           {/* R3.6: lazy pages (App.tsx). Inside the boundary: a chunk that fails to load (an old tab after a deploy) shows
               the page error with its retry, not a blank page */}

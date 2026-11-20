@@ -128,7 +128,7 @@
 .ct-cap-ev { grid-area: ev; justify-self: start; font-family: var(--font-mono); font-size: 11px; color: var(--text-1); padding: 0 6px; border-radius: var(--r-xs); background: var(--bg-2); }
 
 /* L1 targets */
-.ct-targets { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 12px; }
+.ct-targets { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 12px; }
 .ct-target { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: var(--r-md); background: var(--bg-1); border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
 .ct-target-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .ct-target-name { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text-1); }
@@ -166,7 +166,7 @@
 .ct-rec-go { color: var(--accent); font-weight: 700; }
 
 /* resources */
-.ct-regions { display: grid; grid-template-columns: repeat(auto-fill, minmax(480px, 1fr)); gap: 12px; }
+.ct-regions { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(480px, 100%), 1fr)); gap: 12px; }
 .ct-region { padding: 12px 14px; border-radius: var(--r-md); background: var(--bg-1); border: 1px solid var(--line); }
 .ct-region-h { margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text-1); }
 .ct-region-h code { font-family: var(--font-mono); }

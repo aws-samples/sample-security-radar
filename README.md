@@ -21,20 +21,17 @@
 > **Preview notice.** This sample calls AWS Continuum code scanning, which is in **public preview**. APIs and behaviour
 > may change. Use a non-production AWS account.
 
-## What's new in v1.3.0
+## What's new in v1.6
 
-Full list in [CHANGELOG.md](CHANGELOG.md).
+Full list in [CHANGELOG.md](CHANGELOG.md). A walkthrough deck: <https://aws-samples.github.io/sample-security-radar/>.
 
 | Area | What changed |
 |---|---|
-| **Agent access** | Amazon Cognito client-credentials tokens → read-only `GET /api/data/*` through Amazon API Gateway; `scripts/radar-token.py` issues and revokes access |
-| **Agent kit** | CLI, stdio MCP server, the `security-radar` skill and `llms.txt` — read-only tools over the published documents |
-| **Subscriptions** | A token client may register its own https webhooks (`radar/subscribe`, own rows only); filters by CVE, exploitation, level, loss and message kind (incl. `digest`); new channel `lark_dm`; a `#/subscribe` page |
-| **Sources** | Microsoft Security Update Guide (JSON API), VMware via Broadcom's list API (the first POST source), SonicWall, Ivanti, Google Cloud; 60 s per source per run, a host breaker, back-off and `Retry-After` |
-| **Recovery** | Versioned buckets, table deletion protection, `scripts/restore.py` (dry run by default) |
-| **Least privilege** | Exact table actions per station (no `Scan`); Collect writes only source-state rows (`dynamodb:LeadingKeys`); Publish writes only `data/*` |
-| **Clustering** | Digests merge nothing; CVEs years apart merge nothing; "exploited" counts only when said about the event |
-| **UI** | Entry chunk ≤ 120 KB gzip with lazy pages; first-seen order; an action pack per code target; search hits link to their source |
+| **Briefs** | Rewritten only when a fact the code decided changed (severity, exploitation, CVEs, amount): ~203 → ~10 a day on a 7-day replay |
+| **Summaries** | A brief sentence that contradicts the code's CVEs, exploitation or amount does not become the summary or the P0 notice line |
+| **Duplicate judge** | Candidates that can be duplicates only (51,404 → 599); quality measured without labelling — the labelled corpus and delayed truth — on #/ops |
+| **GitHub advisories** | A GHSA id is an identifier: a P0 is sent with it before a CVE exists, and the GHSA event is linked to the CVE's (global, repository and unreviewed advisories) |
+| **Sources** | VulnCheck, ProjectDiscovery, CERT/CC, ZDI advisories, GreyNoise, Tenable Research (225 in all) |
 
 ## What it is
 
@@ -48,8 +45,8 @@ and crypto media, Web3 incident databases, exchange announcement boards, public 
 official-account feeds (an X source is available but off by default) — decides in code what is real and
 what is urgent, and when an event matches your code it **pulls the trigger**:
 
-1. **AWS Security Agent** — the radar writes the event as a security requirement and starts a code review; Security Agent
-   returns findings and a fix diff.
+1. **AWS Security Agent** — the radar writes the event as a security requirement in the requirement pack, which your own
+   code reviews use (the radar starts no review per event by default, and a review never fixes on its own).
 2. **AWS Continuum** — the radar submits a finding pinned to the file and line and asks for validation; once Continuum
    proves the issue exploitable it produces a patch and opens a **native pull request (GitHub) or merge request (GitLab)**.
 3. **A human** reviews and merges.
@@ -198,6 +195,10 @@ STAGE=demo ./scripts/verify.sh                   # PASS/FAIL acceptance + integr
 STAGE=demo ./scripts/destroy-stage.sh            # remove that copy
 ```
 
+Deleting the stack keeps one role: the Amazon API Gateway CloudWatch Logs role (`ReadApi/CloudWatchRole`, policy
+`AmazonAPIGatewayPushToCloudWatchLogs`). It is an account-level API Gateway setting that other APIs in the same account
+and Region may rely on; delete it yourself if none does.
+
 Optional channels: GitHub PRs (`uv run python scripts/sync-fleet.py --channel github --apply`, then authorize the
 AWS Continuum GitHub App once and set `github_repo` in `infra/cdk.json`) and GitLab MRs (`--channel gitlab`, with a
 personal access token in `~/.env`; set `gitlab_project`, and `gitlab_url` for a self-managed instance reachable by
@@ -205,6 +206,10 @@ Continuum).
 
 Optional notifications: put the bot credentials and channel ids in `~/.env` and run `scripts/set-notify.sh` (it writes
 one AWS Secrets Manager secret; values never appear on a command line). The alarms use the owner's subscription.
+
+Optional GHSA → CVE linking: create a **read-only, fine-grained** GitHub token (public repositories, no permissions), put it
+in `~/.env` as `GITHUB_ADVISORY_TOKEN` and run `scripts/set-ghsa-token.sh` (it writes the `GhsaLookupToken` secret;
+the value never appears on a command line). Without it the step records `not_configured` and the rest runs as usual.
 
 Optional: AWS Security Hub export with `-c security_hub=on` (an account-wide service — enabled without any default
 standards; off by default in this sample).

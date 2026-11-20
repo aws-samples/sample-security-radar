@@ -360,26 +360,90 @@ def analyze_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     from radar import analyst
     now = timeutil.now()
     since = timeutil.iso(now - timedelta(days=publish.Limits.PUBLISH_WINDOW_DAYS))
-    todo = []
-    for ev in _store.events_updated_since(since):
+    store = _store
+    if store is None:          # the station runs with its table; no table is a wiring fault, said — never a silent skip
+        raise RuntimeError("analyze: no store (TABLE is not set)")
+    todo, kept, stamped, reasons = [], 0, 0, {}
+    now_iso = timeutil.iso(now)
+    for ev in store.events_updated_since(since):
         if ev.severity not in ("P0", "P1"):
             continue
         ev_in = analyst.trim_evidence(_evidence(ev), _structured_ids(ev))
-        if (ev.analysis or {}).get("input_hash") != analyst.input_hash(ev_in):
-            todo.append((0 if ev.severity == "P0" else 1, ev.last_updated, ev, ev_in))
+        facts = analyst.facts_of(ev)
+        why = analyst.needs_rewrite(ev.analysis, ev_in, facts, now_iso)
+        if why is None:
+            if ev.analysis and "facts" not in ev.analysis and stamped < Limits.BRIEF_FACT_STAMPS_PER_RUN:
+                # a brief from before the facts rule, still current: record its facts, no model call (else each of
+                # the 817 live 11-19 would be rewritten once on its next report — the wave seen after deploy)
+                ev.analysis = {**ev.analysis, "facts": facts}
+                store.put_event(ev)
+                stamped += 1
+            elif (ev.analysis or {}).get("input_hash") != analyst.input_hash(ev_in):
+                kept += 1                   # evidence moved but no code-decided fact did: the brief stays
+            continue
+        reasons[why] = reasons.get(why, 0) + 1
+        todo.append((0 if ev.severity == "P0" else 1, ev.last_updated, ev, ev_in))
     todo.sort(key=lambda t: (t[0], -_ts(t[1])))
-    done = []
+    left = _time_left(_ctx)
+    # attack paths first: ≤ ATTACK_PATHS_PER_CYCLE calls, and before 11-19 the briefs filled the run (avg 448 s of 600) so
+    # the paths after them rarely started — 36 events built in 14 h while 660 P1s had none
+    log.info(json.dumps({"station": "analyze", "to_rewrite": len(todo), "why": reasons, "kept_not_material": kept,
+                         "facts_stamped": stamped}))
+    paths = _attack_paths(now, since, left)
+    done, deferred = [], 0
     for _, _, ev, ev_in in todo[:MAX_ANALYSES_PER_CYCLE]:
-        ev.analysis = analyst.analyze(ev_in, timeutil.iso(now))
-        _store.put_event(ev)
+        if left is not None and left() < Limits.MODEL_CALL_RESERVE_S:   # briefs: no call started without the reserve
+            deferred = min(len(todo), MAX_ANALYSES_PER_CYCLE) - len(done)   # said, not timed out: the next run takes them
+            log.info(json.dumps({"station": "analyze", "deferred": deferred, "reason": "time_left", "left_s": round(left())}))
+            break
+        ev.analysis = {**analyst.analyze(ev_in, timeutil.iso(now)), "facts": analyst.facts_of(ev)}
+        store.put_event(ev)
         done.append(ev.event_id)
         log.info(json.dumps({"station": "analyze", "event": ev.event_id, "status": ev.analysis["status"],
                              "reason": ev.analysis.get("reason")}))
     _daily_digest(now)
     dup = _cluster_judge(now)
+    try:
+        aliased = _ghsa_alias(now)
+    except Exception as ex:  # noqa: BLE001 — a third-party lookup never fails the Analyze step (security review 2026-11-20)
+        aliased = []
+        log.warning(json.dumps({"station": "analyze", "warning": "ghsa_alias_failed", "error": type(ex).__name__}))
+        store_ = _store
+        if store_ is not None:                               # "__ghsa_alias__" = ghsa_alias.KEY (lazy module)
+            st_ = dict(store_.get_source_state("__ghsa_alias__") or {})
+            store_.put_source_state("__ghsa_alias__", {**st_, "last_error": {"at": timeutil.iso(now), "error": type(ex).__name__}})
     _retitle_shadow(now)
-    changed = sorted(set(event.get("changed") or []) | set(done) | set(dup))
-    return {"changed": changed[:MAX_CHANGED_IDS], "full": bool(event.get("full")), "analysis_backlog": len(todo) - len(done)}
+    changed = sorted(set(event.get("changed") or []) | set(done) | set(dup) | set(paths) | set(aliased))
+    return {"changed": changed[:MAX_CHANGED_IDS], "full": bool(event.get("full")), "analysis_backlog": len(todo) - len(done),
+            "analysis_deferred": deferred}
+
+
+def _attack_paths(now: datetime, since: str, left: Any = None) -> list[str]:
+    """R9.5: (re)build the attack path of P0 / P1 vulnerability events whose evidence changed, P0 first, at most
+    Limits.ATTACK_PATHS_PER_CYCLE model calls (the brief keeps its own budget). Returns the events whose page changed."""
+    from radar import analyst, attack_path
+    if _store is None:
+        raise RuntimeError("attack_path: no store (TABLE is not set)")
+    todo = []
+    for ev in _store.events_updated_since(since):
+        if ev.domain != "vuln" or ev.severity not in ("P0", "P1"):
+            continue
+        path_in = analyst.trim_evidence(_evidence(ev), _structured_ids(ev))
+        row = _store.get_source_state(attack_path.key(ev.event_id)) or {}
+        if row.get("input_hash") != attack_path.input_hash(path_in):
+            todo.append((0 if ev.severity == "P0" else 1, -_ts(ev.last_updated), ev.event_id, path_in))
+    done = []
+    for _, _, eid, path_in in sorted(todo)[:Limits.ATTACK_PATHS_PER_CYCLE]:
+        if left is not None and left() < Limits.MODEL_CALL_RESERVE_S:
+            log.info(json.dumps({"station": "attack_path", "deferred": len(todo) - len(done), "reason": "time_left"}))
+            break
+        row = attack_path.build(path_in, timeutil.iso(now))
+        _store.put_source_state(attack_path.key(eid), row)
+        done.append(eid)
+        log.info(json.dumps({"station": "attack_path", "event": eid, "status": row["status"], "reason": row.get("reason"),
+                             "dropped_defenses": row.get("dropped_defenses", 0)}))
+    log.info(json.dumps({"station": "attack_path", "backlog": len(todo) - len(done)}))   # coverage is measured, not guessed
+    return done
 
 
 DIGEST_KEY = digest.KEY  # C7: the latest daily digest (single writer: the analyze station)
@@ -408,7 +472,103 @@ def _cluster_judge(now: datetime) -> list[str]:
                              "would_merge": would, "auto_merge": Limits.CLUSTER_AUTO_MERGE}))
     for m in merged:                 # the ledger row leaves with the smaller event: the log keeps the undo
         log.info(json.dumps({"station": "analyze", "cluster_merge": m}, ensure_ascii=False))
+    _judge_truth(store, pairs, evs, now)
     return touched
+
+
+def _ghsa_alias(now: datetime, get: Callable[[str], tuple[int, Any]] | None = None) -> list[str]:
+    """R12: link GitHub advisory ids to CVEs (radar.ghsa_alias) for vulnerability events that name a GHSA and no CVE;
+    a new link gives the event's reports naming that GHSA the CVE key and re-attaches them (pipeline.attach: the two
+    events of one flaw become one). Bounded: ≤ GHSA_ALIAS_PER_RUN lookups, ≤ 1 unreviewed scan per GHSA_ALIAS_SCAN_MIN.
+    No token ⇒ the state says not_configured (never a silent skip). Returns the events whose page changed."""
+    from radar import ghsa_alias, pipeline
+    store = _store
+    if store is None:
+        raise RuntimeError("ghsa alias: no store")
+    st = dict(store.get_source_state(ghsa_alias.KEY) or {})
+    amap, checked = dict(st.get("map") or {}), dict(st.get("checked") or {})
+    nowi = timeutil.iso(now)
+    evs = [e for e in store.events_updated_since(timeutil.iso(now - timedelta(days=30)))
+           if e.domain == "vuln" and not e.cves and any(k.startswith("ghsa:") for k in e.keys)]
+    pending = {k[5:] for e in evs for k in e.keys if k.startswith("ghsa:")} - set(amap)
+    if not pending:
+        return []
+    if get is None:
+        arn = os.environ.get("GHSA_TOKEN_SECRET_ARN")
+        try:
+            token = boto3.client("secretsmanager").get_secret_value(SecretId=arn)["SecretString"].strip() if arn else ""
+        except (ClientError, BotoCoreError) as e:
+            # the published state (#/ops, readable with a radar/read token) carries the error code only: an AccessDenied
+            # message names the account id and the role ARN (security review 2026-11-20). The full text goes to the private log.
+            code = (getattr(e, "response", None) or {}).get("Error", {}).get("Code") or type(e).__name__
+            log.warning(json.dumps({"station": "analyze", "degraded": "ghsa_token_unreadable", "error": str(e)[:300]}))
+            store.put_source_state(ghsa_alias.KEY, {**st, "status": "error", "error": code, "at": nowi})
+            return []
+        if not token.startswith("github_pat_"):     # CDK creates a placeholder; scripts/set-ghsa-token.sh sets the value
+            store.put_source_state(ghsa_alias.KEY, {**st, "status": "not_configured", "pending": len(pending), "at": nowi})
+            return []
+        get = ghsa_alias.github_get(token)
+    due = sorted(g for g in pending if not checked.get(g) or
+                 now - (timeutil.parse(checked[g]) or now) >= timedelta(hours=Limits.GHSA_ALIAS_RECHECK_H))
+    texts = [f"{i.title}\n{i.text}\n" + " ".join(i.links) for e in evs for i in store.get_items(e.item_ids[:40])]
+    repos = ghsa_alias.repo_advisories(texts)
+    found: dict[str, dict[str, Any]] = {}
+    for g in due[:Limits.GHSA_ALIAS_PER_RUN]:
+        r = ghsa_alias.resolve(g, repos, get)
+        checked[g] = nowi
+        if r["cve"]:
+            found[g] = {"cve": r["cve"], "via": r["via"], "at": nowi}
+    last_scan = timeutil.parse(st.get("scan_at") or "")
+    if not last_scan or now - last_scan >= timedelta(minutes=Limits.GHSA_ALIAS_SCAN_MIN):
+        since = timeutil.iso(last_scan - timedelta(minutes=5)) if last_scan else timeutil.iso(now - timedelta(days=2))
+        for g, cve in ghsa_alias.scan_unreviewed(pending - set(found), since, get).items():
+            found[g] = {"cve": cve, "via": "unreviewed_reference", "at": nowi}
+        st["scan_at"] = nowi
+    touched: set[str] = set()
+    res = pipeline.IngestResult()
+    for g, row in found.items():
+        amap[g] = row
+        for e in evs:
+            if f"ghsa:{g}" not in e.keys:
+                continue
+            for it in store.get_items(e.item_ids):
+                if f"ghsa:{g}" in it.keys and f"cve:{row['cve']}" not in it.keys:
+                    it.keys = sorted({*it.keys, f"cve:{row['cve']}"})
+                    store.put_item(it)
+                    pipeline.attach(it, store, nowi, now, res)
+                    touched.add(e.event_id)
+    exp = (getattr(get, "seen", None) or {}).get("token_expires") or st.get("token_expires")
+    store.put_source_state(ghsa_alias.KEY, {**st, "map": amap, "checked": checked, "status": "ok", "at": nowi,
+                                            "pending": len(pending - set(found)), **({"token_expires": exp} if exp else {})})
+    if found:
+        log.info(json.dumps({"station": "analyze", "ghsa_alias": {g: r["cve"] for g, r in found.items()},
+                             "events": sorted(touched)}))
+    return sorted(touched)
+
+
+JUDGE_TRUTH_KEY = "__judge_truth__"   # once a day: the judge's verdicts scored against delayed truth (#/ops)
+
+
+def _judge_truth(store: Any, pairs: dict[str, Any], evs: list[Any], now: datetime) -> None:
+    """Step 2 of measuring the shadow judge without a person (Neo 11-19): once a day, model verdicts ≥ 2 days old are
+    scored against facts read now — shared attack tx / attacker / CVE, contradictions, hack-database records
+    (cluster_judge.delayed_truth). Reads reports only of the judged events (≤ 60 each), once a day."""
+    from radar import cluster_judge
+    day = timeutil.iso(now)[:10]
+    if (store.get_source_state(JUDGE_TRUTH_KEY) or {}).get("day") == day:
+        return
+    by_id = {e.event_id: e for e in evs}
+    ids = {v[k] for v in pairs.values() for k in ("a", "b") if v.get(k) in by_id}
+    db = {sid for sid, s in BY_ID.items() if s.always_eventful}
+    records = {}
+    for eid in ids:
+        recs = {(i.source_id, i.item_id) for i in store.get_items(by_id[eid].item_ids[:60]) if i.source_id in db}
+        if recs:
+            records[eid] = recs
+    rep = cluster_judge.truth_report(pairs, by_id, {e: e for e in ids}, timeutil.iso(now), records=records)
+    store.put_source_state(JUDGE_TRUTH_KEY, {"day": day, "at": timeutil.iso(now),
+                                             **{k: v for k, v in rep.items() if k != "rows"}, "rows": rep["rows"][:50]})
+    log.info(json.dumps({"station": "analyze", "judge_truth": {k: v for k, v in rep.items() if k != "rows"}}))
 
 
 def _retitle_shadow(now: datetime) -> None:
@@ -452,6 +612,20 @@ def _enrich(cves: list[str], now: datetime, left: Any = None) -> tuple[dict[str,
                                       budget)
     _store.put_source_state(publish.ENRICH_KEY, stats)    # before ops.json is built ⇒ this run's health is shown
     return epss, touched
+
+
+def _aws_fix(cves: list[str], now: datetime) -> set[str]:
+    """radar.awsfix for the CVEs of P0 / P1 vulnerability events (publish.build picks them): AWS's own fix status, read from
+    the Amazon Linux Security Center (only that host). Its health joins the enrich stats on #/ops."""
+    from radar import awsfix, fetch
+    if _store is None:      # installed at import when TABLE is set; a publish without a table is a wiring error
+        raise RuntimeError("aws_fix: no store (TABLE is not set)")
+    stats = dict(_store.get_source_state(publish.ENRICH_KEY) or {})
+    touched = awsfix.refresh(_store, cves, now, lambda url: fetch.http_get(url, {"Accept": "text/html"},
+                                                                        allow_hosts=frozenset({awsfix.HOST})).body,
+                             stats=stats)
+    _store.put_source_state(publish.ENRICH_KEY, stats)
+    return touched
 
 
 def _timeout_watchdog(station: str, left: Any, timings: dict[str, Any]) -> Callable[[], None]:
@@ -606,7 +780,8 @@ def publish_site(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     stop = _timeout_watchdog("publish", left, timings)
     t = [time.monotonic()]
     try:
-        docs = publish.build(_store, now, changed, enrich=lambda cves: _enrich(cves, now, left), time_left=left,
+        docs = publish.build(_store, now, changed, enrich=lambda cves: _enrich(cves, now, left),
+                             aws_fix=lambda cves: _aws_fix(cves, now), time_left=left,
                              deferred=deferred, timings=timings)
     finally:
         stop()
@@ -785,7 +960,8 @@ def respond_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
         led.pop("over_budget", None)
     led.pop("spend_cap", None)
     budget = respond.Budget(per_day - len(led["reviews"]), scan_ok, nowi[:10], s3_targets=targets_mod.on("s3"),
-                            routes=dict(targets_mod.CHANNEL), now=nowi)
+                            routes=dict(targets_mod.CHANNEL), now=nowi,
+                            event_reviews=respond.event_reviews_on(dict(os.environ)))
     cn_down = "continuum_unavailable"   # the error every Continuum op records while env is None
     try:
         # GitHub environment failures back off to hourly (a service-side 500 must not be retried every cycle)

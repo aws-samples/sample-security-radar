@@ -31,7 +31,7 @@ step "build Lambda asset and target code bases"
 ./scripts/build-targets.sh
 
 step "cdk deploy (us-east-1 Continuum side, then ap-northeast-1 radar + Security Agent)"
-ctx=(-c "schedule=${SCHEDULE:-on}" -c "commit=$(git rev-parse --short HEAD)")   # every Lambda carries RADAR_COMMIT
+ctx=(-c "schedule=${SCHEDULE:-on}" -c "commit=$(git rev-parse --short HEAD)" -c nag=on)   # every Lambda carries RADAR_COMMIT; cdk-nag as in CI
 [ -n "$STAGE" ] && ctx+=(-c "stage=$STAGE")
 [ -n "${REVIEW_BUDGET:-}" ] && ctx+=(-c "review_budget=$REVIEW_BUDGET")   # paid Security Agent reviews per day
 (cd infra && JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1 npx -y aws-cdk@2.1146.1 deploy \

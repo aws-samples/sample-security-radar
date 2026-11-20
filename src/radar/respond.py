@@ -154,6 +154,9 @@ class Budget:
     routes: dict[str, str] | None = None  # targets.CHANNEL as configured: tells "sent nowhere" from "channel not wired"
     now: str = ""                         # ISO time of this cycle (decision rows' `at`); "" => today
     scanned: set[str] = field(default_factory=set)  # channels this cycle already scanned (B_SCAN_THIS_CYCLE)
+    # the radar starts a Security Agent review per event (gate R_CONTINUUM_FIXES). The station sets it from
+    # event_reviews_on() — off in production; True here keeps the review machinery's own tests on their path
+    event_reviews: bool = True
 
     def channel(self, target_id: str) -> str | None:
         """The ONE Continuum environment that validates this target (s3 | github | gitlab), None = not sent.
@@ -283,6 +286,19 @@ def requirement(ev: dict[str, Any], elig: dict[str, Any]) -> dict[str, str]:
                        f"images, CI images, runtime config, lock files). {rule} Affected: {cves}.")[:2000],
         "remediation": f"{fix} Rebuild and redeploy."[:2000],
     }
+
+
+# Continuum fixes, Security Agent keeps the rules (Neo 2026-11-20): both services opened a PR/MR for the same flaw and
+# the customer had to pick one; and a review only runs where the radar already located the product, so its rule hits
+# added no file the radar had not found (live 11-20: 41 hits, 0 in a file the radar missed). The radar no longer starts
+# a review per event (decisions gate R_CONTINUUM_FIXES; SA_EVENT_REVIEWS=1 turns it back on); the rule still goes to
+# the requirement pack, where the customer's own reviews use it. A review that does run never fixes on its own.
+SA_REMEDIATION = "DISABLED"
+
+
+def event_reviews_on(env: dict[str, str]) -> bool:
+    """Per-event Security Agent reviews: only when the operator sets SA_EVENT_REVIEWS=1 (default off, 2026-11-20)."""
+    return env.get("SA_EVENT_REVIEWS") == "1"
 
 
 def locations(target: Target, elig: dict[str, Any]) -> list[dict[str, Any]]:
@@ -487,7 +503,7 @@ def decide(ev: dict[str, Any], items: list[dict[str, Any]], analysis: dict[str, 
         # paid review: P0, or exploited in the wild — and only where the target actually uses the product. The daily
         # budget is spent across events by the station (plan_reviews): a request it cannot fund is re-decided there
         # as B_REVIEWS_DAY (block_review)
-        if fires("sa_review", {"relevant": ts["relevant"],
+        if fires("sa_review", {"event_reviews": budget.event_reviews, "relevant": ts["relevant"],
                                "review_severity": ev["severity"] == "P0" or ev["exploitation"] == "confirmed",
                                "escalated": escalated(review.get("trigger"), ev),
                                "review_idle": review.get("status") not in ("SUBMITTED", "RUNNING", "IN_PROGRESS"),

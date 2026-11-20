@@ -1,0 +1,141 @@
+/* The app shell (components/Layout.tsx). Classes, not inline styles: media queries cannot override an inline style.
+   R9.1 — ≥ 800 px the sidebar is either expanded (--sidebar-w) or an icon rail (--rail-w); the choice is remembered
+   (localStorage sr-nav), and with none it is expanded from 1100 px and a rail below (iPad). Every page — the wall
+   included — lives inside the shell, so no page needs a back button.
+   R9.2 — < 800 px the sidebar is a top bar whose links open as a menu; the page comes first (pushed links are mostly
+   opened on a phone). */
+:root { --rail-w: 60px; --topbar-h: 52px; }
+.app-shell { display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
+.app-nav {
+  width: var(--sidebar-w); flex-shrink: 0; background: var(--bg-surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; box-shadow: var(--shadow-sm); z-index: 20;
+  transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.app-nav-brand { padding: 16px 16px 14px; border-bottom: 1px solid var(--border); }
+.app-nav-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.app-nav-word { font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
+.app-nav-word.is-accent { color: var(--text-accent); }
+.app-nav-live { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+.app-nav-links { padding: 8px 0; flex: 1; display: flex; flex-direction: column; }
+.app-nav-link {
+  display: flex; align-items: center; gap: 12px; padding: 9px 18px; min-height: 40px;
+  font-family: var(--font-body); font-size: 13px; color: var(--text-secondary); text-decoration: none;
+  border-left: 3px solid transparent; white-space: nowrap;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.app-nav-link:hover { background: var(--bg-surface-2); color: var(--text-primary); }
+.app-nav-link.active { font-weight: 600; color: var(--text-primary); background: var(--bg-surface-2); border-left-color: var(--text-accent); }
+.app-nav-link:focus-visible, .app-nav-btn:focus-visible { outline: 2px solid var(--text-accent); outline-offset: -2px; }
+.app-nav-foot { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.app-nav-foot > .app-nav-status { flex: 1; min-width: 0; }
+.app-nav-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; min-width: 30px; padding: 0 9px;
+  background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-secondary);
+  font-size: 12px; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.app-nav-btn:hover { background: var(--bg-surface-3); color: var(--text-primary); }
+.app-nav-toggle { display: none; }
+.app-main { flex: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-base); min-width: 0; position: relative; }
+.page-loading { padding: 24px; color: var(--text-muted); font-size: 13px; }
+
+/* ── rail (≥ 800 px, collapsed) ─────────────────────────────────────────────────────────────────── */
+@media (min-width: 800px) {
+  .app-shell.is-rail .app-nav { width: var(--rail-w); }
+  .app-shell.is-rail .app-nav-brand { padding: 14px 0 12px; display: flex; flex-direction: column; align-items: center; }
+  .app-shell.is-rail .app-nav-logo { margin-bottom: 8px; }
+  .app-shell.is-rail .app-nav-logo > div, .app-shell.is-rail .app-nav-live > span:last-child,
+  .app-shell.is-rail .app-nav-label, .app-shell.is-rail .app-nav-btn-text { display: none; }
+  /* the freshness dot stays (its words do not fit): SiteStatus's text collapses to its coloured dot */
+  .app-shell.is-rail .app-nav-status { display: flex; justify-content: center; font-size: 0; }
+  .app-shell.is-rail .app-nav-status [data-testid=site-status] { font-size: 0 !important; gap: 0 !important; }  /* over its inline 11px */
+  .app-shell.is-rail .app-nav-status [data-testid=reload-offer] { display: none; }
+  .app-shell.is-rail .app-nav-link { justify-content: center; padding: 9px 0; gap: 0; }
+  .app-shell.is-rail .app-nav-foot { flex-direction: column; padding: 10px 0; }
+}
+
+/* ── phone (< 800 px): top bar + menu ───────────────────────────────────────────────────────────── */
+@media (max-width: 799px) {
+  .app-shell { flex-direction: column; }
+  .app-nav { width: auto; overflow: visible; border-right: 0; border-bottom: 1px solid var(--border); transition: none; }
+  .app-nav-brand { display: flex; align-items: center; gap: 10px; padding: 0 12px; height: var(--topbar-h); border-bottom: 0; }
+  .app-nav-logo { margin-bottom: 0; }
+  .app-nav-live { margin-left: auto; }
+  .app-nav-toggle { display: inline-flex; width: 40px; height: 40px; }
+  .app-nav-collapse { display: none; }
+  .app-nav-links, .app-nav-foot { display: none; }
+  /* open: a full-screen sheet — the top bar stays, the links fill the screen, status + theme at the bottom */
+  .app-nav.is-open { position: fixed; inset: 0; z-index: 40; overflow-y: auto; display: flex; flex-direction: column; }
+  .app-nav.is-open .app-nav-links { display: flex; flex: 1; padding: 6px 0; }
+  .app-nav.is-open .app-nav-foot { display: flex; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .app-nav-link { min-height: 44px; font-size: 15px; }
+}
+
+/* ── the wall (pages/WallPage.tsx) by the width of the main area, not the window (R9.2) ──────────────────────
+   Its own styles are inline (a fixed 340 | 1fr | 340 grid for a TV); these container rules win with !important.
+   Under 1280 px: the stage on its own row, the feed and NOW side by side below, the page scrolls.
+   Under 760 px: one column — KPIs + stage, NOW, losses, feed; the block band and ticker stack. */
+.app-main { container-type: inline-size; container-name: main; }
+@container main (max-width: 1279px) {
+  .wall-root { height: auto !important; min-height: 100%; overflow-y: auto !important; }
+  .wall-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; overflow: visible !important; flex: none !important; }
+  .wall-center { grid-column: 1 / -1; order: -1; height: min(78vw, 720px); }
+  .wall-left, .wall-right { max-height: 640px; }
+}
+@container main (max-width: 759px) {
+  .wall-kpis { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px 12px !important; }
+  .wall-kpis .tabular { font-size: 34px !important; }
+  .wall-bar { height: auto !important; flex-wrap: wrap; padding: 6px 10px !important; row-gap: 6px; }
+  .wall-grid { grid-template-columns: minmax(0, 1fr) !important; padding: 8px !important; }
+  .wall-center { height: min(118vw, 640px); }
+  .wall-right { order: -1; max-height: none; overflow: visible !important; }
+  .wall-center { order: -2; }
+  .wall-left { max-height: 520px; }
+  .wall-foot { flex-direction: column; height: auto !important; }
+  .wall-foot > div { min-height: 160px; border-right: 0 !important; border-bottom: 1px solid var(--line); }
+}
+
+/* ── page bodies under 800 px (R9.2) ──────────────────────────────────────────────────────────────────── */
+/* announcements: kind · exchange · time on one line, the title on its own below */
+.ann-row { display: grid; grid-template-columns: 72px 130px minmax(0, 1fr) 90px; gap: 10px; align-items: baseline;
+  padding: 7px 0; border-bottom: 1px solid var(--border-subtle, var(--border)); }
+@container main (max-width: 639px) {
+  .ann-row { grid-template-columns: 64px minmax(0, 1fr) auto; row-gap: 2px; }
+  .ann-row > a { grid-column: 1 / -1; grid-row: 2; }
+}
+/* a table wider than the screen scrolls inside its own box instead of being clipped by the page */
+@container main (max-width: 799px) {
+  .app-main table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+/* event page tabs: the English subtitle goes on a phone (it broke 「事件跟踪」 over two lines) */
+@container main (max-width: 639px) {
+  .dt-tab .dt-en { display: none; }
+}
+
+/* ── the wall stage key (components/wall/StageKey.tsx, R9.4) ─────────────────────────────────────────── */
+.stage-key {
+  position: absolute; left: 14px; bottom: 34px; z-index: 6; max-width: min(280px, calc(100% - 28px));
+  background: color-mix(in srgb, var(--bg-1) 88%, transparent); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / .16); backdrop-filter: blur(6px); font-size: 11.5px; color: var(--text-2);
+}
+.stage-key-head {
+  display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 12px; padding: 7px 10px;
+  background: none; border: 0; color: var(--text-1); font-weight: 600; font-size: 12px; cursor: pointer; text-align: left;
+}
+.stage-key-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+.stage-key-rows { margin: 0; padding: 0 10px 9px; display: grid; gap: 6px; }
+.stage-key-row { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: start; font-size: 11px; }
+.stage-key-row dt { display: flex; align-items: center; gap: 6px; color: var(--text-1); font-weight: 600; }
+.stage-key-row dd { margin: 0; line-height: 1.45; }
+/* the always-visible legend strip, under the stage in the page flow — it never covers a dot (StageLegend.tsx) */
+.stage-legend {
+  flex-shrink: 0; align-self: center; max-width: 100%; margin: 6px 0 0;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; padding: 5px 12px; list-style: none;
+  border-top: 1px solid var(--line); font-size: 11px; color: var(--text-2); white-space: nowrap;
+}
+.stage-legend li { display: inline-flex; align-items: center; gap: 5px; }
+.stage-legend b { color: var(--text-1); font-weight: 600; }
+@container main (max-width: 759px) { .stage-legend { white-space: normal; } }
+
+/* 3D: how to turn the scene (WallScene3D) */
+.stage-hint { position: absolute; right: 14px; bottom: 34px; z-index: 6; pointer-events: none; font-size: 11px;
+  color: var(--text-3); background: color-mix(in srgb, var(--bg-1) 80%, transparent); padding: 3px 8px; border-radius: 6px; }

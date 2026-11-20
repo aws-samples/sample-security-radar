@@ -115,6 +115,11 @@ ACTIONS: tuple[Action, ...] = (
            "环境扫描已发起"),
     Action("sa_review", "Security Agent 代码评审（付费）", "security_agent", "target", True, "respond",
            ("start_review",), RESPOND_PRE, (
+               # 2026-11-20: Continuum validates and patches the radar's located lines — one patch per flaw; the rule stays
+               # in the requirement pack for the customer's own reviews (respond.SA_REMEDIATION has the evidence)
+               Gate("R_CONTINUUM_FIXES", "event_reviews", "not_fire",
+                    "补丁由 Continuum 验证雷达定位的行后给出；规则已写入 requirement pack，供你自己的代码评审使用",
+                    "运维打开了按事件评审（SA_EVENT_REVIEWS=1）"),
                Gate("T_NOT_RELEVANT", "relevant", "not_fire", "目标未使用 {subject}，不评审",
                     "目标确实用到该产品（任一版本钉）/ 是合约代码"),
                Gate("R_SEVERITY", "review_severity", "not_fire", "P1 且未在野利用：只定位、不评审", "P0，或在野利用"),

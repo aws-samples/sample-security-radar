@@ -6,7 +6,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/lib.sh
 fails=0
-check() { if eval "$2" >/dev/null 2>&1; then echo "PASS  $1"; else echo "FAIL  $1"; fails=$((fails + 1)); fi; }
+# a FAIL says why: the last lines of the check's own output (live 11-19: the rule-pack quote check failed once after a
+# deploy and passed on the re-run — with the output thrown away, which quote failed could not be told)
+check() {
+  local out
+  if out=$(eval "$2" 2>&1); then echo "PASS  $1"
+  else echo "FAIL  $1"; printf '%s\n' "$out" | tail -n 6 | sed 's/^/      /'; fails=$((fails + 1)); fi
+}
 
 sm=$(out StateMachineArn); site=$(out SiteUrl); bucket=$(out SiteBucketName)
 if [ "${1:-}" = "--run" ]; then

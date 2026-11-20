@@ -94,3 +94,11 @@ describe('RulePackPanel', () => {
     expect(h).toContain(`data-rendering="${pack.renderings![0].id}"`);
   });
 });
+
+describe('an empty pack says why WAF cannot help (Neo 2026-11-19: 「能用 WAF 解决的，先用 WAF 挡一下」)', () => {
+  it('shows the reason when there is nothing to deploy, and nothing when there is', () => {
+    const empty = { ...pack, managed: [], custom: [], templates: [], no_rule: '弱点类型 CWE-116 没有对应的 AWS 托管规则' } as RulePack;
+    expect(html(empty)).toMatch(/data-testid="rp-no-rule"[^>]*><b>WAF 挡不了这个漏洞：<\/b>弱点类型 CWE-116/);
+    expect(html({ ...pack, no_rule: null } as RulePack)).not.toMatch(/rp-no-rule/);
+  });
+});

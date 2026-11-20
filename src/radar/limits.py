@@ -11,6 +11,12 @@ class Limits:
     # is not made: llm.converse returns status error / daily_cap and #/ops daily_cap_reached says so.
     BEDROCK_CALLS_PER_DAY_FAST = 2_500
     BEDROCK_CALLS_PER_DAY_BRIEF = 800
+    ATTACK_PATHS_PER_CYCLE = 2       # R9.5: Sonnet calls per analyze run for attack paths (~30 s each)
+    MODEL_CALL_RESERVE_S = 120       # analyze starts no model call with less left (live 11-19: avg run 448 s of 600, max 600 = timed out)
+    BRIEF_FACT_STAMPS_PER_RUN = 300  # legacy briefs given their facts per analyze run (no model call; 817 on 11-19)
+    GHSA_ALIAS_PER_RUN = 5           # R12: GitHub advisory lookups per analyze run (token: 5,000 / h)
+    GHSA_ALIAS_RECHECK_H = 1         # a GHSA with no CVE yet is asked again after this long
+    GHSA_ALIAS_SCAN_MIN = 15         # the unreviewed-advisory scan (one call) at most this often
     RAW_MARKER_TTL_DAYS = 14        # RAW#…/DONE markers expire (R5.3): Process lists only today's and yesterday's batches
     SPEND_TTL_DAYS = 90             # SPEND#<day> counters expire (R5.3)
     ROW_WARN_BYTES = 250_000        # any table row above this is noted ⇒ #/ops row_near_limit (DynamoDB max 400 KB)
@@ -56,7 +62,9 @@ class Limits:
 
     # --- severity ---
     P0_FRESH_HOURS = 72             # P0 = "act now": first seen or escalated within this window, else P1
+    ITEM_TEXT_MAX = 4000            # an item keeps this many characters of its text (pipeline.normalize)
     WEB3_P0_USD = 1_000_000
+    P0_PATH_A_REPORTERS = 2         # path A: a critical flaw is P0 once this many independent reporting sources say it
     WEB3_P1_USD = 100_000
     CVSS_CRITICAL = 9.0
 
@@ -135,7 +143,12 @@ class Limits:
     ANOMALY_SHOW_HOURS = 48         # how long a row stays on #/ops
     ANOMALY_MAX = 200               # ledger rows (~300 B each)
     GENERIC_NAME_EVENTS = 3         # a name key held by this many events names none of them (pipeline.find_events)
+    ADVISORY_MAX_CVES = 12          # an advisory source's entry lists ≤ this many CVEs to key them all (registry.ONE_ADVISORY_SOURCES)
+    DOMINANT_MIN_MENTIONS = 3       # a report naming > 3 CVEs still keys the one it is about: ≥ this many mentions …
+    DOMINANT_RATIO = 2              # … and ≥ this many times the next CVE's (keys.dominant)
     MERGE_MAX_CVE_YEARS = 2         # two events whose CVEs are this many years apart are never proved one by a report naming both
+    MERGE_BRIDGE_MAX_CVES = 3      # more CVEs than this make an item a list: it attaches but lends none and merges none
+                                  # a bug chain names 2–3; a re-shipping advisory lists dozens (live 11-18: Siemens, 23 PAN-OS CVEs)
     MERGE_MAX_LINKS = 8             # an item citing more pages than this is a newsletter: it attaches, merges nothing
     MERGE_MAX_EVENTS_PER_ITEM = 3   # an item proving more events "the same story" is a digest (it links to all of them)
     SURGE_HOURS = 6                  # R2.3: a P0 updated within this many hours puts the radar in surge …
@@ -159,6 +172,11 @@ class Limits:
     AMOUNT_REFINE_RATIO = 0.05      # a body figure within 5% of the headline's loss refines it (signals.loss_amount)
     NOTIFY_HEADLINE_MIN_CHARS = 4   # a P0 notice's cleaned headline (notify.gate G4)
     NOTIFY_P0_MAX_CHARS = 900       # … and the whole plain-text notice
+    AWS_FIX_CALLS_PER_RUN = 12      # Amazon Linux Security Center pages read per publish (P0 / P1 vulnerability CVEs only)
+    AWS_FIX_BUDGET_S = 20           # … within this many seconds
+    AWS_FIX_RECHECK_HOURS = 2       # an open page (absent, no table, pending) is re-read this often …
+    AWS_FIX_FOLLOW_DAYS = 3         # … for this many days after its first read (Neo 2026-11-18: 「跟踪 3 天」)
+    NOTIFY_EDIT_DAYS = 7            # a sent P0 notice is kept current (edited in place) this many days after the send
     NOTIFY_P0_DEDUP_HOURS = 72      # the same CVE / victim again within this window is not a new P0 (gate G3)
     NOTIFY_P0_LEDGER_MAX = 200      # sent P0s remembered per subscription for G3 (a row, bounded)
     SELF_SUBSCRIPTIONS_PER_CLIENT = 3   # self-service webhooks one token client may hold (radar.subscribe_api)
@@ -189,6 +207,7 @@ class Limits:
     WAF_BODY_INSPECT_BYTES = 8_192   # AWS WAF body inspection limit (ALB / AppSync; CloudFront default 16 KB) — the matcher uses the smaller
     WAF_SEARCH_STRING_MAX = 200      # ByteMatchStatement.SearchString max length (API reference)
     RULEPACK_MIN_TOKEN = 3           # a verbatim match string shorter than this is never a rule ("/", "a", "..")
+    RULEPACK_MIN_PATH = 8           # an endpoint path shorter than this is too generic to be a rule (/xmlrpc.php is 11)
     RULEPACK_MAX_RULES = 20          # custom + template rules per pack (the rest listed as rejected, reason given)
     RULEPACK_MAX_WCU = 500           # a pack above this would take a third of a default web ACL's 1,500 WCU ⇒ capacity over_budget
     RULEPACK_CAPACITY_CHECKS_PER_RUN = 20   # CheckCapacity calls per run (free, read-only); a pack is re-checked only when it changes

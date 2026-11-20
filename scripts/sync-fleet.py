@@ -98,7 +98,7 @@ def gitlab(token: str, method: str, path: str, body: dict | None = None) -> tupl
     req = urllib.request.Request(GITLAB_API + path, method=method, data=json.dumps(body).encode() if body else None,
                                  headers={"PRIVATE-TOKEN": token, "Content-Type": "application/json"})
     try:
-        with fetch.urlopen(req, timeout=30) as r:
+        with fetch.urlopen(req, timeout=30, allow_hosts=frozenset()) as r:   # PRIVATE-TOKEN: never follow a redirect
             return r.status, json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as e:
         return e.code, json.loads(e.read() or b"{}")

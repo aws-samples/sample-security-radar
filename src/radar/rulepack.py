@@ -111,7 +111,14 @@ def verify_quote(q: dict[str, Any], text: str) -> bool:
     span = q.get("span") or []
     if len(span) != 2:
         return False
-    return text[span[0]:span[1]] == q["token"] and (q.get("sentence") or "\0") in text
+    sentence = q.get("sentence") or "\0"
+    if text[span[0]:span[1]] == q["token"] and sentence in text:
+        return True
+    # a pack built before the age stamp was stripped quotes "| 42 minutes ago"; the stored text now reads another age
+    sentence, text = timeutil.strip_relative_age(sentence), timeutil.strip_relative_age(text)
+    # a source that revises its entry moves the quote (live 2026-11-19: cvefeed, CVE-2026-132560 — the token 7 chars
+    # further on, the deploy check went red): still verbatim when the quoted sentence is in the text and holds the token
+    return q["token"] in sentence and sentence in text
 
 
 def _walk(stmt: dict[str, Any]):
@@ -446,8 +453,57 @@ def _evidence_header(sentences: list[Sentence]) -> list[Candidate]:
     return out
 
 
+# an endpoint the vendor names — the vulnerable one, or the one its workaround says to remove / block / disable
+# (Neo 2026-11-18: 「WAF 规则我们需要自己写出来」; live 11-17: Apache Roller's CVE record says to remove the
+# "/roller-services/xmlrpc" servlet mapping — the radar built no rule for it). The path must be in the sentence verbatim.
+_EV_PATH = re.compile(r"(?<![\w/.:%-])(/[A-Za-z0-9_~-][A-Za-z0-9_.~-]*(?:/[A-Za-z0-9_.~-]+){0,6})(?![\w/])")
+_EV_PATH_CONTEXT = re.compile(
+    r"(?i)\b(?:endpoints?|servlet|mappings?|routes?|handlers?|paths?|URIs?|URLs?|interfaces?|APIs?|remove|block|"
+    r"restrict|disable|deny|filter)\b|拦截|禁用|删除|移除|接口|端点|路径")
+# never a rule: a filesystem path (an advisory's payload or install location), or a path so generic it is half a site
+_EV_PATH_FS = ("/etc/", "/tmp/", "/var/", "/usr/", "/proc/", "/home/", "/bin/",  # noqa: S108 — paths refused, not used
+               "/dev/", "/opt/", "/root/", "/sys/")
+_EV_PATH_GENERIC = frozenset({"/api", "/admin", "/login", "/index.php", "/wp-admin", "/rest", "/graphql", "/v1", "/v2",
+                              "/api/v1", "/api/v2", "/static", "/assets", "/console", "/manager/html", "/home"})
+
+
+def _endpoint_ok(path: str) -> bool:
+    low = path.lower().rstrip("/")
+    if low in _EV_PATH_GENERIC or low.startswith(_EV_PATH_FS) or len(low) < Limits.RULEPACK_MIN_PATH:
+        return False
+    segs = [x for x in low.split("/") if x]
+    return len(segs) >= 2 or "." in segs[-1]        # /roller-services/xmlrpc, /xmlrpc.php — not /blog
+
+
+def _evidence_endpoint(sentences: list[Sentence]) -> list[Candidate]:
+    out, seen = [], set()
+    for se in sentences:
+        if not _EV_PATH_CONTEXT.search(se.text):
+            continue
+        for m in _EV_PATH.finditer(se.text):
+            path = m.group(1)
+            if not _endpoint_ok(path) or path.lower() in seen:
+                continue
+            seen.add(path.lower())
+            low = path.lower().rstrip("/")
+            enc = "/" + "".join(f"%{ord(ch):02X}" if i == 0 else ch for i, ch in enumerate(low.lstrip("/")))
+            # CONTAINS on the decoded, normalised, lower-cased path: a context root (/roller/roller-services/xmlrpc),
+            # a doubled slash, %-encoding or upper case does not slip past it; the query string is not the path
+            out.append(Candidate(
+                "byte", byte({"UriPath": {}}, low, "CONTAINS", "URL_DECODE", "NORMALIZE_PATH", "LOWERCASE"),
+                (se.quote(m),),
+                (Request("POST", low), Request("GET", low.upper()), Request("POST", "/app" + low),
+                 Request("POST", "/" + low), Request("POST", enc)),
+                (Request("GET", "/"), Request("GET", "/search?q=" + low), Request("GET", low.rsplit("/", 1)[0] + "/other")),
+                "heuristic",
+                f"厂商原文点名了 {path}：拦截后该接口的全部请求都会被挡，包括正常使用（与厂商建议的关闭该接口等效）。"
+                "先 Count 观察，确认业务不用这个接口再改 Block；正式修复仍是升级。"))
+    return out
+
+
 EVIDENCE_EXTRACTORS: tuple[tuple[str, Callable[[list[Sentence]], list[Candidate]]], ...] = (
     ("evidence_header", _evidence_header),
+    ("evidence_endpoint", _evidence_endpoint),
 )
 
 
@@ -558,6 +614,7 @@ class RulePack:
     templates: tuple[PackRule, ...]
     rejected: tuple[dict[str, Any], ...]
     poc: tuple[dict[str, Any], ...]
+    no_rule: str | None = None     # why there is nothing to deploy at the edge (said, never an empty pack in silence)
 
     @property
     def empty(self) -> bool:
@@ -570,7 +627,8 @@ class RulePack:
                              "templates": [r.as_dict() for r in self.templates], "rejected": list(self.rejected),
                              "poc": list(self.poc), "license": pocs.LICENSE if any(
                                  q.repo for r in self.custom for q in r.source_quotes) else None,
-                             "capacity": {"state": "unchecked", "wcu": None, "detail": "尚未调用 CheckCapacity"}}
+                             "capacity": {"state": "unchecked", "wcu": None, "detail": "尚未调用 CheckCapacity"},
+                             "no_rule": self.no_rule}
         d["hash"] = pack_hash(d)
         return d
 
@@ -666,8 +724,20 @@ def build(event: dict[str, Any], items: list[Any], poc: dict[str, dict[str, Any]
     for r in over:
         rejected.append(_reject(r.cve, "pack", r.extractor, "over_rule_cap", f"{r.rule_id}: 规则包上限 {keep} 条"))
     custom, templates = custom[:keep], templates[:max(0, keep - len(custom))]
-    return RulePack(eid, tuple(managed(event, catalog, cwes, labels)), tuple(custom), tuple(templates), tuple(rejected),
-                    tuple(poc_rows))
+    plans = tuple(managed(event, catalog, cwes, labels))
+    return RulePack(eid, plans, tuple(custom), tuple(templates), tuple(rejected), tuple(poc_rows),
+                    None if (plans or custom or templates) else no_rule_reason(event, cwes))
+
+
+def no_rule_reason(event: dict[str, Any], cwes: dict[str, list[str]]) -> str:
+    """Why a vulnerability gets no edge rule — in words the reader can check (Neo 2026-11-19: 「能用 WAF 解决的，先用 WAF
+    挡一下」; an empty pack said nothing). The weakness, when known, is named; a rule nobody can derive is not invented."""
+    known = sorted({w for ws in cwes.values() for w in ws})
+    if known:
+        return (f"弱点类型 {'、'.join(known)} 没有对应的 AWS 托管规则，公告也没有给出攻击请求的特征（端点、参数、请求头）："
+                "边缘规则会误拦正常流量或拦不住，只能打补丁或在主机上缓解")
+    return ("公告没有给出攻击请求的特征（端点、参数、请求头），也没有弱点类型（CWE）：写不出既拦得住、又不误拦正常流量的"
+            "边缘规则，只能打补丁或在主机上缓解")
 
 
 def check_quotes(pack: dict[str, Any], get_text: Callable[[str], str],

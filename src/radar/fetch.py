@@ -83,17 +83,30 @@ class _GuardedRedirect(urllib.request.HTTPRedirectHandler):
 _INTERNAL_SUFFIXES = (".localhost", ".internal", ".local", ".localdomain")
 
 
-def _internal_host(host: str) -> bool:
+# NAT64 (RFC 6052): Python counts 64:ff9b::/96 as global, yet on a NAT64 network 64:ff9b::a9fe:a9fe IS
+# 169.254.169.254 (security review, 2026-11). Treated as internal, like the ranges ipaddress already knows.
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
+def has_control(s: str) -> bool:
+    """A space, CR / LF or any other control character: http.client refuses such a URL only at send time (InvalidURL),
+    so every place that accepts a target checks it first (security review, 2026-11)."""
+    return any(ord(c) <= 0x20 or 0x7F <= ord(c) <= 0x9F for c in s)
+
+
+def _internal_host(host: str, *, unresolvable_is_internal: bool = False) -> bool:
     """A host a redirect must never reach from a collector: loopback (the Lambda runtime API is 127.0.0.1:9001),
-    link-local (169.254.169.254 metadata), private / reserved ranges, and the names that mean "this network". A name
-    is resolved too, so `x.nip.io`-style names that map to 10.0.0.1 are caught; the open that follows resolves again
-    (a rebinding race remains — the allowlist path is the strict one, for URLs taken from feed content)."""
+    link-local (169.254.169.254 metadata), private / reserved ranges, NAT64, and the names that mean "this network".
+    A name is resolved too, so `x.nip.io`-style names that map to 10.0.0.1 are caught; the open that follows resolves
+    again (a rebinding race remains — the allowlist path is the strict one, for URLs taken from feed content).
+    `unresolvable_is_internal`: the webhook path fails closed on a DNS error — a check that could not run is not a pass
+    (degradation §1); the collector keeps False because its open fails with the real DNS error anyway."""
     h = host.strip("[]").lower().rstrip(".")
     if not h or h == "localhost" or h.endswith(_INTERNAL_SUFFIXES):
         return True
     def bad(a: str) -> bool:
         ip = ipaddress.ip_address(a.split("%")[0])
-        return not ip.is_global or ip.is_multicast
+        return not ip.is_global or ip.is_multicast or (ip.version == 6 and ip in _NAT64)
     try:
         return bad(h)
     except ValueError:
@@ -101,7 +114,7 @@ def _internal_host(host: str) -> bool:
     try:
         return any(bad(r[4][0]) for r in socket.getaddrinfo(h, None))
     except (socket.gaierror, UnicodeError):
-        return False                        # unresolvable: the open itself fails with the real DNS error
+        return unresolvable_is_internal
 
 
 class _SafeRedirect(urllib.request.HTTPRedirectHandler):
@@ -354,10 +367,19 @@ def twitterapi_search(handles: tuple[str, ...], cadence_min: int, max_pages: int
     return json.dumps({"tweets": tweets, **({"truncated": True} if truncated else {})})
 
 
+def _x_hosts(url: str) -> frozenset[str]:
+    """The host of the operator's own X_SEARCH_URL, https only: the keyed request never goes anywhere else."""
+    p = urllib.parse.urlsplit(url)
+    if p.scheme != "https" or not p.hostname:
+        raise FetchError("bad_endpoint", "X_SEARCH_URL must be an https URL", url=url)
+    return frozenset({p.hostname})
+
+
 def _twitterapi_get(url: str, key: str) -> str:
     for attempt in range(Limits.TWITTERAPI_RETRIES + 1):
         try:
-            return http_get(url, {"x-api-key": key}).body
+            # the key goes to the X data source host only: a redirect is followed nowhere else (security review, 2026-11)
+            return http_get(url, {"x-api-key": key}, allow_hosts=_x_hosts(url)).body
         except FetchError as e:
             if e.status != 429 or attempt == Limits.TWITTERAPI_RETRIES:
                 raise

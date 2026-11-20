@@ -7,7 +7,6 @@ import { useMemo } from 'react';
 import type { ImpactSummary, Severity } from '@/types/site-data';
 import { layoutLeaderLabels } from '@/utils/labelLayout';
 import type { LabelAnchor } from '@/utils/labelLayout';
-import { ImpactChip } from '@/components/ImpactChip';
 import '@/styles/wall.css';
 
 export interface LeaderLabelItem {
@@ -20,8 +19,9 @@ export interface LeaderLabelItem {
 }
 
 /** Fixed box so the layout and the render agree; 2 lines at ≥11 px (the old 8.5 px was unreadable at 1080p). */
-export const LABEL_BOX = { w: 236, h: 46 } as const;
-const TITLE_MAX = 28;
+// R9.4 calm (2026-11-19): a rank badge, not a title card — the titles are in the NOW column beside the stage, and
+// 236 × 46 cards covered the centre sphere and the dots the reader pointed at. The title is the badge's hover text.
+export const LABEL_BOX = { w: 78, h: 24 } as const;
 
 interface Props {
   items: LeaderLabelItem[];
@@ -30,9 +30,13 @@ interface Props {
   width: number;
   height: number;
   onSelect: (eventId: string) => void;
+  /** The dot the reader is looking at (hovered / opened): the other labels dim so they never cover its tip. */
+  focusId?: string | null;
+  /** 2D: keep the badges outside the scope's circle (labelLayout Viewport.outside). */
+  outside?: { cx: number; cy: number; r: number };
 }
 
-export function LeaderLabels({ items, anchors, width, height, onSelect }: Props) {
+export function LeaderLabels({ items, anchors, width, height, onSelect, focusId = null, outside }: Props) {
   const placements = useMemo(() => {
     const input: LabelAnchor[] = items.map(it => {
       const a = anchors[it.id];
@@ -40,19 +44,19 @@ export function LeaderLabels({ items, anchors, width, height, onSelect }: Props)
         ? { id: it.id, x: a.x, y: a.y, visible: a.visible }
         : { id: it.id, x: 0, y: 0, visible: false };
     });
-    return layoutLeaderLabels(input, LABEL_BOX, { w: width, h: height });
-  }, [items, anchors, width, height]);
+    return layoutLeaderLabels(input, LABEL_BOX, { w: width, h: height, outside });
+  }, [items, anchors, width, height, outside]);
 
   if (placements.length === 0) return null;
   const byId = new Map(items.map(it => [it.id, it]));
 
   return (
-    <div className="ll-layer" data-testid="now-labels">
+    <div className={`ll-layer${focusId ? ' has-focus' : ''}`} data-testid="now-labels">
       <svg className="ll-lines" width={width} height={height} aria-hidden="true">
         {placements.filter(p => p.mode !== 'offscreen').map(p => {
           const sev = byId.get(p.id)?.severity ?? 'P2';
           return (
-            <g key={p.id} className={`ll-line sev-${sev}`}>
+            <g key={p.id} className={`ll-line sev-${sev}${p.id === focusId ? ' is-focus' : ''}`}>
               <line x1={p.ax} y1={p.ay} x2={p.lx} y2={p.ly} />
               <circle cx={p.ax} cy={p.ay} r={4} />
             </g>
@@ -61,12 +65,11 @@ export function LeaderLabels({ items, anchors, width, height, onSelect }: Props)
       </svg>
       {placements.map(p => {
         const it = byId.get(p.id)!;
-        const short = it.title.length > TITLE_MAX ? `${it.title.slice(0, TITLE_MAX)}…` : it.title;
         return (
           <button
             key={p.id}
             type="button"
-            className={`ll-label sev-${it.severity} mode-${p.mode}`}
+            className={`ll-label sev-${it.severity} mode-${p.mode}${p.id === focusId ? ' is-focus' : ''}`}
             style={{ left: p.x, top: p.y, width: p.w, height: p.h }}
             data-anchor-x={Math.round(p.ax)}
             data-anchor-y={Math.round(p.ay)}
@@ -74,14 +77,13 @@ export function LeaderLabels({ items, anchors, width, height, onSelect }: Props)
             data-mode={p.mode}
             aria-label={`必须处理第 ${it.rank} 件：${it.title}${p.mode === 'offscreen' ? '（不在雷达范围，超过 7 天）' : ''} · 打开判定抽屉`}
             onClick={() => onSelect(it.id)}
+            title={it.title}
           >
             <span className="ll-meta" aria-hidden="true">
-              <b>#{it.rank}</b> · {it.severity}
-              {p.mode === 'offscreen'
-                ? <span className="ll-off">不在雷达范围（&gt;7d）</span>
-                : <ImpactChip impact={it.impact} />}
+              <b>#{it.rank}</b> {it.severity}
+              {p.mode === 'offscreen' ? <span className="ll-off">&gt;7d</span>
+                : it.impact && it.impact.status === 'affected' ? <span className="ll-hit" title="命中你的代码">◆</span> : null}
             </span>
-            <span className="ll-title" aria-hidden="true">{short}</span>
           </button>
         );
       })}

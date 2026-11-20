@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { AmountPoint, Analysis, CveDetail, Disclosure, Sighting, EventSummary, ItemRef, Mitigation, RulePack, AttackTxs, ChainStage, Onchain, PipelineStep, PossibleDuplicate, ProgressStage, Response, ResponseDecision, TimelineEntry, TxRef } from '@/types/site-data';
+import type { AmountPoint, Analysis, AttackPath, AwsFix, CveDetail, Disclosure, Sighting, EventSummary, ItemRef, Mitigation, RulePack, AttackTxs, ChainStage, Onchain, PipelineStep, PossibleDuplicate, ProgressStage, Response, ResponseDecision, TimelineEntry, TxRef } from '@/types/site-data';
 
 export interface EventDetailState {
   event: EventSummary | null;
@@ -7,6 +7,9 @@ export interface EventDetailState {
   timeline: TimelineEntry[];
   amountHistory: AmountPoint[];
   cveDetails: CveDetail[];
+  /** AWS's own fix status for the event's CVE (radar.awsfix); null = none known / older publisher. */
+  awsFix: AwsFix | null;
+  attackPath: AttackPath | null;    // R9.5
   /** CVE published vs radar first seen (radar.cvemeta); null = no CVE record known / older publisher. */
   disclosure: Disclosure | null;
   /** first report published vs radar first capture (radar.pipeline.sighting); null = older publisher. */
@@ -43,7 +46,7 @@ export interface EventDetailState {
 }
 
 const EMPTY: Omit<EventDetailState, 'loading' | 'error'> = {
-  event: null, items: [], timeline: [], amountHistory: [], cveDetails: [], disclosure: null, sighting: null, tx: [], onchain: null, attackTxs: null, chainStages: [], possibleDuplicates: [], generatedAt: null,
+  event: null, items: [], timeline: [], amountHistory: [], cveDetails: [], awsFix: null, attackPath: null, disclosure: null, sighting: null, tx: [], onchain: null, attackTxs: null, chainStages: [], possibleDuplicates: [], generatedAt: null,
   analysis: undefined, progress: undefined, pipelineSteps: undefined, response: undefined, mitigation: undefined, rulePack: undefined,
   decisions: undefined,
 };
@@ -75,6 +78,8 @@ export function useEventDetail(eventId: string): EventDetailState {
           timeline: data.timeline ?? [],
           amountHistory: data.amount_history ?? [],
           cveDetails: data.cve_details ?? [],
+          awsFix: data.aws_fix ?? null,
+          attackPath: data.attack_path ?? null,
           disclosure: data.disclosure ?? null,
           sighting: data.sighting ?? null,
           tx: data.tx ?? [],

@@ -49,6 +49,17 @@ CRYPTO_MEDIA_ORGS = frozenset({
 })
 
 
+# Vendor advisory feeds where an entry is ONE advisory for one product: every CVE it lists is that product's, so all of
+# them are keys (as for a CSAF advisory, pipeline.normalize) — a roundup's > 3 CVEs glue nothing, an advisory's must.
+# Live 2026-11-19: VMSA-2026-0009 (vCenter, 5 CVEs incl. the exploited CVE-2026-123890) got no CVE key, sat in a P2
+# event of its own, and the P0 waited for two later reports. Bundles (Patch Tuesday, Oracle CPU, Chrome / GitLab /
+# Jenkins / Mozilla / Node.js releases) list unrelated flaws — not here.
+# Not CERT/CC: a VU note is often 「Multiple vendors …」 (VU#604762: 5 CVEs of different vendors — the 28-day replay).
+# Not Cisco: its 「Vulnerabilities in Node.js and Brotli Affecting Cisco Products」 lists third-party CVEs (replay: it would
+# have glued Node.js CVEs into the Brotli event).
+ONE_ADVISORY_SOURCES = frozenset({"broadcom_vmsa", "fortinet_psirt", "sonicwall_psirt", "pan_psirt"})
+
+
 # Admitted feeds whose AWS egress later stopped working: fetched through firecrawl instead (collect: via="firecrawl").
 # Each row says when and what was measured — the generated table (registry_feeds) stays as onboarding produced it.
 FEED_EGRESS_OVERRIDES: dict[str, tuple[str, int, str]] = {
@@ -244,3 +255,11 @@ def explain() -> str:
 if __name__ == "__main__":
     if "--explain" in sys.argv:
         print(explain())
+
+
+# Catalog sources: they list every CVE as it is filed (records, CVE / exploit catalogs, distro and re-shipped advisories,
+# aggregators) — a listing is not a second report of a vulnerability. Path A to P0 (pipeline._reporters, Neo 2026-11-18)
+# counts reporting sources only: 30-day backtest, catalogs counted → +118 P0s (49 on Oracle's patch day); not → +15.
+CATALOG_SOURCES = frozenset({"cve_list", "cisa_kev", "cisa_csaf_ot", "cisa_csaf_it", "cvefeed", "sploitus", "exploitdb",
+                             "alas2023", "debian_dsa", "ubuntu_usn", "doonsec", "wx_cnvd"})
+

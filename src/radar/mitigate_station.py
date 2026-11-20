@@ -340,7 +340,9 @@ def _rule_packs(store: Store, aws: Any, now: datetime, catalog: dict[str, list[m
     for ev in evs:
         resp = respond.to_response(store.get_response(ev.event_id), NAMES, nowi) or {}
         items = store.get_items(ev.item_ids)
-        event = {"event_id": ev.event_id, "cves": ev.cves, "product": resp.get("product")}
+        # title + entities: mitigate.php_app reads them (REDCap / TYPO3 P0s got no PHP group without, 2026-11-19)
+        event = {"event_id": ev.event_id, "cves": ev.cves, "product": resp.get("product"), "title": ev.title,
+                 "entities": list(ev.entities)}
         ev_poc = {c: poc[c] for c in ev.cves if c in poc}
         built = True
         try:

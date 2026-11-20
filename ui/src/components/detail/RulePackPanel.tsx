@@ -62,6 +62,8 @@ export function RulePackPanel({ rulePack, step = '03' }: { rulePack: RulePack | 
         客户自持规则组 <code className="dt-mono">{p.name}</code>：{ruleCount(p)} 条自定义 / 模板规则，全部 Count；
         托管规则组 {p.managed.length} 个。雷达不写你的资源 —— 复制或下载后由你挂到自己的 web ACL。
       </p>
+      {/* nothing to deploy at the edge: why, in words (an empty pack said nothing — Neo 2026-11-19) */}
+      {p.no_rule && <p className="note tone-warn" role="note" data-testid="rp-no-rule"><b>WAF 挡不了这个漏洞：</b>{p.no_rule}</p>}
       <p className={`dt-small tone-${cap.tone}`} data-testid="rp-capacity" data-state={p.capacity.state} title={cap.hint}>
         <span className="mt-state">{cap.label}</span> {capacityText(p.capacity)}
       </p>

@@ -17,6 +17,17 @@ from radar.store import MemoryStore
 ROOT = Path(__file__).resolve().parents[1]
 
 
+
+def _snapshot(store) -> dict:
+    return {eid: json.dumps(e, sort_keys=True) for eid, e in store.events.items()}
+
+
+def _rewritten(store, before: dict) -> list:
+    """The ids of events written since the snapshot. Not one giant string compare: its failure message diffs megabytes
+    (CI 2026-11-20: mutation M1334 failed that way and the shard timed out at 300 s, twice), ids diff in no time."""
+    now = _snapshot(store)
+    return sorted(k for k in before.keys() | now.keys() if before.get(k) != now.get(k))[:5]
+
 @pytest.fixture(scope="module")
 def world():
     s = MemoryStore()
@@ -25,10 +36,10 @@ def world():
 
 
 def test_unchanged_rules_change_nothing_and_the_store_is_not_written(world):
-    before = json.dumps(world.events, sort_keys=True)
+    before = _snapshot(world)
     rep = recheck.diff(world, FETCHED, 3650)
     assert rep["events"] == len(world.events) > 100 and rep["changed"] == [] and rep["unchanged"] == rep["events"]
-    assert json.dumps(world.events, sort_keys=True) == before
+    assert _rewritten(world, before) == []
 
 
 def test_a_changed_rule_lists_every_event_it_changes_with_before_and_after(world, monkeypatch):
@@ -36,13 +47,13 @@ def test_a_changed_rule_lists_every_event_it_changes_with_before_and_after(world
     assert confirmed
     real = pipeline._exploitation
     monkeypatch.setattr(pipeline, "_exploitation", lambda d, items, level: "none" if d != "web3" else real(d, items, level))
-    before = json.dumps(world.events, sort_keys=True)
+    before = _snapshot(world)
     rep = recheck.diff(world, FETCHED, 3650)
     got = {c["event_id"]: c["fields"] for c in rep["changed"]}
     assert {e["event_id"] for e in confirmed} <= set(got)
     assert all(got[e["event_id"]]["exploitation"] == ["confirmed", "none"] for e in confirmed)
     assert rep["unchanged"] + len(rep["changed"]) == rep["events"]
-    assert json.dumps(world.events, sort_keys=True) == before                  # still read-only
+    assert _rewritten(world, before) == []                                     # still read-only
     # a severity change sorts first: the reader starts with what would leave or enter P0
     sev = [c for c in rep["changed"] if "severity" in c["fields"]]
     assert sev and rep["changed"][: len(sev)] == sev

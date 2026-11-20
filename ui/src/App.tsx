@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Layout } from '@/components/Layout';
@@ -33,8 +33,6 @@ export default function App() {
     <ThemeProvider>
       <HashRouter>
         <Routes>
-          {/* Full-screen wall — no sidebar, no layout chrome */}
-          <Route path="/wall" element={<Suspense fallback={null}><WallPage /></Suspense>} />
           {/* All other routes inside layout (sidebar + header) */}
           <Route path="/" element={<Layout />}>
             <Route index element={<RadarPage />} />
@@ -49,6 +47,9 @@ export default function App() {
             <Route path="subscribe" element={<SubscribePage />} />
             <Route path="ops" element={<OpsPage />} />
             <Route path="mitigate" element={<MitigatePage />} />
+            {/* R9.1: the wall lives in the shell too — the sidebar (or its rail) is the way back, no back button;
+                the wall's own fullscreen button still gives a TV the whole screen */}
+            <Route path="wall" element={<WallPage />} />
           </Route>
         </Routes>
       </HashRouter>

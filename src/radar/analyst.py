@@ -75,6 +75,53 @@ def input_hash(evidence: list[dict[str, Any]], model: str = llm.MODEL_BRIEF) -> 
     return hashlib.sha256(f"{PROMPT_VERSION}\x1f{model}\x1f{blob}".encode()).hexdigest()
 
 
+def facts_of(ev: Any) -> dict[str, Any]:
+    """The facts the CODE decided about an event — what a brief may become wrong about. Stored with the brief
+    (analysis["facts"], internal) so the station can tell whether any of them moved."""
+    amt = ev.amount_usd_latest
+    return {"severity": ev.severity, "exploitation": ev.exploitation or "none", "cves": sorted(ev.cves or []),
+            "amount": None if not amt else float(f"{float(amt):.2g}")}     # 2 significant digits: $12.3M ≈ $12.4M
+
+
+IMMEDIATE_FACTS = ("severity", "exploitation")     # a brief contradicting these is wrong now: rewrite at once
+
+
+def needs_rewrite(analysis: dict[str, Any] | None, evidence: list[dict[str, Any]], facts: dict[str, Any],
+                  now_iso: str = "", cooldown_h: float = 6) -> str | None:
+    """Why this brief must be (re)generated, or None to keep it — one definition for the station and its tests.
+
+    Live 11-19: 1,422 generations in 7 days (~203/day) because every new report changed the evidence hash. Replayed
+    over 7 days of real reports: rewriting on code-decided facts only = ~10 a day. New reports repeating the story,
+    new figures and re-fetches keep the brief (its citations still resolve; the page's code-made sections carry the
+    rest). CVE / amount changes wait `cooldown_h` after the last brief (a multi-CVE advisory gains its CVEs one by one)."""
+    if not analysis:
+        return "new"
+    if analysis.get("status") == "failed":
+        return "failed"
+    ids = {e["item_id"] for e in evidence}
+    if any(c not in ids for k in SECTIONS for s in (analysis.get(k) or []) for c in (s.get("cite") or [])):
+        return "cited_report_gone"          # a citation that no longer resolves would show as ungrounded
+    old = analysis.get("facts")
+    if old is None:
+        return None if analysis.get("input_hash") == input_hash(evidence) else "legacy"   # stamped while current
+    for k in IMMEDIATE_FACTS:
+        if old.get(k) != facts.get(k):
+            return f"facts_{k}"
+    for k in ("cves", "amount"):
+        if old.get(k) != facts.get(k):
+            gen = str(analysis.get("generated_at") or "")
+            if gen and now_iso and _hours(gen, now_iso) < cooldown_h:
+                return None
+            return f"facts_{k}"
+    return None
+
+
+def _hours(a: str, b: str) -> float:
+    from radar import timeutil
+    ta, tb = timeutil.parse(a), timeutil.parse(b)
+    return (tb - ta).total_seconds() / 3600 if ta and tb else float("inf")
+
+
 def _normalise(text: str) -> str:
     """Source text as numbers can be matched in it: thousands separators removed, month names also
     present as their number ('October 17' ⇒ '… 10 17'), so a localised date in the brief is groundable."""
@@ -135,3 +182,39 @@ def analyze(evidence: list[dict[str, Any]], now_iso: str, call: Call | None = No
     if raw is None:
         return {**base, **empty, "status": "failed", "reason": "bad_json"}
     return {**base, **validate(raw, evidence), "reason": None}
+
+# --- what a brief sentence may not say against the code's own fields (harness audit 11-19, R1 / P1: the grounded BLUF
+# becomes the event summary → the Slack P0 📝 line, feeds, webhooks, the site; grounding checks citations and numbers
+# only, and 61 % of passing sentences have no number at all) ---
+_CLAIM_EXPLOITED = re.compile(r"在野利用|已被利用|遭到利用|被积极利用|正被利用|actively exploited|exploited in the wild|"
+                              r"under active exploitation|being exploited|has been exploited|were exploited", re.IGNORECASE)
+_DENY_EXPLOITED = re.compile(r"(?:尚无|没有|未见|未发现|暂无|无)[^，。,.;；]{0,8}(?:在野利用|被利用|利用)|"
+                             r"no (?:known |public |evidence of |reports? of )?[a-z -]{0,20}exploit|"
+                             r"not (?:yet |been |known to be )*(?:actively )?exploited", re.IGNORECASE)
+_USD = re.compile(r"\$\s?(\d+(?:\.\d+)?)\s?(k|m|b|million|billion|thousand)?\b", re.IGNORECASE)
+_SCALE = {"k": 1e3, "thousand": 1e3, "m": 1e6, "million": 1e6, "b": 1e9, "billion": 1e9}
+
+
+def contradiction(text: str, ev: dict[str, Any]) -> str | None:
+    """Why this sentence contradicts the event's code-decided fields, or None. `ev` = the published view fields
+    (cves, exploitation, amount_usd_latest, amount_disputed)."""
+    from radar import keys
+    named, own = set(keys.cves(text)), set(ev.get("cves") or [])
+    # only against CVEs the code holds: an event with none (the code missed it — live: Chrome CVE-2026-125350) has
+    # nothing to contradict, and the brief naming its CVE is the better text (30-day replay 11-19: 7 of 8 such)
+    if named and own and not named <= own:
+        return "cve_not_in_event"
+    denied = bool(_DENY_EXPLOITED.search(text))
+    claimed = bool(_CLAIM_EXPLOITED.search(_DENY_EXPLOITED.sub(" ", text)))
+    code = ev.get("exploitation") or "none"
+    if claimed and code not in ("reported", "confirmed"):
+        return "exploited_claim_not_in_code"
+    if denied and code == "confirmed":
+        return "denies_confirmed_exploitation"
+    amount = ev.get("amount_usd_latest")
+    if amount and not ev.get("amount_disputed"):
+        for n, unit in _USD.findall(text):
+            v = float(n) * _SCALE.get(unit.lower(), 1) if unit else float(n)
+            if v >= 1000 and abs(v - float(amount)) > 0.15 * float(amount):
+                return "amount_not_event"
+    return None

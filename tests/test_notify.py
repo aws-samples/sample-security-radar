@@ -298,7 +298,7 @@ def test_a_webhook_answering_non_2xx_is_a_failed_send_and_a_redirect_is_never_fo
     base, elsewhere = loopback
     # both test servers are on 127.0.0.1, which R2.8's general redirect policy refuses as internal; the 3xx target stands
     # for a public host here, so what must refuse the hop is the webhook's own empty allowlist (M1111 died without this)
-    monkeypatch.setattr(fetch, "_internal_host", lambda host: False)
+    monkeypatch.setattr(fetch, "_internal_host", lambda host, **_: False)
     m = {**notify.plan(V, {}, "s")[0], "view": V}
     with pytest.raises(fetch.FetchError, match="redirect_refused"):
         notify.send_webhook(CFG, webhook_to(base, "/redirect"), m, None, {})

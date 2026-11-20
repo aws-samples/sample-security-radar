@@ -9,6 +9,7 @@
  * - A manual 3D/2D toggle in the status bar overrides capability detection.
  *   Choice is persisted to localStorage key 'sr-render-mode-override'.
  */
+import { StageKey } from '@/components/wall/StageKey';
 import { Suspense, lazy, useState, useRef, useEffect, useCallback } from 'react';
 import { useRenderMode } from '@/hooks/useRenderMode';
 import type { Dot3D, ThreatLink } from '@/utils/radar3dLayout';
@@ -141,9 +142,9 @@ export function WallCenterStage({
       ref={containerRef}
       data-render-mode={renderMode}
       data-render-reason={renderReason || undefined}
-      // The stage is an instrument display: always dark, in either page theme. In the light theme it used to fade
-      // a near-black canvas into a white page through the vignette — a grey fog ring (user review 2026-10-30).
-      data-theme="dark"
+      // R9.3 (Neo 2026-11-19): the stage follows the page theme. It was forced dark because a near-black canvas faded
+      // into the white page through the vignette (a grey fog ring, 2026-10-30); now the 3D scene itself switches
+      // palette (engine.setTheme) and the 2D scope is all theme tokens, so the vignette fades into the same colour.
       style={{
         flex: 1,
         // width:100% + minWidth:0 ensure this div fills the parent even when
@@ -178,6 +179,9 @@ export function WallCenterStage({
       ) : (
         <div style={{ position: 'absolute', inset: 0 }}>{svgScene}</div>
       )}
+
+      {/* R9.4: how to read the stage — the same key for 2D and 3D, open by default only where the stage is wide enough not to cover the sphere */}
+      <StageKey key={useWebGL ? '3d' : '2d'} mode={useWebGL ? '3d' : '2d'} defaultOpen={size.w >= 820} />
 
       {/* Radial vignette — fades the hard canvas edge to background */}
       <div

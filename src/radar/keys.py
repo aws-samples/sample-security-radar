@@ -65,6 +65,52 @@ def cves(text: str) -> list[str]:
     return sorted({f"CVE-{y}-{n}" for y, n in CVE_RE.findall(text or "")})
 
 
+# 「X is distinct from CVE-B」: a report naming another flaw only to set it apart is not about that flaw (live
+# 2026-11-19: Rapid7 on vCenter CVE-2026-123890 wrote "is distinct from … CVE-2026-59309 that Broadcom addressed earlier";
+# the old CVE became the event's, the page called the new zero-day 「旧漏洞，公开 112 天后」 and the sent P0 notice was
+# edited to list it). The phrase must sit just before the id, in the same sentence (≤ 80 characters, no full stop).
+_CONTRAST = re.compile(r"(?:distinct from|different from|separate from|unrelated to|not related to|unlike|"
+                       r"not to be confused with|不同于|区别于|有别于)[^.。;；]{0,80}$", re.IGNORECASE)
+
+
+def dominant(text: str, min_mentions: int, ratio: int) -> str | None:
+    """The CVE a text naming many is about: ≥ min_mentions mentions and ≥ ratio × the next one's. A roundup names each
+    CVE about once ⇒ None. Live 2026-11-19: GTIG's ARMORY CASTLE report (34,831 characters) named CVE-2026-123890 ×10
+    beside three others (×4, ×1, ×1); > 3 CVEs gave it no CVE key and its exploitation report sat outside the event."""
+    counts: dict[str, int] = {}
+    for y, n in CVE_RE.findall(text or ""):
+        c = f"CVE-{y}-{n}"
+        counts[c] = counts.get(c, 0) + 1
+    ranked = sorted(counts.items(), key=lambda kv: -kv[1])
+    if not ranked or ranked[0][1] < min_mentions:
+        return None
+    second = ranked[1][1] if len(ranked) > 1 else 0
+    return ranked[0][0] if ranked[0][1] >= ratio * second else None
+
+
+def contrast_only(text: str) -> set[str]:
+    """The CVEs every mention of which is a contrast (「distinct from CVE-…」), when the text names some other CVE
+    plainly — those are dropped from the report's keys. A text whose only CVE is contrasted keeps it (nothing else
+    says what it is about)."""
+    plain: set[str] = set()
+    contrasted: set[str] = set()
+    for m in CVE_RE.finditer(text or ""):
+        c = f"CVE-{m.group(1)}-{m.group(2)}"
+        (contrasted if _CONTRAST.search(text[max(0, m.start() - 120):m.start()]) else plain).add(c)
+    only = contrasted - plain
+    return only if plain else set()
+
+
+# GitHub Security Advisory ids: GitHub's own identifier, often published before a CVE is assigned (live 11-19: Ruby2Shell
+# was reported as GHSA-34m4-m9fh-gqp5 with "CVE pending" for ~2 h; the radar did not read the id at all). The three
+# 4-character groups use GitHub's 25-character alphabet (no 0/1/a/b/d/e/... look-alikes).
+GHSA_RE = re.compile(r"(?<![A-Za-z0-9])GHSA((?:-[23456789cfghjmpqrvwx]{4}){3})(?![A-Za-z0-9])", re.IGNORECASE)
+
+
+def ghsas(text: str) -> list[str]:
+    return sorted({f"GHSA{g.lower()}" for g in GHSA_RE.findall(text or "")})
+
+
 def tx_refs(text: str) -> list[dict[str, str]]:
     """Transaction hashes that appear as explorer URLs (bare 0x64 strings are too ambiguous: they are
     also block hashes, storage slots, signatures)."""

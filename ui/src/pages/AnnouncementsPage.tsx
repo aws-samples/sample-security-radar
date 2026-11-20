@@ -58,8 +58,7 @@ export function AnnouncementsPage() {
             const m = KIND_META[r.kind as NoticeKind] ?? KIND_META.other;
             const at = r.published_at ?? r.seen_at;
             return (
-              <li key={`${r.source_id}|${r.url}`} style={{ display: 'grid', gridTemplateColumns: '72px 130px 1fr 90px', gap: 10,
-                alignItems: 'baseline', padding: '7px 0', borderBottom: '1px solid var(--border-subtle, var(--border))' }}>
+              <li key={`${r.source_id}|${r.url}`} className="ann-row">
                 <span style={{ fontSize: 10, fontWeight: 700, color: m.color }}>{m.label}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.exchange}</span>
                 <a href={safeHref(r.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--text-primary)', textDecoration: 'none' }}>{r.title}</a>

@@ -62,3 +62,25 @@ def utc8(value: str | float | None) -> str | None:
     """"2026-11-16 11:05（UTC+8）" for a stored UTC time; None when it does not parse (the caller says "unknown")."""
     dt = parse(value)
     return dt.astimezone(UTC8).strftime("%Y-%m-%d %H:%M（UTC+8）") if dt else None
+
+
+def day_only(value: str | None) -> bool:
+    """A stored time of exactly 00:00:00Z: the source gave a day, not a time (KEV dateAdded, an RSS date without a time).
+    The single definition — pipeline.day_precision and the push notice both read it."""
+    return bool(value) and str(value).endswith("T00:00:00Z")
+
+
+
+# A feed that prints the entry's age into its text ("Published : Nov. 19, 2026, 3:17 a.m. | 1 hour, 52 minutes ago") makes
+# every fetch a revision: a new content hash, a re-cluster, the event's last_updated moved, quotes that no longer read back
+# (live 2026-11-19, cvefeed: 60 of 257 such items revised in 24 h; the rule-pack deploy check failed on one). Only the
+# `| N unit ago` stamp: an age in prose ("patched 3 days ago") is the article's words. Used where text is normalized
+# (pipeline.normalize) and where a quote is read back (rulepack.verify_quote), so both see the same text.
+# every quantifier is bounded (the input is third-party text): a stamp has at most a few units ("1 year, 2 months, 3
+# days ago"). semgrep regex_dos flags any quantified group; measured linear: 20,000 near-stamps with no "ago" in 4 ms,
+# and item text is capped at Limits.ITEM_TEXT_MAX (tests/test_relative_age_20261119.py times a hostile input).
+_RELATIVE_AGE = re.compile(r"\|\s{0,3}(?:\d{1,4}\s{1,3}(?:years?|months?|weeks?|days?|hours?|minutes?|seconds?),?\s{0,3}){1,4}ago\b")  # nosemgrep
+
+
+def strip_relative_age(text: str) -> str:
+    return _RELATIVE_AGE.sub("|", text)

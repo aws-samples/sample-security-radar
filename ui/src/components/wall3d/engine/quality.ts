@@ -35,9 +35,9 @@ export interface QualitySettings {
 }
 
 export const TIER_SETTINGS: Record<QualityTier, QualitySettings> = {
-  0: { dpr: 1.5, bloom: true,  stars: 3000, dome: true,  cameraOrbit: true,  scanFps: 60, fallback: false },
-  1: { dpr: 1.0, bloom: true,  stars: 3000, dome: true,  cameraOrbit: true,  scanFps: 60, fallback: false },
-  2: { dpr: 1.0, bloom: false, stars: 1000, dome: false, cameraOrbit: true,  scanFps: 60, fallback: false },
+  0: { dpr: 1.5, bloom: true,  stars: 3000, dome: true,  cameraOrbit: false, scanFps: 60, fallback: false },
+  1: { dpr: 1.0, bloom: true,  stars: 3000, dome: true,  cameraOrbit: false, scanFps: 60, fallback: false },
+  2: { dpr: 1.0, bloom: false, stars: 1000, dome: false, cameraOrbit: false, scanFps: 60, fallback: false },
   3: { dpr: 1.0, bloom: false, stars: 1000, dome: false, cameraOrbit: false, scanFps: 30, fallback: false },
   4: { dpr: 1.0, bloom: false, stars:    0, dome: false, cameraOrbit: false, scanFps: 30, fallback: true  },
 };

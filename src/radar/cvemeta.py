@@ -127,9 +127,14 @@ def refresh(store: Any, cves: list[str], now: datetime, get: Callable[[str], str
     return {c: led[c] for c in cves if c in led}
 
 
-def disclosure(cves: list[str], meta: dict[str, dict[str, Any]], first_seen: str) -> dict[str, Any] | None:
-    """Earliest CVE publication among the event's CVEs and the radar's lag behind it (hours, ≥ 0).
-    None when no CVE has a known publication date. The one place this is decided — the UI only renders it."""
+def disclosure(cves: list[str], meta: dict[str, dict[str, Any]], first_seen: str,
+               title: str = "") -> dict[str, Any] | None:
+    """Earliest CVE publication among the event's CVEs and the radar's lag behind it (hours, ≥ 0) — among the CVEs its
+    title names when it names any: the headline CVE is the one the event is about (live 2026-11-19: the vCenter zero-day
+    CVE-2026-123890, published that day, was shown as 「旧漏洞，公开 112 天后」 through a second, older CVE a report had
+    mentioned). None when no CVE has a known publication date. The one place this is decided — the UI only renders it."""
+    low = title.lower()
+    cves = [c for c in cves if c.lower() in low] or cves
     dated = [(timeutil.parse(meta[c]["published"]), c) for c in cves if (meta.get(c) or {}).get("published")]
     dated = [(t, c) for t, c in dated if t]
     if not dated:

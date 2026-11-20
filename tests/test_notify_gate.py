@@ -51,9 +51,10 @@ def test_a_web3_p0_notice_has_emoji_the_summary_the_figures_and_the_event_page_s
     assert notify.gate(m, v, SITE, []) == []
 
 
-def test_a_vulnerability_p0_notice_names_its_cves_and_exploitation_and_nothing_of_our_repositories():
+def test_a_vulnerability_p0_notice_carries_no_facts_row_and_nothing_of_our_repositories():
+    """Neo 2026-11-18: 「这两句也不要了」 — the CVE / exploitation / level row is gone from a vulnerability notice."""
     v, m = p0(VULN)
-    assert "🧩 CVE-2026-1 ｜ 🔥 已确认在野利用 ｜ ✅ V3 已确认" in m["text"]
+    assert "🧩" not in m["text"] and "🔥" not in m["text"] and "✅ V3" not in m["text"]
     assert "代码目标" not in m["text"] and "section=env" not in m["text"] and "pull/3" not in m["text"]
     assert notify.gate(m, v, SITE, []) == []
 
@@ -183,3 +184,47 @@ def test_alarms_go_to_owner_chats_that_list_alarm_and_never_to_a_p0_only_channel
     monkeypatch.setattr(notify, "SENDERS", {c: (lambda cfg, s, m, t, c_: got.append(s.id) or "1") for c in notify.CHANNELS})
     alert.deliver(TEAM, ["[雷达告警] EventAnomaly：ALARM"], SITE)
     assert got == ["me"]
+
+
+def test_a_first_report_that_gave_only_a_day_is_said_as_a_day_not_as_0800():
+    """Live 2026-11-18: Puppet's KEV entry 「2026-11-17」 was announced as 首报 08:00 (00:00Z)."""
+    v = notify.view({**LIGHTER, "first_seen": "2026-11-17T00:00:00Z"}, False, [])
+    m = notify.plan(v, {}, SITE)[0]
+    assert "🕐 首报 2026-11-17（来源只给日期）" in m["text"] and "08:00" not in m["text"]
+    # Neo 2026-11-19: a day is not precise enough to push — the notice is held (G9), not dropped
+    probs = notify.gate(m, v, SITE, [])
+    assert [p["error"] for p in probs] == ["first_report_day_only"] and notify.held(probs)
+
+
+@pytest.mark.parametrize("summary, title, want", [
+    # live 2026-11-18 (the notice was too long up front): the subject and the CVE id repeat the headline
+    ("Java4Shell（CVE-2026-114938）是Java Base64解码器的内存破坏漏洞，可能导致未认证远程代码执行，Oracle已发布修复。",
+     "Java4Shell: Remote Code Execution in OpenJDK (CVE-2026-114938)",
+     "Java Base64解码器的内存破坏漏洞，可能导致未认证远程代码执行。"),
+    ("OpenJDK 的 Java4Shell(CVE-2026-114938)是可被未认证远程利用的代码执行漏洞,补丁已发布,需立即排查 Java 环境。",
+     "Java4Shell: Remote Code Execution in OpenJDK (CVE-2026-114938)",
+     "可被未认证远程利用的代码执行漏洞,需立即排查 Java 环境。"),
+    ("OpenJDK Base64解码器曝Java4Shell未认证远程代码执行漏洞，已有修复，需尽快排查修补。",
+     "Java4Shell: Remote Code Execution in OpenJDK (CVE-2026-114938)",
+     "OpenJDK Base64解码器曝Java4Shell未认证远程代码执行漏洞，需尽快排查修补。"),
+    # a fix clause in the middle of a clause is not a clause: kept
+    ("攻击者在Oracle发布修复前已利用该漏洞。", "Java4Shell: Remote Code Execution in OpenJDK (CVE-2026-114938)",
+     "攻击者在Oracle发布修复前已利用该漏洞。"),
+    # a subject with information the headline lacks stays (a version range, a component)
+    ("Apache Roller 4.0.0 至 6.1.4 的 XML-RPC 端点存在未认证反序列化远程代码执行漏洞。",
+     "CVE-2026-129448 Apache Roller: Unauthenticated deserialization in the XML-RPC endpoint",
+     "Apache Roller 4.0.0 至 6.1.4 的 XML-RPC 端点存在未认证反序列化远程代码执行漏洞。"),
+    ("TYPO3 表单框架是信息泄露的源头。", "CVE-2026-125160 TYPO3 CMS - Information Disclosure in Form Framework",
+     "TYPO3 表单框架是信息泄露的源头。"),
+])
+def test_the_summary_drops_what_the_headline_already_says(summary, title, want):
+    assert notify.trim_summary(summary, title) == want
+
+
+def test_a_vulnerability_p0_is_tagged_p0_vulnerability_and_says_exploitation_below():
+    row = {**LIGHTER, "domain": "vuln", "title": "Java4Shell: Remote Code Execution in OpenJDK (CVE-2026-114938)",
+           "cves": ["CVE-2026-114938"], "exploitation": "reported", "summary": "Java4Shell（CVE-2026-114938）是一个漏洞。"}
+    _v, m = p0(row)
+    assert m["text"].startswith("🚨 [P0 · 漏洞] Java4Shell")
+    assert "🧩" not in m["text"] and "🔥" not in m["text"] and "✅" not in m["text"] and "⏫" not in m["text"]
+    assert "📝 一个漏洞。" in m["text"]

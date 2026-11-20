@@ -232,6 +232,9 @@ def test_cve_roundup_does_not_glue_unrelated_cves():
                      _raw("bleepingcomputer", roundup, roundup)], store, FETCHED)
     kev_events = [e for e in store.events.values() if any(store.items[i]["source_id"] == "cisa_kev" for i in e["item_ids"])]
     assert len(kev_events) == 2
+    # … and it joins neither (normalize gives a >3-CVE report no cve: keys; only a CSAF advisory keeps them, and then
+    # pipeline.lists_cves stops it lending or merging): attached, it would lend its "exploited" to a CVE it only lists
+    assert not any(store.items[i]["source_id"] == "bleepingcomputer" for e in kev_events for i in e["item_ids"])
 
 
 def test_p0_means_act_now_on_live_snapshot(replayed):

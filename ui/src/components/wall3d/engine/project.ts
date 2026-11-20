@@ -23,13 +23,24 @@ export const CAM_ELEV = Math.atan2(9, 11);
  * the near rim was cut off by the stage's bottom edge once the core went up to y = 1.5). */
 export const LOOK_AT = { x: 0, y: 0.35, z: 0.9 } as const;
 
-export function orbitPosition(azimuthDeg: number): { x: number; y: number; z: number } {
+/** How far the reader may tilt by dragging (Neo 2026-11-19: 「围绕中轴线…像地球一样搓一下」): angle from the vertical axis,
+ *  from nearly top-down to a low side view — never past the floor, never upside down. */
+export const ELEV_MIN = 0.18;
+export const ELEV_MAX = 1.15;
+
+export function orbitPosition(azimuthDeg: number, elev: number = CAM_ELEV): { x: number; y: number; z: number } {
   const az = azimuthDeg * (Math.PI / 180);
+  const e = Math.min(ELEV_MAX, Math.max(ELEV_MIN, elev));
   return {
-    x: CAM_DIST * Math.sin(az) * Math.sin(CAM_ELEV),
-    y: CAM_DIST * Math.cos(CAM_ELEV),
-    z: CAM_DIST * Math.cos(az) * Math.sin(CAM_ELEV),
+    x: CAM_DIST * Math.sin(az) * Math.sin(e),
+    y: CAM_DIST * Math.cos(e),
+    z: CAM_DIST * Math.cos(az) * Math.sin(e),
   };
+}
+
+/** One pointer drag → the new view: dx turns about the vertical axis (full turns), dy tilts within the limits. */
+export function dragView(view: { az: number; elev: number }, dx: number, dy: number): { az: number; elev: number } {
+  return { az: (view.az - dx * 0.4) % 360, elev: Math.min(ELEV_MAX, Math.max(ELEV_MIN, view.elev - dy * 0.005)) };
 }
 
 const _v = new Vector3();

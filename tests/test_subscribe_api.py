@@ -69,7 +69,7 @@ def test_a_client_sees_and_deletes_only_its_own():
     ("https://[::1]/x", "target_is_ip"), ("https://169.254.169.254/latest", "target_is_ip"),
     ("https://localhost/x", "target_not_public_name"), ("https://intranet/x", "target_not_public_name"),
     ("https://db.internal/x", "target_not_public_name"), ("https://user:pw@hooks.example.com/x", "target_has_credentials"),
-    ("https://hooks.example.com:8443/x", "target_port"), ("https://hooks.example.com/x\n", "target_not_url"),
+    ("https://hooks.example.com:8443/x", "target_port"), ("https://hooks.example.com/x\n", "target_control_char"),
     ("", "target_not_url"), (None, "target_not_url"), ("https://" + "a" * 300 + ".example.com/", "target_not_url"),
     # a public-looking name resolving to a private / metadata address (surface review F1)
     ("https://hooks.rebind.example/x", "target_not_public"), ("https://meta.rebind.example/x", "target_not_public"),

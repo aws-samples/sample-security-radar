@@ -25,7 +25,9 @@ def diff(store: Store, now: datetime, since_days: int, domain: str | None = None
     since = timeutil.iso(now - timedelta(days=since_days))
     changed: list[dict[str, Any]] = []
     seen = skipped = 0
-    for ev in store.events_updated_since(since):
+    # a snapshot, not the live iterator: a write during the loop (a bug, or a cycle writing meanwhile) must not make the
+    # loop see its own rewrites (CI 2026-11-20: mutation M1334 — a put_event inside the loop — hung for 300 s twice)
+    for ev in list(store.events_updated_since(since)):
         if domain and ev.domain != domain:
             continue
         items = store.get_items(ev.item_ids)

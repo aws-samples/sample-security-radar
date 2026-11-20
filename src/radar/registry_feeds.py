@@ -81,6 +81,13 @@ FEEDS: tuple[tuple[str, str, str, str, str | None, str, str, int], ...] = (
     ('tenable', 'Tenable Blog', 'T2', 'tenable', None, 'feed', 'https://www.tenable.com/blog/feed', 60),
     ('tob', 'Trail of Bits', 'T2', 'tob', None, 'feed', 'https://blog.trailofbits.com/feed/', 60),
     ('zdi_blog', 'Zero Day Initiative Blog', 'T2', 'zdi_blog', None, 'feed', 'https://www.zerodayinitiative.com/blog?format=rss', 60),
+    # 2026-11-19 (sources research; "how is it exploited" detail): onboarded via scripts/source-onboard.py, 6/6 ok
+    ('vulncheck', 'VulnCheck Blog', 'T2', 'vulncheck', None, 'feed', 'https://www.vulncheck.com/feed/blog/atom.xml', 60),
+    ('projectdiscovery', 'ProjectDiscovery Blog', 'T2', 'projectdiscovery', None, 'feed', 'https://projectdiscovery.io/rss.xml', 60),
+    ('certcc_vu', 'CERT/CC Vulnerability Notes', 'T1', 'certcc', 'vuln', 'feed', 'https://www.kb.cert.org/vuls/atomfeed/', 60),
+    ('zdi_published', 'ZDI Published Advisories', 'T2', 'zdi_blog', 'vuln', 'feed', 'https://www.zerodayinitiative.com/rss/published/', 60),
+    ('greynoise', 'GreyNoise Blog', 'T2', 'greynoise', None, 'feed', 'https://www.greynoise.io/blog/rss.xml', 60),
+    ('tenable_tra', 'Tenable Research Advisories', 'T2', 'tenable', 'vuln', 'feed', 'https://www.tenable.com/security/research/feed', 60),
     # --- vendor
     ('cisco_psirt', 'Cisco PSIRT', 'T1', 'cisco_psirt', 'vuln', 'feed', 'https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml', 15),
     ('gitlab_sec', 'GitLab Security Releases', 'T1', 'gitlab_sec', 'vuln', 'feed', 'https://about.gitlab.com/security-releases.xml', 15),

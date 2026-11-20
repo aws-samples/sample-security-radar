@@ -18,7 +18,9 @@
 
 /* breadcrumbs ------------------------------------------------- */
 .crumbs ol { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0; font-size: 12px; color: var(--text-3); }
-.crumbs li { display: inline-flex; align-items: center; gap: 6px; }
+.crumbs li { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+/* the last crumb is the event title: it shrinks to one line with an ellipsis (on a phone it pushed the page 75 px wide) */
+.crumbs li:last-child { display: block; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .crumbs li + li::before { content: '›'; color: var(--text-3); }
 .crumbs a { color: var(--text-2); }
 .crumbs [aria-current='page'] { color: var(--text-1); font-weight: 600; max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -308,3 +310,39 @@
 .ap-table th, .ap-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 .ap-table thead th { font-weight: 600; color: var(--text-2); white-space: nowrap; }
 .ap-cell { border-left: 3px solid var(--tone, transparent); }
+
+/* AWS's own fix status (radar.awsfix) — the one AWS-orange accent on the page: what the team is asked first */
+.awsfix { margin: 0 0 14px; }
+.awsfix-line { margin: 4px 0 8px; padding: 6px 10px; border-left: 3px solid #ff9900; background: rgba(255, 153, 0, 0.08);
+  font-size: 13px; color: var(--text-1); }
+.awsfix .kd-table th[scope="row"] { width: 6em; white-space: nowrap; border-bottom: none; }
+
+/* ── R9.5 attack path (components/detail/AttackPathPanel.tsx) ───────────────────────────────────────── */
+.ap-flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.ap-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; position: relative; }
+.ap-col + .ap-col::before { content: '→'; position: absolute; left: -12px; top: 14px; color: var(--text-3); font-size: 13px; }
+.ap-step { background: var(--bg-surface-2, var(--bg-2)); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.ap-step.is-empty { border-style: dashed; background: transparent; }
+.ap-step-h { display: flex; align-items: baseline; gap: 6px; font-weight: 600; font-size: 13px; color: var(--text-1); margin-bottom: 6px; }
+.ap-n { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px;
+  background: var(--accent); color: var(--bg-0); flex-shrink: 0; align-self: center; }
+.ap-hint { font-weight: 400; font-size: 11px; color: var(--text-3); }
+.ap-lines { margin: 0; padding-left: 16px; font-size: 12.5px; line-height: 1.55; color: var(--text-2); }
+.ap-lines li + li { margin-top: 4px; }
+.ap-none { margin: 0; font-size: 12px; color: var(--text-3); }
+.ap-lane { display: flex; flex-direction: column; gap: 6px; }
+.ap-def { display: flex; flex-direction: column; gap: 3px; font-size: 12px; line-height: 1.5; padding: 7px 10px; border-radius: 7px;
+  border: 1px solid var(--line); background: var(--bg-1); color: var(--text-2); }
+.ap-def-tag, .ap-key { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.ap-def.tone-block { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.ap-def.tone-block .ap-def-tag, .ap-key.tone-block { color: var(--accent); }
+.ap-def.tone-temp { border-color: color-mix(in srgb, var(--p1) 55%, var(--line)); }
+.ap-def.tone-temp .ap-def-tag, .ap-key.tone-temp { color: var(--p1); }
+.ap-def.tone-fix { border-color: color-mix(in srgb, var(--status-ok) 55%, var(--line)); }
+.ap-def.tone-fix .ap-def-tag, .ap-key.tone-fix { color: var(--status-ok); }
+.ap-def-go { align-self: flex-start; background: none; border: 0; padding: 0; color: var(--accent); font-size: 11.5px; cursor: pointer; }
+.ap-legend { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0 0; font-size: 11.5px; }
+@container main (max-width: 899px) {
+  .ap-flow { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .ap-col + .ap-col::before { content: '↓'; left: 14px; top: -11px; }
+}

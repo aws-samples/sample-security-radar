@@ -41,6 +41,8 @@ def _error(status: int, code: str, message: str, actual: Any = None, limit: Any 
 def target_problem(url: Any) -> dict[str, Any] | None:
     """Why this is not an address the radar will POST to, or None."""
     bad = lambda code, msg, limit: {"error": code, "message": msg, "actual": str(url)[:120], "limit": limit}
+    if isinstance(url, str) and fetch.has_control(url):
+        return bad("target_control_char", "no space, CR / LF or other control character in the URL", "printable characters only")
     if not isinstance(url, str) or not url or len(url) > 300 or url != url.strip():
         return bad("target_not_url", "target must be an https URL of at most 300 characters", "https://host/path")
     try:
@@ -64,8 +66,8 @@ def target_problem(url: Any) -> dict[str, Any] | None:
         return bad("target_not_public_name", "the host must be a public DNS name", "a public DNS name")
     # a public-looking name may still resolve to 127.0.0.1 / 10.x / 169.254.169.254 (x.nip.io, a rebinding name): the
     # same resolver check the collector's redirects use (fetch._internal_host); the send repeats it (notify.send_webhook)
-    if fetch._internal_host(host):
-        return bad("target_not_public", "the host resolves to a non-public address", "a name that resolves to public addresses")
+    if fetch._internal_host(host, unresolvable_is_internal=True):
+        return bad("target_not_public", "the host resolves to a non-public address, or does not resolve", "a name that resolves to public addresses")
     return None
 
 
@@ -151,6 +153,15 @@ def handler(event: dict[str, Any], _ctx: Any = None, load: Any = None, save: Any
     if len(subs) >= Limits.SELF_SUBSCRIPTIONS_MAX:
         return _error(409, "subscriptions_full", "the deployment's self-service subscriptions are full; ask the operator",
                       len(subs), Limits.SELF_SUBSCRIPTIONS_MAX)
+    raw_filters = body.get("filters") if isinstance(body, dict) else None
+    asked: dict[str, Any] = raw_filters if isinstance(raw_filters, dict) else {}
+    raw_kinds = asked.get("kinds")
+    kinds: list[Any] = raw_kinds if isinstance(raw_kinds, list) else []
+    operator_only = sorted({*(k for k in asked if k in notify.OPERATOR_ONLY_FIELDS),
+                            *(k for k in kinds if k in notify.OPERATOR_ONLY_KINDS)})
+    if operator_only:      # these are never sent to a self-service subscription: a filter on them would never match
+        return _error(400, "filter_operator_only", "code-impact verdicts and patch PRs go to the operator's own subscriptions only",
+                      operator_only, [k for k in notify.FILTER_FIELDS if k not in notify.OPERATOR_ONLY_FIELDS])
     used = {s["id"] for s in subs}
     sid = next(f"s-{client[:16].lower()}-{n}" for n in range(1, Limits.SELF_SUBSCRIPTIONS_MAX + 2)
                if f"s-{client[:16].lower()}-{n}" not in used)

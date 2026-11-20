@@ -85,6 +85,7 @@
  "AwsSolutions-SMG4": [
   "/SecurityRadar/CollectorSecret/Resource",
   "/SecurityRadar/DemoFleetGithubRO/Resource",
+  "/SecurityRadar/GhsaLookupToken/Resource",
   "/SecurityRadar/NotifyConfig/Resource",
   "/SecurityRadar/SelfSubscriptions/Resource",
   "/SecurityRadar/UiBasicAuth/Resource"

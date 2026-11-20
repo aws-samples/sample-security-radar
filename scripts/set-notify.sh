@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/lib.sh
-tmp=$(mktemp); chmod 600 "$tmp"; trap 'trash "$tmp" 2>/dev/null || true' EXIT
+tmp=$(mktemp); chmod 600 "$tmp"; trap 'rm -f "$tmp"' EXIT   # a secret-holding temp file: deleted, never moved to the Trash
 # jq reads the values from its environment ($ENV) and the subscription file by path, not from `--arg` (argv is visible
 # to `ps`). `set -a` exports what ~/.env assigns, but only inside this subshell — jq is the one child that sees them.
 # shellcheck source=/dev/null

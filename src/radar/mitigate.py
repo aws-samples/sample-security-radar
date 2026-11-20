@@ -59,6 +59,18 @@ _BY_ANCHOR = {g.anchor: g for g in WAF_GROUPS.values()}
 
 # product tier: radar.products ids → the group written for that runtime/application (whole group, its own rules)
 PRODUCT_GROUPS: dict[str, str] = {"php": "AWSManagedRulesPHPRuleSet", "wordpress": "AWSManagedRulesWordPressRuleSet"}
+# Applications that ARE PHP, named in an event's title / entities (Neo 2026-11-19: 「能用 WAF 解决的，先用 WAF 挡一下」 —
+# a live check found REDCap and TYPO3 P0s with empty packs: products.match knows neither, so the PHP group was never
+# offered). The PHP group's rules are generic for PHP apps — the plan's reason says so; it is not a CVE signature.
+PHP_APPS = re.compile(r"\b(?:typo3|redcap|drupal|joomla|magento|moodle|phpmyadmin|laravel|prestashop|opencart|"
+                      r"mediawiki|nextcloud|owncloud|roundcube|glpi|suitecrm|vtiger|php)\b", re.IGNORECASE)
+
+
+def php_app(event: dict[str, Any]) -> str | None:
+    """The PHP application an event names, or None (title and entities only — a summary may name another product)."""
+    m = PHP_APPS.search(" ".join([str(event.get("title") or ""), *map(str, event.get("entities") or [])]))
+    return m.group(0) if m else None
+
 
 # cwe tier: weakness → (group, the rule family in it). Only classes whose exploit travels in an HTTP request.
 CWE_RULES: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
@@ -77,6 +89,7 @@ CWE_RULES: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
                                                           "Log4JRCE_HEADER")),),
 }
 CWE_RULES["CWE-23"] = CWE_RULES["CWE-22"]     # relative path traversal: same signatures
+CWE_RULES["CWE-73"] = CWE_RULES["CWE-22"]     # external control of a file name / path (REDCap CVE-2026-90817): LFI signatures
 CWE_RULES["CWE-77"] = CWE_RULES["CWE-78"]     # command injection (generic parent of OS command injection)
 
 
@@ -214,6 +227,10 @@ def waf_plans(event: dict[str, Any], targets: list[dict[str, Any]], catalog: dic
             g = PRODUCT_GROUPS[product]
             offer(WafPlan(tid, "product", g, (), None, f"受影响的产品是 {product}，{WAF_GROUPS[g].label} 规则组专门防护它",
                           tuple(cves), labels_for(g, (), labels)))
+        elif (app := php_app(event)):
+            g = PRODUCT_GROUPS["php"]
+            offer(WafPlan(tid, "product", g, (), None, f"{app} 是 PHP 应用，{WAF_GROUPS[g].label} 规则组的通用防护"
+                          "（PHP 注入、高危函数调用；不针对这个 CVE）", tuple(cves), labels_for(g, (), labels)))
         for cve in cves:
             for cwe in cwes.get(cve, []):
                 for g, rules in CWE_RULES.get(cwe, ()):

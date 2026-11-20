@@ -14,6 +14,8 @@
  * impact chip) → Web3 loss → vuln. Every object opens the L2 EventDrawer (`?event=<id>`), never leaves the wall.
  * Preserves: staleness logic, health.ts, 24h-loss calculation.
  */
+import { NavIcon } from '@/components/nav/NavIcon';
+import { StageLegend } from '@/components/wall/StageLegend';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEvents } from '@/hooks/useEvents';
@@ -767,17 +769,19 @@ export function WallPage() {
   return (
     <div
       ref={containerRef}
+      className="wall-root"
       data-theme={theme}
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
+        // R9.1: fills the shell's main area (it was position:fixed over the whole window, hence its back button)
+        height: '100%',
+        flex: 1,
+        minWidth: 0,
         background: 'var(--bg-0)',
         overflow: 'hidden',
         fontFamily: 'var(--font-body)',
-        position: 'fixed',
-        inset: 0,
-        zIndex: 0,
+        position: 'relative',
       }}
     >
       {/* ── Background depth texture ── */}
@@ -815,6 +819,7 @@ export function WallPage() {
       {/* ── Status bar (40px) ── */}
       <header
         role="banner"
+        className="wall-bar"
         style={{
           height: 40,
           display: 'flex',
@@ -905,7 +910,7 @@ export function WallPage() {
             fontSize: 11, color: 'var(--text-2)', cursor: 'pointer',
           }}
         >
-          {theme === 'light' ? '🌙' : '☀️'}
+          <NavIcon name={theme === 'light' ? 'moon' : 'sun'} size={14} />
         </button>
         <button
           onClick={toggleFullscreen}
@@ -917,23 +922,13 @@ export function WallPage() {
             fontSize: 14, color: 'var(--text-2)', cursor: 'pointer', lineHeight: 1,
           }}
         >
-          {isFullscreen ? '⊡' : '⛶'}
+          <NavIcon name={isFullscreen ? 'shrink' : 'fullscreen'} size={14} />
         </button>
-        <Link
-          to="/"
-          style={{
-            background: 'var(--bg-2)', border: '1px solid var(--line)',
-            borderRadius: 'var(--r-sm)', padding: '4px 12px',
-            fontSize: 11, color: 'var(--text-2)', textDecoration: 'none',
-            display: 'flex', alignItems: 'center',
-          }}
-        >
-          ← 返回
-        </Link>
       </header>
 
-      {/* ── Main 3-column grid ── */}
+      {/* ── Main 3-column grid (styles/layout.css: 2 rows under 1280 px of main area, 1 column under 760) ── */}
       <div
+        className="wall-grid"
         style={{
           flex: 1,
           display: 'grid',
@@ -947,7 +942,7 @@ export function WallPage() {
         }}
       >
         {/* ── Left: event stream ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0, overflow: 'hidden' }}>
+        <div className="wall-left" style={{ display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0, overflow: 'hidden' }}>
           <HudPanel
             style={{ flex: 1, padding: 0 }}
           >
@@ -994,6 +989,7 @@ export function WallPage() {
         {/* ── Center: hero KPIs + radar ── */}
         <div
           ref={radarContainerRef}
+          className="wall-center"
           style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
         >
           <div
@@ -1007,8 +1003,9 @@ export function WallPage() {
               overflow: 'hidden',
             }}
           >
-            {/* Hero KPI row */}
+            {/* Hero KPI row (2 × 2 under 760 px of main area, styles/layout.css) */}
             <div
+              className="wall-kpis"
               style={{
                 display: 'flex',
                 gap: 32,
@@ -1041,7 +1038,7 @@ export function WallPage() {
               <HeroKpi
                 label="Web3 24h 损失"
                 sublabel="USD LOST"
-                value={web3Total > 0 ? formatAmount(web3Total) : '—'}
+                value={evLoading || evError ? '—' : formatAmount(web3Total) /* $0 is a fact (no V2+ loss in 24 h); — = not loaded */}
                 color="var(--loss)"
               />
             </div>
@@ -1060,14 +1057,13 @@ export function WallPage() {
                         points={radarPoints}
                         onSelect={handleRadarSelect}
                         size={radarSize}
-                        lastSync={lastSyncStr}
-                        countdown={countdown}
                       />
                     }
                     dots={radarDots}
                     size={radarSize}
                     labels={labels}
                     onSelect={handleRadarSelect}
+                    selectedId={drawerId}
                   />
                 }
                 dots3d={dots3d}
@@ -1078,6 +1074,8 @@ export function WallPage() {
                 onSelect={handleRadarSelect}
               />
             )}
+            {/* colour · size · distance · shape — always on, one line under the stage, never over a dot (Neo 2026-11-19) */}
+            {!evLoading && <StageLegend />}
             {evError && (
               <div style={{ fontSize: 12, color: 'var(--p0)', padding: 16 }}>
                 数据加载失败: {evError}
@@ -1087,7 +1085,7 @@ export function WallPage() {
         </div>
 
         {/* ── Right: NOW (first) → Web3 loss → chain → vuln ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
+        <div className="wall-right" style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
           <HudPanel heading="必须处理 · NOW" style={{ flexShrink: 0 }}>
             {evLoading ? <div className="skeleton" style={{ height: 120 }} /> : <WallNowBoard cards={nowCards} />}
           </HudPanel>
@@ -1135,6 +1133,7 @@ export function WallPage() {
 
       {/* ── Bottom: block band + ticker ── */}
       <footer
+        className="wall-foot"
         style={{
           height: 180,
           borderTop: '1px solid var(--line)',

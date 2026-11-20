@@ -30,7 +30,10 @@ CAPABILITIES: tuple[Capability, ...] = (
     Capability("requirement", "雷达规则 → Security Agent requirement pack", "security_agent", "BatchCreate/UpdateSecurityRequirements，按名称幂等；" + decisions.describe("sa_requirement"), "requirements_synced"),
     Capability("code_review", "代码评审（含雷达规则）", "security_agent", "CreateCodeReview + StartCodeReviewJob；" + decisions.describe("sa_review"), "code_reviews_started"),
     Capability("review_results", "评审结果回流（命中雷达规则的 finding）", "security_agent", "BatchGetFindings，按 [Requirement: radar-…] 判定命中", "code_reviews_completed"),
-    Capability("remediation", "自动修复 diff 当场落盘", "security_agent", "codeRemediationStrategy=AUTOMATIC；预签名链接 180 秒内抓取", "sa_patches"),
+    # 2026-11-20: one patch per flaw, from Continuum; Security Agent reviews run only when the operator turns them on,
+    # and never fix on their own (respond.SA_REMEDIATION)
+    Capability("remediation", "补丁只由 Continuum 给出（Security Agent 不自动修复）", "security_agent",
+               "codeRemediationStrategy=DISABLED；按事件评审默认关闭（SA_EVENT_REVIEWS=1 打开）", None, "not_applicable"),
     Capability("environment", "Continuum S3 集成 + 环境（每个仓库一个 zip）", "continuum", "us-east-1（东京无端点）；按名称对账，幂等；每环境 1 个 S3 源、≤10 个仓库", "environment_ensured"),
     Capability("context", "威胁情报 → Continuum 知识文档", "continuum", decisions.describe("cn_context"), "contexts_written"),
     Capability("code_finding", "雷达 finding → Continuum 验证", "continuum", "CreateCodeFinding：OCSF 2002 + osint 证据；" + decisions.describe("cn_finding"), "findings_submitted"),

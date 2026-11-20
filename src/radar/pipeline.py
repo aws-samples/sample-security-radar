@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from functools import lru_cache
@@ -15,7 +15,16 @@ from urllib.parse import urlsplit
 from radar import anomaly, chain, keys, latency, removals, respond, signals, timeutil
 from radar.limits import Limits
 from radar.model import EXPLOITATION_ORDER, LEVEL_ORDER, SEVERITY_ORDER, Domain, Event, Item, RawItem, Tier
-from radar.registry import BY_ID, CRYPTO_MEDIA_ORGS, EXCHANGE_NAMES, REPORTER_TOKENS, Source, handle_info
+from radar.registry import (
+    BY_ID,
+    CATALOG_SOURCES,
+    CRYPTO_MEDIA_ORGS,
+    EXCHANGE_NAMES,
+    ONE_ADVISORY_SOURCES,
+    REPORTER_TOKENS,
+    Source,
+    handle_info,
+)
 from radar.store import Store
 
 _TIER_RANK = {"T1": 1, "T2": 2, "T3": 3}
@@ -30,10 +39,17 @@ _CRYPTO = re.compile(
 _VULN = re.compile(r"(?<![A-Za-z0-9])CVE-\d{4}"     # lookbehind, not \b: 「厂商发布CVE-2026-1234修复」
                    r"|\b(vulnerabilit(?:y|ies)|zero-?day|0-?day|patch(?:es|ed)?|security update|RCE)\b|漏洞|补丁",
                    re.IGNORECASE)
-_STRONG = ("cve:", "tx:", "attacker:", "xs:", "url:")
+_STRONG = ("cve:", "ghsa:", "tx:", "attacker:", "xs:", "url:")
 # CISA's two phrasings: "Adds Two Known Exploited Vulnerabilities to Catalog" (advisories) and "We added … CVE-… &
 # … CVE-… to our KEV Catalog" (X); both list unrelated bugs side by side
 # window: CISA's own tweets name vendor + product for each CVE before "to our KEV Catalog" (190 chars live 2026-10-29)
+# 「CISA Adds Six Known Exploited Vulnerabilities to Catalog」 / 「We added 4 CVEs to our Known Exploited Vulnerabilities
+# Catalog」: a COUNT of added entries is what makes it a list. A story about one flaw that says it was added to KEV
+# (「QNAP … Plex2Shell Flaws Are Used to Hack NAS Devices」, live recompute 2026-11-19) has no count and is not one.
+LIST_ANNOUNCE_RE = re.compile(
+    r"\badd(?:s|ed)?\s+(?:\d+|two|three|four|five|six|seven|eight|nine|ten|several|multiple)\s+(?:new\s+)?"
+    r"(?:known exploited vulnerabilit(?:y|ies)\b|(?:vulnerabilit(?:y|ies)|CVEs?|flaws?)\b.{0,80}?\b(?:known exploited|KEV)\b)",
+    re.IGNORECASE | re.DOTALL)
 KEV_ROUNDUP_RE = re.compile(r"\badd(?:s|ed)?\b.{0,320}?\b(?:known exploited vulnerabilit(?:y|ies)|KEV catalog)\b", re.IGNORECASE | re.DOTALL)
 _NAME_KEYS = ("ent:", "tok:", "tt:", "dg:")   # a name shared by text, not a link, tx or figure
 _NOT_ARTICLE = {"x.com", "t.co"}   # canonical_url already folds twitter.com / www. / mobile.
@@ -109,14 +125,16 @@ def cited_article_keys(links: list[str]) -> list[str]:
     return [f"url:{u}" for u in cited] if len(cited) == 1 else []
 
 
-def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
+def normalize(raw: RawItem, source: Source, fetched_at: datetime, aliases: dict[str, str] | None = None) -> Item:
+    if (text := timeutil.strip_relative_age(raw.text)) != raw.text:
+        raw = replace(raw, text=text)
     if source.parser == "twitterapi":
         h = handle_info(raw.author or "")
         tier, org, base = h.tier, h.org, h.domain or source.domain
     else:
         tier, org, base = source.tier, source.org, source.domain
     blob = f"{raw.title}\n{raw.text}"
-    cve_list = sorted(set(keys.cves(blob)) | set(raw.extra.get("cves") or []))
+    cve_list = sorted((set(keys.cves(blob)) - keys.contrast_only(blob)) | set(raw.extra.get("cves") or []))
     domain = _classify(base, blob, bool(cve_list), source.parser != "twitterapi" and org in CRYPTO_MEDIA_ORGS)
     links = [keys.canonical_url(u) for u in raw.links if u]
     canon = keys.canonical_url(raw.url)
@@ -124,8 +142,17 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
     reg: list[str] = []
     # roundups listing dozens of CVEs must not glue unrelated CVE events together — but one CSAF advisory is one
     # product's advisory, however many CVEs it lists (live 2026-11-06: EPICS Base ICSA-26-300-01 with 4 CVEs got none)
-    if len(cve_list) <= 3 or source.parser == "rolie":
+    if len(cve_list) <= 3 or source.parser == "rolie" or (
+            source.source_id in ONE_ADVISORY_SOURCES and len(cve_list) <= Limits.ADVISORY_MAX_CVES):
         reg += [f"cve:{c}" for c in cve_list]
+    elif (top := keys.dominant(blob, Limits.DOMINANT_MIN_MENTIONS, Limits.DOMINANT_RATIO)) in cve_list:
+        reg.append(f"cve:{top}")        # a report about one of the many CVEs it names (keys.dominant)
+    ghsa_list = keys.ghsas(blob)
+    if len(ghsa_list) <= 3:                       # a roundup listing many advisories glues nothing (as for CVEs)
+        reg += [f"ghsa:{g}" for g in ghsa_list]
+        # R12: a GHSA the radar has linked to its CVE (radar.ghsa_alias, written by the analyze station) carries that CVE
+        # too, so a report naming only the advisory joins the CVE's event — and keeps joining after a revision
+        reg += [f"cve:{aliases[g]}" for g in ghsa_list if aliases and g in aliases]
     txs = keys.tx_refs(blob + "\n" + "\n".join(raw.links)) + list(raw.extra.get("attack_tx") or [])
     reg += [f"tx:{t['hash']}" for t in txs]
     reg += [f"attacker:{u.rsplit('/', 1)[-1].lower()}" for u in raw.extra.get("attacker_urls") or []]
@@ -189,7 +216,7 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime) -> Item:
         extra = {**extra, "digest": True}
     return Item(
         item_id=keys.item_id(source.source_id, raw.guid or canon), source_id=source.source_id, tier=tier, org=org,
-        domain=domain, url=raw.url, canonical_url=canon, title=raw.title[:300], text=raw.text[:4000],
+        domain=domain, url=raw.url, canonical_url=canon, title=raw.title[:300], text=raw.text[:Limits.ITEM_TEXT_MAX],
         published_at=timeutil.iso(published), fetched_at=timeutil.iso(fetched_at), content_hash=content_hash,
         keys=sorted(set(reg)), links=links, entity=raw.extra.get("entity"), eventful=eventful,
         signals={"exploited": exploited, "kev": bool(raw.extra.get("kev")), "poc": poc, "amount_usd": amount},
@@ -283,6 +310,24 @@ def _digest_keys(item: Item) -> list[str]:
     return sorted({k for k in item.keys if k == f"url:{item.canonical_url}"} | {f"dg:{kind}{who}:{item.published_at[:7]}"})
 
 
+def lists_cves(item: Item) -> bool:
+    """A list of more CVEs than one story has (> Limits.MERGE_BRIDGE_MAX_CVES; a bug chain names 2–3): a vendor re-shipping another vendor's
+    product, an OS bulletin, a catalog page. Like a KEV roundup it attaches through its CVEs but lends none and merges
+    none. Live 2026-11-18: a Siemens ICS advisory listing 23 PAN-OS CVEs attached to the 09-10 PAN-OS event, lent it
+    CVE-2026-0322, and the 10-14 KEV event merged into it through that id."""
+    return sum(1 for k in item.keys if k.startswith("cve:")) > Limits.MERGE_BRIDGE_MAX_CVES
+
+
+def is_list_announcement(item: Item) -> bool:
+    """A catalog announcement — a KEV roundup, a CVE list, or 「We added 4 CVEs to our Known Exploited Vulnerabilities
+    Catalog」 — is about several vulnerabilities, not one. An event made only of such reports and naming no CVE is no
+    single vulnerability, so it is never P0 / P1 (R9.6; live 2026-11-19: 「CISA Adds Four Known Exploited
+    Vulnerabilities to Catalog」 and CISA's X post each opened a CVE-less P0 that reached the team channel)."""
+    # not is_roundup(): that flag is set by 「≥ 2 CVEs + KEV wording anywhere」 and caught a two-CVE chain story (QNAP
+    # Plex2Shell, recompute 2026-11-19) — registered separately; here a list is a count of added entries or > 3 CVEs
+    return lists_cves(item) or bool(LIST_ANNOUNCE_RE.search(f"{item.title}\n{item.text[:400]}"))
+
+
 def is_roundup(item: Item) -> bool:
     """KEV catalog announcement listing several CVEs (flag set at normalize; recomputed for items stored before it)."""
     n = sum(1 for k in item.keys if k.startswith("cve:"))
@@ -297,7 +342,7 @@ def indexed_keys(item: Item) -> list[str]:
     and the zkLink exploit reports then found Binance through it)."""
     if is_digest(item):      # … and lends an event nothing else
         return _digest_keys(item)
-    return [k for k in item.keys if not (k.startswith("cve:") and is_roundup(item))
+    return [k for k in item.keys if not (k.startswith("cve:") and (is_roundup(item) or lists_cves(item)))
             and (item.eventful or k.startswith(_STRONG))]
 
 
@@ -406,6 +451,13 @@ def find_events(item: Item, store: Store, exclude: str | None = None) -> tuple[s
             # advisory merged Node2Shell — CVE-2026-111497 — into PHP2Shell through tok:php2shell)
             if strong or item.domain != "web3":
                 strong_hit.add(eid)
+    # a report listing more CVEs than one story has joins only an event it shares a CVE with — never one it merely names
+    # (live 2026-11-18: USN-9004-2, an OpenJDK 25 regression notice listing other CVEs, joined Java4Shell through
+    # 「OpenJDK」 and became its first report; a per-event repair was undone by the next full replay)
+    listed = set(keys.cves(f"{item.title}\n{item.text}"))
+    if len(listed) > Limits.MERGE_BRIDGE_MAX_CVES and not any(k.startswith("cve:") for k in item.keys):
+        score = {e: v for e, v in score.items()
+                 if (c := cache.get(e)) is None or not c.cves or set(c.cves) & listed}
     if not score:
         return None, []
     # The own-name bonus, once per event. A shared loss figure still outweighs it: when some candidate shares the
@@ -418,7 +470,7 @@ def find_events(item: Item, store: Store, exclude: str | None = None) -> tuple[s
     # a digest links to everything it reviews: live 2026-11-11, ZDI's "November 2026 Security Update Review" linked
     # 1,129 MSRC advisory pages (Talos 168) — each link a strong url: key — and merged every per-CVE advisory into
     # one event. An item that would prove more than a few events identical proves nothing: it attaches, merges none.
-    if is_roundup(item) or len(strong_hit) > Limits.MERGE_MAX_EVENTS_PER_ITEM:
+    if is_roundup(item) or lists_cves(item) or len(strong_hit) > Limits.MERGE_MAX_EVENTS_PER_ITEM:
         return ranked[0], []
     if not _may_prove_same_story(item):
         return ranked[0], []
@@ -441,6 +493,7 @@ def _different_stories(a: Event | None, b: Event | None, item_cves: set[str]) ->
         return True
     if a.domain != b.domain and "vuln" in (a.domain, b.domain):
         return True
+    # (a long CVE list never gets here: lists_cves merges nothing — live 2026-11-18, a Siemens advisory of 23 PAN-OS CVEs)
     if a.cves and b.cves and not set(a.cves) & set(b.cves) and not (item_cves & set(a.cves) and item_cves & set(b.cves)):
         return True
     # … and even then not across years: one bug chain is disclosed together. Live 2026-11-12: six exploit-catalog
@@ -456,6 +509,8 @@ def _own_cves(items: list[Item]) -> list[str]:
     entry naming 「CVE-2013-… and CVE-2021-…」 gives the 2021 event the 2013 id, and the next entry merges the two
     events through it (the dry run of the Adobe repair, 2026-11-14: 7 stories came back as 3 events)."""
     named = [sorted(k[4:] for k in indexed_keys(i) if k.startswith("cve:")) for i in items]
+    if not any(named):    # an event of lists only (lists_cves lends nothing): it still says which CVEs it is about
+        named = [sorted(k[4:] for k in i.keys if k.startswith("cve:")) for i in items if lists_cves(i) and not is_digest(i)]
     every = {c for n in named for c in n}
     core = {n[0] for n in named if len(n) == 1}
     if not core:
@@ -686,7 +741,7 @@ def _exploitation(ev_domain: Domain, items: list[Item], level: str) -> str:
     def says(n: int) -> bool:
         # the event's CVEs as the OTHER reports name them: a digest lends the event every CVE it lists, so "a CVE of
         # the event" judged against the union would always include the digest's own
-        rest = set().union(*(c for m, c in enumerate(named) if m != n)) if len(items) > 1 else named[n]
+        rest = _others(named, n)
         i = items[n]
         return i.signals["exploited"] == "yes" and signals.exploited_about(i.title, i.text, named[n], rest)
     told = [n for n in range(len(items)) if items[n].signals["exploited"] == "yes" and says(n)]
@@ -697,14 +752,42 @@ def _exploitation(ev_domain: Domain, items: list[Item], level: str) -> str:
     return "poc" if any(i.signals["poc"] for i in items) else "none"
 
 
-def _severity(ev_domain: Domain, level: str, exploitation: str, amount: float | None, fresh: bool = True) -> str:
+def _others(named: list[set[str]], n: int) -> set[str]:
+    """The event's CVEs as the OTHER reports name them: a digest lends the event every CVE it lists, so "a CVE of the
+    event" judged against the union would always include the report's own (shared by 「exploited」 and 「critical」)."""
+    return set().union(*(c for m, c in enumerate(named) if m != n)) if len(named) > 1 else named[n]
+
+
+def _reporters(items: list[Item], groups: list[int]) -> int:
+    """Independent reporting sources (path A's corroboration): syndication groups holding a T1 / T2 report that is not a
+    catalog listing (registry.CATALOG_SOURCES)."""
+    return len({g for i, g in zip(items, groups, strict=True)
+                if i.tier in ("T1", "T2") and i.source_id not in CATALOG_SOURCES and not is_digest(i)})
+
+
+def _critical(ev_domain: Domain, items: list[Item]) -> bool:
+    """Path A to P0 (Neo 2026-11-18): a report of this event says its flaw is critical — unauthenticated RCE or CVSS ≥ 9
+    (signals.critical_about, attributed like 「exploited」: a digest's or a newsletter's sentence about another bug does
+    not count)."""
+    if ev_domain != "vuln":
+        return False
+    named = [{k[4:] for k in i.keys if k.startswith("cve:")} for i in items]
+    for n, i in enumerate(items):
+        if not is_digest(i) and signals.critical_about(i.title, i.text, named[n], _others(named, n)):
+            return True
+    return False
+
+
+def _severity(ev_domain: Domain, level: str, exploitation: str, amount: float | None, fresh: bool = True,
+              critical: bool = False) -> str:
     """P0 means "act now": the impact rule must hold AND the event must be fresh (first seen or escalated
     within Limits.P0_FRESH_HOURS). Stale P0s drop to P1 instead of flooding the board (M2-PLAN A1)."""
-    sev = _impact_severity(ev_domain, level, exploitation, amount)
+    sev = _impact_severity(ev_domain, level, exploitation, amount, critical)
     return "P1" if sev == "P0" and not fresh else sev
 
 
-def _impact_severity(ev_domain: Domain, level: str, exploitation: str, amount: float | None) -> str:
+def _impact_severity(ev_domain: Domain, level: str, exploitation: str, amount: float | None,
+                     critical: bool = False) -> str:
     lv = LEVEL_ORDER[level]
     if ev_domain == "web3":
         if amount is not None and amount >= Limits.WEB3_P0_USD and lv >= 2:
@@ -712,6 +795,10 @@ def _impact_severity(ev_domain: Domain, level: str, exploitation: str, amount: f
         if amount is not None and amount >= Limits.WEB3_P1_USD and lv >= 1:
             return "P1"
         return "P2"
+    # path A (Neo 2026-11-18): a critical flaw reported by ≥ 2 independent reporting sources (catalog listings do not
+    # count) is P0 when it is disclosed — exploitation then updates the notice instead of being the reason for it
+    if ev_domain == "vuln" and critical:
+        return "P0"
     if exploitation == "confirmed" and lv >= 3:
         return "P0"
     if exploitation == "reported" and lv >= 2:
@@ -880,10 +967,10 @@ def _attribution(items: list[Item]) -> dict[str, Any] | None:
 
 
 def day_precision(item: Item) -> bool:
-    """A structured source (KEV, DeFiLlama, SlowMist, DeFiHackLabs) that only gives a date: 00:00:00Z means "that day",
-    not midnight. The single place this ambiguity is decided."""
-    src = BY_ID.get(item.source_id)
-    return bool(src and src.always_eventful) and item.published_at.endswith("T00:00:00Z")
+    """A source that only gives a date: 00:00:00Z means "that day", not midnight (timeutil.day_only decides). Not only the
+    structured ones (KEV, DeFiLlama): live 2026-11-18 a Datadog Security Labs post dated "2026-11-17" became Java4Shell's
+    first report at 00:00, ten hours before the first report with a time (watchTowr 10:22Z)."""
+    return timeutil.day_only(item.published_at)
 
 
 def collected_at(item: Item) -> str:
@@ -964,7 +1051,15 @@ def recompute(ev: Event, items: list[Item], now: datetime, title_pairs: set[tupl
     rose = (LEVEL_ORDER[level] > LEVEL_ORDER[ev.level] and level != "V4") or \
         EXPLOITATION_ORDER[exploitation] > EXPLOITATION_ORDER[ev.exploitation]
     if rose and ev.item_ids:
-        ev.escalated_at = max(i.published_at for i in items)
+        newest = max(i.published_at for i in items)
+        # an exploitation rise is dated by its evidence: live 2026-11-18, a merge brought a 10-14 KEV entry into a 09-10
+        # event and the newest report (11-17) made a five-week-old fact a "fresh" P0. Web3 exploitation follows level.
+        if ev.domain != "web3" and EXPLOITATION_ORDER[exploitation] > EXPLOITATION_ORDER[ev.exploitation]:
+            said = [i.published_at for i in items if i.signals.get("kev") or i.signals.get("exploited") == "yes"]
+            newest_level = newest if LEVEL_ORDER[level] > LEVEL_ORDER[ev.level] and level != "V4" else ""
+            ev.escalated_at = max(min(said) if said else newest, newest_level)
+        else:
+            ev.escalated_at = newest
     ev.item_ids = [i.item_id for i in members]
     ev.title = _title(items)
     first = first_report(items)
@@ -981,8 +1076,11 @@ def recompute(ev: Event, items: list[Item], now: datetime, title_pairs: set[tupl
     ev.severity = _severity(ev.domain, level, exploitation, latest,
                             # freshness keeps the earliest timestamp, date-only included: conservative on purpose
                             # (a KEV entry "added 10-20" may be 3 days old) — first_seen moved to the first report
-                            fresh=max(items[0].published_at, ev.escalated_at) >= fresh_since)
+                            fresh=max(items[0].published_at, ev.escalated_at) >= fresh_since,
+                            critical=_critical(ev.domain, items) and _reporters(items, groups) >= Limits.P0_PATH_A_REPORTERS)
     ev.cves = _own_cves(items)
+    if ev.domain == "vuln" and not ev.cves and items and all(is_list_announcement(i) for i in items):
+        ev.severity = "P2"   # R9.6: a catalog announcement naming no CVE is no single vulnerability (is_list_announcement)
     ev.entities = sorted({i.entity for i in items if i.entity})
     ev.tx = list(tx.values())
     ev.chains = sorted({c for i in items for c in (i.extra.get("chains") or [])} | {t["chain"] for t in ev.tx})
@@ -1013,9 +1111,12 @@ def ingest(raws: list[RawItem], store: Store, fetched_at: datetime, now: datetim
     """Idempotent: re-ingesting identical raw items changes nothing (same ids, same content hash)."""
     now = now or fetched_at
     res = IngestResult()
+    from radar import ghsa_alias
+    aliases = {g: row["cve"] for g, row in ((store.get_source_state(ghsa_alias.KEY) or {}).get("map") or {}).items()
+               if row.get("cve")}
     for raw in raws:
         source = BY_ID[raw.source_id]
-        item = normalize(raw, source, fetched_at)
+        item = normalize(raw, source, fetched_at, aliases)
         prev = store.get_item(item.item_id)
         if prev and prev.content_hash == item.content_hash:
             res.unchanged_items += 1

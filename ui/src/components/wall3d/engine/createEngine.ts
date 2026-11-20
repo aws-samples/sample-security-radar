@@ -20,7 +20,7 @@ import type { Dot3D } from '@/utils/radar3dLayout';
 import { R_WORLD, BLOOM_THRESHOLD, CORE, SEVERITY_TOKEN, arcPoints, srgbToLinear } from '@/utils/radar3dLayout';
 import type { ThreatLink } from '@/utils/radar3dLayout';
 import type { ShieldState } from '@/utils/mitigate';
-import { LOOK_AT, orbitPosition, projectToScreen } from './project';
+import { CAM_ELEV, LOOK_AT, dragView, orbitPosition, projectToScreen } from './project';
 import type { ScreenPoint } from './project';
 import {
   initialQualityState, advanceQuality, tierSettings, tierReason,
@@ -29,6 +29,19 @@ import {
 import type { QualityTier } from './quality';
 
 // ── GLSL shaders ──────────────────────────────────────────────────────────────
+
+// R9.3 (Neo 2026-11-19): the stage follows the page theme. Every effect below is LIGHT added to a near-black floor
+// (additive blending); on a light floor added light is invisible. uInk = 1 turns the same intensity into INK: the
+// hue darkened, alpha = intensity, drawn with normal blending (setTheme swaps the blending mode with the uniform).
+const INK_GLSL = /* glsl */`
+  uniform float uInk;
+  vec4 emit(vec3 c) {
+    if (uInk < 0.5) return vec4(c, 1.0);
+    float m = max(c.r, max(c.g, c.b));
+    return vec4(c / max(m, 1e-4) * 0.38, clamp(m * 2.4, 0.0, 0.9));
+  }
+`;
+
 
 const SCAN_VERT = /* glsl */`
   varying vec2 vLocalXY;
@@ -39,6 +52,7 @@ const SCAN_VERT = /* glsl */`
 `;
 
 const SCAN_FRAG = /* glsl */`
+  ${INK_GLSL}
   uniform float uSweep;
   uniform float uTime;
   varying vec2 vLocalXY;
@@ -76,15 +90,25 @@ const SCAN_FRAG = /* glsl */`
     float gridA = max(1.0 - smoothstep(0.0, 0.012, dRing),
                       (1.0 - smoothstep(0.0, 0.010, dSpoke)) * smoothstep(0.8, 1.6, r)) * 0.055;
 
-    // Detection ripple: one ring leaves the core every 5 s and fades out towards the rim.
-    float rr = fract(uTime / 5.0) * 6.0;
-    float rippleA = (1.0 - smoothstep(0.0, 0.07, abs(r - rr))) * (1.0 - rr / 6.0) * 0.10;
+    // (the 5-second detection ripple from the core is gone: a ring crossing every dot on its own clock was exactly
+    // the motion-without-the-sweep Neo found odd, 2026-11-19)
 
     vec3 cyan = vec3(0.09, 0.85, 0.93);
     // Additive blend (SRC_ALPHA, ONE) with alpha 1 ⇒ rgb is the light added, each term already weighted.
-    vec3 col = cyan * sweepA + domainColor * 0.015 + rimColor * rimA + vec3(0.30, 0.42, 0.62) * gridA + cyan * rippleA;
+    vec3 col = cyan * sweepA + domainColor * 0.015 + rimColor * rimA + vec3(0.30, 0.42, 0.62) * gridA;
     if (max(col.r, max(col.g, col.b)) < 0.003) discard;
-    gl_FragColor = vec4(col, 1.0);
+    gl_FragColor = emit(col);
+  }
+`;
+
+// Seconds since the sweep last passed an instance (R9.4, Neo 2026-11-19: 「雷达扫描还没有扫到这些圈圈，它自己先不要做一些
+// 变化…只有扫掉之后，它才会做一些变化」): every P0 effect follows the sweep instead of its own clock. Same angle as
+// SCAN_FRAG (the floor plane is rotated −90° about x, so local y = −world z ⇒ θ = atan(x, −z)); one turn = 6 s.
+const SINCE_GLSL = /* glsl */`
+  uniform float uSweep;
+  float sinceSweep(vec4 ip) {
+    float theta = atan(ip.x, -ip.z);
+    return mod(uSweep - theta + 6.28318530, 6.28318530) / 6.28318530 * 6.0;
   }
 `;
 
@@ -94,63 +118,74 @@ const CURTAIN_VERT = /* glsl */`
   void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
 `;
 const CURTAIN_FRAG = /* glsl */`
+  ${INK_GLSL}
   varying vec2 vUv;
   void main() {
     float a = pow(1.0 - vUv.y, 2.5) * smoothstep(0.0, 0.12, vUv.x) * (1.0 - 0.35 * vUv.x) * 0.20;
-    gl_FragColor = vec4(vec3(0.09, 0.85, 0.93) * a, 1.0);
+    gl_FragColor = emit(vec3(0.09, 0.85, 0.93) * a);
   }
 `;
 
 // P0 light shaft: an open cylinder whose light falls off with height. LDR colour on purpose — the shaft must not
 // cross BLOOM_THRESHOLD (only the P0 pillar body blooms, B1), so it reads as red light, never a white column.
 const SHAFT_VERT = /* glsl */`
+  ${SINCE_GLSL}
   varying float vH;
+  varying float vSince;
   void main() {
     vH = position.y;
     vec4 p = vec4(position, 1.0);
+    vSince = 99.0;
     #ifdef USE_INSTANCING
+      vSince = sinceSweep(instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0));
       p = instanceMatrix * p;
     #endif
     gl_Position = projectionMatrix * modelViewMatrix * p;
   }
 `;
 const SHAFT_FRAG = /* glsl */`
+  ${INK_GLSL}
   uniform vec3 uColor;
   uniform float uTime;
   varying float vH;
+  varying float vSince;
   void main() {
-    float a = pow(1.0 - vH, 2.2) * 0.22 * (0.85 + 0.15 * sin(uTime * 2.6));
-    gl_FragColor = vec4(uColor * a, 1.0);
+    // steady between passes (it breathed on its own clock); brightens once as the sweep crosses, then settles
+    float a = pow(1.0 - vH, 2.2) * 0.22 * (0.85 + 0.6 * exp(-vSince * 1.6));
+    gl_FragColor = emit(uColor * a);
   }
 `;
 
-// P0 ground shockwave: a ring that expands from the pillar foot every 2.4 s, phase-shifted per pillar.
+// P0 ground shockwave: one ring expands from the pillar foot after the sweep passes it (SINCE_GLSL).
 const WAVE_VERT = /* glsl */`
+  ${SINCE_GLSL}
   varying vec2 vUv;
-  varying float vPhase;
+  varying float vSince;
   void main() {
     vUv = uv;
     vec4 p = vec4(position, 1.0);
-    vPhase = 0.0;
+    vSince = 99.0;
     #ifdef USE_INSTANCING
-      vec4 ip = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-      vPhase = fract(ip.x * 0.37 + ip.z * 0.71);
+      vSince = sinceSweep(instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0));
       p = instanceMatrix * p;
     #endif
     gl_Position = projectionMatrix * modelViewMatrix * p;
   }
 `;
 const WAVE_FRAG = /* glsl */`
+  ${INK_GLSL}
   uniform vec3 uColor;
   uniform float uTime;
   varying vec2 vUv;
-  varying float vPhase;
+  varying float vSince;
   void main() {
     float r = length(vUv * 2.0 - 1.0);
-    float t = fract(uTime / 2.4 + vPhase);
+    // one ring, once, in the 1.8 s after the sweep crosses the pillar (it was every 2.4 s on a per-pillar clock)
+    float t = vSince / 1.8;
+    if (t >= 1.0) discard;
     float a = (1.0 - smoothstep(0.0, 0.05, abs(r - t))) * (1.0 - t) * 0.75;
     if (a < 0.004) discard;
-    gl_FragColor = vec4(uColor * a, 1.0);
+    gl_FragColor = emit(uColor * a);
   }
 `;
 
@@ -161,6 +196,7 @@ const LINK_VERT = /* glsl */`
   void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
 `;
 const LINK_FRAG = /* glsl */`
+  ${INK_GLSL}
   uniform vec3 uColor;
   uniform float uTime;
   uniform float uDashed;
@@ -173,9 +209,23 @@ const LINK_FRAG = /* glsl */`
     float base = uDashed > 0.5 ? step(0.55, fract(s * 22.0 - uTime * 0.6)) * 0.6 : 0.30;
     float a = lift * (base + pulse * (uDashed > 0.5 ? 0.0 : 0.9));
     if (a < 0.004) discard;
-    gl_FragColor = vec4(uColor * (1.0 + pulse * 0.5) * a, 1.0);
+    gl_FragColor = emit(uColor * (1.0 + pulse * 0.5) * a);
   }
 `;
+
+// ── Stage palette per page theme (R9.3) ─────────────────────────────────────────
+export type StageTheme = 'dark' | 'light';
+/** The fixed colours of the scene, per theme. Severity / domain colours stay the tokens of both themes. */
+export const STAGE_PALETTE: Record<StageTheme, {
+  background: number; grid: number; gridOpacity: number; stars: boolean; core: number; coreHeart: number;
+  shieldOn: number; shieldError: number; shieldOff: number; bloom: boolean;
+}> = {
+  dark: { background: 0x05070D, grid: 0x34507F, gridOpacity: 0.9, stars: false, core: 0x5CE1E6, coreHeart: 0x2FB8C4,
+    shieldOn: 0x34D399, shieldError: 0xFFB547, shieldOff: 0x3A4660, bloom: true },
+  // light: the page's own surface, slate grid, dark teal ink; bloom off (it blows out on a light floor)
+  light: { background: 0xF4F6FA, grid: 0x9AA8BF, gridOpacity: 0.6, stars: false, core: 0x0E7490, coreHeart: 0x0891B2,
+    shieldOn: 0x059669, shieldError: 0xD97706, shieldOff: 0xA3AEC2, bloom: false },
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -186,10 +236,14 @@ export interface EngineHandle {
   setSelected(eventId: string | null): void;
   /** Register a callback for when the user picks an event. */
   onPick(cb: (eventId: string) => void): void;
+  /** The pillar under the pointer (null when none), with its CSS-px position in the canvas — the stage draws its tip. */
+  onHover(cb: (dot: Dot3D | null, x: number, y: number) => void): void;
   /** Manually set quality tier (called by FPS guardian or parent). */
   setTier(tier: QualityTier): void;
   /** Resize the renderer to match the current container size. */
   resize(width: number, height: number): void;
+  /** Page theme: background, grid, core, shield and the light → ink mode of every effect (R9.3). */
+  setTheme(theme: StageTheme): void;
   /** Clean up all GPU resources. */
   dispose(): void;
   /** Get current quality tier reason string for status bar. */
@@ -356,16 +410,21 @@ export function createEngine(
     transparent: true,
   });
   const stars = new THREE.Points(starGeo, starMat);
-  scene.add(stars);
+  // stars stay out of the scene (R9.4 calm): decoration behind the data — setTheme keeps them hidden
 
   // Shared per-frame uniforms (one object, every material reads it).
   const sweepU = { value: 0.0 };
   const timeU = { value: 0.0 };
-  const fx = (vertexShader: string, fragmentShader: string, uniforms: Record<string, { value: unknown }>) =>
-    new THREE.ShaderMaterial({
-      vertexShader, fragmentShader, uniforms: { uTime: timeU, ...uniforms },
+  const inkU = { value: 0.0 };              // 1 = light theme (INK_GLSL)
+  const lightFx: THREE.ShaderMaterial[] = [];  // every emit() material: its blending follows the theme
+  const fx = (vertexShader: string, fragmentShader: string, uniforms: Record<string, { value: unknown }>) => {
+    const m = new THREE.ShaderMaterial({
+      vertexShader, fragmentShader, uniforms: { uTime: timeU, uInk: inkU, ...uniforms },
       transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
     });
+    lightFx.push(m);
+    return m;
+  };
   const lin = (hex: number) => new THREE.Vector3(
     srgbToLinear(((hex >> 16) & 0xff) / 255), srgbToLinear(((hex >> 8) & 0xff) / 255), srgbToLinear((hex & 0xff) / 255));
   const P0_LIN = lin(SEVERITY_TOKEN.P0);
@@ -376,12 +435,13 @@ export function createEngine(
   const scanMat = new THREE.ShaderMaterial({
     vertexShader: SCAN_VERT,
     fragmentShader: SCAN_FRAG,
-    uniforms: { uSweep: sweepU, uTime: timeU },
+    uniforms: { uSweep: sweepU, uTime: timeU, uInk: inkU },
     transparent: true,
     depthWrite: false,
     side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
   });
+  lightFx.push(scanMat);
   const scanMesh = new THREE.Mesh(scanGeo, scanMat);
   scanMesh.rotation.x = -Math.PI / 2;
   scanMesh.position.y = 0.005;
@@ -392,7 +452,7 @@ export function createEngine(
   curtainGeo.translate(R_WORLD / 2, 0.45, 0);
   const curtainMat = fx(CURTAIN_VERT, CURTAIN_FRAG, {});
   const curtain = new THREE.Mesh(curtainGeo, curtainMat);
-  scene.add(curtain);
+  // the sweep curtain (a translucent wall on the beam) is left out (R9.4 calm): the floor sweep alone says where it is
 
   // ── Core: the code you run (the targets the AWS agents check). Links land here; the shield wraps it. ──
   const core = new THREE.Group();
@@ -413,12 +473,11 @@ export function createEngine(
   const orbitB = new THREE.Mesh(orbitGeoB, orbitMat);
   orbitA.rotation.set(Math.PI / 2.4, 0, 0);
   orbitB.rotation.set(-Math.PI / 3, 0.5, 0);
-  core.add(orbitA, orbitB);
+  // the two orbits and the tether are left out (R9.4 calm): the sphere and its shield say "your code" without them
   // tether from the floor hub to the core + two hub rings on the disk
   const tetherGeo = new THREE.CylinderGeometry(0.012, 0.012, CORE.y, 6, 1, true);
   tetherGeo.translate(0, -CORE.y / 2, 0);
   const tetherMat = new THREE.MeshBasicMaterial({ color: 0x2FB8C4, transparent: true, opacity: 0.45 });
-  core.add(new THREE.Mesh(tetherGeo, tetherMat));
   const hubGeo = new THREE.RingGeometry(0.70, 0.72, 96);
   hubGeo.rotateX(-Math.PI / 2);
   const hubMat = new THREE.MeshBasicMaterial({ color: 0x5CE1E6, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
@@ -436,9 +495,11 @@ export function createEngine(
     arc.rotation.set(-Math.PI / 2, 0, ((90 - deg - 50) * Math.PI) / 180);
     core.add(arc);
   });
-  const SHIELD_LOOK: Record<ShieldState, [number, number]> = {
-    on: [0x34D399, 0.95], error: [0xFFB547, 0.9], off: [0x3A4660, 0.5], unknown: [0x3A4660, 0.25],
-  };
+  let pal = STAGE_PALETTE.dark;
+  let shieldStates: ShieldState[] = [];
+  const shieldLook = (st: ShieldState): [number, number] => ({
+    on: [pal.shieldOn, 0.95], error: [pal.shieldError, 0.9], off: [pal.shieldOff, 0.5], unknown: [pal.shieldOff, 0.25],
+  } as Record<ShieldState, [number, number]>)[st];
 
   // Links (rebuilt by setLinks; two shared materials).
   const linkMatHit = fx(LINK_VERT, LINK_FRAG, { uColor: { value: P0_LIN }, uDashed: { value: 0 } });
@@ -514,14 +575,14 @@ export function createEngine(
   const MAX_P0 = 64;
   const shaftGeo = new THREE.CylinderGeometry(0.2, 0.2, 1, 24, 1, true);
   shaftGeo.translate(0, 0.5, 0);
-  const shaftMat = fx(SHAFT_VERT, SHAFT_FRAG, { uColor: { value: P0_LIN } });
+  const shaftMat = fx(SHAFT_VERT, SHAFT_FRAG, { uColor: { value: P0_LIN }, uSweep: sweepU });
   const shafts = new THREE.InstancedMesh(shaftGeo, shaftMat, MAX_P0);
   shafts.count = 0;
   shafts.raycast = () => {}; // never steals a pick from the pillar inside it
   scene.add(shafts);
   const waveGeo = new THREE.PlaneGeometry(2, 2);
   waveGeo.rotateX(-Math.PI / 2);
-  const waveMat = fx(WAVE_VERT, WAVE_FRAG, { uColor: { value: P0_LIN } });
+  const waveMat = fx(WAVE_VERT, WAVE_FRAG, { uColor: { value: P0_LIN }, uSweep: sweepU });
   const waves = new THREE.InstancedMesh(waveGeo, waveMat, MAX_P0);
   waves.count = 0;
   waves.raycast = () => {};
@@ -582,6 +643,8 @@ export function createEngine(
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
   let pickCallback: ((id: string) => void) | null = null;
+  let hoverCallback: ((dot: Dot3D | null, x: number, y: number) => void) | null = null;
+  let hoverId: string | null = null;
   let lastPickTime = 0;
   const PICK_THROTTLE_MS = 33; // ~30Hz
 
@@ -593,8 +656,37 @@ export function createEngine(
   let rafId: number | null = null;
   let lastTime = performance.now();
   let sweepAngle = 0; // radians
+  let themeBloom = true;  // false in the light theme (STAGE_PALETTE.bloom)
   let cameraAzimuth = 0; // degrees
   let hitActive = false; // any affected link ⇒ the core beats red
+
+  // the reader's own view (drag to turn about the axis / tilt; double-click resets) — the camera holds still otherwise
+  let view = { az: 0, elev: CAM_ELEV };
+  let drag: { x: number; y: number; moved: number } | null = null;
+  let movedAt = -1e9;
+  let swallowClick = false;
+  function applyView() {
+    const p = orbitPosition(view.az, view.elev);
+    camera.position.set(p.x, p.y, p.z);
+    camera.lookAt(LOOK_AT.x, LOOK_AT.y, LOOK_AT.z);
+    movedAt = performance.now();
+  }
+  function handlePointerDown(e: PointerEvent) {
+    drag = { x: e.clientX, y: e.clientY, moved: 0 };
+    swallowClick = false;
+  }
+  function handleDragMove(e: PointerEvent) {
+    if (!drag || (e.buttons === 0 && e.pointerType === 'mouse')) { drag = null; return; }
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    drag.moved += Math.abs(dx) + Math.abs(dy);
+    drag.x = e.clientX; drag.y = e.clientY;
+    if (drag.moved < 5) return;               // a click with a tremor is still a click
+    if (drag.moved >= 5 && !swallowClick) { swallowClick = true; try { canvas.setPointerCapture(e.pointerId); } catch { /* gone */ } }
+    view = dragView(view, dx, e.pointerType === 'touch' ? 0 : dy);   // touch: the page scrolls vertically
+    applyView();
+  }
+  function handlePointerUp() { drag = null; }
+  function handleDoubleClick() { view = { az: 0, elev: CAM_ELEV }; applyView(); }
 
   function updateCamera(now: number) {
     const settings = tierSettings(qualState);
@@ -646,7 +738,7 @@ export function createEngine(
 
     updateCamera(now);
 
-    if (settings.bloom) {
+    if (settings.bloom && themeBloom) {
       composer.render();
     } else {
       renderer.render(scene, camera);
@@ -696,13 +788,18 @@ export function createEngine(
       const idx  = hit.instanceId ?? 0;
       const bucket = mesh === pillarsV0 ? 0 : mesh === pillarsV1 ? 1 : 2;
       const dot = dotsByBucket[bucket][idx];
-      if (dot) canvas.title = `${dot.title} [${dot.severity}]`;
-    } else {
-      canvas.title = '';
+      if (dot) { hoverId = dot.eventId; hoverCallback?.(dot, e.clientX - rect.left, e.clientY - rect.top); }
+    } else if (hoverId !== null) {
+      hoverId = null;
+      hoverCallback?.(null, 0, 0);
     }
+  }
+  function handlePointerLeave() {
+    if (hoverId !== null) { hoverId = null; hoverCallback?.(null, 0, 0); }
   }
 
   function handleClick(e: MouseEvent) {
+    if (swallowClick) { swallowClick = false; return; }   // the end of a drag is not a pick
     if (!pickCallback) return;
     const rect = canvas.getBoundingClientRect();
     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -721,12 +818,20 @@ export function createEngine(
   }
 
   canvas.addEventListener('pointermove', handlePointerMove);
+  canvas.addEventListener('pointerleave', handlePointerLeave);
   canvas.addEventListener('click', handleClick);
+  canvas.addEventListener('pointerdown', handlePointerDown);
+  canvas.addEventListener('pointermove', handleDragMove);
+  canvas.addEventListener('pointerup', handlePointerUp);
+  canvas.addEventListener('pointercancel', handlePointerUp);
+  canvas.addEventListener('dblclick', handleDoubleClick);
+  canvas.style.touchAction = 'pan-y';     // a horizontal swipe turns the scene; a vertical one still scrolls the page
+  canvas.style.cursor = 'grab';
 
   // ── applyTier: update scene objects to match quality settings ──
   function applyTier(tier: QualityTier) {
     const settings = TIER_SETTINGS[tier];
-    bloomPass.enabled = settings.bloom;
+    bloomPass.enabled = settings.bloom && themeBloom;
     renderer.setPixelRatio(Math.min(devicePixelRatio, settings.dpr));
     stars.visible = settings.stars > 0;
 
@@ -754,7 +859,7 @@ export function createEngine(
     // Severity-based XZ scale: P0 wide, P2 thin dot. P0 2.0 → 1.5 (B1: smaller glowing area per pillar).
     function sevScale(sev: string): number {
       if (sev === 'P0') return 1.5;
-      if (sev === 'P1') return 1.2;
+      if (sev === 'P1') return 0.85;   // R9.4 calm: a thin stub beside the P0 columns
       return 1.1; // P2: a short ground blip (displayHeight), wide enough to read as a dot
     }
 
@@ -833,6 +938,10 @@ export function createEngine(
       // Future: show crosshair ring at selected event position
     },
 
+    onHover(cb) {
+      hoverCallback = cb;
+    },
+
     onPick(cb) {
       pickCallback = cb;
     },
@@ -857,7 +966,13 @@ export function createEngine(
       stop();
       document.removeEventListener('visibilitychange', visHandler);
       canvas.removeEventListener('pointermove', handlePointerMove);
+      canvas.removeEventListener('pointerleave', handlePointerLeave);
       canvas.removeEventListener('click', handleClick);
+      canvas.removeEventListener('pointerdown', handlePointerDown);
+      canvas.removeEventListener('pointermove', handleDragMove);
+      canvas.removeEventListener('pointerup', handlePointerUp);
+      canvas.removeEventListener('pointercancel', handlePointerUp);
+      canvas.removeEventListener('dblclick', handleDoubleClick);
 
       // Dispose scene objects
       for (const c of links.children) (c as THREE.Mesh).geometry.dispose();
@@ -887,7 +1002,8 @@ export function createEngine(
     },
 
     isCameraMoving() {
-      return rafId !== null && tierSettings(qualState).cameraOrbit;
+      // a drag (and the moment after it) moves the camera: the DOM labels re-project
+      return rafId !== null && (tierSettings(qualState).cameraOrbit || drag !== null || performance.now() - movedAt < 500);
     },
 
     setLinks(next) {
@@ -898,15 +1014,38 @@ export function createEngine(
         links.add(new THREE.Mesh(geo, l.kind === 'affected' ? linkMatHit : linkMatChk));
       }
       hitActive = next.some(l => l.kind === 'affected');
-      coreHeartMat.color.setHex(hitActive ? SEVERITY_TOKEN.P0 : 0x2FB8C4);
+      coreHeartMat.color.setHex(hitActive ? SEVERITY_TOKEN.P0 : pal.coreHeart);
     },
 
     setShield(states) {
+      shieldStates = states;
       states.slice(0, shieldMats.length).forEach((st, i) => {
-        const [hex, op] = SHIELD_LOOK[st];
+        const [hex, op] = shieldLook(st);
         shieldMats[i].color.setHex(hex);
         shieldMats[i].opacity = op;
       });
+    },
+
+    setTheme(theme) {
+      pal = STAGE_PALETTE[theme];
+      (scene.background as THREE.Color).setHex(pal.background);
+      gridMat.color.setHex(pal.grid);
+      gridMat.opacity = pal.gridOpacity;
+      stars.visible = pal.stars;
+      for (const m of [coreWireMat, orbitMat, tetherMat, hubMat]) m.color.setHex(pal.core);
+      coreHeartMat.color.setHex(hitActive ? SEVERITY_TOKEN.P0 : pal.coreHeart);
+      inkU.value = theme === 'light' ? 1 : 0;
+      for (const m of lightFx) {
+        m.blending = theme === 'light' ? THREE.NormalBlending : THREE.AdditiveBlending;
+        m.needsUpdate = true;
+      }
+      shieldStates.slice(0, shieldMats.length).forEach((st, i) => {
+        const [hex, op] = shieldLook(st);
+        shieldMats[i].color.setHex(hex);
+        shieldMats[i].opacity = op;
+      });
+      themeBloom = pal.bloom;
+      bloomPass.enabled = tierSettings(qualState).bloom && themeBloom;
     },
   };
 }

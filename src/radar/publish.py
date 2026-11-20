@@ -11,7 +11,9 @@ from typing import Any
 from radar import (
     announcements,
     anomaly,
+    attack_path,
     attacktx,
+    awsfix,
     cluster_judge,
     coverage,
     cvemeta,
@@ -46,7 +48,7 @@ def _analysis_status(ev: Event) -> str:
 def _public_analysis(ev: Event) -> dict[str, Any] | None:
     if not ev.analysis:
         return None
-    a = {k: v for k, v in ev.analysis.items() if k != "input_hash"}  # cache key is internal
+    a = {k: v for k, v in ev.analysis.items() if k not in ("input_hash", "facts")}  # cache keys are internal
     return a
 
 
@@ -58,20 +60,39 @@ def _summary(ev: Event, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         "first_seen": ev.first_seen, "last_updated": ev.last_updated,
         "first_report_source": ev.first_report_source, "independent_sources": ev.independent_sources,
         "item_count": len(ev.item_ids), "cves": ev.cves, "entities": ev.entities, "chains": ev.chains,
+        # GitHub advisory ids (keys.ghsas): the identifier of a flaw whose CVE is still pending (Ruby2Shell 11-19)
+        "ghsas": sorted({k[5:] for k in ev.keys if k.startswith("ghsa:")}),
         "amount_usd_latest": ev.amount_usd_latest, "amount_disputed": ev.amount_disputed,
         "amount_frozen_latest": ev.amount_frozen_latest, "attribution": ev.attribution,
         # attack transactions whose receipt the radar read on chain (radar.chain: verified = confirmed) — the push
         # station updates a P0 thread when this rises (R4.3)
         "tx_confirmed": sum(1 for t in ev.tx or [] if t.get("verified") == "confirmed"),
-        "summary": next((x["text"] for x in (ev.analysis or {}).get("bluf", []) if x.get("grounded")), ev.summary),
+        **_summary_field(ev),
         "analysis_status": _analysis_status(ev),
     }
+
+
+def _summary_field(ev: Event) -> dict[str, Any]:
+    """The event summary: the first grounded BLUF sentence that does not contradict the code's fields (CVEs,
+    exploitation, amount), else the code's own summary — and why a sentence was passed over (#/ops, the notice)."""
+    from radar import analyst
+    facts = {"cves": ev.cves, "exploitation": ev.exploitation, "amount_usd_latest": ev.amount_usd_latest,
+             "amount_disputed": ev.amount_disputed}
+    rejected = []
+    for x in (ev.analysis or {}).get("bluf", []):
+        if not x.get("grounded"):
+            continue
+        why = analyst.contradiction(x["text"], facts)
+        if why is None:
+            return {"summary": x["text"], "summary_source": "brief", **({"summary_rejected": rejected} if rejected else {})}
+        rejected.append(why)
+    return {"summary": ev.summary, "summary_source": "code", **({"summary_rejected": rejected} if rejected else {})}
 
 
 def _cve_disclosed(ev: Event, meta: dict[str, Any]) -> dict[str, Any] | None:
     """Card-sized disclosure (cvemeta.disclosure decides): list cards and the wall drawer show 「CVE 公开 10-15」 so an event
     first reported 10-29 does not read as a 10-29 vulnerability (live 2026-11-03, CVE-2026-98432)."""
-    d = cvemeta.disclosure(ev.cves, meta, ev.first_seen) if ev.cves else None
+    d = cvemeta.disclosure(ev.cves, meta, ev.first_seen, ev.title) if ev.cves else None
     return {"at": d["at"], "cve": d["cve"], "resurfaced": d["resurfaced"]} if d else None
 
 
@@ -142,7 +163,8 @@ def _cve_details(cves: list[str], items: list[Item], epss: dict[str, dict[str, f
 
 def event_doc(ev: Event, store: Store, now: datetime, epss: dict[str, dict[str, float]] | None = None,
               titles: dict[str, str] | None = None, cve_meta: dict[str, Any] | None = None,
-              ledgers: dict[str, Any] | None = None, dup_pairs: dict[str, Any] | None = None) -> dict[str, Any]:
+              ledgers: dict[str, Any] | None = None, dup_pairs: dict[str, Any] | None = None,
+              aws_led: dict[str, Any] | None = None) -> dict[str, Any]:
     from radar.pipeline import (  # local import: pipeline imports publish-free modules only
         evidence_at,
         first_report,
@@ -179,7 +201,7 @@ def event_doc(ev: Event, store: Store, now: datetime, epss: dict[str, dict[str, 
             titles or {ev.event_id: ev.title},
             store.get_source_state(duplabels.KEY)),
         # stage 0 for a CVE event: when the vulnerability was published (else a 10-29 first report reads as a 10-29 bug)
-        "progress": ([{"stage": "disclosed", "at": disc["at"]}] if (disc := cvemeta.disclosure(ev.cves, meta, ev.first_seen))
+        "progress": ([{"stage": "disclosed", "at": disc["at"]}] if (disc := cvemeta.disclosure(ev.cves, meta, ev.first_seen, ev.title))
                      else []) + insights.progress(ev, items, now),
         "pipeline_steps": insights.pipeline_steps(ev, items, resp),
         # evidence_at: where an item sits on a timeline (a date-only entry never before the first report) — the UI
@@ -187,8 +209,15 @@ def event_doc(ev: Event, store: Store, now: datetime, epss: dict[str, dict[str, 
         "items": [_item_ref(it, g, evidence_at(it, first_report(items))) for it, g in zip(items, groups)],
         "timeline": ev.timeline, "amount_history": ev.amount_history,
         "cve_details": _cve_details(ev.cves, items, epss or {}, meta),
+        # AWS's own fix status (radar.awsfix; Neo 2026-11-18: highlight it when AWS has fixed it) — vulnerability events
+        "aws_fix": (fix := awsfix.for_event(ev.cves, aws_led if aws_led is not None else awsfix.load(store))
+                    if ev.domain == "vuln" and ev.cves else None),
+        # R9.5: how it is attacked and where each defence stops it (radar.attack_path; vulnerability P0 / P1)
+        "attack_path": attack_path.public(store.get_source_state(attack_path.key(ev.event_id)) if ev.domain == "vuln" else None,
+                                          rule_pack=bool(store.get_source_state(rulepack.key(ev.event_id))),
+                                          aws_fix_line=(fix or {}).get("line")),
         # when the world knew (CVE record published) vs when the radar knew (first_seen) — see cvemeta.disclosure
-        "disclosure": cvemeta.disclosure(ev.cves, meta, ev.first_seen),
+        "disclosure": cvemeta.disclosure(ev.cves, meta, ev.first_seen, ev.title),
         # first report published (by its source) vs the radar's first capture — pipeline.sighting decides
         "sighting": sighting(items),
         "tx": [{"chain": t["chain"], "hash": t["hash"], "explorer_url": t.get("explorer_url"),
@@ -411,7 +440,7 @@ def _late_detections(store: Store, now: datetime, evs: list[Event]) -> list[dict
         if ev.domain != "vuln" or not ev.cves or now - (timeutil.parse(ev.first_seen) or now) > timedelta(
                 days=Limits.LATE_DETECTION_RECENT_DAYS):
             continue
-        d = cvemeta.disclosure(ev.cves, meta, ev.first_seen)
+        d = cvemeta.disclosure(ev.cves, meta, ev.first_seen, ev.title)
         top = max((meta[c]["cvss"] for c in ev.cves if (meta.get(c) or {}).get("cvss") is not None), default=None)
         # a resurfaced CVE (KEV listing, a years-old bug back in the news) is not a radar miss: the event is the new
         # exploitation / report, not the disclosure (live 2026-11-02: CVE-2025-39682 via KEV, 377 days after publication)
@@ -434,6 +463,9 @@ def ops_doc(store: Store, now: datetime, srcs: dict[str, Any], evs: list[Event])
                            "title_proposals": store.get_source_state(retitle_judge.KEY),
                            # the judge's verdict ledger (handlers.DUP_KEY): #/ops lists its would-merge pairs (shadow mode)
                            "cluster_judge": cluster_judge.load(store, "__cluster_judge__"),
+                           # handlers.JUDGE_TRUTH_KEY (restated: handlers imports the AWS SDK)
+                           "judge_truth": store.get_source_state("__judge_truth__"),
+                           "ghsa_alias": store.get_source_state("__ghsa_alias__"),          # radar.ghsa_alias.KEY
                            "slow_stations": stationtime.slow(stationtime.facts(store)),
                            "enrich": store.get_source_state(ENRICH_KEY), "pending": store.get_source_state(PENDING_KEY),
                            **dict(zip(("amount_outliers", "amount_shared"), _amount_checks(evs))),
@@ -480,6 +512,7 @@ def _mitigation(store: Store, event_id: str) -> dict[str, Any] | None:
 def build(store: Store, now: datetime, changed: set[str] | None = None,
           epss: dict[str, dict[str, float]] | None = None,
           enrich: Callable[[list[str]], Any] | None = None,
+          aws_fix: Callable[[list[str]], set[str]] | None = None,
           time_left: Callable[[], float] | None = None, deferred: list[str] | None = None,
           timings: dict[str, float] | None = None) -> dict[str, dict[str, Any]]:
     """changed=None ⇒ every listed event gets a detail doc (first publish / full rebuild).
@@ -505,6 +538,10 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
         # every published CVE (not only the changed pages'): a score that arrives later must reach its page
         got = enrich(sorted({c for ev in evs for c in ev.cves}))
         epss, touched = got if isinstance(got, tuple) else (got, set())
+    if aws_fix is not None:     # Amazon Linux Security Center, for P0 / P1 vulnerability CVEs only (radar.awsfix)
+        hot = sorted((ev for ev in evs if ev.domain == "vuln" and ev.severity in ("P0", "P1")),
+                     key=lambda ev: (-SEVERITY_ORDER[ev.severity], ev.first_seen))
+        touched |= aws_fix(list(dict.fromkeys(c for ev in hot for c in ev.cves)))     # P0 CVEs first
     mark("enrich")
     if touched:     # the listing was built before this refresh: rebuild it so cards carry the new CVE dates
         listing, evs = events_doc(store, now)
@@ -521,6 +558,7 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
     mark("side_docs")
     titles = {e.event_id: e.title for e in evs}
     meta = cvemeta.load(store)
+    aws_led = awsfix.load(store)
     ledgers = decision_ledgers(store)
     detail.sort(key=lambda e: (-SEVERITY_ORDER[e.severity], -(timeutil.parse(e.last_updated) or now).timestamp()))
     dup_pairs = cluster_judge.load(store, "__cluster_judge__")      # once per build, not 17 reads per page
@@ -529,7 +567,8 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
             if deferred is not None:
                 deferred.extend(e.event_id for e in detail[k:])
             break
-        docs[f"events/{ev.event_id}.json"] = event_doc(ev, store, now, epss, titles, meta, ledgers, dup_pairs=dup_pairs)
+        docs[f"events/{ev.event_id}.json"] = event_doc(ev, store, now, epss, titles, meta, ledgers, dup_pairs=dup_pairs,
+                                                       aws_led=aws_led)
         tm["pages_done"] = k + 1
     mark("pages")
     return {path: {**doc, "schema_version": SITE_SCHEMA_VERSION} for path, doc in docs.items()}   # every root document

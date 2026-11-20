@@ -147,6 +147,12 @@ class RadarStack(Stack):
         raw.grant_read(process_fn)
         # analyst station: Bedrock Claude via global cross-region inference profiles (research/05 ②)
         analyze_fn = fn("AnalyzeFn", "analyze_events", 600, memory=512, reserved_concurrent_executions=1)
+        # R12: a read-only fine-grained GitHub token (public data only) for the GHSA → CVE lookup (radar.ghsa_alias).
+        # CDK creates a placeholder; the value is put out of band (scripts/set-ghsa-token.sh), never in the template.
+        ghsa_token = sm.Secret(self, "GhsaLookupToken", description="security-radar: read-only GitHub token (GHSA → CVE lookup)",
+                               secret_string_value=SecretValue.unsafe_plain_text("placeholder"))
+        ghsa_token.grant_read(analyze_fn)
+        analyze_fn.add_environment("GHSA_TOKEN_SECRET_ARN", ghsa_token.secret_arn)
         analyze_fn.add_to_role_policy(iam.PolicyStatement(
             actions=["bedrock:InvokeModel", "bedrock:Converse"],
             resources=[f"arn:aws:bedrock:{self.region}:{self.account}:inference-profile/global.anthropic.claude-*",
@@ -454,6 +460,8 @@ class RadarStack(Stack):
         read_api = apigw.RestApi(
             self, "ReadApi", rest_api_name=f"{name}-read", endpoint_types=[apigw.EndpointType.REGIONAL],
             cloud_watch_role=True,   # access logs need the account-level API Gateway logging role (none was set)
+            # kept on delete (the CDK default, said out loud): the role is an account / Region setting other APIs may use
+            cloud_watch_role_removal_policy=RemovalPolicy.RETAIN,
             deploy_options=apigw.StageOptions(
                 stage_name="v1", throttling_rate_limit=20, throttling_burst_limit=40,
                 logging_level=apigw.MethodLoggingLevel.ERROR,
@@ -462,6 +470,21 @@ class RadarStack(Stack):
                 access_log_format=apigw.AccessLogFormat.json_with_standard_fields(
                     caller=False, http_method=True, ip=True, protocol=True, request_time=True, resource_path=True,
                     response_length=True, status=True, user=False)))
+        # 401 / 403 say what is missing and where to get it (Neo 2026-11-19: a feed's token address opened in a browser read
+        # {"message":"Unauthorized"} and looked broken). Bodies only — the authorizer, scopes and stage are unchanged.
+        read_api.add_gateway_response(
+            "TokenRequired", type=apigw.ResponseType.UNAUTHORIZED, status_code="401",
+            templates={"application/json": json.dumps({
+                "error": "token_required",
+                "message": "这个地址需要访问令牌：请求头 Authorization: Bearer <access token>。令牌由站点运营方用 "
+                           "scripts/radar-token.py create 发放；在浏览器里请用站点地址（订阅页「站点地址」一列）。",
+                "limit": "Authorization: Bearer <access token>"}, ensure_ascii=False)})
+        read_api.add_gateway_response(
+            "ScopeMissing", type=apigw.ResponseType.ACCESS_DENIED, status_code="403",
+            templates={"application/json": json.dumps({
+                "error": "scope_missing",
+                "message": "令牌有效，但没有这个地址需要的权限（读取需要 radar/read，自助 webhook 需要 radar/subscribe）。",
+                "limit": "radar/read | radar/subscribe"}, ensure_ascii=False)})
         api_auth = apigw.CognitoUserPoolsAuthorizer(self, "ReadAuth", cognito_user_pools=[api_users])
         api_root = read_api.root.add_resource("api")
         # self-service webhook subscriptions (R7.3): the API's only writes, under their own scope. The store is one
@@ -528,7 +551,7 @@ class RadarStack(Stack):
         mitigate_fn.add_environment("SITE_URL", site_url)  # Security Hub remediation links
         for k, v in {"SiteUrl": f"https://{dist.distribution_domain_name}", "DistributionId": dist.distribution_id,
                      "SiteBucketName": site.bucket_name, "AccessLogBucketName": access_logs.bucket_name, "RawBucketName": raw.bucket_name, "TableName": table.table_name,
-                     "SecretArn": secret.secret_arn, "UiSecretArn": ui_secret.secret_arn, "DemoFleetRoSecretArn": fleet_ro.secret_arn, "NotifySecretArn": notify_cfg.secret_arn, "AuthStoreArn": auth_store.key_value_store_arn,
+                     "SecretArn": secret.secret_arn, "UiSecretArn": ui_secret.secret_arn, "DemoFleetRoSecretArn": fleet_ro.secret_arn, "GhsaTokenSecretArn": ghsa_token.secret_arn, "NotifySecretArn": notify_cfg.secret_arn, "AuthStoreArn": auth_store.key_value_store_arn,
                      "StateMachineArn": machine.state_machine_arn, "SaCodeBucketName": sa_code.bucket_name,
                      "AgentSpaceId": space.get_att("AgentSpaceId").to_string(),
                      "RequirementPackId": pack.get_att("PackId").to_string(), "ContinuumBucketName": cn_bucket,

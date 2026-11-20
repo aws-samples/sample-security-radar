@@ -368,8 +368,8 @@ expect = src/test/wallStage.test.ts
 
 [UW06 wall: P2 drawn as full pillars again (the field of sticks)]
 file = src/utils/radar3dLayout.ts
-find =   return 0.08;
-replace =   return height;
+find = return 0.035;
+replace = return height;
 expect = src/test/wallStage.test.ts
 
 [UW07 wall: the hit count comes from the drawing cap (HUD undercounts past 16)]
@@ -1159,3 +1159,213 @@ file = src/utils/home.ts
 find = const hit = events.filter(e => e.domain === 'web3' && e.amount_usd_latest !== null && CORROBORATED.has(e.level)
 replace = const hit = events.filter(e => e.domain === 'web3' && e.amount_usd_latest !== null
 expect = src/test/home.test.ts
+
+[UM950 the AWS panel shows empty status rows]
+file = src/components/detail/AwsFixPanel.tsx
+find = {ROWS.filter(r => (s[r.key] ?? []).length > 0).map(r => (
+replace = {ROWS.map(r => (
+expect = src/test/awsFixPanel.test.tsx
+
+[UM951 the P0 halo scales about the canvas origin (drawn far from its dot, as on the wall 2026-11-19)]
+file = src/components/radar/RadarScope.tsx
+find = export const ABOUT_ITSELF = { transformBox: 'fill-box', transformOrigin: 'center' } as const;
+replace = export const ABOUT_ITSELF = {} as const;
+expect = src/test/radarScopeTransform.test.tsx
+
+[UM952 the wall stage is forced dark again (it ignored the page theme, Neo 2026-11-19)]
+file = src/components/WallCenterStage.tsx
+find = data-render-mode={renderMode}
+replace = data-render-mode={renderMode} data-theme="dark"
+expect = src/test/wallTheme.test.ts
+
+[UM953 the 3D scene is never told the theme]
+file = src/components/wall3d/WallScene3D.tsx
+find = useEffect(() => { engineRef.current?.setTheme(theme); }, [theme]);
+replace = useEffect(() => { void theme; }, [theme]);
+expect = src/test/wallTheme.test.ts
+
+[UM954 a light-emitting shader skips emit() and vanishes on the light floor]
+file = src/components/wall3d/engine/createEngine.ts
+find = gl_FragColor = emit(uColor * (1.0 + pulse * 0.5) * a);
+replace = gl_FragColor = vec4(uColor * (1.0 + pulse * 0.5) * a, 1.0);
+expect = src/test/wallTheme.test.ts
+
+[UM955 a remembered nav choice is ignored (the rail springs back open on every page load)]
+file = src/utils/navMode.ts
+find = if (stored === 'full' || stored === 'rail') return stored;
+replace = if (stored === 'never') return stored;
+expect = src/test/navShell.test.tsx
+
+[UM956 the wall leaves the shell again (full window, needs its own back button)]
+file = src/App.tsx
+find = <Route path="wall" element={<WallPage />} />
+replace = <Route path="wall-old" element={<WallPage />} />
+expect = src/test/navShell.test.tsx
+
+[UM957 the rail's links lose their hover title (icons only, no name anywhere)]
+file = src/components/Layout.tsx
+find = title={rail ? item.label : undefined}
+replace = title={undefined}
+expect = src/test/navShell.test.tsx
+
+[UM958 the wall keeps its TV grid on an iPad / phone (the centre squeezed to a strip, panels clipped)]
+file = src/styles/layout.css
+find = .wall-center { grid-column: 1 / -1; order: -1; height: min(78vw, 720px); }
+replace = .wall-center { height: min(78vw, 720px); }
+expect = src/test/navShell.test.tsx
+
+[UM959 a wide table is clipped by the page on a phone instead of scrolling in its box]
+file = src/styles/layout.css
+find = .app-main table { display: block; max-width: 100%; overflow-x: auto;
+replace = .app-main table { max-width: 100%;
+expect = src/test/navShell.test.tsx
+
+[UM960 the wall no longer opens with the sidebar collapsed]
+file = src/components/Layout.tsx
+find = useEffect(() => { setMode(onWall ? 'rail' : initialNavMode()); }, [onWall]);
+replace = useEffect(() => { void onWall; }, [onWall]);
+expect = src/test/navShell.test.tsx
+
+[UM961 the sphere's caption is a bare name again (「你的代码是空的？」)]
+file = src/components/wall3d/WallScene3D.tsx
+find =   const cap = coreCaption(hits, links.length - hits);
+replace =   const cap = { text: '', tone: 'quiet' as const };
+expect = src/test/stageKey.test.tsx
+
+[UM962 the rings show an abbreviation without a state]
+file = src/utils/stageKey.ts
+find =   return `${CHANNEL_NAME[c.key]} · ${STATE_WORD[c.state]}`;
+replace =   return c.key;
+expect = src/test/stageKey.test.tsx
+
+[UM963 the stage key loses the centre sphere's row]
+file = src/utils/stageKey.ts
+find =     { glyph: 'core', title: '中心球',
+replace =     { glyph: 'link', title: '中心球',
+expect = src/test/stageKey.test.tsx
+
+[UM964 a defence is shown under the wrong step (all of them under the first)]
+file = src/components/detail/AttackPathPanel.tsx
+find = const byStep = (k: Step) => path.defenses.filter(d => d.stage === k);
+replace = const byStep = (k: Step) => k === 'entry' ? path.defenses : [];
+expect = src/test/attackPath.test.tsx
+
+[UM965 the radar's own defence loses its source tag]
+file = src/components/detail/AttackPathPanel.tsx
+find = {HORIZON[d.horizon].word}{d.source && ` · ${SOURCE_WORD[d.source]}`}
+replace = {HORIZON[d.horizon].word}
+expect = src/test/attackPath.test.tsx
+
+[UM966 an empty attack-flow section renders again (children [null, null] are truthy)]
+file = src/components/detail/AttackFlow.tsx
+find = if (!shown && !attr && Children.toArray(children).length === 0) return null;
+replace = if (!shown && !attr && !children) return null;
+expect = src/test/attackPath.test.tsx
+
+[UM967 the 2D P0 halo pulses on its own clock again (out of step with the sweep)]
+file = src/components/radar/RadarScope.tsx
+find = <circle className="p0-halo" style={ABOUT_ITSELF}
+replace = <circle className="p0-halo" style={{ ...ABOUT_ITSELF, animation: 'pulse-ring 2.2s ease-out infinite' }}
+expect = src/test/sweepSync.test.tsx
+
+[UM968 the 3D P0 ground ring expands every 2.4 s whatever the sweep]
+file = src/components/wall3d/engine/createEngine.ts
+find =     float t = vSince / 1.8;
+replace =     float t = fract(uTime / 2.4);
+expect = src/test/sweepSync.test.tsx
+
+[UM969 the 3D P0 light shaft breathes on its own clock]
+file = src/components/wall3d/engine/createEngine.ts
+find = (0.85 + 0.6 * exp(-vSince * 1.6));
+replace = (0.85 + 0.15 * sin(uTime * 2.6));
+expect = src/test/sweepSync.test.tsx
+
+[UM970 the NOW labels stay on top of a focused dot's tip (they never dim)]
+file = src/components/radar/LeaderLabels.tsx
+find =     <div className={`ll-layer${focusId ? ' has-focus' : ''}`} data-testid="now-labels">
+replace =     <div className="ll-layer" data-testid="now-labels">
+expect = src/test/dotTip.test.tsx
+
+[UM971 the dot tip is drawn below the NOW labels again]
+file = src/styles/wall.css
+find =   position: absolute; z-index: 5; width: 220px;
+replace =   position: absolute; z-index: 2; width: 220px;
+expect = src/test/dotTip.test.tsx
+
+[UM972 the tip runs off the right edge of the stage]
+file = src/utils/dotTip.ts
+find =   const left = right ? ax + TIP.gap : Math.max(TIP.pad, ax - TIP.gap - TIP.w);
+replace =   const left = ax + TIP.gap;
+expect = src/test/dotTip.test.tsx
+
+[UM973 the legend strip forgets what the colours are (swatches only)]
+file = src/utils/stageKey.ts
+find = { key: 'color', label: '颜色', text: '红 P0 · 橙 P1 · 蓝 P2' },
+replace = { key: 'color', label: '颜色', text: '严重度' },
+expect = src/test/stageKey.test.tsx
+
+[UM974 the 3D camera orbits again (the whole scene always moving)]
+file = src/components/wall3d/engine/quality.ts
+find =   0: { dpr: 1.5, bloom: true,  stars: 3000, dome: true,  cameraOrbit: false,
+replace =   0: { dpr: 1.5, bloom: true,  stars: 3000, dome: true,  cameraOrbit: true,
+expect = src/test/radarCalm.test.tsx
+
+[UM975 P1 pillars stand as tall as P0 again (hundreds of orange sticks)]
+file = src/utils/radar3dLayout.ts
+find =   if (severity === 'P1') return Math.min(0.32, Math.max(0.16, height * 0.25));
+replace =   if (severity === 'P1') return Math.min(1.0, Math.max(0.35, height * 0.6));
+expect = src/test/radarCalm.test.tsx
+
+[UM976 NOW marks are title cards again (they covered the core and the dots)]
+file = src/components/radar/LeaderLabels.tsx
+find = export const LABEL_BOX = { w: 78, h: 24 } as const;
+replace = export const LABEL_BOX = { w: 236, h: 46 } as const;
+expect = src/test/radarCalm.test.tsx
+
+[UM977 every ring in place is labelled again (three labels ran together)]
+file = src/components/wall3d/WallScene3D.tsx
+find = if (!pos?.visible || c.state === 'on') return null;
+replace = if (!pos?.visible) return null;
+expect = src/test/radarCalm.test.tsx
+
+[UM978 an empty WAF pack shows no reason]
+file = src/components/detail/RulePackPanel.tsx
+find = {p.no_rule && <p className="note tone-warn"
+replace = {false && <p className="note tone-warn"
+expect = src/test/rulePack.test.tsx
+
+[UM979 a sidebar label falls back to Chinese (大屏)]
+file = src/components/Layout.tsx
+find = label: 'Dashboard', icon: 'wall',
+replace = label: '大屏', icon: 'wall',
+expect = src/test/navShell.test.tsx
+
+[UM980 the 2D NOW badges sit on the scope again (they covered the centre)]
+file = src/utils/labelLayout.ts
+find = if (a.visible && vp.outside) spot = outsideSpot(a);
+replace = if (false && vp.outside) spot = outsideSpot(a);
+expect = src/test/radarCalm.test.tsx
+
+[UM981 a vertical drag tilts past the floor (no limit)]
+file = src/components/wall3d/engine/project.ts
+find =   return { az: (view.az - dx * 0.4) % 360, elev: Math.min(ELEV_MAX, Math.max(ELEV_MIN, view.elev - dy * 0.005)) };
+replace =   return { az: (view.az - dx * 0.4) % 360, elev: view.elev - dy * 0.005 };
+expect = src/test/radarCalm.test.tsx
+
+[UM982 the end of a drag opens the event under the pointer]
+file = src/components/wall3d/engine/createEngine.ts
+find =     if (swallowClick) { swallowClick = false; return; }   // the end of a drag is not a pick
+replace =     // (swallow removed)
+expect = src/test/radarCalm.test.tsx
+
+[UM983 the subscribe page no longer says a token address gives 401 in a browser by design]
+file = src/pages/SubscribePage.tsx
+find = <b>在浏览器里直接打开会返回 401</b>，这是设计如此，不是故障。
+replace = 。
+expect = src/test/navShell.test.tsx
+
+[UM984 a defence lane is a bare div with a name (aria-prohibited-attr)]
+file = src/components/detail/AttackPathPanel.tsx
+find = <div className="ap-lane" role="group" aria-label=
+replace = <div className="ap-lane" aria-label=
+expect = src/test/attackPath.test.tsx

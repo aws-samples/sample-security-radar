@@ -1052,5 +1052,86 @@
    "state": "in_place",
    "action": "ALERT"
   }
+ },
+ "attack_path": {
+  "status": "ok",
+  "generated_at": "2026-10-23T16:08:59Z",
+  "steps": {
+   "entry": [
+    {
+     "text": "示例文本（entry 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-2026-109619)（P0 · V3 · 8 个独立来源）。",
+     "cite": [
+      "it_9c9a7707c7b2e5c2",
+      "it_ab75cc0e4f28b9d1"
+     ],
+     "grounded": true
+    }
+   ],
+   "condition": [
+    {
+     "text": "示例文本（condition 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-2026-109619)（P0 · V3 · 8 个独立来源）。",
+     "cite": [
+      "it_c98ed7fbadcc1ab3",
+      "it_bcf3336ac200ef0c"
+     ],
+     "grounded": true
+    }
+   ],
+   "trigger": [
+    {
+     "text": "示例文本（trigger 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-2026-109619)（P0 · V3 · 8 个独立来源）。",
+     "cite": [
+      "it_9c9a7707c7b2e5c2"
+     ],
+     "grounded": true
+    }
+   ],
+   "impact": [
+    {
+     "text": "示例文本（impact 1）：PHP core RCE vulnerability patches (CVE-2026-109618 and CVE-2026-109619)（P0 · V3 · 8 个独立来源）。",
+     "cite": [
+      "it_ab75cc0e4f28b9d1"
+     ],
+     "grounded": true
+    }
+   ]
+  },
+  "defenses": [
+   {
+    "text": "在 WAF 或反向代理上拦截利用请求，补丁发布前先挡住入口。",
+    "cite": [
+     "it_bcf3336ac200ef0c"
+    ],
+    "grounded": true,
+    "stage": "entry",
+    "horizon": "block"
+   },
+   {
+    "text": "补丁发布前收紧 PHP 运行配置、限制可被利用的功能。",
+    "cite": [
+     "it_bcf3336ac200ef0c"
+    ],
+    "grounded": true,
+    "stage": "trigger",
+    "horizon": "temporary"
+   },
+   {
+    "text": "升级到修复了两处漏洞的 PHP 版本。",
+    "cite": [
+     "it_c98ed7fbadcc1ab3",
+     "it_2e61a5adf16b136e"
+    ],
+    "grounded": true,
+    "stage": "trigger",
+    "horizon": "fix"
+   },
+   {
+    "text": "雷达生成的 WAF 规则包：在入口匹配攻击请求（先 Count 观察，人确认后拦截）",
+    "stage": "entry",
+    "horizon": "block",
+    "source": "radar",
+    "link": "env"
+   }
+  ]
  }
 }

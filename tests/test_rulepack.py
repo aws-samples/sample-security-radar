@@ -341,3 +341,45 @@ def test_quote_links_are_built_once_and_only_for_http():
     assert rulepack.quote_href(tq) == f"https://github.com/{pocs.REPO}/blob/{SHA}/http/a.yaml#L3"
     ev = {"token": "X-A: bb", "url": "javascript:alert(1)", "sentence": "X-A: bb", "item_id": "i", "span": [0, 7]}
     assert rulepack.quote_href(ev) is None and rulepack.quote_href({**ev, "url": "https://e.x/a"}) == "https://e.x/a"
+
+
+# ---------------------------------------------------------------- evidence_endpoint (Neo 2026-11-18: 「WAF 规则我们需要自己写出来」)
+ROLLER = ("Deserialization of Untrusted Data in Apache Roller versions 4.0.0 through 6.1.4 allows an unauthenticated remote "
+          "attacker to execute arbitrary code. The XML-RPC endpoint accepts vendor extension types and deserializes them "
+          "before authenticating the requester. This issue is being actively exploited. Users who cannot upgrade right "
+          "away should set \"enabledForExtensions\" to \"false\" in WEB-INF/web.xml, or remove the "
+          "\"/roller-services/xmlrpc\" servlet mapping, and restart Roller.")
+
+
+def _item(text, title="CVE-2026-129448 Apache Roller: Unauthenticated deserialization in the XML-RPC endpoint"):
+    return SimpleNamespace(url="https://www.cve.org/CVERecord?id=CVE-2026-129448", title=title, text=text,
+                           item_id="it_roller")
+
+
+def test_a_vendor_workaround_naming_an_endpoint_becomes_a_path_rule_that_survives_encoding_tricks():
+    """Live 2026-11-17: the Roller P0's pack was empty; its CVE record names the servlet mapping to remove."""
+    d = rulepack.build({"event_id": "ev_8fb80bbb5d8e624d", "cves": ["CVE-2026-129448"]}, [_item(ROLLER)], {}, {}, {}).to_dict()
+    (r,) = [r for r in d["custom"] if r["extractor"] == "evidence_endpoint"]
+    assert r["action"] == "Count" and r["confidence"] == "heuristic" and r["verified"]["offline"]["state"] == "pass"
+    assert r["source_quotes"][0]["token"] == "/roller-services/xmlrpc"
+    stmt = r["statement"]
+    for uri in ("/roller-services/xmlrpc", "/ROLLER-SERVICES/XMLRPC", "/roller/roller-services/xmlrpc",
+                "//roller-services/xmlrpc", "/%72oller-services/xmlrpc", "/roller-services/./xmlrpc"):
+        assert match(stmt, Request("POST", uri)), uri
+    for uri in ("/", "/roller-services/rest", "/search?q=/roller-services/xmlrpc"):
+        assert not match(stmt, Request("GET", uri)), uri
+    assert "正常使用" in r["false_positive_note"] and "升级" in r["false_positive_note"]
+
+
+@pytest.mark.parametrize("text", [
+    "Attackers read /etc/passwd through the flaw, so block access at the edge.",            # a payload, not an endpoint
+    "Restrict access to the /admin interface until patched.",                               # half a site
+    "Users should remove the plugin, see https://example.com/roller-services/xmlrpc docs.",  # a URL's path, not named
+    "Release notes for 6.1.6 are kept under /roller-docs/release-616 for reference.",      # a path, but not an endpoint
+    "The /roller-services/xmlrpc servlet was rewritten in 6.1.6.",                          # no endpoint word… it has one
+])
+def test_an_endpoint_rule_needs_a_specific_path_named_as_an_endpoint(text):
+    d = rulepack.build({"event_id": "ev_8fb80bbb5d8e624d", "cves": ["CVE-2026-129448"]},
+                       [_item(text, title="Apache Roller advisory")], {}, {}, {}).to_dict()
+    tokens = [r["source_quotes"][0]["token"] for r in d["custom"] if r["extractor"] == "evidence_endpoint"]
+    assert tokens == ([] if "servlet was" not in text else ["/roller-services/xmlrpc"])

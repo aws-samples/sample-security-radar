@@ -76,6 +76,8 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
        */
       decisions?: ResponseDecision[];
       schema_version?: SchemaVersion;
+      aws_fix?: AwsFix | null;
+      attack_path?: AttackPath | null;
     }
   | {
       kind: "sources";
@@ -321,6 +323,20 @@ export interface EventSummary {
    * Attack transactions whose receipt was read on chain as successful (radar.chain); a rise updates P0 push threads.
    */
   tx_confirmed?: number;
+  /**
+   * brief = the first grounded BLUF sentence that does not contradict the code's fields; code = the code's own summary.
+   */
+  summary_source?: "brief" | "code";
+  /**
+   * Why grounded BLUF sentences were passed over (analyst.contradiction).
+   */
+  summary_rejected?: (
+    "cve_not_in_event" | "exploited_claim_not_in_code" | "denies_confirmed_exploitation" | "amount_not_event"
+  )[];
+  /**
+   * GitHub Security Advisory ids named by the event's reports (the identifier before a CVE is assigned).
+   */
+  ghsas?: string[];
 }
 /**
  * Compact 'does it hit us' chip for lists and the wall (from AWS Continuum / Security Agent results).
@@ -674,6 +690,10 @@ export interface RulePack {
   rejected: RulePackRejected[];
   poc: RulePackPoc[];
   capacity: RulePackCapacity;
+  /**
+   * Why nothing can be deployed at the edge for this event (no managed group, no rule from a template or the evidence); null / absent when the pack has something.
+   */
+  no_rule?: string | null;
   renderings?: RulePackRendering[];
 }
 export interface RulePackManaged {
@@ -1014,6 +1034,7 @@ export interface ResponseDecision {
     | "S_IN_FLIGHT"
     | "B_SCAN_INTERVAL"
     | "B_SCAN_THIS_CYCLE"
+    | "R_CONTINUUM_FIXES"
     | "T_NOT_RELEVANT"
     | "R_SEVERITY"
     | "U_SAME_TRIGGER"
@@ -1062,6 +1083,72 @@ export interface ResponseDecision {
    * When the result was recorded (a failing retry shows its latest attempt).
    */
   result_at?: Timestamp | null;
+}
+/**
+ * AWS's own fix status for the event's CVE, from the Amazon Linux Security Center (radar.awsfix). null when the event has no CVE Amazon Linux tracks, or it has not been read yet.
+ */
+export interface AwsFix {
+  cve: string;
+  url: string;
+  checked_at: Timestamp;
+  line: string | null;
+  summary: {
+    fixed?: {
+      package: string;
+      platforms: string[];
+    }[];
+    pending?: {
+      package: string;
+      platforms: string[];
+    }[];
+    not_affected?: {
+      package: string;
+      platforms: string[];
+    }[];
+    no_fix?: {
+      package: string;
+      platforms: string[];
+    }[];
+    other?: {
+      package: string;
+      platforms: string[];
+    }[];
+    advisories: string[];
+    /**
+     * the page's description says ARM64 (Graviton) is not affected
+     */
+    arm64_not_affected?: boolean;
+  };
+}
+/**
+ * R9.5: how a vulnerability is attacked — entry → condition → trigger → impact, each a list of grounded sentences — and the defences, each placed at the step it stops: block (before the request reaches the code), temporary (a host / configuration change until the fix), fix (the update). Defences with source radar / aws are the radar's own (its WAF rule pack, AWS's fixed builds), placed by code. null when the event is not a P0 / P1 vulnerability or no path was built.
+ */
+export interface AttackPath {
+  status: "ok" | "partial";
+  generated_at: string | null;
+  steps: {
+    entry: AttackPathSentence[];
+    condition: AttackPathSentence[];
+    trigger: AttackPathSentence[];
+    impact: AttackPathSentence[];
+  };
+  defenses: {
+    text: string;
+    cite?: string[];
+    grounded?: boolean;
+    stage: "entry" | "condition" | "trigger" | "impact";
+    horizon: "block" | "temporary" | "fix";
+    source?: "radar" | "aws";
+    link?: string;
+  }[];
+}
+/**
+ * One grounded sentence of an attack path (radar.attack_path): its cited items and whether code found every number in them.
+ */
+export interface AttackPathSentence {
+  text: string;
+  cite: string[];
+  grounded: boolean;
 }
 export interface SourceHealth {
   source_id: string;

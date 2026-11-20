@@ -14,12 +14,25 @@ Single writer: reserved concurrency 1 (infra/stack.py NotifyFn) and the cycle's 
 
 from __future__ import annotations
 
+import http.client
 import json
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
-from radar import decisions, digest, fetch, latency, notify, publish, removals, respond, retitle, timeutil
+from radar import (
+    awsfix,
+    decisions,
+    digest,
+    fetch,
+    latency,
+    notify,
+    publish,
+    removals,
+    respond,
+    retitle,
+    timeutil,
+)
 from radar.limits import Limits
 from radar.model import SEVERITY_ORDER
 
@@ -52,6 +65,7 @@ def views(store: Any, now: datetime) -> tuple[list[dict[str, Any]], list[str]]:
     evs.sort(key=lambda e: (-SEVERITY_ORDER[e.severity], e.first_seen, e.event_id))
     fixes = store.get_source_state(retitle.KEY)
     mit = store.get_source_state("__mitigate__").get("events") or {}
+    aws = awsfix.load(store) if any(e.domain == "vuln" and e.cves for e in evs) else {}
     out, held = [], []
     for e in evs:
         if e.event_id in pending:
@@ -60,7 +74,11 @@ def views(store: Any, now: datetime) -> tuple[list[dict[str, Any]], list[str]]:
         resp = publish._response(e, store, now)
         # the public summary row: the retitled title (an operator's sourced fix) is the one subscribers see
         row = publish._summary(e, {"title_override": retitle.public(fixes.get(e.event_id), e.title),
-                                   "impact": respond.impact(resp)})
+                                   "impact": respond.impact(resp),
+                                   # AWS's own fix status, one line (radar.awsfix: public data, AWS's own page)
+                                   "aws_fix_line": (af := (awsfix.for_event(e.cves, aws) or {}) if e.domain == "vuln"
+                                                    else {}).get("line"),
+                                   "aws_fix_url": af.get("url") if af.get("line") else None})
         prs = [i["pr_url"] for i in (resp or {}).get("issues") or [] if i.get("pr_url")]
         v = notify.view(row, bool((mit.get(e.event_id) or {}).get("plans")), prs)
         # when the event became what it is now (Event.escalated_at): the push latency is measured from there — an event
@@ -86,6 +104,52 @@ def moved(store: Any, now: datetime) -> dict[str, str | None]:
     return out
 
 
+def follow(store: Any, cfg: dict[str, Any], s: Any, vs: list[dict[str, Any]], site_url: str, now: datetime,
+           recent: list[dict[str, Any]], senders: dict[str, Callable[..., str]], time_left: Callable[[], float] | None,
+           sent_n: int) -> tuple[int, int, dict[str, Any] | None]:
+    """Keep the P0 notices this Slack subscription sent current (Neo 2026-11-18: 「只要发现就立即推送，后面持续更新」;
+    「AWS 修复了就更新原内容」): within Limits.NOTIFY_EDIT_DAYS of the send, a notice whose rendering changed — the 🟧 AWS line
+    appeared, a title or summary was corrected — is edited in place (after the same send gate; nobody is notified), and a
+    vulnerability that turns out exploited gets one thread reply (that one does notify). A deleted notice is left alone.
+    Returns (edits, replies, error)."""
+    edits, replies = 0, 0
+    since = timeutil.iso(now - timedelta(days=Limits.NOTIFY_EDIT_DAYS))
+    by_id = {v["event_id"]: v for v in vs if v.get("severity") == "P0"}
+    keys_ = {state_key(e, s.id): e for e in by_id}
+    rows = store.get_source_states(list(keys_)) if keys_ else {}
+    update = senders.get("slack_update", notify.update_slack)
+    for k, row in sorted(rows.items()):
+        if "p0" not in (row.get("keys") or []) or not row.get("thread") or row.get("gone") or \
+                (row.get("sent_at") or "") < since:
+            continue
+        if _out_of_budget(sent_n + replies, time_left):
+            break
+        v = notify.for_subscriber(s, by_id[keys_[k]])
+        m = next((x for x in notify.plan(v, {}, site_url) if x["key"] == "p0"), None)
+        if m is None:
+            continue
+        if notify.rendered(m) != row.get("rendered") and not notify.gate(m, v, site_url, recent):
+            try:
+                update(cfg, s, m, row["thread"])
+                row = {**row, "rendered": notify.rendered(m), "edited_at": timeutil.iso(now)}
+                edits += 1
+            except SEND_ERRORS as ex:
+                if "message_not_found" in str(ex):     # deleted in the channel (withdrawn by hand): never touched again
+                    row = {**row, "gone": True}
+                else:
+                    return edits, replies, {"error": "edit_failed", "message": _safe(ex)}
+            store.put_source_state(k, row)
+        rep = notify.exploited_reply(v, f"{site_url.rstrip('/')}/#/events/{v['event_id']}")
+        if rep and "exploited" not in (row.get("keys") or []) and not row.get("gone") and notify.wanted(s.filters, rep):
+            try:
+                senders[s.channel](cfg, s, {**rep, "view": v}, row["thread"], {})
+                replies += 1
+            except SEND_ERRORS as ex:
+                return edits, replies, {"error": "send_failed", "message": _safe(ex)}
+            store.put_source_state(k, notify.record(row, "exploited", None))
+    return edits, replies, None
+
+
 def correction(eid: str, to: str | None, title: str | None, site_url: str) -> dict[str, str]:
     """The one message a subscriber gets in the thread of an event that no longer exists (roadmap R4.3)."""
     link = f"{site_url.rstrip('/')}/#/events/{to}" if to else site_url.rstrip("/") + "/"
@@ -100,7 +164,9 @@ def correction(eid: str, to: str | None, title: str | None, site_url: str) -> di
 
 # what a send may raise without being a bug: urllib errors are OSError, in-band API errors ValueError, a refused redirect
 # fetch.FetchError (a plain Exception — it once escaped run() and crashed the station for every later subscription)
-SEND_ERRORS = (OSError, ValueError, KeyError, fetch.FetchError)
+# http.client.HTTPException: InvalidURL / RemoteDisconnected / BadStatusLine are not OSError — one bad subscriber
+# must cost its own delivery, never the whole Notify run (security review, 2026-11)
+SEND_ERRORS = (OSError, ValueError, KeyError, fetch.FetchError, http.client.HTTPException)
 
 
 def _out_of_budget(sent_n: int, time_left: Callable[[], float] | None) -> str | None:
@@ -172,7 +238,8 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
             # mid-way must not drop a later subscription's baseline (it would then swallow its pending facts)
             subs[s.id] = {"status": "not_reached", "channel": s.channel, "at": nowi, "sent": 0,
                           "baselined": s.id in based}
-    hits = {s.id: [v for v in vs if notify.matches(s.filters, v)] for s in active}
+    # each subscription matches and is told from its own view: a self-service one never sees the operator's verdict / PRs
+    hits = {s.id: [w for w in (notify.for_subscriber(s, v) for v in vs) if notify.matches(s.filters, w)] for s in active}
     rows = store.get_source_states([state_key(v["event_id"], s.id) for s in active for v in hits[s.id]])
     # R4.3: pushes follow the story. An event a subscriber was told about and that has since been merged away or
     # withdrawn gets one correction in its thread; what was already said about it (the P0 notice) counts for the
@@ -192,8 +259,8 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
             ko = state_key(eid, s.id)
             was = old_rows.get(ko) or {}
             m = correction(eid, to, titles.get(to or ""), site_url)
-            if not was.get("keys") or m["key"] in was["keys"]:
-                continue                                    # never told about it, or already corrected
+            if not was.get("keys") or m["key"] in was["keys"] or was.get("gone"):
+                continue      # never told about it, already corrected, or its notice was deleted in the channel by hand
             if to and "p0" in was["keys"]:
                 # before the send, and whether or not it succeeds: the survivor must not announce itself as a new P0
                 ks = state_key(to, s.id)
@@ -246,11 +313,13 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
                 # #/ops — "blocked" must look unlike "sent" (degradation leaves a trace). No `also`: a blocked P0
                 # opens no thread, so no update can follow it
                 if probs := notify.gate(m, v, site_url, recent):
-                    mine = notify.record(mine, m["key"], None)
-                    store.put_source_state(k, mine)
-                    after[k] = mine
+                    hold = notify.held(probs)
+                    if not hold:       # a held notice is NOT recorded: next run checks it again and sends once it passes
+                        mine = notify.record(mine, m["key"], None)
+                        store.put_source_state(k, mine)
+                        after[k] = mine
                     blocked.append({"subscription": s.id, "event_id": v["event_id"], "key": m["key"],
-                                    "problems": probs[:3]})
+                                    "problems": probs[:3], **({"held": True} if hold else {})})
                     continue
                 try:
                     thread = senders[s.channel](cfg, s, {**m, "view": v}, mine.get("thread"), cache)
@@ -261,6 +330,10 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
                     err = {"error": "send_failed", "message": _safe(ex)}
                     break
                 mine = notify.record(mine, m["key"], thread, m.get("also"))
+                if m["key"] == "p0":    # what it said (a later change edits it) and whether it already said "exploited"
+                    mine = {**mine, "rendered": notify.rendered(m), "sent_at": nowi}
+                    if notify.exploited_reply(v, "") is not None:
+                        mine = notify.record(mine, "exploited", None)
                 store.put_source_state(k, mine)   # right after the send: at most once, even if the run dies next
                 if m["key"] == "p0":   # gate G3's memory: CVEs and victim names of what this subscription announced
                     recent.append(notify.ledger_entry(v, nowi))
@@ -284,6 +357,12 @@ def run(store: Any, cfg: dict[str, Any], now: datetime, site_url: str,
                         err = {"error": "send_failed", "message": _safe(ex)}
                 if not err and not stopped:   # baseline: today's digest counts as seen — the next one is sent
                     store.put_source_state(kd, {"keys": [dmsg["key"]]})   # only the latest day matters: one key, no growth
+        if s.channel == "slack_channel" and not (err or stopped or baseline):
+            n_edit, n_reply, ferr = follow(store, cfg, s, vs, site_url, now, recent, senders, time_left, sent_n)
+            sent_n += n_reply
+            if n_edit:
+                status.setdefault("edited", {})[s.id] = n_edit
+            err = err or ferr
         for v in hits[s.id]:                      # what is still unsent for this subscription, per event
             row = events[v["event_id"]]
             row["matched"] += 1

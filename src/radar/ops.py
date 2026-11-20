@@ -164,6 +164,63 @@ def _judge_merges(f: Facts, titles: dict[str, str]) -> list[Item]:
     return out
 
 
+AUTO_MERGE_MIN_SAME = 30          # the bar Neo set 11-17 for auto-merge: ≥ 30 judged-same pairs a fact decided, 0 wrong
+HUMAN_LOOK_AFTER_DAYS = 14         # a 'same' no fact decided in this long is shown for a person to look at once
+
+
+def _judge_quality(f: Facts) -> list[Item]:
+    """The shadow judge measured without labelling (Neo 11-19): the daily delayed-truth report (handlers._judge_truth)
+    as one line — warn when a suggested merge was wrong or `same` precision is under 98 % — plus the few `same`
+    verdicts no fact decided after HUMAN_LOOK_AFTER_DAYS and no one labelled (≤ 5), for a person to look at once."""
+    rep = f.get("judge_truth") or {}
+    out: list[Item] = []
+    if rep:
+        prec, said, wrong = rep.get("same_precision"), rep.get("same_said", 0), rep.get("would_merge_wrong", 0)
+        bar = said >= AUTO_MERGE_MIN_SAME and wrong == 0 and (prec or 0) >= 0.98
+        bad = wrong > 0 or (said >= 5 and prec is not None and prec < 0.98)
+        out.append({"level": "warn" if bad else "info",
+                    "title": f"聚类裁判准确率（延迟真值）：判同 {said} 对，准确率 {prec if prec is not None else '—'}",
+                    "detail": f"事实判定 {rep.get('decided', 0)} 对 · 建议合并中错 {wrong} 对 · 漏判同 {rep.get('missed_same', 0)} 对 · "
+                              f"自动合并门槛（判同 ≥ {AUTO_MERGE_MIN_SAME} 对、0 错、≥ 98 %）{'已达到' if bar else '未达到'}",
+                    "since": rep.get("at"), "link": None})
+    from radar import timeutil
+    decided = {(r["a"], r["b"]) for r in rep.get("rows") or []}
+    labels = f.get("dup_labels") or {}
+    titles = {e["event_id"]: e.get("title", "") for e in f.get("events") or []}
+    now = timeutil.parse(rep.get("at") or "")
+    look = []
+    for row in (f.get("cluster_judge") or {}).values():
+        a, b, at = row.get("a"), row.get("b"), timeutil.parse(row.get("at") or "")
+        if row.get("verdict") != "same" or row.get("by") != "model" or (a, b) in decided or a not in titles \
+                or b not in titles or "|".join(sorted((a, b))) in labels or not at or not now \
+                or (now - at).days < HUMAN_LOOK_AFTER_DAYS:
+            continue
+        look.append({"level": "info", "title": f"裁判判同、{HUMAN_LOOK_AFTER_DAYS} 天无事实可证，请看一眼：{titles[a][:36]} ↔ {titles[b][:36]}",
+                     "detail": f"scripts/dup_label.py {a} {b} same|different", "since": row.get("at"), "link": f"/events/{a}"})
+    return out + sorted(look, key=lambda i: i["since"] or "")[:5]
+
+
+TOKEN_WARN_DAYS = 14               # the GHSA lookup's GitHub token: warn this long before it expires
+
+
+def _ghsa_alias(f: Facts) -> list[Item]:
+    """R12's GHSA → CVE lookup: not configured / failing while GHSA-only events wait is a warn; the GitHub token's own
+    expiry (read from GitHub's answer header) is a warn TOKEN_WARN_DAYS before."""
+    st = f.get("ghsa_alias") or {}
+    out: list[Item] = []
+    if st.get("status") in ("not_configured", "error") and st.get("pending"):
+        out.append({"level": "warn", "title": f"GHSA → CVE 查询未工作（{st['status']}），{st['pending']} 个 GHSA 待查",
+                    "detail": "scripts/set-ghsa-token.sh（读 ~/.env 的 GITHUB_ADVISORY_TOKEN）" if st["status"] == "not_configured"
+                              else str(st.get("error", ""))[:160], "since": st.get("at"), "link": None})
+    from radar import timeutil
+    exp, now = timeutil.parse(str(st.get("token_expires") or "")[:19].replace(" ", "T") + "Z"), timeutil.parse(st.get("at") or "")
+    if exp and now and (exp - now).days < TOKEN_WARN_DAYS:
+        out.append({"level": "warn", "title": f"GHSA 查询用的 GitHub token 将于 {str(st['token_expires'])[:10]} 到期",
+                    "detail": "在 GitHub 重新生成（Public repositories 只读、无权限），写入 ~/.env 后运行 scripts/set-ghsa-token.sh",
+                    "since": st.get("at"), "link": None})
+    return out
+
+
 def _splits(f: Facts) -> list[Item]:
     """One story shown as two events (pipeline.split_candidates) — warn: the page under-counts the older event and the
     newer one duplicates it on the wall until the repair runs."""
@@ -362,7 +419,7 @@ RULES: dict[str, Callable[[Facts], list[Item]]] = {
     "p0_untriaged": _untriaged, "duplicate_confirmed": _dup_confirmed, "event_split": _splits,
     # cluster judge v2 (shadow): a grounded "same" with enough code evidence — its own code, not duplicate_confirmed's
     "cluster_merge_suggested": lambda f: _judge_merges(f, {e["event_id"]: e.get("title", "") for e in f.get("events") or []}),
-    "late_detection": _late, "title_proposal": _title_proposals,
+    "late_detection": _late, "title_proposal": _title_proposals, "judge_quality": _judge_quality, "ghsa_alias": _ghsa_alias,
     "station_slow": _slow, "enrich_degraded": _enrich, "publish_deferred": _deferred,
     "amount_outlier": _amount_outliers, "amount_shared": _amount_shared, "raw_lines_skipped": _raw_bad,
     "row_near_limit": _row_sizes, "daily_cap_reached": _daily_caps,

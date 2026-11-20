@@ -10,20 +10,17 @@
 
 > **预览说明**：本示例调用 AWS Continuum 代码扫描，该功能处于**公开预览**，API 与行为可能变化。请使用非生产账号。
 
-## v1.3.0 更新了什么
+## v1.6 更新了什么
 
-完整条目见 [CHANGELOG.md](CHANGELOG.md)。
+完整条目见 [CHANGELOG.md](CHANGELOG.md)。讲解 deck：<https://aws-samples.github.io/sample-security-radar/>。
 
 | 方面 | 变化 |
 |---|---|
-| **Agent 访问** | Amazon Cognito 客户端凭证令牌 → 经 Amazon API Gateway 只读访问 `GET /api/data/*`；`scripts/radar-token.py` 发放与吊销 |
-| **Agent 工具包** | CLI、stdio MCP 服务、`security-radar` skill、`llms.txt` —— 对已发布文档的只读工具 |
-| **订阅** | 令牌客户端可自助登记自己的 https webhook（`radar/subscribe`，只能动自己的行）；可按 CVE、利用状态、真实性、损失额与消息类型（含 `digest`）筛选；新渠道 `lark_dm`；新增 `#/subscribe` 页 |
-| **信源** | 微软安全更新指南（JSON API）、经 Broadcom 列表 API 的 VMware（第一个 POST 信源）、SonicWall、Ivanti、Google Cloud；每个源每轮 60 秒预算、按主机熔断、退避并遵守 `Retry-After` |
-| **可恢复** | 桶开启版本控制、表开启删除保护、`scripts/restore.py`（默认演练） |
-| **最小权限** | 每个工位只拿它用到的表操作（无 `Scan`）；Collect 只能写信源状态行（`dynamodb:LeadingKeys`）；Publish 只能写 `data/*` |
-| **聚类** | 汇总类文章不合并任何事件；相隔多年的 CVE 不合并；「已被利用」只在说的是该事件时才算 |
-| **界面** | 入口 chunk ≤ 120 KB gzip，其余页面按需加载；按首次发现排序；事件页按代码目标给出动作一览；搜索命中直达原文 |
+| **简报** | 只在代码判定的事实（严重度、在野利用、CVE、金额）变了才重写：7 天回放约 203 → 10 次 / 天 |
+| **摘要** | 与代码判定的 CVE、在野利用、金额矛盾的句子，不会成为摘要和 P0 通知里的那一行 |
+| **重复事件裁判** | 只留下可能真是同一件事的候选（51,404 → 599）；准确率不靠人工标注就能量出（标注语料 + 事后硬证据），显示在 #/ops |
+| **GitHub 公告** | GHSA 编号即身份标识：CVE 未分配也能推送 P0；GHSA 事件与 CVE 事件自动对上（全局、仓库、未审核公告） |
+| **信源** | VulnCheck、ProjectDiscovery、CERT/CC、ZDI 通告、GreyNoise、Tenable 研究通告（共 225 个） |
 
 ## 它是什么
 
@@ -36,7 +33,7 @@ Security Radar 是这条链路的**源头**：持续跟踪外部安全世界 —
 （X 源已实现但默认关闭），
 由代码判断真伪和紧急度；事件一旦对上你的代码，就**扣扳机**：
 
-1. **AWS Security Agent**：雷达把事件写成安全规则并发起代码评审，Security Agent 给出 finding 和修复 diff
+1. **AWS Security Agent**：雷达把事件写成安全规则放进 requirement pack，你自己的代码评审会用上（雷达默认不按事件发起评审，也不自动修复）
 2. **AWS Continuum**：雷达提交精确到行的 finding 并请求验证，Continuum 证实可利用后出补丁，**原生开 PR（GitHub）或 MR（GitLab）**
 3. **人**：审核并合并
 
@@ -160,11 +157,17 @@ STAGE=demo ./scripts/deploy-all.sh     # 完全独立的副本
 STAGE=demo ./scripts/destroy-stage.sh  # 删除副本
 ```
 
+删除栈时会保留一个角色：Amazon API Gateway 的 CloudWatch Logs 角色（`ReadApi/CloudWatchRole`，策略
+`AmazonAPIGatewayPushToCloudWatchLogs`）。它是 API Gateway 的账户级设置，同一账户、同一区域的其他 API 可能在用；
+确认没有其他 API 使用后可自行删除。
+
 费用：AWS Continuum 代码扫描按推理单位计费（见 AWS Continuum 定价页），扫描是主要成本，所以雷达只为验证自己的 finding 才扫描。
 快路缓解每月约增加 $10–15（web ACL $5 + 每条规则 $1、ScanSbom 每次 $0.03、DNS Firewall 每百万次查询 $0.60）。
 Security Hub 导出需 `-c security_hub=on` 才开通（账号级服务，本示例默认关闭，开通时不启用任何默认标准）。
 
 可选通知：把机器人凭证与频道 id 写进 `~/.env`，运行 `scripts/set-notify.sh`（写入一个 AWS Secrets Manager 密钥，值不会出现在命令行上）。告警发给负责人的订阅。
+
+可选 GHSA → CVE 关联：建一个**只读、细粒度**的 GitHub token（仅公开仓库、不给任何权限），写进 `~/.env` 的 `GITHUB_ADVISORY_TOKEN`，运行 `scripts/set-ghsa-token.sh`（写入密钥 `GhsaLookupToken`，值不出现在命令行上）。不配置时这一步记为 `not_configured`，其余照常。
 
 ## ⚠️ 故意含漏洞的演示代码
 

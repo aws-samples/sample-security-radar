@@ -1,5 +1,6 @@
 import { useFeeds } from '@/hooks/useFeeds';
 import { feedRows } from '@/utils/subscribe';
+import { CopyButton } from '@/components/CopyButton';
 
 const h2: React.CSSProperties = { fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '20px 0 6px' };
 const p: React.CSSProperties = { fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 860 };
@@ -21,14 +22,20 @@ export function SubscribePage() {
       </p>
 
       <h2 style={h2}>1 · Feed（Atom / JSON Feed）</h2>
-      <p style={p}>每轮发布时更新，每个 feed 是最新的若干个事件。两个地址指向同一份内容：<b>站点地址</b>用站点的账号密码（Basic Auth，
-        适合自建阅读器和 curl）；<b>令牌地址</b>用访问令牌（适合脚本和 agent）。云端阅读器不能带凭证，订不了。</p>
+      {/* Neo 2026-11-19: 「令牌地址是无效的，是吗？…是什么用的？」 — it is valid; it is for programs, and the page now says so */}
+      <p style={p}>每轮发布时更新，每个 feed 是最新的若干个事件。两个地址是同一份内容：</p>
+      <ul style={{ ...p, paddingLeft: 18, margin: '4px 0 8px' }}>
+        <li><b>站点地址</b>：给人用（阅读器、浏览器、curl）。访问方式和这个站点一样 —— 你能打开这一页，就能直接订阅。</li>
+        <li><b>令牌地址</b>：给程序用（脚本、agent、MCP）。请求必须带 <code style={code}>Authorization: Bearer &lt;令牌&gt;</code>；
+          令牌由站点运营方用 <code style={code}>scripts/radar-token.py create</code> 发放，每个调用方一个、可单独吊销。
+          <b>在浏览器里直接打开会返回 401</b>，这是设计如此，不是故障。</li>
+      </ul>
       {error && <p role="alert" style={{ ...p, color: 'var(--sev-p0)' }}>feed 列表载入失败（{error}）—— 刷新重试</p>}
       {!error && !loading && rows.length === 0 && <p role="status" style={p}>还没有发布任何 feed。</p>}
       {rows.length > 0 && (
         <table className="sub-table" style={{ borderCollapse: 'collapse', maxWidth: 1100, width: '100%' }}>
           <thead>
-            <tr>{['Feed', '筛选', '条数', '站点地址', '令牌地址'].map(t => <th key={t} scope="col" style={{ ...cell, color: 'var(--text-muted)', fontWeight: 600 }}>{t}</th>)}</tr>
+            <tr>{['Feed', '筛选', '条数', '站点地址（直接订阅）', '令牌地址（程序用 · 需令牌）'].map(t => <th key={t} scope="col" style={{ ...cell, color: 'var(--text-muted)', fontWeight: 600 }}>{t}</th>)}</tr>
           </thead>
           <tbody>
             {rows.map(r => (
@@ -37,12 +44,16 @@ export function SubscribePage() {
                 <td style={cell}>{r.filter}</td>
                 <td style={{ ...cell, fontFamily: 'var(--font-mono)' }}>{r.items}</td>
                 <td style={cell}><a href={r.atom.site}>Atom</a> · <a href={r.json.site}>JSON</a></td>
-                <td style={{ ...cell, fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' }}>{r.atom.api}</td>
+                <td style={{ ...cell, fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' }}>
+                  <span data-testid="token-url">{r.atom.api}</span>{' '}
+                  <CopyButton value={r.atom.api} label="复制" />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
+      <p style={p}>令牌地址的用法（<code style={code}>$TOKEN</code> 换成发给你的访问令牌）：</p>
       <code style={pre}>{`curl -H "Authorization: Bearer $TOKEN" ${rows[0]?.atom.api ?? `${base}api/data/feeds/all.atom`}`}</code>
 
       <h2 style={h2}>2 · Webhook（事件推给你）</h2>

@@ -63,7 +63,7 @@ FILTER_FIELDS: dict[str, tuple[str, tuple[str, ...] | None, str]] = {
     "min_level": ("atleast", LEVELS, "verification level at least this (a disputed event, level X, never matches)"),
     "min_loss_usd": ("number", None, "headline loss in USD at least this; an event without a loss figure never matches"),
     # R4.4: a filter on the MESSAGE, not the event (matches() skips it; wanted() applies it per message)
-    "kinds": ("list", ("p0", "update", "waf", "verdict", "pr", "digest", "alarm", "withdrawn", "merged"),
+    "kinds": ("list", ("p0", "update", "waf", "verdict", "pr", "digest", "alarm", "withdrawn", "merged", "exploited"),
               ("message kinds to receive (absent: every event kind). `digest` — the daily digest, one message a day, "
               "event filters not applied — only when listed. `withdrawn` / `merged` — the one correction in the thread "
               "of a notified event that was withdrawn / merged into another")),
@@ -151,6 +151,9 @@ def parse_subscription(raw: Any, cfg: dict[str, Any]) -> tuple[Subscription | No
         u = urllib.parse.urlsplit(target)
         if u.scheme != "https" or not u.hostname:
             return None, _bad("webhook_not_https", "a webhook target must be an https URL", u.scheme or target[:40], "https", sid)
+        if fetch.has_control(target.strip()):
+            return None, _bad("webhook_control_char", "no space, CR / LF or other control character in a webhook URL",
+                              target[:40], "printable characters only", sid)
         if not isinstance(secret, str) or len(secret) < Limits.WEBHOOK_SECRET_MIN_CHARS:
             return None, _bad("webhook_secret_short", "a webhook needs its own HMAC secret",
                               len(secret) if isinstance(secret, str) else None, f">= {Limits.WEBHOOK_SECRET_MIN_CHARS} chars", sid)
@@ -224,11 +227,12 @@ def view(row: dict[str, Any], has_waf_pack: bool, prs: list[str] | None = None) 
     return {"event_id": row["event_id"], "title": row["title"], "severity": row["severity"], "domain": row["domain"],
             "level": row.get("level"), "level_reason": row.get("level_reason") or "", "summary": row.get("summary") or "",
             "first_seen": row.get("first_seen"), "last_updated": row.get("last_updated"),
-            "cves": list(row.get("cves") or []), "chains": list(row.get("chains") or []),
+            "cves": list(row.get("cves") or []), "ghsas": list(row.get("ghsas") or []), "chains": list(row.get("chains") or []),
             "entities": list(row.get("entities") or []), "vendors": list(row.get("entities") or []), "products": [prod.product_id] if prod else [],
             "exchanges": [x for x in EXCHANGES if re.search(rf"\b{re.escape(x.lower())}\b", text)],
             "exploitation": row.get("exploitation") or "none", "amount_usd": row.get("amount_usd_latest"),
             "tx_confirmed": int(row.get("tx_confirmed") or 0),
+            "aws_fix_line": row.get("aws_fix_line"), "aws_fix_url": row.get("aws_fix_url"),
             "has_waf_pack": bool(has_waf_pack), "has_verdict": imp.get("status") in ("affected", "not_affected"),
             "impact": {"status": imp.get("status"), "affected": imp.get("affected", 0), "checked": imp.get("checked", 0)}
             if imp else None, "prs": sorted(set(prs or []))}
@@ -334,12 +338,14 @@ def headline(title: str, limit: int = 100) -> str:
 def p0_parts(v: dict[str, Any], link: str) -> dict[str, Any]:
     """The P0 notice's lines, unescaped: rendered as Slack mrkdwn (slack_p0) or plain text (Lark, webhook)."""
     web3 = v.get("domain") == "web3"
-    kind = "Web3 被盗" if web3 else "漏洞在野利用" if v.get("exploitation") in ("confirmed", "reported") else "高危漏洞"
+    # 2026-11-18, the notice was too long up front: the tag says what it is; whether it is exploited is the 🔥 fact below
+    kind = "Web3 被盗" if web3 else "漏洞"
     facts = []
     if web3 and v.get("amount_usd"):
         facts.append(f"💰 损失 {_usd(v['amount_usd'])}")
-    if not web3 and v.get("cves"):
-        facts.append("🧩 " + ", ".join(v["cves"][:3]) + (f" 等 {len(v['cves'])} 个" if len(v["cves"]) > 3 else ""))
+    ids = (v.get("cves") or []) or [g.upper() for g in (v.get("ghsas") or [])]   # the CVE when there is one, else the GHSA
+    if not web3 and ids:
+        facts.append("🧩 " + ", ".join(ids[:3]) + (f" 等 {len(ids)} 个" if len(ids) > 3 else ""))
     if not web3 and v.get("exploitation") in _EXPLOITED:
         facts.append(f"🔥 {_EXPLOITED[v['exploitation']]}")
     lv = v.get("level") or ""
@@ -347,22 +353,94 @@ def p0_parts(v: dict[str, Any], link: str) -> dict[str, Any]:
     if v.get("tx_confirmed"):
         facts.append(f"⛓️ 链上攻击交易已确认 {v['tx_confirmed']} 笔")
     what = "原始来源 · 时间线 · 链上证据" if web3 else "原始来源 · 受影响版本与补丁 · 时间线"
-    summary = (v.get("summary") or "").strip()
+    summary = trim_summary((v.get("summary") or "").strip(), v.get("title") or "")
     if "\ufffd" in summary or _CTRL.search(summary):
         summary = ""        # a cut multibyte character (live 2026-11-16: "可被串联,�蜜罐"): no summary beats a broken one
     # first report = the event's first_seen: the publication time of the earliest report the radar holds (Neo
     # 2026-11-16: every notice says when it was first reported)
-    first = timeutil.utc8(v.get("first_seen"))
-    return {"tag": f"P0 · {kind}", "headline": headline(v.get("title") or ""), "summary": summary,
-            "first": f"🕐 首报 {first}" if first else "🕐 首报时间未知",
+    first = first_label(v)
+    when = [f"🕐 首报 {first}" if first else "🕐 首报时间未知"]
+    if not web3 and v.get("aws_fix_line"):     # Neo 2026-11-18: AWS's own fix status, highlighted (radar.awsfix)
+        facts_tail = [v["aws_fix_line"]]
+    else:
+        facts_tail = []
+    # its source, a hyperlink in Slack (Neo 2026-11-18): only AWS's own page, built by radar.awsfix from its template
+    aws_url = v.get("aws_fix_url") if facts_tail and str(v.get("aws_fix_url") or "").startswith(AWS_FIX_PREFIX) else None
+    head = headline(v.get("title") or "")
+    return {"tag": f"P0 · {kind}", "headline": head, "summary": summary, "ids": id_line(v, head),
+            # Neo 2026-11-18 「这两句也不要了」: a vulnerability notice carries no facts row (CVE / exploitation / level —
+            # the headline names the CVE, the page holds the rest); a theft keeps its loss and corroboration
+            "first": "\n".join(when), "aws": facts_tail, "aws_url": aws_url, "show_facts": web3,
             "facts": facts, "link": link, "link_label": f"雷达事件页（{what}）"}
+
+
+_CVE_PAREN = re.compile(r"\s*[（(]\s*CVE-\d{4}-\d{4,7}(?:\s*[,，、]\s*CVE-\d{4}-\d{4,7})*\s*[)）]")
+_SUBJECT = re.compile(r"^(.{1,40}?)(?:是|为)(?=.)")
+_WORD = re.compile(r"[A-Za-z][A-Za-z0-9._+-]*")
+# 「Oracle已发布修复」「补丁已发布」: a clause that only says a fix exists — the event page and the 🟧 AWS line say which
+# (Neo 2026-11-18: 「这句话不重要」). Only a whole clause between separators, never words inside one.
+_FIX_CLAUSE = re.compile(r"[，,；;]\s*(?:[^，,；;。]{0,24}?(?:已|均已|现已)?(?:发布|推出|提供)(?:了)?(?:修复|补丁|更新|修复版本)"
+                         r"|(?:补丁|修复|修复版本|更新)(?:已|均已|现已)(?:发布|推出|提供)"
+                         r"|(?:已|现已)有(?:修复|补丁|修复版本))(?=[，,；;。]|$)")
+
+
+def trim_summary(summary: str, title: str) -> str:
+    """The summary without what the headline already says (2026-11-18, the notice was too long up front): a bracketed CVE id
+    (the headline and the 🧩 fact carry it), and a leading subject 「X 是」 made only of names the headline has
+    (「OpenJDK 的 Java4Shell 是…」 under 「Java4Shell: … OpenJDK」). A subject with anything else — a version range, a
+    component — stays: it is information. Words are cut, never added: the sentence stays the grounded one."""
+    out = _CVE_PAREN.sub("", summary)
+    m = _SUBJECT.match(out)
+    if m:
+        subject = m.group(1)
+        words = _WORD.findall(subject)
+        rest = _WORD.sub("", subject).replace("的", "").strip(" 　,，、")
+        low = title.lower()
+        if words and not rest and all(w.lower() in low for w in words):
+            out = out[m.end():].lstrip(" ，,")
+    out = _FIX_CLAUSE.sub("", out)
+    return out or summary
+
+
+AWS_FIX_PREFIX = "https://explore.alas.aws.amazon.com/"     # the one external link a P0 notice may carry (radar.awsfix)
+
+
+def first_label(v: dict[str, Any]) -> str | None:
+    """「2026-11-17 18:22（UTC+8）」, or 「2026-11-17（来源只给日期）」 when the first report gave only a day — never a
+    made-up 08:00 (live 2026-11-18: Puppet's KEV entry 「2026-11-17」 was announced as 首报 08:00)."""
+    fs = v.get("first_seen")
+    if isinstance(fs, str) and timeutil.day_only(fs):
+        return f"{fs[:10]}（来源只给日期）"
+    return timeutil.utc8(fs)
+
+
+def id_line(v: dict[str, Any], head: str) -> str | None:
+    """A vulnerability notice names its identifier when the headline does not (Neo 11-19: Ruby2Shell went out with a
+    GHSA only; when the CVE came the notice had to change so the sent one is edited). None for web3 and when the
+    headline already carries every id shown — the common case, so most notices are unchanged."""
+    if v.get("domain") == "web3":
+        return None
+    cves, ghsas = list(v.get("cves") or []), [g for g in (v.get("ghsas") or [])]
+    low = head.lower()
+    if cves:
+        if all(c.lower() in low for c in cves[:3]):
+            return None
+        tail = f"（{ghsas[0]}）" if ghsas and ghsas[0].lower() not in low else ""
+        return "🧩 " + ", ".join(cves[:3]) + (f" 等 {len(cves)} 个" if len(cves) > 3 else "") + tail
+    if ghsas:
+        return f"🧩 {ghsas[0]}（CVE 待分配）"
+    return None
 
 
 def p0_text(parts: dict[str, Any]) -> str:
     lines = [f"🚨 [{parts['tag']}] {parts['headline']}"]
+    if parts.get("ids"):
+        lines.append(parts["ids"])
     if parts["summary"]:
         lines.append(f"📝 {parts['summary']}")
-    lines += [parts["first"], " ｜ ".join(parts["facts"]), f"🔗 {parts['link_label']}：{parts['link']}"]
+    aws = [f"{x}（{parts['aws_url']}）" if parts.get("aws_url") else x for x in parts.get("aws", [])]
+    facts = [" ｜ ".join(parts["facts"])] if parts.get("show_facts", True) and parts["facts"] else []
+    lines += [parts["first"], *facts, *aws, f"🔗 {parts['link_label']}：{parts['link']}"]
     return "\n".join(lines)
 
 
@@ -391,9 +469,19 @@ def gate(m: dict[str, Any], v: dict[str, Any], site_url: str, recent: list[dict[
         bad("repository_content", "a P0 notice carries the radar's own repository findings", "env / PR text", "the event only")
     if "\ufffd" in text or _CTRL.search(text):                                                      # G7
         bad("bad_characters", "a replacement or control character in the message", "\\ufffd / control", "none")
-    first = timeutil.utc8(v.get("first_seen"))                                                      # G8
+    first = first_label(v)                                                                          # G8
     if first and f"首报 {first}" not in (m.get("text") or ""):
         bad("no_first_report_time", "the notice does not say when the event was first reported", None, first)
+    # G9 / G10 (Neo 2026-11-19, live: 4 KEV notices withdrawn): a first report that is only a day is not precise enough
+    # to push; a vulnerability notice that names no CVE says nothing a reader can act on (「CISA Adds Four Known
+    # Exploited Vulnerabilities」, 「We added 4 CVEs …」). Both can resolve — a report with a time, a CVE attached — so
+    # they HOLD the notice (HOLD_CODES: not recorded, checked again next run), unlike the rules above.
+    if timeutil.day_only(v.get("first_seen")):                                                      # G9
+        bad("first_report_day_only", "the first report gives only a day, not a time", v.get("first_seen"), "a time of day")
+    if v.get("domain") == "vuln" and not v.get("cves") and not v.get("ghsas"):                      # G10
+        # a GitHub advisory id is an identifier too (Neo 11-19: Ruby2Shell, GHSA only, was held ~1 h 50 min until a
+        # source revised its title to the CVE); when the CVE comes, the notice is edited (the 🧩 line changes)
+        bad("no_cve", "a vulnerability notice that names no CVE or GitHub advisory", [], ">= 1 CVE or GHSA")
     if len(m.get("text") or "") > Limits.NOTIFY_P0_MAX_CHARS:
         bad("too_long", "the notice is longer than one screen line block", len(m.get("text") or ""), Limits.NOTIFY_P0_MAX_CHARS)
     cves, names = set(v.get("cves") or []), {n.lower() for n in (v.get("entities") or []) if len(n) >= 3}   # G3
@@ -408,6 +496,15 @@ def gate(m: dict[str, Any], v: dict[str, Any], site_url: str, recent: list[dict[
     return out
 
 
+# gate codes that can resolve by themselves: the notice is held (checked again every run), never marked as handled
+HOLD_CODES = frozenset({"first_report_day_only", "no_cve"})
+
+
+def held(problems: list[dict[str, Any]]) -> bool:
+    """Every problem is one that can resolve (HOLD_CODES): hold the notice instead of dropping it."""
+    return bool(problems) and all(p["error"] in HOLD_CODES for p in problems)
+
+
 def ledger_entry(v: dict[str, Any], at: str) -> dict[str, Any]:
     """What the duplicate rule (gate G3) remembers of a sent P0: its CVEs and its victim names, never free text."""
     return {"e": v.get("event_id"), "at": at, "cves": sorted(v.get("cves") or [])[:20],
@@ -418,9 +515,15 @@ def slack_p0(parts: dict[str, Any]) -> str:
     """Slack mrkdwn: every third-party piece escaped (slack_escape), the link the radar's own (<url|label>)."""
     e = slack_escape
     lines = [f"🚨 *[{e(parts['tag'])}]* {e(parts['headline'])}"]
+    if parts.get("ids"):
+        lines.append(e(parts["ids"]))
     if parts["summary"]:
         lines.append(f"📝 {e(parts['summary'])}")
-    lines += [e(parts["first"]), e(" ｜ ".join(parts["facts"])), f"🔗 <{parts['link']}|{e(parts['link_label'])}>"]
+    # the word AWS itself is the link to AWS's page (Neo 2026-11-18: no separate 「AWS 安全中心」 label)
+    aws = [e(x).replace("AWS", f"<{parts['aws_url']}|AWS>", 1) if parts.get("aws_url") else e(x) for x in parts.get("aws", [])]
+    facts = [e(" ｜ ".join(parts["facts"]))] if parts.get("show_facts", True) and parts["facts"] else []
+    lines += [e(parts["first"]), *facts, *aws,
+              f"🔗 <{parts['link']}|{e(parts['link_label'])}>"]
     return "\n".join(lines)
 
 
@@ -570,6 +673,18 @@ def sign(secret: str, timestamp: str, body: bytes) -> str:
     return "sha256=" + hmac.new(secret.encode(), timestamp.encode() + b"." + body, hashlib.sha256).hexdigest()
 
 
+# What the operator's own code says about an event — the code-impact verdict and the patch PRs on its repositories
+# (security review, 2026-11): a self-service subscriber (owner false) is someone else, so these never reach it, in a
+# message (the verdict / pr kinds are never planned for it) or in a webhook body. Registration refuses filters on them.
+OPERATOR_ONLY_FIELDS = ("impact", "prs", "has_verdict")
+OPERATOR_ONLY_KINDS = ("verdict", "pr")
+
+
+def for_subscriber(sub: Subscription, v: dict[str, Any]) -> dict[str, Any]:
+    """The event view as this subscription may see it: the owner's whole, anyone else's without OPERATOR_ONLY_FIELDS."""
+    return v if sub.owner else {**v, "impact": None, "prs": [], "has_verdict": False}
+
+
 def webhook_body(sub: Subscription, msg: dict[str, Any], v: dict[str, Any]) -> bytes:
     return json.dumps({"subscription": sub.id, "key": msg["key"], "text": msg["text"], "url": msg["link"], "event": v},
                       ensure_ascii=False, sort_keys=True).encode()
@@ -589,11 +704,40 @@ def send_webhook(cfg: dict[str, Any], sub: Subscription, msg: dict[str, Any], th
         SIGNATURE_HEADER: sign(sub.secret, ts, body), DELIVERY_HEADER: delivery})
     # resolved again at send time: a name accepted at registration can be pointed at an internal address later
     host = urllib.parse.urlsplit(sub.target).hostname or ""
-    if fetch._internal_host(host):
-        raise fetch.FetchError("webhook_internal", "the webhook host resolves to a non-public address")
+    if fetch._internal_host(host, unresolvable_is_internal=True):
+        raise fetch.FetchError("webhook_internal", "the webhook host resolves to a non-public address, or does not resolve")
     with fetch.urlopen(req, timeout=Limits.HTTP_TIMEOUT_S, allow_hosts=frozenset()):
         pass
     return thread or delivery
+
+
+def update_slack(cfg: dict[str, Any], sub: Subscription, msg: dict[str, Any], ts: str) -> None:
+    """chat.update of a P0 notice this bot posted (Neo 2026-11-18: 「后面再持续更新」 — one message per event, edited
+    in place). Raises ValueError("slack: message_not_found") when it was deleted."""
+    r = _post("https://slack.com/api/chat.update",
+              {"channel": sub.target, "ts": ts, "text": msg.get("slack") or slack_escape(msg["text"])},
+              {"Authorization": f"Bearer {cfg['slack_bot_token']}"})
+    if not r.get("ok"):
+        raise ValueError(f"slack: {r.get('error')}")
+
+
+def rendered(msg: dict[str, Any]) -> str:
+    """What a sent notice said, as a short digest: a change (AWS fixed, a corrected title) means an edit."""
+    return hashlib.sha256((msg.get("slack") or msg.get("text") or "").encode()).hexdigest()[:16]
+
+
+_EXPLOITED_REPLY = {"confirmed": "⚠️ 已确认在野利用", "reported": "⚠️ 有在野利用报道"}
+
+
+def exploited_reply(v: dict[str, Any], link: str) -> dict[str, Any] | None:
+    """The one thread reply a P0 notice gets (Neo 2026-11-18): when its vulnerability turns out exploited. An edit does
+    not notify anyone; this does."""
+    word = _EXPLOITED_REPLY.get(v.get("exploitation") or "")
+    if v.get("domain") != "vuln" or not word:
+        return None
+    # the status and where its evidence is — never the radar's own grading words (live 2026-11-18: the reply read
+    # 「有在野利用报道（confirmed: T1 source (datadog_sl)）」, an internal level_reason)
+    return {"key": "exploited", "kind": "exploited", "text": f"{word} · 证据见事件页\n{link}"}
 
 
 SENDERS = {"slack_channel": send_slack, "slack_dm": send_slack, "lark_chat": send_lark, "lark_dm": send_lark,

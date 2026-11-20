@@ -1,3 +1,4 @@
+import { Children } from 'react';
 import type { ChainStage, EventSummary, ItemRef } from '@/types/site-data';
 import { EFFECT_ZH } from '@/generated/stages';
 import { attackFlow, missingPhases, showFlow, stageDef, type PhaseStep } from '@/utils/attackFlow';
@@ -35,7 +36,9 @@ export function AttackFlow({ event, items, chain, onCite, children, step = '02' 
   const attr = event.attribution;
   const web3 = event.domain === 'web3';
   const shown = showFlow(steps, web3);
-  if (!shown && !attr && !children) return null;
+  // children arrive as [null, null] when the page has neither panel (an array is truthy): count real ones — an empty
+  // 「攻击过程」 section rendered, numbered like the section above it (seen with R9.5's attack path, 2026-11-19)
+  if (!shown && !attr && Children.toArray(children).length === 0) return null;
   const missing = web3 && shown ? missingPhases(steps) : [];
   return (
     <section className="dt-section" aria-labelledby="dt-h-flow">

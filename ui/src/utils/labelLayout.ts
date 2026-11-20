@@ -18,7 +18,12 @@ export interface LabelAnchor {
 }
 
 export interface LabelBox { w: number; h: number }
-export interface Viewport { w: number; h: number }
+export interface Viewport {
+  w: number; h: number;
+  /** 2D: keep every label outside this circle (the scope) — Neo 2026-11-19: 「当前显示的3个 P0…把整个雷达中心挡住了，
+   *  你要不挪到雷达圆圈的外面去」. A label then sits on the ray from the centre through its dot, past the rim. */
+  outside?: { cx: number; cy: number; r: number };
+}
 
 export type PlacementMode =
   /** floating next to its anchor with a short leader line */
@@ -116,9 +121,24 @@ export function layoutLeaderLabels(anchors: readonly LabelAnchor[], box: LabelBo
     return null;
   };
 
+  // outside the scope: on the ray centre → dot, just past the rim; small angular steps when the spot is taken
+  const outsideSpot = (a: LabelAnchor): Rect | null => {
+    const o = vp.outside!;
+    const base = Math.atan2(a.y - o.cy, a.x - o.cx);
+    for (const off of [0, 0.14, -0.14, 0.28, -0.28, 0.42, -0.42, 0.6, -0.6]) {
+      const th = base + off;
+      // distance from the centre to the label's centre so its nearest corner clears the rim
+      const reach = o.r + 8 + Math.abs(Math.cos(th)) * box.w / 2 + Math.abs(Math.sin(th)) * box.h / 2;
+      const r = { x: o.cx + Math.cos(th) * reach - box.w / 2, y: o.cy + Math.sin(th) * reach - box.h / 2, ...box };
+      if (insideViewport(r, vp, pad) && placed.every(p => !rectsOverlap(r, p, gap)) && !rectHitsCircle(r, o.cx, o.cy, o.r)) return r;
+    }
+    return null;
+  };
+
   for (const a of anchors) {
     let spot: Rect | null = null;
-    if (a.visible) {
+    if (a.visible && vp.outside) spot = outsideSpot(a);
+    if (a.visible && !vp.outside) {
       search: for (const L of leaderLengths) {
         for (let dir = 0; dir < 8; dir++) {
           const r = candidate(dir, L, a.x, a.y, box);

@@ -39,11 +39,12 @@ PROMPT_VERSION = "cluster-judge-v2"
 MAX_PAIRS_PER_CYCLE = 5
 WINDOW_H = 72               # vuln / incident (v1); web3 uses Limits.CLUSTER_WINDOW_H
 TITLE_SIMILARITY = 0.55
-MAX_TOKENS = 400
+MAX_TOKENS = 1500   # 400 cut 119 verdicts as `model incomplete` (3.5 % of Haiku calls, live 11-19)
+MAX_ERROR_RETRIES = 3   # an `error` row is judged again next cycle, at most this many attempts
 VERDICTS = ("same", "different", "unsure")
 NAME_PREFIXES = ("ent:", "tok:", "tt:")       # names a report's text gave (pipeline._NAME_KEYS minus dg:, a digest tag)
 # restated from pipeline._STRONG (the authority; pipeline is not imported here to keep publish's import light)
-STRONG_PREFIXES = ("cve:", "tx:", "attacker:", "xs:", "url:")
+STRONG_PREFIXES = ("cve:", "ghsa:", "tx:", "attacker:", "xs:", "url:")
 ADDRESS_PREFIX = "attacker:"
 # words that name no victim (keys.py explains each list): a shared "USDC" proves nothing (Kava vs Lighter)
 NOT_NAMES = keys.MATCH_STOP | keys.COMMON_WORDS | keys.ATTRIBUTION
@@ -57,6 +58,26 @@ def pair_key(a: Event, b: Event) -> str:
 def _names(e: Event) -> set[str]:
     return ({k.split(":", 1)[1] for k in e.keys if k.startswith(NAME_PREFIXES)} | {x.lower() for x in e.entities}) \
         - NOT_NAMES
+
+
+# words every vulnerability title shares: a title-similarity pair must also share a word that is NOT one of these —
+# a product, vendor or project name (live 11-19: 51,011 vuln candidates, most "<repo> exploit" vs "<repo> exploit"
+# from PoC listings, similar only through the suffix; 49,589 unjudged, web3 pairs waiting ~13 days behind them)
+_GENERIC_WORDS = (
+    "exploit exploits poc proof concept vulnerability vulnerabilities vuln cve security update updates patch patches "
+    "patched fixes fixed advisory advisories bulletin critical high medium low important moderate remote code execution "
+    "rce injection command cross site scripting xss sql sqli denial service dos authentication bypass privilege "
+    "escalation elevation information disclosure buffer overflow arbitrary file upload unauthenticated authenticated "
+    "allows attacker attackers could issue flaw bug missing improper multiple several new zero-day zero day released "
+    "release version versions before after through with from that this into plugin theme module library package "
+    "linux kernel windows server microsoft google")
+_GENERIC = frozenset(_GENERIC_WORDS.split())
+_TOKEN = re.compile(r"[a-z0-9][a-z0-9._-]{3,}")
+_ID_LIKE = re.compile(r"(?:cve|ghsa|usn|dsa|rhsa|sg|cnvd|jvn|bdu)-[\w-]+|\d[\d.]*")
+
+
+def distinct_words(title: str) -> set[str]:
+    return {w for w in _TOKEN.findall(title.lower()) if w not in _GENERIC and not _ID_LIKE.fullmatch(w)}
 
 
 def close_loss(a: Event, b: Event) -> bool:
@@ -105,6 +126,8 @@ def candidates(evs: list[Event]) -> list[tuple[Event, Event]]:
                 if ea & eb:
                     out.append((a, b) if ia < ib else (b, a))
                     continue
+            if b.domain != "web3" and not distinct_words(la) & distinct_words(lb):
+                continue    # similar only in vulnerability vocabulary (the "<repo> exploit" listings)
             sm = SequenceMatcher(None, la, lb)
             if sm.real_quick_ratio() >= TITLE_SIMILARITY and sm.quick_ratio() >= TITLE_SIMILARITY \
                     and sm.ratio() >= TITLE_SIMILARITY:
@@ -245,8 +268,10 @@ def run(evs: list[Event], state: dict[str, Any], now_iso: str, call: Any = None,
         if e.event_id not in seen:
             seen[e.event_id] = headlines(e, get_items)
         return seen[e.event_id]
-    for k, (a, b) in live.items():
-        if k in state:
+    # web3 first: before 11-19 the first waiting web3 pair sat at position 352 behind templated vuln pairs (~12 h)
+    for k, (a, b) in sorted(live.items(), key=lambda kv: kv[1][0].domain != "web3"):
+        prev = state.get(k)
+        if prev is not None and not (prev.get("by") == "error" and int(prev.get("attempts") or 1) < MAX_ERROR_RETRIES):
             continue
         guarded = contradiction(a, b) is not None
         if not guarded and calls >= MAX_PAIRS_PER_CYCLE:
@@ -254,7 +279,8 @@ def run(evs: list[Event], state: dict[str, Any], now_iso: str, call: Any = None,
         row = judge(a, b, call, ha=None if guarded else heads(a), hb=None if guarded else heads(b))
         calls += 0 if row["by"] == "code" else 1
         state[k] = {**row, "a": a.event_id, "b": b.event_id, "at": now_iso,
-                    "since": min(a.first_seen, b.first_seen)[:10]}
+                    "since": min(a.first_seen, b.first_seen)[:10],
+                    **({"attempts": int((prev or {}).get("attempts") or 1) + (1 if prev else 0)} if row["by"] == "error" else {})}
     return state, calls
 
 
@@ -355,3 +381,63 @@ def possible_duplicates(event_id: str, state: dict[str, Any], titles: dict[str, 
 
 
 LABEL_SAME_DEFAULT = "同一事件"
+
+
+# --- delayed truth (Neo 11-19, step 2: measure the shadow judge without a person labelling) ---
+# Days after a verdict, facts the code can read decide many pairs by themselves: the two events now share an attack
+# transaction, an attacker address or a CVE (or the pipeline merged them) ⇒ same; their CVEs or transactions are
+# disjoint ⇒ different. Pairs no fact decides stay unscored — never guessed.
+TRUTH_KEYS = ("tx:", "attacker:", "cve:", "ghsa:")
+
+
+def delayed_truth(a: Event | None, b: Event | None, a_now: str | None = None, b_now: str | None = None,
+                  ra: set[tuple[str, str]] | None = None, rb: set[tuple[str, str]] | None = None) -> str | None:
+    """same / different / None for a judged pair, from the events as they are now. a_now / b_now = the event each
+    side's first report is in today (None when the report is gone): one event ⇒ the pipeline merged them.
+    ra / rb = (source_id, item_id) of each side's hack-database records (Source.always_eventful): a database lists an
+    incident once, so two events holding DIFFERENT records of the SAME database are different incidents, one shared
+    record is the same incident. Records of two different databases decide nothing (live: one Safe multisig on
+    Avalanche is a DefiLlama row and a SlowMist row under different names). Live 11-19: 59 pairs decided this way."""
+    if a_now and b_now and a_now == b_now:
+        return "same"
+    if a is None or b is None:
+        return None
+    if contradiction(a, b):
+        return "different"
+    if ra and rb:
+        if ra & rb:
+            return "same"
+        if {s for s, _ in ra} & {s for s, _ in rb}:
+            return "different"
+    ka = {k for k in a.keys if k.startswith(TRUTH_KEYS)}
+    kb = {k for k in b.keys if k.startswith(TRUTH_KEYS)}
+    return "same" if ka & kb else None
+
+
+def truth_report(state: dict[str, Any], events: dict[str, Event], first_item_event: dict[str, str],
+                 now_iso: str, min_age_days: float = 2,
+                 records: dict[str, set[tuple[str, str]]] | None = None) -> dict[str, Any]:
+    """Score model verdicts older than min_age_days against delayed truth. first_item_event: {event_id judged →
+    event id holding that event's first report today}. Returns counts, precision of `same`, and the decided rows."""
+    from radar import timeutil
+    now = timeutil.parse(now_iso)
+    rows = []
+    for row in state.values():
+        if row.get("by") in ("code", "error") or row.get("verdict") not in ("same", "different", "unsure"):
+            continue
+        at = timeutil.parse(row.get("at") or "")
+        if not at or not now or (now - at).total_seconds() < min_age_days * 86400:
+            continue
+        a, b = events.get(row["a"]), events.get(row["b"])
+        truth = delayed_truth(a, b, first_item_event.get(row["a"]), first_item_event.get(row["b"]),
+                              (records or {}).get(row["a"]), (records or {}).get(row["b"]))
+        if truth:
+            rows.append({"a": row["a"], "b": row["b"], "verdict": row["verdict"], "truth": truth,
+                         "would_merge": bool(row.get("would_merge"))})
+    said = [r for r in rows if r["verdict"] == "same"]
+    wm = [r for r in rows if r["would_merge"]]
+    return {"decided": len(rows), "same_said": len(said),
+            "same_precision": round(sum(r["truth"] == "same" for r in said) / len(said), 3) if said else None,
+            "would_merge": len(wm),
+            "would_merge_wrong": sum(r["truth"] != "same" for r in wm),
+            "missed_same": sum(r["truth"] == "same" and r["verdict"] != "same" for r in rows), "rows": rows}

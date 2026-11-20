@@ -4,6 +4,7 @@ as the regression oracle for it."""
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from radar.limits import Limits
 from radar.model import Exploited
@@ -34,7 +35,17 @@ _NEG = re.compile(
     r"\b(no (?:evidence|indication|reports?|known)\b[^.]{0,60}\b(?:exploit|in the wild|attack)"
     r"|not aware of (?:any )?(?:active )?(?:exploit|attacks?|in[- ]the[- ]wild|malicious)"
     r"|not (?:been |being )?(?:actively )?exploited"
-    r"|has not been exploited)"
+    r"|has not been exploited"
+    # live 2026-11-18: Cyberscoop on Java4Shell — 「No exploitation in the wild had been reported as of this article's
+    # publication」 — read as exploited, and the event became a P0 the team channel received
+    r"|no (?:active |known |confirmed )?exploitation\b[^.]{0,60}\b(?:reported|observed|seen|detected|known|confirmed)"
+    r"|(?:none|no one|nothing)\b[^.]{0,60}\b(?:added to|listed in)\b[^.]{0,30}\b(?:KEV|Known Exploited)"
+    # Tenable's Java4Shell FAQ, 11-17: 「we are not aware of any reports of exploitation …, and it is not listed in CISA's
+    # Known Exploited Vulnerabilities (KEV) catalog」 — 「Known Exploited」 was read as exploited
+    r"|not aware of (?:any )?(?:public )?reports? of (?:active )?exploitation"
+    # ZDI's monthly review: 「None of the other Adobe bugs … are listed as publicly known or under active attack」
+    r"|\b(?:none|no)\b[^.]{0,100}\b(?:under active attack|actively exploited|exploited in the wild)"
+    r"|\bnot (?:been |yet )?(?:listed|included|added)\b[^.]{0,40}\b(?:KEV|Known Exploited))"
     r"|未(?:发现|监测到|观察到)[^。]{0,10}在野|暂无在野"
     # an advisory's status table: 「在野利用状态 未发现」 is a field name followed by "not found" (live 2026-11-11: 奇安信's
     # Apache HTTP/2 advisory read as exploited in the wild, T1 ⇒ P0)
@@ -45,7 +56,9 @@ _YES = re.compile(
     r"\b(exploited in the wild|actively exploited|active exploitation|under active attack"
     r"|exploits? (?:for [^.]{0,60} )?exists? in the wild|exploitation in the wild"
     r"|may have been exploited|limited,? (?:and )?targeted attacks?|observed (?:being )?exploited"
-    r"|exploited as a zero-?day|zero-?day (?:attacks?|exploited)|known exploited)\b"
+    r"|exploited as a zero-?day|zero-?day (?:attacks?|exploited)|known exploited"
+    # 「QNAP Warns Users as Plex2Shell Flaws Are Used to Hack NAS Devices」: a headline that says the flaws are in use
+    r"|(?:are|were|is|was|being|been) (?:actively )?used (?:to|in attacks to) (?:hack|attack|breach|compromise|hijack))\b"
     r"|Exploited:Yes|在野利用|已被(?:黑客)?利用|已发现在野",
     re.IGNORECASE,
 )
@@ -241,10 +254,46 @@ def attribution_actor(text: str | None) -> str | None:
     return next((name for rx, name in _ACTORS if rx.search(text or "")), None)
 
 
+# an FAQ heading asks, it does not say: 「Has Java4Shell been exploited in the wild?」 (Tenable, 11-17 — answered "no")
+_QUESTION = re.compile(r"(?i)^\s*(?:has|have|is|are|was|were|do|does|did|can|could|will|would)\b[^.!]{0,160}?(?:\?|$)")
+
+
 def _exploited_sentence(text: str) -> Exploited:
     if _NEG.search(text):
         return "no"
+    if _QUESTION.match(text):
+        return "unclear"
     return "yes" if _YES.search(text) else "unclear"
+
+
+# Path A to P0 (Neo 2026-11-18: 「爆出来就应该挺重要」, 「CVSS ≥ 9 或明确未认证 RCE」): a sentence that says the flaw is
+# critical — an unauthenticated / pre-auth remote code execution, or a CVSS base score of 9.0–10.0
+_CRITICAL = re.compile(
+    r"(?i)\b(?:unauthenticated|pre-?auth(?:entication)?|without (?:any )?authentication|no authentication)\b[^.]{0,80}?"
+    r"\b(?:remote code execution|RCE|arbitrary code execution|code execution)\b"
+    r"|\b(?:remote code execution|RCE)\b[^.]{0,40}?\b(?:unauthenticated|pre-?auth(?:entication)?|without (?:any )?authentication)\b"
+    r"|(?:未认证|无需认证|免认证|未经身份验证|无需身份验证)[^。]{0,30}?(?:远程代码执行|代码执行|RCE)"
+    r"|\bCVSS(?:\s*v?[234](?:\.\d)?)?(?:\s*base)?(?:\s*score)?(?:\s*of)?\s*[:：]?\s*(?:9\.\d|10(?:\.0)?)\b"
+    # 「a critical 9.8-rated flaw」, 「rated 9.8 out of 10」, 「severity score of 9.8」 (live 2026-11-19: the vCenter tweet
+    # "A critical 9.8-rated VMware vCenter flaw" was not read as critical — only 「CVSS 9.8」 was)
+    r"|(?<![\d.])(?:9\.\d|10(?:\.0)?)[- ]rated\b"
+    r"|\brated (?:a )?(?:9\.\d|10(?:\.0)?)(?:\s*(?:/|out of)\s*10)?(?![\d.])"
+    r"|\bseverity (?:score|rating) of (?:9\.\d|10(?:\.0)?)(?![\d.])")
+# 「does not allow unauthenticated RCE」 / 「requires authentication」 next to it is not the claim
+_CRITICAL_NEG = re.compile(r"(?i)\b(?:does not|doesn't|cannot|can't|not)\s+(?:allow|lead to|enable|permit)\b"
+                           r"|\brequires? (?:prior |valid )?authentication\b")
+
+
+def _critical_sentence(text: str) -> Exploited:
+    if not _CRITICAL.search(text):
+        return "unclear"
+    return "no" if _CRITICAL_NEG.search(text) else "yes"
+
+
+def critical_about(title: str, text: str, own_cves: set[str], event_cves: set[str]) -> bool:
+    """Does this report say THE EVENT's flaw is critical (unauthenticated RCE, or CVSS ≥ 9)? Attributed to the event the
+    way exploited_about attributes 「exploited」 — a newsletter's sentence about another bug is not this event's."""
+    return bool(_claim_about(_critical_sentence, title, text, own_cves, event_cves))
 
 
 def exploited_about(title: str, text: str, own_cves: set[str], event_cves: set[str]) -> bool:
@@ -257,10 +306,25 @@ def exploited_about(title: str, text: str, own_cves: set[str], event_cves: set[s
       - names no CVE, and the report is about this event only (every CVE it names is the event's); or
       - names no CVE in a report that names none at all, and the sentence shares a name with the headline
         ("SignDrop … exploited" under a SignDrop headline — not a remark in a policy essay)."""
+    if (said := _claim_about(_exploited_sentence, title, text, own_cves, event_cves, decide=False)) is not None:
+        return said
+    # No sentence here says it, yet the report was judged "exploited": the sentence lies beyond the stored text (items
+    # keep Limits.ITEM_TEXT_MAX characters), or the judgement predates a rule. Only the first is believed — a text that
+    # was not cut is all there is unless today's rule reads the whole text as exploited (a headline 「Flaws Are Used to
+    # Hack…」) — live 2026-11-18: Tenable's 3,470-character Oracle patch-day post, judged "exploited" by an older rule,
+    # made Java4Shell 「有在野利用报道」 and posted a thread reply nobody's sentence supports.
+    whole = exploited(f"{title or ''}\n{text or ''}")
+    return (whole == "yes" or (whole != "no" and len(text or "") >= Limits.ITEM_TEXT_MAX)) and own_cves <= event_cves
+
+
+def _claim_about(sentence: Callable[[str], str], title: str, text: str, own_cves: set[str], event_cves: set[str],
+                 decide: bool = True) -> bool | None:
+    """The attribution rule both claims share (see exploited_about). decide=False ⇒ None when no sentence makes the
+    claim (the caller has a fallback)."""
     head = {t for t in re.findall(r"[A-Za-z][A-Za-z0-9]{3,}", title or "")}
     found = False
     for n, s in enumerate([title or "", *_SENTENCE.split(text or "")]):
-        if _exploited_sentence(s) != "yes":
+        if sentence(s) != "yes":
             continue
         found = True
         named = {f"CVE-{y}-{m}" for y, m in _CVE.findall(s)}
@@ -275,10 +339,7 @@ def exploited_about(title: str, text: str, own_cves: set[str], event_cves: set[s
             return True
     if found:
         return False
-    # No sentence here says it, yet the report was judged "exploited": the sentence lies beyond the stored text (items
-    # keep 4,000 characters), or the judgement predates a rule (a status table's 「在野利用状态 未发现」 once read as yes).
-    # What is stored decides the second; for the first, a report about this event only is believed as before.
-    return exploited(f"{title or ''}\n{text or ''}") != "no" and own_cves <= event_cves
+    return False if decide else None
 
 
 _CVE = re.compile(r"(?<![A-Za-z0-9])CVE-(\d{4})-(\d{4,7})(?![A-Za-z0-9])", re.IGNORECASE)   # = keys.CVE_RE (keys imports nothing)

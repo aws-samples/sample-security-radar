@@ -89,9 +89,11 @@ export function pillarHeight(sourcesCount: number): number {
  * P0s did not stand out (user review 2026-10-30: 「简陋、没有锐度」). P2 ⇒ a ground blip, P0 ⇒ always the tallest.
  */
 export function displayHeight(severity: string, height: number): number {
+  // R9.4 calm (Neo's colleague 2026-11-19: 「3D…现在有点太混乱了」): only P0 stands tall; P1 is a stub, P2 lies on the
+  // floor. P1 went up to 1.0 — hundreds of orange sticks with the P0's weight were most of the noise.
   if (severity === 'P0') return Math.max(1.2, height * 1.1);
-  if (severity === 'P1') return Math.min(1.0, Math.max(0.35, height * 0.6));
-  return 0.08;
+  if (severity === 'P1') return Math.min(0.32, Math.max(0.16, height * 0.25));
+  return 0.035;
 }
 
 // ── Severity / colour mapping ─────────────────────────────────────────────────

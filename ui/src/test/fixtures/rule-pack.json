@@ -1344,6 +1344,7 @@
   "checked_on": "2026-11-11",
   "detail": "CheckCapacity 41 WCU"
  },
+ "no_rule": null,
  "hash": "bc4b88cfaf6b2c25",
  "updated_at": "2026-11-11T03:00:00Z",
  "renderings": [
