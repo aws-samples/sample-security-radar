@@ -1369,3 +1369,33 @@ file = src/components/detail/AttackPathPanel.tsx
 find = <div className="ap-lane" role="group" aria-label=
 replace = <div className="ap-lane" aria-label=
 expect = src/test/attackPath.test.tsx
+
+[UM985 two P0 wall tiles can share a mark]
+file = src/utils/p0wall.ts
+find = if (used.has(m) && !/[一-鿿]/.test(m)) {
+replace = if (false) {
+expect = src/test/p0wall.test.tsx
+
+[UM986 a non-cloud P0 reads as waiting for the team channel]
+file = src/utils/p0wall.ts
+find = if (!e.cloud) return { word: '非云组件 · 不进团队群', tone: 'none', reason: null };
+replace = if (e.cloud === null) return { word: '非云组件 · 不进团队群', tone: 'none', reason: null };
+expect = src/test/p0wall.test.tsx
+
+[UM987 the fired-only filter keeps the empty tiles]
+file = src/utils/p0wall.ts
+find = tiles: f.firedOnly ? g.tiles.filter(t => t.count > 0) : g.tiles
+replace = tiles: g.tiles
+expect = src/test/p0wall.test.tsx
+
+[UM988 an empty P0 wall tile can be opened]
+file = src/pages/P0WallPage.tsx
+find = disabled={empty}
+replace = disabled={false}
+expect = src/test/p0wall.test.tsx
+
+[UM989 a demoted event reads as P0 on the wall]
+file = src/pages/P0WallPage.tsx
+find = {e.severity === 'P0' ? 'P0' : `已降为 ${e.severity}`}
+replace = {'P0'}
+expect = src/test/p0wall.test.tsx

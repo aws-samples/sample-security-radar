@@ -14,6 +14,7 @@ from radar import (
     attack_path,
     attacktx,
     awsfix,
+    cloudstack,
     cluster_judge,
     coverage,
     cvemeta,
@@ -23,10 +24,12 @@ from radar import (
     latency,
     onchain,
     ops,
+    p0class,
     respond,
     retitle,
     retitle_judge,
     rulepack,
+    send_judge,
     stages,
     stationtime,
     timeutil,
@@ -62,6 +65,8 @@ def _summary(ev: Event, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         "item_count": len(ev.item_ids), "cves": ev.cves, "entities": ev.entities, "chains": ev.chains,
         # GitHub advisory ids (keys.ghsas): the identifier of a flaw whose CVE is still pending (Ruby2Shell 11-19)
         "ghsas": sorted({k[5:] for k in ev.keys if k.startswith("ghsa:")}),
+        # the affected product is a mainstream cloud component (radar.cloudstack): what a team channel filters on
+        "cloud_stack": cloudstack.is_cloud_stack(fix["title"] if fix else ev.title, ev.entities),
         "amount_usd_latest": ev.amount_usd_latest, "amount_disputed": ev.amount_disputed,
         "amount_frozen_latest": ev.amount_frozen_latest, "attribution": ev.attribution,
         # attack transactions whose receipt the radar read on chain (radar.chain: verified = confirmed) — the push
@@ -70,6 +75,11 @@ def _summary(ev: Event, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         **_summary_field(ev),
         "analysis_status": _analysis_status(ev),
     }
+
+
+def _send_fields(row: dict[str, Any] | None) -> dict[str, Any]:
+    """The send arbitration's verdict (radar.send_judge) — None until it was asked (the team notice waits)."""
+    return {"team_send": row.get("send") if row else None, "team_send_reason": row.get("reason") if row else None}
 
 
 def _summary_field(ev: Event) -> dict[str, Any]:
@@ -188,7 +198,8 @@ def event_doc(ev: Event, store: Store, now: datetime, epss: dict[str, dict[str, 
         "event": _summary(ev, {"triage": triage.public(store.get_source_state(triage.KEY).get(ev.event_id)),
                                "title_override": retitle.public(store.get_source_state(retitle.KEY).get(ev.event_id), ev.title),
                                "velocity_6h": vel, "lifecycle": insights.lifecycle(ev, vel, now),
-                               "impact": respond.impact(resp), "cve_disclosed": _cve_disclosed(ev, meta)}),
+                               "impact": respond.impact(resp), "cve_disclosed": _cve_disclosed(ev, meta),
+                               **_send_fields(store.get_source_state(send_judge.key(ev.event_id)))}),
         "analysis": _public_analysis(ev),
         "response": resp,
         "decisions": dec,
@@ -259,10 +270,13 @@ def window_counts(window: list[Event], listed: int) -> dict[str, Any]:
             "by_domain": {k: dom.get(k, 0) for k in ("vuln", "web3", "incident")}}
 
 
-def events_doc(store: Store, now: datetime) -> tuple[dict[str, Any], list[Event]]:
+def publish_window(store: Store, now: datetime) -> list[Event]:
+    return store.events_updated_since(timeutil.iso(now - timedelta(days=Limits.PUBLISH_WINDOW_DAYS)))
+
+
+def events_doc(store: Store, now: datetime, window: list[Event] | None = None) -> tuple[dict[str, Any], list[Event]]:
     tri = store.get_source_state(triage.KEY)
-    since = timeutil.iso(now - timedelta(days=Limits.PUBLISH_WINDOW_DAYS))
-    window = store.events_updated_since(since)
+    window = publish_window(store, now) if window is None else window
     day = timeutil.iso(now - timedelta(days=1))
     evs = select_listing(window, day)
     fixes = store.get_source_state(retitle.KEY)
@@ -270,6 +284,7 @@ def events_doc(store: Store, now: datetime) -> tuple[dict[str, Any], list[Event]
     store.get_items([i for e in evs for i in e.item_ids])          # warm the run's caches: one batched read each,
     if hasattr(store, "get_responses"):                            # not 500 + 500 serial ones (live 2026-11-11)
         store.get_responses([e.event_id for e in evs])
+    verdicts = store.get_source_states([send_judge.key(e.event_id) for e in evs])
     rows = []
     for e in evs:
         vel = insights.velocity(e, store.get_items(e.item_ids), now)
@@ -278,6 +293,7 @@ def events_doc(store: Store, now: datetime) -> tuple[dict[str, Any], list[Event]
                                  "velocity_6h": vel, "lifecycle": insights.lifecycle(e, vel, now),
                                  "impact": respond.impact(_response(e, store, now)),
                                  "cve_disclosed": _cve_disclosed(e, meta),
+                                 **_send_fields(verdicts.get(send_judge.key(e.event_id))),
                                  **({"followup": insights.followup(store, e.event_id)} if e.domain == "web3" else {})}))
     board = insights.now_board(evs, store, now)
     states = store.get_source_states([s.source_id for s in SOURCES])
@@ -294,6 +310,55 @@ def events_doc(store: Store, now: datetime) -> tuple[dict[str, Any], list[Event]
             "window": window_counts(window, len(evs)),
             "headline": insights.headline(board, {e.event_id: e for e in evs}, ok, total, now), "funnel": fun,
             **_digest(store)}, evs
+
+
+def _p0_at(ev: Event) -> str | None:
+    """When the event first became P0 (its timeline), else its first sighting when it is P0 now (created P0)."""
+    at = next((t.get("at") for t in sorted(ev.timeline or [], key=lambda t: t.get("at") or "")
+               if t.get("kind") == "severity_change" and t.get("to") == "P0"), None)
+    return at or (ev.first_seen if ev.severity == "P0" else None)
+
+
+def p0_doc(store: Store, now: datetime, window: list[Event]) -> dict[str, Any]:
+    """p0.json — the P0 wall (#/p0, Neo 2026-11-22): every vulnerability that is or was P0 in the publish window, placed
+    on its product tile (radar.p0class). Every registered tile is listed, the empty ones too: the wall shows what is
+    watched, not only what fired. Web3 thefts are not here (#/web3 is their board)."""
+    rows = sorted((e for e in window if e.domain == "vuln" and _p0_at(e)), key=lambda e: _p0_at(e) or "", reverse=True)
+    fixes = store.get_source_state(retitle.KEY)
+    verdicts = store.get_source_states([send_judge.key(e.event_id) for e in rows])
+    events, labels = [], {}
+    for e in rows:
+        fix = retitle.public(fixes.get(e.event_id), e.title)
+        title = fix["title"] if fix else e.title
+        pl = p0class.place(title, e.entities)
+        labels[pl.product] = pl.label
+        events.append({"event_id": e.event_id, "title": title, "product": pl.product, "group": pl.group,
+                       "cloud": pl.cloud, "severity": e.severity, "exploitation": e.exploitation, "cves": e.cves[:6],
+                       "first_seen": e.first_seen, "p0_at": _p0_at(e), "independent_sources": e.independent_sources,
+                       **_send_fields(verdicts.get(send_judge.key(e.event_id)))})
+    tiles: dict[str, dict[str, Any]] = {p.id: {"product": p.id, "label": p.label, "group": p.group, "registered": True,
+                                               "count": 0, "now_p0": 0, "exploited": 0, "poc": 0,
+                                               "latest_at": None} for p in p0class.PRODUCTS}
+    for x in events:
+        t = tiles.setdefault(x["product"], {"product": x["product"], "label": labels[x["product"]],
+                                            "group": x["group"], "registered": False, "count": 0, "now_p0": 0,
+                                            "exploited": 0, "poc": 0, "latest_at": None})
+        t["count"] += 1
+        t["now_p0"] += x["severity"] == "P0"
+        t["exploited"] += x["exploitation"] in ("confirmed", "reported")      # in the wild
+        t["poc"] += x["exploitation"] == "poc"
+        t["latest_at"] = max(t["latest_at"] or "", x["p0_at"] or "") or None
+    groups = []
+    for g in p0class.GROUPS:
+        ts = sorted((t for t in tiles.values() if t["group"] == g.id), key=lambda t: t["label"].lower())
+        ts.sort(key=lambda t: t["latest_at"] or "", reverse=True)       # most P0s first, then the latest, then A–Z
+        ts.sort(key=lambda t: -t["count"])
+        groups.append({"id": g.id, "label": g.label, "cloud": g.cloud, "count": sum(t["count"] for t in ts),
+                       "tiles": [{k: v for k, v in t.items() if k != "group"} for t in ts]})
+    return {"kind": "p0", "generated_at": timeutil.iso(now), "window_days": Limits.PUBLISH_WINDOW_DAYS,
+            "total": len(events), "now_p0": sum(1 for x in events if x["severity"] == "P0"),
+            "cloud": sum(1 for x in events if x["cloud"]), "team_send": sum(1 for x in events if x["team_send"] is True),
+            "products": len(p0class.PRODUCTS), "groups": groups, "events": events}
 
 
 DIGEST_FIELDS = ("day", "generated_at", "model", "status", "reason", "header", "summary", "highlights", "watch", "event_ids")
@@ -531,7 +596,8 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
         t = time.monotonic()
         tm[phase] = round(tm.get(phase, 0.0) + t - t0[0], 1)
         t0[0] = t
-    listing, evs = events_doc(store, now)
+    window = publish_window(store, now)          # one scan for the listing and the P0 wall
+    listing, evs = events_doc(store, now, window)
     mark("listing")
     touched: set[str] = set()
     if enrich is not None:      # before ops.json: late_detection reads the CVE records this refresh just filled
@@ -544,7 +610,7 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
         touched |= aws_fix(list(dict.fromkeys(c for ev in hot for c in ev.cves)))     # P0 CVEs first
     mark("enrich")
     if touched:     # the listing was built before this refresh: rebuild it so cards carry the new CVE dates
-        listing, evs = events_doc(store, now)
+        listing, evs = events_doc(store, now, window)
         mark("listing")
     detail = [ev for ev in evs if changed is None or ev.event_id in changed or set(ev.cves) & touched]
     srcs = sources_doc(store, now)
@@ -552,7 +618,7 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
     docs: dict[str, dict[str, Any]] = {"status.json": {"kind": "status", "generated_at": timeutil.iso(now)},
                                        "events.json": listing, "sources.json": srcs,
                                        "continuum.json": continuum_doc(store, now, evs), "ops.json": ops_doc(store, now, srcs, evs),
-                                       "mitigate.json": mitigate_doc(store, now),
+                                       "mitigate.json": mitigate_doc(store, now), "p0.json": p0_doc(store, now, window),
                                        "announcements.json": announcements.board_doc(
                                            store.get_source_state(announcements.BOARD_KEY), BY_ID, timeutil.iso(now))}
     mark("side_docs")

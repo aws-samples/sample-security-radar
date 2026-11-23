@@ -50,6 +50,14 @@ describe('Mock data schema validation', () => {
     expect((data as { kind: string }).kind).toBe('continuum');
   });
 
+  it('p0.json validates against schema', () => {
+    const data = loadJson(join(dataDir, 'p0.json'));
+    const valid = validate(data);
+    if (!valid) console.error('Validation errors:', JSON.stringify(validate.errors, null, 2));
+    expect(valid).toBe(true);
+    expect((data as { kind: string }).kind).toBe('p0');
+  });
+
   it('mitigate.json validates against schema', () => {
     const data = loadJson(join(dataDir, 'mitigate.json'));
     const valid = validate(data);

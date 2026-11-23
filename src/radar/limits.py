@@ -11,6 +11,7 @@ class Limits:
     # is not made: llm.converse returns status error / daily_cap and #/ops daily_cap_reached says so.
     BEDROCK_CALLS_PER_DAY_FAST = 2_500
     BEDROCK_CALLS_PER_DAY_BRIEF = 800
+    SEND_JUDGE_PER_RUN = 4          # send arbitration (radar.send_judge): Haiku calls per analyze run, P0 first
     ATTACK_PATHS_PER_CYCLE = 2       # R9.5: Sonnet calls per analyze run for attack paths (~30 s each)
     MODEL_CALL_RESERVE_S = 120       # analyze starts no model call with less left (live 11-19: avg run 448 s of 600, max 600 = timed out)
     BRIEF_FACT_STAMPS_PER_RUN = 300  # legacy briefs given their facts per analyze run (no model call; 817 on 11-19)
@@ -58,6 +59,8 @@ class Limits:
     FINALIZE_QUIET_DAYS_VULN = 14
     AMOUNT_STABLE_RATIO = 0.10      # |latest - value 7d ago| / latest below this ⇒ stable
     AMOUNT_DISPUTE_RATIO = 3.0      # max/min across sources above this ⇒ amount_disputed
+    AMOUNT_CONSENSUS_REPORTERS = 3  # independent reporters needed to raise a hack database's loss (Chainflip 11-22)
+    AMOUNT_CONSENSUS_RATIO = 0.15   # … agreeing within this share, and above the database figure by more than it
     AMOUNT_DISPUTE_FLOOR = 0.01     # a source's figure below this share of the largest one is a sub-amount or a price, not a rival loss estimate
 
     # --- severity ---

@@ -6211,9 +6211,9 @@ expect = tests/test_lighter_20261116.py::test_the_same_words_from_a_general_outl
 
 [M1562 domain: a crypto outlet's CVE story becomes web3]
 file = src/radar/pipeline.py
-find =         return "vuln" if vuln and not signals.web3_incident(text) else "web3"
-replace =         return "web3"
-expect = tests/test_lighter_20261116.py::test_a_crypto_outlet_cve_story_stays_a_vulnerability
+find = if has_cve:     # a CVE story is a vulnerability unless it is a crypto theft (_crypto_theft)
+replace = if False:
+expect = tests/test_mysql_p0_20261121.py::test_a_crypto_outlets_cve_story_is_a_vulnerability
 
 [M1563 keys: a $15M headline figure is a name key]
 file = src/radar/keys.py
@@ -7040,3 +7040,189 @@ file = src/radar/handlers.py
 find = except Exception as ex:  # noqa: BLE001 — a third-party lookup never fails the Analyze step (security review 2026-11-20)
 replace = except ZeroDivisionError as ex:  # noqa: BLE001
 expect = tests/test_ghsa_alias_20261119.py::test_the_analyze_step_survives_a_failing_lookup
+
+[M1712 classify: an attack word alone makes a CVE story web3 again]
+file = src/radar/pipeline.py
+find = return signals.web3_incident(text) and bool(_CRYPTO.search(text))
+replace = return signals.web3_incident(text)
+expect = tests/test_mysql_p0_20261121.py::test_a_web3_handles_cve_alert_is_a_vulnerability
+
+[M1713 classify: a crypto outlet's CVE story follows the old rule]
+file = src/radar/pipeline.py
+find = return "vuln" if not _crypto_theft(text) else "web3"
+replace = return "vuln" if not signals.web3_incident(text) else "web3"
+expect = tests/test_mysql_p0_20261121.py::test_a_crypto_outlets_cve_story_is_a_vulnerability
+
+[M1714 severity: a public exploit no longer corroborates a critical flaw]
+file = src/radar/pipeline.py
+find = _reporters(items, groups) >= Limits.P0_PATH_A_REPORTERS or _fresh_exploit(items, exploitation)))
+replace = _reporters(items, groups) >= Limits.P0_PATH_A_REPORTERS))
+expect = tests/test_mysql_p0_20261121.py::test_the_mysql_event_is_p0
+
+[M1715 severity: an old CVE's exploit listing corroborates too]
+file = src/radar/pipeline.py
+find = return exploitation == "poc" and any(i.source_id == "cve_list" for i in items)
+replace = return exploitation == "poc"
+expect = tests/test_mysql_p0_20261121.py::test_an_old_cves_exploit_listing_alone_does_not
+
+[M1716 cloudstack: a language named as a flaw class counts as the product]
+file = src/radar/p0class.py
+find = title_text = _CLASS.sub(" ", _ID.sub("", title or ""))
+replace = title_text = _ID.sub("", title or "")
+expect = tests/test_p0wall_20261122.py::test_the_product_the_title_names_first_is_the_tile
+
+[M1717 notify: the published cloud_stack field is ignored]
+file = src/radar/notify.py
+find = "cloud_stack": bool(row["cloud_stack"]) if "cloud_stack" in row
+replace = "cloud_stack": False if "cloud_stack" in row
+expect = tests/test_cloudstack_20261121.py::test_a_subscription_can_filter_on_it
+
+[M1718 notify: cloud_stack is not a filter field]
+file = src/radar/notify.py
+find = "cloud_stack": ("bool", None, ("the affected product is a mainstream cloud component (radar.cloudstack) — nginx, "
+replace = "cloud_stack_off": ("bool", None, ("the affected product is a mainstream cloud component (radar.cloudstack) — nginx, "
+expect = tests/test_cloudstack_20261121.py::test_a_subscription_can_filter_on_it
+
+[M1719 cloudstack: the entities are not read]
+file = src/radar/p0class.py
+find = p = _first_named(title_text) or _first_named(all_text)
+replace = p = _first_named(title_text)
+expect = tests/test_cloudstack_20261121.py::test_the_entities_count_too
+
+[M1720 send judge: a yes without a real citation sends]
+file = src/radar/send_judge.py
+find = if raw["send"] and not cite:     # a send must point at a report; an unsupported yes is not a yes
+replace = if False:
+expect = tests/test_send_judge_20261121.py::test_a_yes_without_a_real_citation_does_not_send
+
+[M1721 send judge: a failed call sends]
+file = src/radar/send_judge.py
+find = return {**base, "send": False, "status": "failed", "reason": f"仲裁未完成（{res.status}），暂不发送", "cite": []}
+replace = return {**base, "send": True, "status": "failed", "reason": f"仲裁未完成（{res.status}），暂不发送", "cite": []}
+expect = tests/test_send_judge_20261121.py::test_a_failed_call_does_not_send
+
+[M1722 notify: an unasked event passes the team filter]
+file = src/radar/notify.py
+find = "team_send": row.get("team_send") is True, "team_send_reason": row.get("team_send_reason"),
+replace = "team_send": row.get("team_send") is not False, "team_send_reason": row.get("team_send_reason"),
+expect = tests/test_send_judge_20261121.py::test_the_team_filter_needs_a_yes
+
+[M1723 send judge: a reworded summary re-asks the model]
+file = src/radar/send_judge.py
+find = return {"title": ev.get("title") or "", "severity": ev.get("severity"), "exploitation": ev.get("exploitation"),
+replace = return {"summary": ev.get("summary"), "title": ev.get("title") or "", "severity": ev.get("severity"), "exploitation": ev.get("exploitation"),
+expect = tests/test_send_judge_20261121.py::test_the_decision_input_changes_only_with_what_matters
+
+[M1724 p0 wall: the fallback product beats a product the entities name]
+file = src/radar/p0class.py
+find = return next((p for p in PRODUCTS if p.id in FALLBACK and p.matches(text)), None)
+replace = return None
+expect = tests/test_p0wall_20261122.py::test_the_product_the_title_names_first_is_the_tile
+
+[M1725 p0 wall: registry order instead of the product the title names first]
+file = src/radar/p0class.py
+find = return min(hits, key=lambda h: (h[0], h[1]))[2]
+replace = return min(hits, key=lambda h: h[1])[2]
+expect = tests/test_p0wall_20261122.py::test_the_product_the_title_names_first_is_the_tile
+
+[M1726 p0 wall: an advisory id is read as a product name]
+file = src/radar/p0class.py
+find = title_text = _CLASS.sub(" ", _ID.sub("", title or ""))
+replace = title_text = _CLASS.sub(" ", title or "")
+expect = tests/test_p0wall_20261122.py::test_the_product_the_title_names_first_is_the_tile
+
+[M1727 p0 wall: an unregistered tile is named without its aka]
+file = src/radar/p0class.py
+find = if m := _AKA.search(t):
+replace = if m := None:
+expect = tests/test_p0wall_20261122.py::test_an_unregistered_product_gets_its_own_tile_named_from_the_title
+
+[M1728 p0 wall: a demoted P0 leaves the wall]
+file = src/radar/publish.py
+find = return at or (ev.first_seen if ev.severity == "P0" else None)
+replace = return ev.first_seen if ev.severity == "P0" else None
+expect = tests/test_p0wall_20261122.py::test_the_document_places_every_p0_and_validates
+
+[M1729 p0 wall: the empty registered tiles are not listed]
+file = src/radar/publish.py
+find = "latest_at": None} for p in p0class.PRODUCTS}
+replace = "latest_at": None} for p in p0class.PRODUCTS if False}
+expect = tests/test_p0wall_20261122.py::test_the_document_places_every_p0_and_validates
+
+[M1730 cloudstack: no longer the wall's group flag]
+file = src/radar/cloudstack.py
+find = return p0class.place(title, entities).cloud
+replace = return True
+expect = tests/test_cloudstack_20261121.py::test_other_products_are_not
+
+[M1731 p0 wall: the build does not publish p0.json]
+file = src/radar/publish.py
+find = "p0.json": p0_doc(store, now, window),
+replace = "p0-off.json": p0_doc(store, now, window),
+expect = tests/test_p0wall_20261122.py::test_the_build_publishes_it
+
+[M1732 p0 wall: the team channel's verdict is not carried]
+file = src/radar/publish.py
+find = **_send_fields(verdicts.get(send_judge.key(e.event_id)))})
+replace = **_send_fields(None)})
+expect = tests/test_p0wall_20261122.py::test_the_document_places_every_p0_and_validates
+
+[M1733 ghsa alias: IGNORECASE without ASCII lets the Kelvin sign through]
+file = src/radar/ghsa_alias.py
+find = re.IGNORECASE | re.ASCII)
+replace = re.IGNORECASE)
+expect = tests/test_ghsa_alias_20261119.py::test_the_kelvin_sign_and_long_s_are_not_ascii_letters
+
+[M1734 amount consensus: a larger loss the reports agree on never raises the databases' figure]
+file = src/radar/pipeline.py
+find = latest = _consensus_loss(loss, pool[-1], rep, structured, tier_of, group_of, says, names) or pool[-1]["value"]
+replace = latest = pool[-1]["value"]
+expect = tests/test_amount_consensus_20261123.py::test_three_independent_reports_of_a_larger_loss_raise_the_databases_figure
+
+[M1735 amount: the top-tier database beats a newer update from another database]
+file = src/radar/pipeline.py
+find = latest = _consensus_loss(loss, pool[-1], rep, structured, tier_of, group_of, says, names) or pool[-1]["value"]
+replace = latest = _consensus_loss(loss, trusted[-1], rep, structured, tier_of, group_of, says, names) or trusted[-1]["value"]
+expect = tests/test_amount_consensus_20261123.py::test_the_latest_database_update_wins_whichever_database
+
+[M1736 amount consensus: two reporters are enough]
+file = src/radar/pipeline.py
+find = if len(orgs) >= Limits.AMOUNT_CONSENSUS_REPORTERS and strong:
+replace = if len(orgs) >= 2 and strong:
+expect = tests/test_amount_consensus_20261123.py::test_three_independent_reports_of_a_larger_loss_raise_the_databases_figure
+
+[M1737 amount consensus: no T1 / T2 reporter needed]
+file = src/radar/pipeline.py
+find = strong = any(_TIER_RANK[tier_of[rep[id(q)]]] <= 2 for q in agree)
+replace = strong = True
+expect = tests/test_amount_consensus_20261123.py::test_the_consensus_needs_a_t1_or_t2_reporter
+
+[M1738 amount consensus: a report about another incident counts]
+file = src/radar/pipeline.py
+find = and (not low or any(n in (says or {}).get(id(p), "").lower() for n in low))]
+replace = ]
+expect = tests/test_amount_consensus_20261123.py::test_a_report_about_another_incident_does_not_count
+
+[M1739 amount consensus: a smaller figure can replace the loss]
+file = src/radar/pipeline.py
+find = and p["value"] > base["value"] * (1 + r)
+replace = and p["value"] > 0
+expect = tests/test_amount_consensus_20261123.py::test_only_upward_and_only_later_than_the_database
+
+[M1740 amount consensus: reports older than the database figure count]
+file = src/radar/pipeline.py
+find = cand = [p for p in loss if rep[id(p)] not in structured and p["observed_at"] > base["observed_at"]
+replace = cand = [p for p in loss if rep[id(p)] not in structured and p["observed_at"] > ""
+expect = tests/test_amount_consensus_20261123.py::test_only_upward_and_only_later_than_the_database
+
+[M1741 amount consensus: without a database the top tier's figure always stands]
+file = src/radar/pipeline.py
+find = latest = _consensus_loss(loss, trusted[-1], rep, structured, tier_of, group_of, says, names) or trusted[-1]["value"]
+replace = latest = trusted[-1]["value"]
+expect = tests/test_amount_consensus_20261123.py::test_without_a_database_the_top_tier_figure_yields_to_the_consensus
+
+[M1742 amount consensus: syndication groups are ignored (one organisation, two channels = two reporters)]
+file = src/radar/pipeline.py
+find = for it, g in zip(items, groups or range(len(items)), strict=True):
+replace = for it, g in zip(items, range(len(items)), strict=True):
+expect = tests/test_amount_consensus_20261123.py::test_one_organisation_on_two_channels_is_one_reporter

@@ -16,7 +16,7 @@ import {
   stripRequirementPrefix, actionDuration, sameFile, actionLanes, pipelineRows, pendingContinuumActions,
 } from '@/utils/response';
 
-const detail = JSON.parse(readFileSync(resolve(__dirname, '../../mock-data/data/events/ev_bb65db3b8694e5f4.json'), 'utf-8'));
+const detail = JSON.parse(readFileSync(resolve(__dirname, './fixtures/response-sa-reviews.json'), 'utf-8'));
 const R: Response = detail.response;
 const STEPS: PipelineStep[] = detail.pipeline_steps;
 const clone = (): Response => JSON.parse(JSON.stringify(R));

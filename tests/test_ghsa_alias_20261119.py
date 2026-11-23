@@ -145,3 +145,11 @@ def test_the_analyze_step_survives_a_failing_lookup(station, monkeypatch):
     out = h.analyze_events({"changed": []})
     assert out["changed"] == []
     assert store.get_source_state(ghsa_alias.KEY)["last_error"]["error"] == "UnicodeEncodeError"
+
+
+def test_the_kelvin_sign_and_long_s_are_not_ascii_letters():
+    """Security review 2026-11-22 (optional item): with IGNORECASE alone, [A-Za-z] also matches U+212A KELVIN SIGN and
+    U+017F LATIN SMALL LETTER LONG S — an owner built from them is not a GitHub name and must not become a lookup URL."""
+    texts = ["https://github.com/Kelvin/x/security/advisories/GHSA-34m4-m9fh-gqp5",
+             "https://github.com/acme/ſx/security/advisories/GHSA-8452-w857-wpmw"]
+    assert ghsa_alias.repo_advisories(texts) == {}

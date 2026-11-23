@@ -47,6 +47,9 @@ const PAGES = [
   { name: 'vuln',    path: '/#/vuln'         },
   { name: 'sources', path: '/#/sources'      },
   { name: 'announcements', path: '/#/announcements' },
+  // the P0 wall: tiles, and one tile opened (its list of vulnerabilities)
+  { name: 'p0', path: '/#/p0', expect: '[data-page="p0"] .p0-tile' },
+  { name: 'p0-open', path: '/#/p0?tile=php', expect: '[data-page="p0"] .p0-list' },
   { name: 'search', path: '/#/search' },
   { name: 'subscribe', path: '/#/subscribe', expect: '.sub-row' },
   // D/M3 ops view: error / warn / info rows (left-border level + text label, never colour alone)

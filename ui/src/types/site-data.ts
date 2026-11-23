@@ -175,6 +175,19 @@ export type SecurityRadarSiteDataPublishedToS3ReadByTheUI =
       kind: "status";
       generated_at: Timestamp;
       schema_version?: SchemaVersion;
+    }
+  | {
+      kind: "p0";
+      generated_at: Timestamp;
+      window_days: number;
+      total: number;
+      now_p0: number;
+      cloud: number;
+      team_send: number;
+      products: number;
+      groups: P0Group[];
+      events: P0Event[];
+      schema_version?: SchemaVersion;
     };
 /**
  * ISO-8601 UTC, e.g. 2026-10-23T03:39:57Z
@@ -333,6 +346,18 @@ export interface EventSummary {
   summary_rejected?: (
     "cve_not_in_event" | "exploited_claim_not_in_code" | "denies_confirmed_exploitation" | "amount_not_event"
   )[];
+  /**
+   * The send arbitration's verdict (radar.send_judge); null until asked.
+   */
+  team_send?: boolean | null;
+  /**
+   * The arbitration's one-sentence reason.
+   */
+  team_send_reason?: string | null;
+  /**
+   * The affected product is a mainstream cloud component (radar.cloudstack): what a team channel filters on.
+   */
+  cloud_stack?: boolean;
   /**
    * GitHub Security Advisory ids named by the event's reports (the identifier before a CVE is assigned).
    */
@@ -1306,4 +1331,42 @@ export interface FeedEntry {
    * Path under data/ (application/atom+xml).
    */
   atom: string;
+}
+export interface P0Group {
+  id: string;
+  label: string;
+  cloud: boolean;
+  count: number;
+  tiles: P0Tile[];
+}
+export interface P0Tile {
+  product: string;
+  label: string;
+  registered: boolean;
+  count: number;
+  now_p0: number;
+  exploited: number;
+  poc: number;
+  latest_at: Timestamp | null;
+}
+/**
+ * one vulnerability that is or was P0 (p0.json, radar.p0class places it)
+ */
+export interface P0Event {
+  event_id: string;
+  title: string;
+  /**
+   * tile id; x-<slug> = a product not in the registry
+   */
+  product: string;
+  group: string;
+  cloud: boolean;
+  severity: Severity;
+  exploitation: Exploitation;
+  cves: string[];
+  first_seen: Timestamp;
+  p0_at: Timestamp;
+  independent_sources: number;
+  team_send: boolean | null;
+  team_send_reason: string | null;
 }

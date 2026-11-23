@@ -390,6 +390,7 @@ def analyze_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     log.info(json.dumps({"station": "analyze", "to_rewrite": len(todo), "why": reasons, "kept_not_material": kept,
                          "facts_stamped": stamped}))
     paths = _attack_paths(now, since, left)
+    judged = _send_judge(now, since, left)
     done, deferred = [], 0
     for _, _, ev, ev_in in todo[:MAX_ANALYSES_PER_CYCLE]:
         if left is not None and left() < Limits.MODEL_CALL_RESERVE_S:   # briefs: no call started without the reserve
@@ -413,7 +414,7 @@ def analyze_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
             st_ = dict(store_.get_source_state("__ghsa_alias__") or {})
             store_.put_source_state("__ghsa_alias__", {**st_, "last_error": {"at": timeutil.iso(now), "error": type(ex).__name__}})
     _retitle_shadow(now)
-    changed = sorted(set(event.get("changed") or []) | set(done) | set(dup) | set(paths) | set(aliased))
+    changed = sorted(set(event.get("changed") or []) | set(done) | set(dup) | set(paths) | set(aliased) | set(judged))
     return {"changed": changed[:MAX_CHANGED_IDS], "full": bool(event.get("full")), "analysis_backlog": len(todo) - len(done),
             "analysis_deferred": deferred}
 
@@ -444,6 +445,41 @@ def _attack_paths(now: datetime, since: str, left: Any = None) -> list[str]:
                              "dropped_defenses": row.get("dropped_defenses", 0)}))
     log.info(json.dumps({"station": "attack_path", "backlog": len(todo) - len(done)}))   # coverage is measured, not guessed
     return done
+
+
+def _send_judge(now: datetime, since: str, left: Any = None) -> list[str]:
+    """Send arbitration (radar.send_judge): P0 vulnerability events that passed the code prefilter (radar.cloudstack)
+    and whose decision input changed, at most Limits.SEND_JUDGE_PER_RUN model calls. Returns the events whose page
+    changed (the verdict is published and the team subscription filters on it)."""
+    from radar import cloudstack, send_judge
+    if _store is None:
+        raise RuntimeError("send judge: no store (TABLE is not set)")
+    todo = []
+    for ev in _store.events_updated_since(since):
+        if ev.domain != "vuln" or ev.severity != "P0" or not cloudstack.is_cloud_stack(ev.title, ev.entities):
+            continue
+        evidence = _evidence(ev)
+        view = {"title": ev.title, "severity": ev.severity, "exploitation": ev.exploitation, "cves": ev.cves,
+                "entities": ev.entities}
+        inp = send_judge.decision_input(view, analyst_trim(evidence))
+        row = _store.get_source_state(send_judge.key(ev.event_id)) or {}
+        if row.get("input_hash") != send_judge.input_hash(inp):
+            todo.append((-_ts(ev.last_updated), ev.event_id, view, evidence))
+    done = []
+    for _, eid, view, evidence in sorted(todo)[:Limits.SEND_JUDGE_PER_RUN]:
+        if left is not None and left() < Limits.MODEL_CALL_RESERVE_S:
+            log.info(json.dumps({"station": "send_judge", "deferred": len(todo) - len(done), "reason": "time_left"}))
+            break
+        row = send_judge.judge(view, evidence, timeutil.iso(now))
+        _store.put_source_state(send_judge.key(eid), row)
+        done.append(eid)
+        log.info(json.dumps({"station": "send_judge", "event": eid, "send": row["send"], "status": row["status"]}))
+    return done
+
+
+def analyst_trim(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from radar import analyst
+    return analyst.trim_evidence(evidence)
 
 
 DIGEST_KEY = digest.KEY  # C7: the latest daily digest (single writer: the analyze station)

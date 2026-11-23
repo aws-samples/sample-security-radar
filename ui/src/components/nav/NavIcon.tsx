@@ -5,6 +5,7 @@
 const PATHS: Record<string, string> = {
   radar: 'M10 10 L15.5 4.5 M10 2.5a7.5 7.5 0 1 0 7.5 7.5 M10 6a4 4 0 1 0 4 4',
   vuln: 'M10 2.5 L17 6.5 V13.5 L10 17.5 L3 13.5 V6.5 Z M10 7 V10.5 M10 13 V13.2',
+  p0: 'M3 3 H8.5 V8.5 H3 Z M11.5 3 H17 V8.5 H11.5 Z M3 11.5 H8.5 V17 H3 Z M11.5 11.5 H17 V17 H11.5 Z',
   web3: 'M6 4.5 L10 2.5 L14 4.5 V9 L10 11 L6 9 Z M6 9 V14 L10 16 L14 14 V9 M10 11 V16',
   wall: 'M2.5 4 H17.5 V13 H2.5 Z M7 16.5 H13 M10 13 V16.5',
   continuum: 'M15.5 7 A6 6 0 1 0 16 11 M15.5 3.5 V7 H12',

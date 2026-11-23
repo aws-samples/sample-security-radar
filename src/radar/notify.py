@@ -32,7 +32,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
-from radar import fetch, products, timeutil, wallets
+from radar import cloudstack, fetch, products, timeutil, wallets
 from radar.limits import Limits
 
 CHANNELS = ("slack_channel", "slack_dm", "lark_chat", "lark_dm", "webhook")
@@ -58,6 +58,9 @@ FILTER_FIELDS: dict[str, tuple[str, tuple[str, ...] | None, str]] = {
     "exchanges": ("list", EXCHANGES, "an exchange of the radar.wallets registry the event names"),
     "has_waf_pack": ("bool", None, "the mitigate station planned WAF rules for the event"),
     "has_verdict": ("bool", None, "a code-impact verdict exists (affected / not_affected)"),
+    "cloud_stack": ("bool", None, ("the affected product is a mainstream cloud component (radar.cloudstack) — nginx, "
+                                   "Java, PHP, Linux, MySQL …; not mobile / desktop apps, SAP, appliances, ICS")),
+    "team_send": ("bool", None, "the send arbitration (radar.send_judge) said send; unasked or failed = false"),
     "cves": ("list", None, "a CVE id the event names, case-insensitive"),
     "exploitation": ("list", EXPLOITATION, "exploitation status of the event"),
     "min_level": ("atleast", LEVELS, "verification level at least this (a disputed event, level X, never matches)"),
@@ -234,6 +237,10 @@ def view(row: dict[str, Any], has_waf_pack: bool, prs: list[str] | None = None) 
             "tx_confirmed": int(row.get("tx_confirmed") or 0),
             "aws_fix_line": row.get("aws_fix_line"), "aws_fix_url": row.get("aws_fix_url"),
             "has_waf_pack": bool(has_waf_pack), "has_verdict": imp.get("status") in ("affected", "not_affected"),
+            "team_send": row.get("team_send") is True, "team_send_reason": row.get("team_send_reason"),
+            # published by publish._summary; a row from before the field (an older site file) is computed the same way
+            "cloud_stack": bool(row["cloud_stack"]) if "cloud_stack" in row
+            else cloudstack.is_cloud_stack(row.get("title") or "", list(row.get("entities") or [])),
             "impact": {"status": imp.get("status"), "affected": imp.get("affected", 0), "checked": imp.get("checked", 0)}
             if imp else None, "prs": sorted(set(prs or []))}
 

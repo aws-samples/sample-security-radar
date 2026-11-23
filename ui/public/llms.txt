@@ -15,6 +15,7 @@
 - [data/sources.json](data/sources.json): every source and its health
 - [data/announcements.json](data/announcements.json): exchange announcement board
 - [data/mitigate.json](data/mitigate.json): mitigation plans and their state
+- [data/p0.json](data/p0.json): the P0 wall — every vulnerability P0 of the window on its product tile
 
 ## For agents
 

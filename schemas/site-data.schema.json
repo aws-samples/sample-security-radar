@@ -317,6 +317,24 @@
           },
           "description": "Why grounded BLUF sentences were passed over (analyst.contradiction)."
         },
+        "team_send": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "The send arbitration's verdict (radar.send_judge); null until asked."
+        },
+        "team_send_reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The arbitration's one-sentence reason."
+        },
+        "cloud_stack": {
+          "type": "boolean",
+          "description": "The affected product is a mainstream cloud component (radar.cloudstack): what a team channel filters on."
+        },
         "ghsas": {
           "type": "array",
           "items": {
@@ -3997,6 +4015,161 @@
           }
         }
       }
+    },
+    "P0Event": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "one vulnerability that is or was P0 (p0.json, radar.p0class places it)",
+      "required": [
+        "event_id",
+        "title",
+        "product",
+        "group",
+        "cloud",
+        "severity",
+        "exploitation",
+        "cves",
+        "first_seen",
+        "p0_at",
+        "independent_sources",
+        "team_send",
+        "team_send_reason"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "product": {
+          "type": "string",
+          "description": "tile id; x-<slug> = a product not in the registry"
+        },
+        "group": {
+          "type": "string"
+        },
+        "cloud": {
+          "type": "boolean"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "exploitation": {
+          "$ref": "#/$defs/Exploitation"
+        },
+        "cves": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "first_seen": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "p0_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "independent_sources": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "team_send": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "team_send_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "P0Tile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product",
+        "label",
+        "registered",
+        "count",
+        "now_p0",
+        "exploited",
+        "poc",
+        "latest_at"
+      ],
+      "properties": {
+        "product": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "registered": {
+          "type": "boolean"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "now_p0": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exploited": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "poc": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "latest_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "P0Group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "cloud",
+        "count",
+        "tiles"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "cloud": {
+          "type": "boolean"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/P0Tile"
+          }
+        }
+      }
     }
   },
   "type": "object",
@@ -4763,6 +4936,70 @@
         },
         "generated_at": {
           "$ref": "#/$defs/Timestamp"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "p0.json — the P0 wall (#/p0): every vulnerability P0 of the publish window on its product tile",
+      "required": [
+        "kind",
+        "generated_at",
+        "window_days",
+        "total",
+        "now_p0",
+        "cloud",
+        "team_send",
+        "products",
+        "groups",
+        "events"
+      ],
+      "properties": {
+        "kind": {
+          "const": "p0"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "window_days": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "now_p0": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cloud": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "team_send": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "products": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/P0Group"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/P0Event"
+          }
         },
         "schema_version": {
           "$ref": "#/$defs/SchemaVersion"

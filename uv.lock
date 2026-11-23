@@ -1129,7 +1129,7 @@ wheels = [
 
 [[package]]
 name = "security-radar"
-version = "1.6.5"
+version = "1.6.11"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },

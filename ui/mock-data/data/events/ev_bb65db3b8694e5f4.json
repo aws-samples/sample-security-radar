@@ -813,7 +813,7 @@
   "status": "done",
   "product": "php",
   "requirement_name": "radar-cve-2026-109618-cve-2026-109619-cve-2026-115560",
-  "reason": "P0 · 产品 PHP 命中登记表 · 修复版本 8.5.12/8.4.27/8.3.36/8.2.35 均从证据逐字抽取 ⇒ 已推规则并发起评审",
+  "reason": "P0 · 产品 PHP 命中登记表 · 修复版本 8.5.12/8.4.27/8.3.36/8.2.35 均从证据逐字抽取 ⇒ 已推规则，已向 Continuum 提交 finding",
   "updated_at": "2026-10-23T17:20:00Z",
   "targets": [
    {
@@ -879,97 +879,57 @@
     "kind": "code_finding",
     "service": "continuum",
     "target_id": "demo-shop",
-    "status": "running",
-    "detail": "OCSF 2002 已提交，等待构建后验证（SUBMITTED）",
+    "status": "done",
+    "detail": "OCSF 2002 已提交，Continuum 已验证（EXPLOITABLE）",
     "external_id": "0000f91399697955b82e470c405fb545",
     "console_url": null,
     "started_at": "2026-10-23T17:26:14Z",
-    "updated_at": "2026-10-23T17:20:00Z"
+    "updated_at": "2026-10-23T17:43:00Z"
    },
    {
     "kind": "code_scan",
     "service": "continuum",
     "target_id": null,
-    "status": "running",
-    "detail": "环境扫描 BUILDING",
+    "status": "done",
+    "detail": "环境扫描 COMPLETED · 判定 EXPLOITABLE · 给出补丁",
     "external_id": "0000d406f5efddee356f7a77041f3e70",
     "console_url": null,
     "started_at": "2026-10-23T17:25:39Z",
-    "updated_at": "2026-10-23T17:20:00Z"
-   },
-   {
-    "kind": "code_review",
-    "service": "security_agent",
-    "target_id": "demo-shop",
-    "status": "done",
-    "detail": "COMPLETED · 27.1 分钟 · 3 个 finding",
-    "external_id": "cr-demo",
-    "console_url": null,
-    "started_at": "2026-10-23T09:03:00Z",
-    "updated_at": "2026-10-23T09:30:06Z"
-   },
-   {
-    "kind": "remediation",
-    "service": "security_agent",
-    "target_id": "demo-shop",
-    "status": "done",
-    "detail": "自动修复 diff：3 处 → 8.3.36",
-    "external_id": null,
-    "console_url": null,
-    "started_at": "2026-10-23T09:30:06Z",
-    "updated_at": "2026-10-23T09:41:00Z"
+    "updated_at": "2026-10-23T17:43:00Z"
    }
   ],
   "findings": [
-   {
-    "service": "security_agent",
-    "finding_id": "f-1",
-    "title": "[Requirement: radar-cve-2026-109618-…] PHP runtime pinned to known-affected 8.3.30, below the fixed 8.3.36",
-    "severity": "HIGH",
-    "status": "ACTIVE",
-    "target_id": "demo-shop",
-    "file": "Dockerfile",
-    "line": 1,
-    "requirement_hit": true
-   },
-   {
-    "service": "security_agent",
-    "finding_id": "f-2",
-    "title": "Container runs as root",
-    "severity": "HIGH",
-    "status": "ACTIVE",
-    "target_id": "demo-shop",
-    "file": "Dockerfile",
-    "line": null,
-    "requirement_hit": false
-   },
-   {
-    "service": "security_agent",
-    "finding_id": "f-3",
-    "title": "Insecure default configuration",
-    "severity": "MEDIUM",
-    "status": "ACTIVE",
-    "target_id": "demo-shop",
-    "file": null,
-    "line": null,
-    "requirement_hit": false
-   },
    {
     "service": "continuum",
     "finding_id": "0000f91399697955b82e470c405fb545",
     "title": "Affected PHP runtime: PHP core RCE vulnerability patches",
     "severity": "HIGH",
-    "status": "SUBMITTED",
+    "status": "VALIDATED",
     "target_id": "demo-shop",
     "file": "demo-shop/Dockerfile",
     "line": 1,
     "requirement_hit": true
    }
   ],
-  "issues": [],
+  "issues": [
+   {
+    "issue_id": "01a169cc0e55issue",
+    "name": "PHP 8.3.30 core RCE reachable from the public HTTP entry",
+    "severity": "HIGH",
+    "phase": "REMEDIATION",
+    "status": "COMPLETED",
+    "exploitable": "EXPLOITABLE",
+    "patch_status": "SUCCEEDED",
+    "patch_path": "continuum/patches/demo-shop-php2shell.diff",
+    "synopsis": "demo-shop pins PHP 8.3.30 (Dockerfile:1); the affected code path is reachable from the storefront's public HTTP handler.",
+    "effect": "Remote code execution in the web container.",
+    "evidence_summary": "Entry → sink path confirmed in the test environment; upgrading to 8.3.36 removes it.",
+    "pr_url": "https://gitlab.example.com/demo/demo-shop/-/merge_requests/12"
+   }
+  ],
   "patches": [
    {
-    "source": "security_agent",
+    "source": "continuum",
     "target_id": "demo-shop",
     "path": "continuum/patches/demo-shop-php2shell.diff",
     "files_changed": [
@@ -977,7 +937,8 @@
      "composer.json",
      ".gitlab-ci.yml"
     ],
-    "summary": "PHP 8.3.30 → 8.3.36（3 处）"
+    "summary": "PHP 8.3.30 → 8.3.36（3 处）",
+    "pr_url": "https://gitlab.example.com/demo/demo-shop/-/merge_requests/12"
    }
   ]
  },

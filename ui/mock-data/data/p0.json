@@ -1,0 +1,2065 @@
+{
+ "kind": "p0",
+ "generated_at": "2026-11-22T13:11:07Z",
+ "window_days": 60,
+ "total": 51,
+ "now_p0": 25,
+ "cloud": 14,
+ "team_send": 8,
+ "products": 95,
+ "groups": [
+  {
+   "id": "web",
+   "label": "Web 服务器与网关",
+   "cloud": true,
+   "count": 2,
+   "tiles": [
+    {
+     "product": "nginx",
+     "label": "Nginx",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-18T16:42:19Z"
+    },
+    {
+     "product": "apache",
+     "label": "Apache HTTP Server",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-13T03:30:19Z"
+    },
+    {
+     "product": "proxy",
+     "label": "Envoy / HAProxy / Traefik",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "tomcat",
+     "label": "Tomcat",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "framework",
+   "label": "Web 框架与 Java 中间件",
+   "cloud": true,
+   "count": 2,
+   "tiles": [
+    {
+     "product": "apacheproj",
+     "label": "Apache 其他项目",
+     "registered": true,
+     "count": 2,
+     "now_p0": 0,
+     "exploited": 2,
+     "poc": 0,
+     "latest_at": "2026-11-17T12:55:50Z"
+    },
+    {
+     "product": "phpframework",
+     "label": "PHP 框架 (Laravel 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "pyframework",
+     "label": "Python 框架 (Django 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "rails",
+     "label": "Ruby on Rails",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "spring",
+     "label": "Spring",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "struts",
+     "label": "Struts",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "javaee",
+     "label": "WebLogic / JBoss",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "jsframework",
+     "label": "前端 / Node 框架 (Next.js 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "runtime",
+   "label": "编程语言与运行时",
+   "cloud": true,
+   "count": 4,
+   "tiles": [
+    {
+     "product": "php",
+     "label": "PHP",
+     "registered": true,
+     "count": 3,
+     "now_p0": 2,
+     "exploited": 1,
+     "poc": 2,
+     "latest_at": "2026-11-20T17:53:16Z"
+    },
+    {
+     "product": "ruby",
+     "label": "Ruby",
+     "registered": true,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-19T10:31:34Z"
+    },
+    {
+     "product": "dotnet",
+     "label": ".NET",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "go",
+     "label": "Go",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "java",
+     "label": "Java / OpenJDK",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "node",
+     "label": "Node.js",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "python",
+     "label": "Python",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "rust",
+     "label": "Rust",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "database",
+   "label": "数据库与消息中间件",
+   "cloud": true,
+   "count": 3,
+   "tiles": [
+    {
+     "product": "mqtt",
+     "label": "MQTT (Mosquitto 等)",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-20T17:53:16Z"
+    },
+    {
+     "product": "mysql",
+     "label": "MySQL / MariaDB",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-20T17:53:16Z"
+    },
+    {
+     "product": "mongodb",
+     "label": "MongoDB",
+     "registered": true,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-20T01:29:56Z"
+    },
+    {
+     "product": "elastic",
+     "label": "Elasticsearch / OpenSearch",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "kafka",
+     "label": "Kafka",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "postgres",
+     "label": "PostgreSQL",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "mq",
+     "label": "RabbitMQ / ActiveMQ",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "redis",
+     "label": "Redis / Valkey",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "dbother",
+     "label": "其他数据库 (ClickHouse 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "container",
+   "label": "容器、云原生与 CI/CD",
+   "cloud": true,
+   "count": 1,
+   "tiles": [
+    {
+     "product": "gitlab",
+     "label": "GitLab",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-10-29T20:18:49Z"
+    },
+    {
+     "product": "containerd",
+     "label": "containerd / runc",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "docker",
+     "label": "Docker",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "github",
+     "label": "GitHub Actions",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "observability",
+     "label": "Grafana / Prometheus",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "hashicorp",
+     "label": "HashiCorp (Terraform / Vault)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "helm",
+     "label": "Helm / Argo CD",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "istio",
+     "label": "Istio",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "jenkins",
+     "label": "Jenkins",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "keycloak",
+     "label": "Keycloak",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "kubernetes",
+     "label": "Kubernetes",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "minio",
+     "label": "MinIO / Harbor",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "ai",
+   "label": "AI 推理与开发",
+   "cloud": true,
+   "count": 2,
+   "tiles": [
+    {
+     "product": "jupyter",
+     "label": "Jupyter",
+     "registered": true,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-21T08:14:54Z"
+    },
+    {
+     "product": "sglang",
+     "label": "SGLang",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-20T17:53:16Z"
+    },
+    {
+     "product": "aiui",
+     "label": "AI 应用 (Open WebUI / ComfyUI 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "langchain",
+     "label": "LangChain / LlamaIndex",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "mlplatform",
+     "label": "ML 平台 (MLflow / Ray 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "ollama",
+     "label": "Ollama",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "vllm",
+     "label": "vLLM",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "web3",
+   "label": "Web3 节点与工具链",
+   "cloud": true,
+   "count": 0,
+   "tiles": [
+    {
+     "product": "cosmos",
+     "label": "Cosmos / Substrate",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "geth",
+     "label": "Geth / 以太坊客户端",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "solana",
+     "label": "Solana",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "web3js",
+     "label": "Web3 客户端库",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "evmtools",
+     "label": "合约工具链 (OpenZeppelin 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "os",
+   "label": "操作系统与基础库",
+   "cloud": true,
+   "count": 0,
+   "tiles": [
+    {
+     "product": "glibc",
+     "label": "glibc",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "kernel",
+     "label": "Linux 内核",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "distro",
+     "label": "Linux 发行版",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "openssh",
+     "label": "OpenSSH",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "openssl",
+     "label": "OpenSSL",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "oscore",
+     "label": "系统组件 (sudo / systemd 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "cms",
+   "label": "CMS 与插件",
+   "cloud": false,
+   "count": 7,
+   "tiles": [
+    {
+     "product": "wordpress",
+     "label": "WordPress",
+     "registered": true,
+     "count": 7,
+     "now_p0": 6,
+     "exploited": 0,
+     "poc": 7,
+     "latest_at": "2026-11-21T10:14:56Z"
+    },
+    {
+     "product": "drupal",
+     "label": "Drupal",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "joomla",
+     "label": "Joomla",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "magento",
+     "label": "Magento",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "appliance",
+   "label": "网络与安全设备",
+   "cloud": false,
+   "count": 4,
+   "tiles": [
+    {
+     "product": "soho",
+     "label": "路由器 / NAS",
+     "registered": true,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-21T08:14:54Z"
+    },
+    {
+     "product": "cisco",
+     "label": "Cisco",
+     "registered": true,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-20T11:04:49Z"
+    },
+    {
+     "product": "paloalto",
+     "label": "Palo Alto",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": "2026-11-17T18:11:06Z"
+    },
+    {
+     "product": "barracuda",
+     "label": "Barracuda",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-09T16:50:57Z"
+    },
+    {
+     "product": "checkpoint",
+     "label": "Check Point",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "citrix",
+     "label": "Citrix",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "f5bigip",
+     "label": "F5 BIG-IP",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "fortinet",
+     "label": "Fortinet",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "ivanti",
+     "label": "Ivanti",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "juniper",
+     "label": "Juniper",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "sonicwall",
+     "label": "SonicWall",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "endpoint",
+   "label": "终端、浏览器与办公",
+   "cloud": false,
+   "count": 5,
+   "tiles": [
+    {
+     "product": "windows",
+     "label": "Windows",
+     "registered": true,
+     "count": 3,
+     "now_p0": 1,
+     "exploited": 2,
+     "poc": 1,
+     "latest_at": "2026-11-20T05:49:37Z"
+    },
+    {
+     "product": "whatsapp",
+     "label": "WhatsApp",
+     "registered": true,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-20T19:14:50Z"
+    },
+    {
+     "product": "archiver",
+     "label": "7-Zip / WinRAR",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": "2026-11-12T10:23:15Z"
+    },
+    {
+     "product": "adobe",
+     "label": "Adobe",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "android",
+     "label": "Android",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "apple",
+     "label": "Apple iOS / macOS",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "chrome",
+     "label": "Chrome / Chromium",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "exchange",
+     "label": "Exchange / SharePoint",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "firefox",
+     "label": "Firefox",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "office",
+     "label": "Microsoft Office",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "safari",
+     "label": "Safari / WebKit",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "enterprise",
+   "label": "企业应用与虚拟化",
+   "cloud": false,
+   "count": 7,
+   "tiles": [
+    {
+     "product": "rmm",
+     "label": "远程运维 (ScreenConnect 等)",
+     "registered": true,
+     "count": 3,
+     "now_p0": 0,
+     "exploited": 2,
+     "poc": 1,
+     "latest_at": "2026-11-12T16:24:05Z"
+    },
+    {
+     "product": "jetbrains",
+     "label": "JetBrains TeamCity",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-20T21:34:47Z"
+    },
+    {
+     "product": "sap",
+     "label": "SAP",
+     "registered": true,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-20T19:17:04Z"
+    },
+    {
+     "product": "vmware",
+     "label": "VMware vCenter / ESXi",
+     "registered": true,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-19T19:14:48Z"
+    },
+    {
+     "product": "oracleapps",
+     "label": "Oracle 企业应用",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-10T11:05:44Z"
+    },
+    {
+     "product": "atlassian",
+     "label": "Atlassian",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "backup",
+     "label": "备份 (Veeam 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    },
+    {
+     "product": "filetransfer",
+     "label": "文件传输 (MOVEit 等)",
+     "registered": true,
+     "count": 0,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 0,
+     "latest_at": null
+    }
+   ]
+  },
+  {
+   "id": "ics",
+   "label": "工控与物联网",
+   "cloud": false,
+   "count": 2,
+   "tiles": [
+    {
+     "product": "ics",
+     "label": "工控 / SCADA",
+     "registered": true,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-21T08:14:54Z"
+    },
+    {
+     "product": "siemens",
+     "label": "Siemens",
+     "registered": true,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-12T18:30:21Z"
+    }
+   ]
+  },
+  {
+   "id": "other",
+   "label": "其他",
+   "cloud": false,
+   "count": 12,
+   "tiles": [
+    {
+     "product": "x-daptin",
+     "label": "Daptin",
+     "registered": false,
+     "count": 2,
+     "now_p0": 2,
+     "exploited": 0,
+     "poc": 2,
+     "latest_at": "2026-11-21T08:14:54Z"
+    },
+    {
+     "product": "x-flyto2-core",
+     "label": "Flyto2 Core",
+     "registered": false,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-21T08:14:54Z"
+    },
+    {
+     "product": "x-mang-board",
+     "label": "Mang Board",
+     "registered": false,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-21T08:14:54Z"
+    },
+    {
+     "product": "x-tegsoft-contact-center",
+     "label": "Tegsoft Contact Center",
+     "registered": false,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-21T08:14:54Z"
+    },
+    {
+     "product": "x-monai-label",
+     "label": "MONAI Label",
+     "registered": false,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-20T18:31:38Z"
+    },
+    {
+     "product": "x-atomic-server",
+     "label": "Atomic Server",
+     "registered": false,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-20T17:53:16Z"
+    },
+    {
+     "product": "x-dokploy",
+     "label": "Dokploy",
+     "registered": false,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-20T17:53:16Z"
+    },
+    {
+     "product": "x-elazarl-goproxy",
+     "label": "Elazarl goproxy",
+     "registered": false,
+     "count": 1,
+     "now_p0": 1,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-20T17:53:16Z"
+    },
+    {
+     "product": "x-owntracks-recorder",
+     "label": "OwnTracks Recorder",
+     "registered": false,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-20T17:53:16Z"
+    },
+    {
+     "product": "x-wwbn-avideo",
+     "label": "WWBN AVideo",
+     "registered": false,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 0,
+     "poc": 1,
+     "latest_at": "2026-11-20T17:53:16Z"
+    },
+    {
+     "product": "x-unrealircd",
+     "label": "UnrealIRCd",
+     "registered": false,
+     "count": 1,
+     "now_p0": 0,
+     "exploited": 1,
+     "poc": 0,
+     "latest_at": "2026-11-13T18:20:31Z"
+    }
+   ]
+  }
+ ],
+ "events": [
+  {
+   "event_id": "ev_c34e00e96faab9d0",
+   "title": "CVE-2026-80188 BuddyBoss Addons <= 1.2.1 - Unauthenticated Account Takeover via Unverified Social Login Identity Tokens",
+   "product": "wordpress",
+   "group": "cms",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-80188"
+   ],
+   "first_seen": "2026-11-20T13:34:46Z",
+   "p0_at": "2026-11-21T10:14:56Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_3f0f4930984b1ef4",
+   "title": "CVE-2026-120539 Restrictions for BuddyPress <= 1.5.4 - Unauthenticated Remote Code Execution via Request URI String Interpolation in eval()",
+   "product": "wordpress",
+   "group": "cms",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-120539"
+   ],
+   "first_seen": "2026-11-21T05:35:04Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_9d0a46c0851e0444",
+   "title": "CVE-2026-120681 Mang Board <= 2.4.7 - Missing Authorization to Unauthenticated Arbitrary Content Deletion via 'mode' / 'comment_pid' / 'board_pid' Parameter Confusion",
+   "product": "x-mang-board",
+   "group": "other",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-120681"
+   ],
+   "first_seen": "2026-11-20T09:34:13Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_35b4ad1bef00f105",
+   "title": "CVE-2026-129039 WordPress Newsletters plugin <= 4.18.2 - PHP Object Injection vulnerability",
+   "product": "wordpress",
+   "group": "cms",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-129039"
+   ],
+   "first_seen": "2026-11-20T14:00:14Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_f9c70961e7328759",
+   "title": "CVE-2026-129043 WordPress Newsletters plugin <= 4.18.2 - SQL Injection vulnerability",
+   "product": "wordpress",
+   "group": "cms",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-129043"
+   ],
+   "first_seen": "2026-11-20T14:00:13Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_f6ca7d397aacfdb5",
+   "title": "CVE-2026-129056 WordPress Authorizer plugin < 3.17.2 - Privilege Escalation vulnerability",
+   "product": "wordpress",
+   "group": "cms",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-129056"
+   ],
+   "first_seen": "2026-11-20T08:00:26Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_7fae5563f6c3bf45",
+   "title": "CVE-2026-77359 Jupyter MCP Server: Browser DNS rebinding can hijack the Jupyter backend through management routes",
+   "product": "jupyter",
+   "group": "ai",
+   "cloud": true,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-77359"
+   ],
+   "first_seen": "2026-11-19T17:03:41Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": false,
+   "team_send_reason": "示例仲裁理由：CVE-2026-77359 Jupyter MCP Server: Browser DNS rebinding can hijack the Jupyter backend through management routes（P0 ·  · 2 个独立来源）。"
+  },
+  {
+   "event_id": "ev_91bcdfb0175b2760",
+   "title": "CVE-2026-129073 WordPress miniorange otp verification plugin <= 5.6.1 - Broken Authentication vulnerability",
+   "product": "wordpress",
+   "group": "cms",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-129073"
+   ],
+   "first_seen": "2026-11-20T13:00:09Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_01ee6bce4bcaf311",
+   "title": "VA-26-324-01 U.S Department of the Interior Unstable Slope Management Program multiple vulnerabilities",
+   "product": "ics",
+   "group": "ics",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-129175"
+   ],
+   "first_seen": "2026-11-20T18:51:46Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 3,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_0e806891980f2992",
+   "title": "CVE-2026-133493 D-Link DIR-600L GENA gena.cgi genacgi_main os command injection",
+   "product": "soho",
+   "group": "appliance",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-133493"
+   ],
+   "first_seen": "2026-11-20T06:45:24Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_892c168c3dc98e99",
+   "title": "CVE-2026-14914 RCE in TEGSOFT Management's Tegsoft Contact Center",
+   "product": "x-tegsoft-contact-center",
+   "group": "other",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-14914"
+   ],
+   "first_seen": "2026-11-20T13:45:38Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_e69870858e1c59cd",
+   "title": "CVE-2026-77312 Flyto2 Core: Arbitrary file write via unguarded data.*/file.* modules (incomplete fix of CVE-2026-67429)",
+   "product": "x-flyto2-core",
+   "group": "other",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-67429",
+    "CVE-2026-77312"
+   ],
+   "first_seen": "2026-11-19T21:41:29Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_133431f46f6b8dd0",
+   "title": "CVE-2026-77367 Daptin: Unauthenticated SQL Injection via the `sort` query parameter on every entity list endpoint",
+   "product": "x-daptin",
+   "group": "other",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-77367"
+   ],
+   "first_seen": "2026-11-19T16:30:57Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_20bf3a446f11c149",
+   "title": "CVE-2026-77369 Daptin: Broken Access Control (IDOR) in the generic YJS collaboration endpoint",
+   "product": "x-daptin",
+   "group": "other",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-77369"
+   ],
+   "first_seen": "2026-11-19T16:32:17Z",
+   "p0_at": "2026-11-21T08:14:54Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_fb62d1c2ab1a8f8b",
+   "title": "CVE-2026-133045 - JetBrains TeamCity VMware vSphere Cloud Profile Stored Cross-Site Scripting",
+   "product": "jetbrains",
+   "group": "enterprise",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "reported",
+   "cves": [
+    "CVE-2026-133045"
+   ],
+   "first_seen": "2026-11-19T12:18:45Z",
+   "p0_at": "2026-11-20T21:34:47Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_34ab861273456449",
+   "title": "CVE-2025-42884 SAP NetWeaver: SAP NetWeaver Improper Neutralization of Special Elements in Data Query Logic Vulnerability",
+   "product": "sap",
+   "group": "enterprise",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2025-42884"
+   ],
+   "first_seen": "2026-11-20T19:17:04Z",
+   "p0_at": "2026-11-20T19:17:04Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_cbdd0772093bc67e",
+   "title": "CVE-2026-102769 A SQL injection vulnerability when the recipient tapped on a specially crafted “order details” message from an unofficial client in WhatsApp for Android prior to version 2.26.35.74 could have allowed",
+   "product": "whatsapp",
+   "group": "endpoint",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-102769",
+    "CVE-2026-23871",
+    "CVE-2026-44908"
+   ],
+   "first_seen": "2026-11-20T15:59:26Z",
+   "p0_at": "2026-11-20T19:14:50Z",
+   "independent_sources": 5,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_33928733f0ef99ce",
+   "title": "CVE-2026-133968 monailabel (aka MONAI Label) through 0.8.5 allows directory traversal, with resultant remote code execution, via the image parameter to the PUT /datastore/image endpoint, as exploited in the wild star",
+   "product": "x-monai-label",
+   "group": "other",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-133968"
+   ],
+   "first_seen": "2026-11-20T18:31:38Z",
+   "p0_at": "2026-11-20T18:31:38Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_36a511727b5c32f2",
+   "title": "CVE-2026-131852 OwnTracks Recorder before 1.0.5 Format String via Stored tid Value",
+   "product": "x-owntracks-recorder",
+   "group": "other",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-131852"
+   ],
+   "first_seen": "2026-11-17T23:42:28Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_54cfd6ef4cc9a009",
+   "title": "CVE-2026-124990 Masteriyo LMS <= 3.5.1 - Unauthenticated PHP Object Injection via 'file' Parameter",
+   "product": "wordpress",
+   "group": "cms",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-124990"
+   ],
+   "first_seen": "2026-11-18T15:33:09Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_ec397a1d94542ebc",
+   "title": "CVE-2026-127222 SGLang 0.5.23 Missing Authorization via load_lora_adapter_from_tensors",
+   "product": "sglang",
+   "group": "ai",
+   "cloud": true,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-127222"
+   ],
+   "first_seen": "2026-11-17T22:37:42Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 2,
+   "team_send": true,
+   "team_send_reason": "示例仲裁理由：CVE-2026-127222 SGLang 0.5.23 Missing Authorization via load_lora_adapter_from_tensors（P1 ·  · 2 个独立来源）。"
+  },
+  {
+   "event_id": "ev_9ee100211f2a26f0",
+   "title": "CVE-2026-130648 WWBN AVideo from 6.5 Stored XSS via Embed Video videoLink iframe src",
+   "product": "x-wwbn-avideo",
+   "group": "other",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-130648"
+   ],
+   "first_seen": "2026-11-18T11:33:54Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_1db1f168d588fa70",
+   "title": "CVE-2026-69157 Atomic Server: Unauthenticated `/setup` invite grants write access to the entire Drive",
+   "product": "x-atomic-server",
+   "group": "other",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-69157"
+   ],
+   "first_seen": "2026-11-17T21:05:22Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_629f7e205bb05631",
+   "title": "CVE-2026-110486 Remote heap out-of-bounds read/write in Eclipse Mosquitto",
+   "product": "mqtt",
+   "group": "database",
+   "cloud": true,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-110486"
+   ],
+   "first_seen": "2026-11-17T17:39:05Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 3,
+   "team_send": true,
+   "team_send_reason": "示例仲裁理由：CVE-2026-110486 Remote heap out-of-bounds read/write in Eclipse Mosquitto（P1 ·  · 3 个独立来源）。"
+  },
+  {
+   "event_id": "ev_60402ad623aa92e7",
+   "title": "CVE-2026-129987 Dokploy: Authenticated RCE via Database Password Command Substitution",
+   "product": "x-dokploy",
+   "group": "other",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-129987"
+   ],
+   "first_seen": "2026-11-18T22:12:23Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_4821ae726d6b076f",
+   "title": "CVE-2026-114952 Vulnerability in the MySQL Server, MySQL Cluster product of Oracle MySQL (component: Client programs)",
+   "product": "mysql",
+   "group": "database",
+   "cloud": true,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-114952"
+   ],
+   "first_seen": "2026-11-17T21:32:07Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 2,
+   "team_send": true,
+   "team_send_reason": "示例仲裁理由：CVE-2026-114952 Vulnerability in the MySQL Server, MySQL Cluster product of Oracle MySQL (component: Client programs)（P1 ·  · 2 个独立来源）。"
+  },
+  {
+   "event_id": "ev_ef5f85fcf3265f41",
+   "title": "CVE-2026-133185 Elazarl goproxy before 1.9.4 Predictable MITM Leaf Certificate Private Keys",
+   "product": "x-elazarl-goproxy",
+   "group": "other",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-133185"
+   ],
+   "first_seen": "2026-11-19T14:27:46Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_d2363a3e608a68d3",
+   "title": "CVE-2026-129474 Use-after-free in magic method backtraces can lead to remote code execution",
+   "product": "php",
+   "group": "runtime",
+   "cloud": true,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-129474",
+    "CVE-2026-129538"
+   ],
+   "first_seen": "2026-11-19T14:43:04Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 3,
+   "team_send": true,
+   "team_send_reason": "示例仲裁理由：CVE-2026-129474 Use-after-free in magic method backtraces can lead to remote code execution（P0 ·  · 3 个独立来源）。"
+  },
+  {
+   "event_id": "ev_a1b5c911645a5385",
+   "title": "CVE-2026-129496 Timezone cache use-after-free can lead to remote code execution",
+   "product": "php",
+   "group": "runtime",
+   "cloud": true,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-129496"
+   ],
+   "first_seen": "2026-11-19T14:43:52Z",
+   "p0_at": "2026-11-20T17:53:16Z",
+   "independent_sources": 2,
+   "team_send": true,
+   "team_send_reason": "示例仲裁理由：CVE-2026-129496 Timezone cache use-after-free can lead to remote code execution（P0 ·  · 2 个独立来源）。"
+  },
+  {
+   "event_id": "ev_eff1839fb7517df3",
+   "title": "CVE-2026-76466 Cisco Expressway Series: Cisco Expressway Series Use of Hard-coded Credentials Vulnerability",
+   "product": "cisco",
+   "group": "appliance",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-76466"
+   ],
+   "first_seen": "2026-11-12T10:53:36Z",
+   "p0_at": "2026-11-20T11:04:49Z",
+   "independent_sources": 6,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_96741dede9bf4bac",
+   "title": "Chaotic Eclipse Releases FastUnlock, a New Windows Zero-Day Vulnerability",
+   "product": "windows",
+   "group": "endpoint",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "reported",
+   "cves": [],
+   "first_seen": "2026-11-19T21:43:09Z",
+   "p0_at": "2026-11-20T05:49:37Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_65aa1a5697c92d7f",
+   "title": "CVE-2026-118383 Pre-authentication use-after-free in MongoDB Server replica set primary catch-up",
+   "product": "mongodb",
+   "group": "database",
+   "cloud": true,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-106169",
+    "CVE-2026-114938",
+    "CVE-2026-118383"
+   ],
+   "first_seen": "2026-11-10T20:23:51Z",
+   "p0_at": "2026-11-20T01:29:56Z",
+   "independent_sources": 30,
+   "team_send": true,
+   "team_send_reason": "示例仲裁理由：CVE-2026-118383 Pre-authentication use-after-free in MongoDB Server replica set primary catch-up（P0 ·  · 30 个独立来源）。"
+  },
+  {
+   "event_id": "ev_171ee6501dfbf55f",
+   "title": "CVE-2026-123890 Broadcom VMware vCenter: VMWare vCenter Authentication Bypass Using an Alternate Path or Channel Vulnerability",
+   "product": "vmware",
+   "group": "enterprise",
+   "cloud": false,
+   "severity": "P0",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-123890",
+    "CVE-2026-123891"
+   ],
+   "first_seen": "2026-11-19T14:00:00Z",
+   "p0_at": "2026-11-19T19:14:48Z",
+   "independent_sources": 8,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_a22da2b7608274f4",
+   "title": "漏洞通告 | Ruby 堆缓冲区溢出远程代码执行漏洞",
+   "product": "ruby",
+   "group": "runtime",
+   "cloud": true,
+   "severity": "P0",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-132825"
+   ],
+   "first_seen": "2026-11-19T07:17:11Z",
+   "p0_at": "2026-11-19T10:31:34Z",
+   "independent_sources": 13,
+   "team_send": true,
+   "team_send_reason": "示例仲裁理由：漏洞通告 | Ruby 堆缓冲区溢出远程代码执行漏洞（P0 ·  · 13 个独立来源）。"
+  },
+  {
+   "event_id": "ev_bfaa35b1a00afe26",
+   "title": "Multiples vulnérabilités dans F5 NGINX (18 novembre 2026)",
+   "product": "nginx",
+   "group": "web",
+   "cloud": true,
+   "severity": "P1",
+   "exploitation": "reported",
+   "cves": [
+    "CVE-2026-113425",
+    "CVE-2026-118899",
+    "CVE-2026-120382",
+    "CVE-2026-121810",
+    "CVE-2026-1230",
+    "CVE-2026-123007"
+   ],
+   "first_seen": "2026-11-18T13:56:42Z",
+   "p0_at": "2026-11-18T16:42:19Z",
+   "independent_sources": 20,
+   "team_send": true,
+   "team_send_reason": "示例仲裁理由：Multiples vulnérabilités dans F5 NGINX (18 novembre 2026)（P1 ·  · 20 个独立来源）。"
+  },
+  {
+   "event_id": "ev_6d8b8a30ccef7e60",
+   "title": "CVE-2026-0309 PAN-OS: Authenticated Command Injection in CLI with Luna HSM Configuration (Severity: MEDIUM)",
+   "product": "paloalto",
+   "group": "appliance",
+   "cloud": false,
+   "severity": "P2",
+   "exploitation": "none",
+   "cves": [
+    "CVE-2026-0309"
+   ],
+   "first_seen": "2026-09-09T16:00:00Z",
+   "p0_at": "2026-11-17T18:11:06Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_8fb80bbb5d8e624d",
+   "title": "CVE-2026-129448 Apache Roller: Apache Roller Deserialization of Untrusted Data Vulnerability",
+   "product": "apacheproj",
+   "group": "framework",
+   "cloud": true,
+   "severity": "P1",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-129448",
+    "CVE-2026-82384"
+   ],
+   "first_seen": "2026-11-17T11:03:49Z",
+   "p0_at": "2026-11-17T12:55:50Z",
+   "independent_sources": 5,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_ec9466316f27b726",
+   "title": "CVE-2026-90436 Apache Axis: Apache Axis Unsafe Reflection Vulnerability",
+   "product": "apacheproj",
+   "group": "framework",
+   "cloud": true,
+   "severity": "P1",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-90436"
+   ],
+   "first_seen": "2026-11-10T14:20:34Z",
+   "p0_at": "2026-11-17T05:55:51Z",
+   "independent_sources": 6,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_b7ae52443bb84be4",
+   "title": "CVE-2026-114713 UnrealIRCd UnrealIRCd: UnrealIRCd Improper Neutralization of Delimiters Vulnerability",
+   "product": "x-unrealircd",
+   "group": "other",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-114713"
+   ],
+   "first_seen": "2026-11-09T15:46:08Z",
+   "p0_at": "2026-11-13T18:20:31Z",
+   "independent_sources": 6,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_04bc893e7c455f57",
+   "title": "New Windows SignDrop Zero-Day Exploit Allows Attackers to Gain SYSTEM Privileges",
+   "product": "windows",
+   "group": "endpoint",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "reported",
+   "cves": [],
+   "first_seen": "2026-11-12T06:41:09Z",
+   "p0_at": "2026-11-13T09:10:56Z",
+   "independent_sources": 5,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_18ffa94846b5d467",
+   "title": "Critical RCE Vulnerability in Apache HTTP Server: Everything You Need To Know",
+   "product": "apache",
+   "group": "web",
+   "cloud": true,
+   "severity": "P1",
+   "exploitation": "reported",
+   "cves": [
+    "CVE-2026-106023",
+    "CVE-2026-109163",
+    "CVE-2026-119618",
+    "CVE-2026-63292"
+   ],
+   "first_seen": "2026-11-11T14:54:08Z",
+   "p0_at": "2026-11-13T03:30:19Z",
+   "independent_sources": 13,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_9e6d91cf02b4b6bc",
+   "title": "ICSA-26-237-03 Siemens SIMATIC IoT2050 Advanced",
+   "product": "siemens",
+   "group": "ics",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "reported",
+   "cves": [
+    "CVE-2026-58115"
+   ],
+   "first_seen": "2026-11-03T05:34:41Z",
+   "p0_at": "2026-11-12T18:30:21Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_cf2d887aaf36e2f0",
+   "title": "CVE-2026-84869 ConnectWise ScreenConnect: ConnectWise ScreenConnect Improper Privilege Management and Missing Authorization Vulnerability",
+   "product": "rmm",
+   "group": "enterprise",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-127063",
+    "CVE-2026-84869"
+   ],
+   "first_seen": "2026-09-11T00:00:00Z",
+   "p0_at": "2026-11-12T16:24:05Z",
+   "independent_sources": 7,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_2b445c91dfe0e7d2",
+   "title": "CVE-2026-125883 Multiple XXE Vulnerabilities",
+   "product": "rmm",
+   "group": "enterprise",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-125883"
+   ],
+   "first_seen": "2026-11-10T21:19:11Z",
+   "p0_at": "2026-11-12T15:13:26Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_078450ddd93c7ebe",
+   "title": "【已复现】7-Zip LZX 解码器堆越界写入漏洞(CVE-2026-125742)安全风险通告",
+   "product": "archiver",
+   "group": "endpoint",
+   "cloud": false,
+   "severity": "P2",
+   "exploitation": "none",
+   "cves": [
+    "CVE-2026-125742"
+   ],
+   "first_seen": "2026-11-10T12:17:18Z",
+   "p0_at": "2026-11-12T10:23:15Z",
+   "independent_sources": 3,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_e7d2113243795d5c",
+   "title": "‼️ ALERT → N-able takes hosted N-central offline and urges on-premises customers to shut down servers after 30+ vulnerabilities and PoC expl",
+   "product": "rmm",
+   "group": "enterprise",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [],
+   "first_seen": "2026-11-10T06:46:51Z",
+   "p0_at": "2026-11-11T06:15:55Z",
+   "independent_sources": 3,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_7346f7ff055fd07a",
+   "title": "CVE-2026-97799 Windows Audio Service Elevation of Privilege Vulnerability",
+   "product": "windows",
+   "group": "endpoint",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "poc",
+   "cves": [
+    "CVE-2026-116714",
+    "CVE-2026-97799"
+   ],
+   "first_seen": "2026-10-13T14:00:00Z",
+   "p0_at": "2026-11-11T00:15:58Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_b414a045c07e98d4",
+   "title": "Hackers Start Probing Fresh Oracle EBS Vulnerability",
+   "product": "oracleapps",
+   "group": "enterprise",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "reported",
+   "cves": [
+    "CVE-2026-101767"
+   ],
+   "first_seen": "2026-10-28T09:14:23Z",
+   "p0_at": "2026-11-10T11:05:44Z",
+   "independent_sources": 3,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_2c4c017008e5e5a0",
+   "title": "CVE-2026-116606 Barracuda Networks Barracuda Email Security Gateway (ESG): Barracuda Networks Email Security Gateway (ESG) Authentication Bypass Using an Alternate Path or Channel Vulnerability",
+   "product": "barracuda",
+   "group": "appliance",
+   "cloud": false,
+   "severity": "P1",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-111560",
+    "CVE-2026-116606"
+   ],
+   "first_seen": "2026-11-03T15:59:19Z",
+   "p0_at": "2026-11-09T16:50:57Z",
+   "independent_sources": 7,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_3905bf053b684805",
+   "title": "CVE-2026-97229 GitLab Community Edition and Enterprise Edition: GitLab Community Edition and Enterprise Edition Integer Overflow or Wraparound Vulnerability",
+   "product": "gitlab",
+   "group": "container",
+   "cloud": true,
+   "severity": "P1",
+   "exploitation": "confirmed",
+   "cves": [
+    "CVE-2026-97229"
+   ],
+   "first_seen": "2026-10-29T09:05:39Z",
+   "p0_at": "2026-10-29T20:18:49Z",
+   "independent_sources": 5,
+   "team_send": null,
+   "team_send_reason": null
+  },
+  {
+   "event_id": "ev_6a0446a578cf2836",
+   "title": "CISA confirms PHP2Shell vulnerabilities now exploited in attacks",
+   "product": "php",
+   "group": "runtime",
+   "cloud": true,
+   "severity": "P1",
+   "exploitation": "reported",
+   "cves": [],
+   "first_seen": "2026-10-27T08:20:54Z",
+   "p0_at": "2026-10-29T07:08:23Z",
+   "independent_sources": 2,
+   "team_send": null,
+   "team_send_reason": null
+  }
+ ],
+ "schema_version": "1"
+}

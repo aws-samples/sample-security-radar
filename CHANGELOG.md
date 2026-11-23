@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.6.11] - 2026-11-23
+
+The loss headline follows the reports: the latest hack-database update wins, and ≥ 3 independent reports of a larger loss (one T1 / T2, naming the incident) raise the figure.
+
+## [1.6.10] - 2026-11-22
+
+The GitHub advisory lookup accepts ASCII repository names only (`re.ASCII`).
+
+## [1.6.9] - 2026-11-22
+
+A P0 wall (`#/p0`, `p0.json`): every vulnerability P0 of the window on its product tile (95 products in 14 groups, `radar.p0class`); the cloud-component flag a subscription filters on is that taxonomy's group flag.
+
+## [1.6.8] - 2026-11-21
+
+A send arbitration (one fast-model call per P0 cloud-stack vulnerability) decides whether a team channel gets the notice (`team_send`); a failed or uncited answer never sends.
+
+## [1.6.7] - 2026-11-21
+
+A subscription can receive only vulnerabilities in mainstream cloud components (`cloud_stack`).
+
+## [1.6.6] - 2026-11-21
+
+A critical flaw with a public exploit for a newly filed CVE is P0 without a second reporter; a CVE story from a crypto
+outlet or a web3 security account is a vulnerability unless it is a crypto theft.
+
 ## [1.6.5] - 2026-11-20
 
 Review follow-ups: the GitHub advisory lookup can no longer stop the Analyze step (ASCII owner / repository names, network

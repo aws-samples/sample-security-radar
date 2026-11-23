@@ -1,73 +1,79 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1886 1607" width="1886" height="1607" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans CJK SC','Source Han Sans SC',Helvetica,Arial,sans-serif" role="img" aria-label="Security Radar · 架构（M4 · 探测器 + 触发器 + 快路缓解 + 运行保障）">
-<title>Security Radar · 架构（M4 · 探测器 + 触发器 + 快路缓解 + 运行保障）</title>
-<desc>每 5 分钟一轮：采集 → 判定 V0–V4 → 分析卡 → Respond（Security Agent · Continuum）→ Mitigate（WAF · DNS · Inspector · Security Hub）→ 发布</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1914 1607" width="1914" height="1607" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans CJK SC','Source Han Sans SC',Helvetica,Arial,sans-serif" role="img" aria-label="Security Radar · 架构（v1.6 · 探测器 + 触发器 + 快路缓解 + 推送）">
+<title>Security Radar · 架构（v1.6 · 探测器 + 触发器 + 快路缓解 + 推送）</title>
+<desc>每 5 分钟一轮：采集 → 判定 V0–V4 → 分析卡 → Respond（定位 → Continuum）→ Mitigate（WAF · DNS · Inspector · Security Hub）→ 发布 → 推送</desc>
 <defs>
 <pattern id="af-grid" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0 H0 V34" fill="none" stroke="#EAEFF6" stroke-width="1"/></pattern>
 <marker id="af-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="context-stroke" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></marker>
 <filter id="af-sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3.2" flood-color="#0B1B33" flood-opacity="0.10"/></filter>
 <style>@media (prefers-reduced-motion: no-preference){.flow{stroke-dasharray:6 6;animation:af-dash 0.8s linear infinite}.flow-slow{stroke-dasharray:4 8;animation:af-dash 1.6s linear infinite}.rv0{opacity:0;animation:af-in .5s ease-out 0.00s forwards}.rv1{opacity:0;animation:af-in .5s ease-out 0.10s forwards}.rv2{opacity:0;animation:af-in .5s ease-out 0.20s forwards}.rv3{opacity:0;animation:af-in .5s ease-out 0.30s forwards}.rv4{opacity:0;animation:af-in .5s ease-out 0.40s forwards}.rv5{opacity:0;animation:af-in .5s ease-out 0.50s forwards}.rv6{opacity:0;animation:af-in .5s ease-out 0.60s forwards}.rv7{opacity:0;animation:af-in .5s ease-out 0.70s forwards}.rv8{opacity:0;animation:af-in .5s ease-out 0.80s forwards}.rv9{opacity:0;animation:af-in .5s ease-out 0.90s forwards}}@media (prefers-reduced-motion: reduce){  .rv0,.rv1,.rv2,.rv3,.rv4,.rv5,.rv6,.rv7,.rv8,.rv9{opacity:1}}@keyframes af-dash{to{stroke-dashoffset:-12}}@keyframes af-in{to{opacity:1}}</style>
 </defs>
-<rect width="1886" height="1607" fill="#FBFCFE"/>
-<rect width="1886" height="1607" fill="url(#af-grid)"/>
-<text x="40" y="46" font-size="21" font-weight="800" fill="#0F172A">Security Radar · 架构（M4 · 探测器 + 触发器 + 快路缓解 + 运行保障）</text>
-<text x="40" y="69" font-size="12" fill="#64748B">每 5 分钟一轮：采集 → 判定 V0–V4 → 分析卡 → Respond（Security Agent · Continuum）→ Mitigate（WAF · DNS · Inspector · Security Hub）→ 发布</text>
+<rect width="1914" height="1607" fill="#FBFCFE"/>
+<rect width="1914" height="1607" fill="url(#af-grid)"/>
+<text x="40" y="46" font-size="21" font-weight="800" fill="#0F172A">Security Radar · 架构（v1.6 · 探测器 + 触发器 + 快路缓解 + 推送）</text>
+<text x="40" y="69" font-size="12" fill="#64748B">每 5 分钟一轮：采集 → 判定 V0–V4 → 分析卡 → Respond（定位 → Continuum）→ Mitigate（WAF · DNS · Inspector · Security Hub）→ 发布 → 推送</text>
 <rect x="14" y="83" width="229" height="602" rx="12" fill="rgba(225,29,72,0.055)" stroke="#E11D48" stroke-width="1.5" stroke-dasharray="2 4"/>
 <text x="30" y="102" font-size="11" font-weight="700" fill="#BE123C">公网数据源</text>
-<rect x="258" y="83" width="1124" height="484" rx="12" fill="rgba(124,58,237,0.055)" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="6 4"/>
+<rect x="258" y="83" width="1323" height="484" rx="12" fill="rgba(124,58,237,0.055)" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="6 4"/>
 <text x="274" y="102" font-size="11" font-weight="700" fill="#6D28D9">Step Functions · Cycle</text>
 <rect x="628" y="590" width="892" height="130" rx="12" fill="rgba(124,58,237,0.055)" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="6 4"/>
 <text x="644" y="609" font-size="11" font-weight="700" fill="#6D28D9">存储</text>
-<rect x="1370" y="744" width="178" height="248" rx="12" fill="rgba(124,58,237,0.055)" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="6 4"/>
-<text x="1386" y="763" font-size="11" font-weight="700" fill="#6D28D9">AWS 安全 agent</text>
+<rect x="1330" y="744" width="257" height="248" rx="12" fill="rgba(124,58,237,0.055)" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="1571" y="763" font-size="11" font-weight="700" text-anchor="end" fill="#6D28D9">AWS 安全 agent</text>
 <rect x="1377" y="1015" width="184" height="484" rx="12" fill="rgba(124,58,237,0.055)" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="6 4"/>
 <text x="1393" y="1034" font-size="11" font-weight="700" fill="#6D28D9">快路缓解（雷达自建资源）</text>
 <path class="flow" d="M 155.5 734.0 L 223.5 734.0 L 223.5 321.0 L 291.5 321.0" fill="none" stroke="#DB2777" stroke-width="2" marker-end="url(#af-ah)"/>
 <path class="flow" d="M 345.5 321.0 L 481.5 321.0" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 155.5 380.0 L 408.8 380.0 L 408.8 321.0 L 481.5 321.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 155.5 262.0 L 408.8 262.0 L 408.8 321.0 L 481.5 321.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 155.5 498.0 L 408.8 498.0 L 408.8 321.0 L 481.5 321.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 155.5 616.0 L 408.8 616.0 L 408.8 321.0 L 481.5 321.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 155.5 380.0 L 397.8 380.0 L 397.8 321.0 L 481.5 321.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 155.5 262.0 L 397.8 262.0 L 397.8 321.0 L 481.5 321.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 155.5 498.0 L 397.8 498.0 L 397.8 321.0 L 481.5 321.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 155.5 616.0 L 397.8 616.0 L 397.8 321.0 L 481.5 321.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
 <path d="M 155.5 852.0 L 358.5 852.0 L 358.5 321.0 L 481.5 321.0" fill="none" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="2 5" opacity="0.75"/>
 <path class="flow" d="M 535.5 321.0 L 603.5 321.0 L 603.5 651.4 L 671.5 651.4" fill="none" stroke="#EA580C" stroke-width="2" marker-end="url(#af-ah)"/>
 <path class="flow" d="M 725.5 651.4 L 793.5 651.4 L 793.5 321.0 L 861.5 321.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
 <path class="flow" d="M 915.5 321.0 L 983.5 321.0 L 983.5 651.4 L 1051.5 651.4" fill="none" stroke="#EA580C" stroke-width="2" marker-end="url(#af-ah)"/>
 <path class="flow" d="M 1295.5 380.0 L 1363.5 380.0 L 1363.5 651.4 L 1431.5 651.4" fill="none" stroke="#EA580C" stroke-width="2" marker-end="url(#af-ah)"/>
 <path class="flow" d="M 1485.5 651.4 L 1529.5 651.4 L 1529.5 380.0 L 1621.5 380.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 1675.5 380.0 L 1811.5 380.0" fill="none" stroke="#0D9488" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 1811.5 389.0 L 1675.5 389.0" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1675.5 380.0 L 1743.5 380.0 L 1743.5 262.0 L 1811.5 262.0" fill="none" stroke="#0D9488" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1811.5 271.0 L 1743.5 271.0 L 1743.5 389.0 L 1675.5 389.0" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
 <path d="M 915.5 321.0 L 991.5 321.0 L 991.5 380.0 L 1051.5 380.0" fill="none" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="2 5" opacity="0.75"/>
 <path class="flow" d="M 1105.5 651.4 L 1173.5 651.4 L 1173.5 144.0 L 1241.5 144.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
 <path class="flow" d="M 1295.5 144.0 L 1431.5 144.0" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
 <path d="M 1241.5 153.0 L 1173.5 153.0 L 1173.5 660.4 L 1105.5 660.4" fill="none" stroke="#EA580C" stroke-width="1.4" stroke-dasharray="2 5" opacity="0.75"/>
-<path class="flow" d="M 1105.5 651.4 L 1173.5 651.4 L 1173.5 380.0 L 1241.5 380.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1105.5 651.4 L 1181.5 651.4 L 1181.5 380.0 L 1241.5 380.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
 <path class="flow" d="M 1105.5 651.4 L 1189.5 651.4 L 1189.5 498.0 L 1241.5 498.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 1295.5 498.0 L 1371.5 498.0 L 1371.5 922.8 L 1431.5 922.8" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 1295.5 498.0 L 1379.5 498.0 L 1379.5 804.8 L 1431.5 804.8" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1295.5 498.0 L 1339.5 498.0 L 1339.5 922.8 L 1431.5 922.8" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1295.5 498.0 L 1339.5 498.0 L 1339.5 804.8 L 1431.5 804.8" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
 <path d="M 1241.5 507.0 L 1189.5 507.0 L 1189.5 660.4 L 1105.5 660.4" fill="none" stroke="#EA580C" stroke-width="1.4" stroke-dasharray="2 5" opacity="0.75"/>
-<path class="flow" d="M 1105.5 651.4 L 1173.5 651.4 L 1173.5 262.0 L 1241.5 262.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 1295.5 262.0 L 1375.7 262.0 L 1375.7 1430.2 L 1431.5 1430.2" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 1295.5 262.0 L 1375.7 262.0 L 1375.7 1076.2 L 1431.5 1076.2" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 1295.5 262.0 L 1375.7 262.0 L 1375.7 1312.2 L 1431.5 1312.2" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
-<path class="flow" d="M 1295.5 262.0 L 1375.7 262.0 L 1375.7 1194.2 L 1431.5 1194.2" fill="none" stroke="#DB2777" stroke-width="2" marker-end="url(#af-ah)"/>
-<path d="M 1241.5 271.0 L 1173.5 271.0 L 1173.5 660.4 L 1105.5 660.4" fill="none" stroke="#EA580C" stroke-width="1.4" stroke-dasharray="2 5" opacity="0.75"/>
+<path class="flow" d="M 1105.5 651.4 L 1197.5 651.4 L 1197.5 262.0 L 1241.5 262.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1295.5 262.0 L 1355.5 262.0 L 1355.5 1430.2 L 1431.5 1430.2" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1295.5 262.0 L 1355.5 262.0 L 1355.5 1076.2 L 1431.5 1076.2" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1295.5 262.0 L 1355.5 262.0 L 1355.5 1312.2 L 1431.5 1312.2" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1295.5 262.0 L 1360.8 262.0 L 1360.8 1194.2 L 1431.5 1194.2" fill="none" stroke="#DB2777" stroke-width="2" marker-end="url(#af-ah)"/>
+<path d="M 1241.5 271.0 L 1197.5 271.0 L 1197.5 660.4 L 1105.5 660.4" fill="none" stroke="#EA580C" stroke-width="1.4" stroke-dasharray="2 5" opacity="0.75"/>
 <path class="flow" d="M 155.5 144.0 L 175.5 144.0 L 175.5 218.0 L 1221.5 218.0 L 1221.5 380.0 L 1241.5 380.0" fill="none" stroke="#16A34A" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1295.5 380.0 L 1313.9 380.0 L 1313.9 321.0 L 1431.5 321.0" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1485.5 321.0 L 1561.5 321.0 L 1561.5 262.0 L 1621.5 262.0" fill="none" stroke="#EA580C" stroke-width="2" marker-end="url(#af-ah)"/>
+<path class="flow" d="M 1675.5 380.0 L 1811.5 380.0" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#af-ah)"/>
+<path d="M 1838.5 439.0 L 1838.5 1487.2 L 1078.5 1487.2 L 1078.5 710.4" fill="none" stroke="#16A34A" stroke-width="1.4" stroke-dasharray="2 5" opacity="0.75"/>
 <rect x="400.7" y="313.0" width="25.6" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
 <text x="413.5" y="324.4" text-anchor="middle" font-size="9.5" fill="#64748B">Map</text>
 <rect x="764.8" y="478.2" width="57.5" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
 <text x="793.5" y="489.6" text-anchor="middle" font-size="9.5" fill="#64748B">未处理批次</text>
-<rect x="1719.5" y="381.0" width="48.0" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
-<text x="1743.5" y="392.4" text-anchor="middle" font-size="9.5" fill="#64748B">账号密码</text>
-<rect x="1342.2" y="694.4" width="58.6" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
-<text x="1371.5" y="705.8" text-anchor="middle" font-size="9.5" fill="#64748B">规则 + 评审</text>
-<rect x="1344.5" y="627.4" width="70.0" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
-<text x="1379.5" y="638.8" text-anchor="middle" font-size="9.5" fill="#64748B">finding + 扫描</text>
-<rect x="1351.7" y="825.9" width="48.0" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
-<text x="1375.7" y="837.3" text-anchor="middle" font-size="9.5" fill="#64748B">虚拟补丁</text>
+<rect x="1719.5" y="322.0" width="48.0" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
+<text x="1743.5" y="333.4" text-anchor="middle" font-size="9.5" fill="#64748B">账号密码</text>
+<rect x="1325.0" y="681.5" width="29.0" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
+<text x="1339.5" y="692.9" text-anchor="middle" font-size="9.5" fill="#64748B">规则</text>
+<rect x="1291.7" y="632.0" width="95.7" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
+<text x="1339.5" y="643.4" text-anchor="middle" font-size="9.5" fill="#64748B">OCSF finding + 扫描</text>
+<rect x="1331.5" y="533.1" width="48.0" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
+<text x="1355.5" y="544.5" text-anchor="middle" font-size="9.5" fill="#64748B">虚拟补丁</text>
 <rect x="701.8" y="210.0" width="81.4" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
 <text x="742.5" y="221.4" text-anchor="middle" font-size="9.5" fill="#64748B">公开时间 · CVSS</text>
+<rect x="1724.7" y="372.0" width="37.6" height="15" rx="4" fill="#FBFCFE" opacity="0.95"/>
+<text x="1743.5" y="383.4" text-anchor="middle" font-size="9.5" fill="#64748B">/api/*</text>
 <circle r="4.0" fill="#DB2777" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.00s"/><animateMotion dur="1.8s" begin="0.00s" repeatCount="indefinite" path="M 155.5 734.0 L 223.5 734.0 L 223.5 321.0 L 291.5 321.0"/></circle>
 <circle r="4.0" fill="#475569" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.00s"/><animateMotion dur="1.8s" begin="0.00s" repeatCount="indefinite" path="M 345.5 321.0 L 481.5 321.0"/></circle>
-<circle r="4.0" fill="#16A34A" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.00s"/><animateMotion dur="1.8s" begin="0.00s" repeatCount="indefinite" path="M 155.5 380.0 L 408.8 380.0 L 408.8 321.0 L 481.5 321.0"/></circle>
+<circle r="4.0" fill="#16A34A" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.00s"/><animateMotion dur="1.8s" begin="0.00s" repeatCount="indefinite" path="M 155.5 380.0 L 397.8 380.0 L 397.8 321.0 L 481.5 321.0"/></circle>
 <circle r="4.0" fill="#EA580C" opacity="0.95" visibility="hidden"><set attributeName="visibility" to="visible" begin="0.00s"/><animateMotion dur="1.8s" begin="0.00s" repeatCount="indefinite" path="M 535.5 321.0 L 603.5 321.0 L 603.5 651.4 L 671.5 651.4"/></circle>
 <g class="rv0"><rect x="105.5" y="357.0" width="46.0" height="46.0" rx="13" fill="#E11D48"/><g transform="translate(113.36,364.82) scale(1.2650)" color="#FFFFFF"><path d="M12 3.4 5.2 6v6c0 4.4 3 7.6 6.8 9 3.8-1.4 6.8-4.6 6.8-9V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.2 12.2l2.2 2.2 4-4.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="128.54000000000002" y="418.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">KEV / 厂商 PSIRT</text><text x="128.54000000000002" y="432.0" text-anchor="middle" font-size="9.5" fill="#64748B">CISA · AWS 安全公告 · Chrome · Fortinet</text></g>
 <g class="rv0"><rect x="105.5" y="239.0" width="46.0" height="46.0" rx="13" fill="#059669"/><g transform="translate(113.36,246.82) scale(1.2650)" color="#FFFFFF"><path d="M6.5 3h7.2L18.5 8v13H6.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 3v5h4.8M9.4 12h6M9.4 15.6h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="128.54000000000002" y="300.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">安全媒体 RSS</text><text x="128.54000000000002" y="314.0" text-anchor="middle" font-size="9.5" fill="#64748B">BleepingComputer · THN · 安全客</text></g>
@@ -109,7 +115,7 @@
         </g>
         <path d="M22.6794094,52 L13.5740701,52 L23.8376189,30.41 L28.3997494,39.861 L22.6794094,52 Z M24.7269406,27.667 C24.5606285,27.321 24.2120702,27.103 23.8306478,27.103 L23.8276601,27.103 C23.4452418,27.104 23.0966835,27.325 22.9323632,27.672 L11.0973143,52.569 C10.9499239,52.879 10.9708374,53.243 11.1540795,53.534 C11.3353298,53.824 11.6540117,54 11.9955989,54 L23.309802,54 C23.695208,54 24.0447622,53.777 24.2100784,53.428 L30.4044577,40.284 C30.5329264,40.01 30.5319305,39.692 30.3994783,39.42 L24.7269406,27.667 Z M51.0082382,52 L41.985557,52 L26.9547262,19.578 C26.7914017,19.226 26.4388599,19 26.0524581,19 L20.1279625,19 L20.1349337,12 L31.8146251,12 L46.7747483,44.42 C46.9380728,44.774 47.2906147,45 47.6790082,45 L51.0082382,45 L51.0082382,52 Z M52.0041191,43 L48.3143803,43 L33.354257,10.58 C33.1909326,10.226 32.8383907,10 32.450993,10 L19.1400486,10 C18.5913182,10 18.1451636,10.447 18.1441677,10.999 L18.1362006,19.999 C18.1362006,20.265 18.2407681,20.519 18.4269979,20.707 C18.6142235,20.895 18.8671772,21 19.1310857,21 L25.4170861,21 L40.4479168,53.422 C40.6112413,53.774 40.9627873,54 41.350185,54 L52.0041191,54 C52.5548412,54 53,53.552 53,53 L53,44 C53,43.448 52.5548412,43 52.0041191,43 L52.0041191,43 Z" id="lambda__AWS-Lambda_Icon_48_Squid" fill="#FFFFFF"></path>
     </g>
-</g><text x="508.54" y="359.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Collect ×6</text><text x="508.54" y="373.0" text-anchor="middle" font-size="9.5" fill="#64748B">失败留痕 · 429 退避</text></g>
+</g><text x="508.54" y="359.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Collect ×N</text><text x="508.54" y="373.0" text-anchor="middle" font-size="9.5" fill="#64748B">每源 ≤ 60 秒 · 失败留痕 · 退避</text></g>
 <g class="rv4"><g transform="translate(865.54,298.00) scale(0.7188)">
 
     
@@ -129,7 +135,7 @@
         </g>
         <path d="M22.6794094,52 L13.5740701,52 L23.8376189,30.41 L28.3997494,39.861 L22.6794094,52 Z M24.7269406,27.667 C24.5606285,27.321 24.2120702,27.103 23.8306478,27.103 L23.8276601,27.103 C23.4452418,27.104 23.0966835,27.325 22.9323632,27.672 L11.0973143,52.569 C10.9499239,52.879 10.9708374,53.243 11.1540795,53.534 C11.3353298,53.824 11.6540117,54 11.9955989,54 L23.309802,54 C23.695208,54 24.0447622,53.777 24.2100784,53.428 L30.4044577,40.284 C30.5329264,40.01 30.5319305,39.692 30.3994783,39.42 L24.7269406,27.667 Z M51.0082382,52 L41.985557,52 L26.9547262,19.578 C26.7914017,19.226 26.4388599,19 26.0524581,19 L20.1279625,19 L20.1349337,12 L31.8146251,12 L46.7747483,44.42 C46.9380728,44.774 47.2906147,45 47.6790082,45 L51.0082382,45 L51.0082382,52 Z M52.0041191,43 L48.3143803,43 L33.354257,10.58 C33.1909326,10.226 32.8383907,10 32.450993,10 L19.1400486,10 C18.5913182,10 18.1451636,10.447 18.1441677,10.999 L18.1362006,19.999 C18.1362006,20.265 18.2407681,20.519 18.4269979,20.707 C18.6142235,20.895 18.8671772,21 19.1310857,21 L25.4170861,21 L40.4479168,53.422 C40.6112413,53.774 40.9627873,54 41.350185,54 L52.0041191,54 C52.5548412,54 53,53.552 53,53 L53,44 C53,43.448 52.5548412,43 52.0041191,43 L52.0041191,43 Z" id="lambda__AWS-Lambda_Icon_48_Squid" fill="#FFFFFF"></path>
     </g>
-</g><text x="1268.54" y="182.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Analyze</text><text x="1268.54" y="196.0" text-anchor="middle" font-size="9.5" fill="#64748B">分析卡 · 疑似重复 · 标题建议（影子）</text></g>
+</g><text x="1268.54" y="182.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Analyze</text><text x="1268.54" y="196.0" text-anchor="middle" font-size="9.5" fill="#64748B">分析卡 · 攻击路径 · 发送仲裁 · 疑似重复（影子）</text></g>
 <g class="rv6"><g transform="translate(1245.54,475.00) scale(0.7188)">
 
     
@@ -159,7 +165,17 @@
         </g>
         <path d="M22.6794094,52 L13.5740701,52 L23.8376189,30.41 L28.3997494,39.861 L22.6794094,52 Z M24.7269406,27.667 C24.5606285,27.321 24.2120702,27.103 23.8306478,27.103 L23.8276601,27.103 C23.4452418,27.104 23.0966835,27.325 22.9323632,27.672 L11.0973143,52.569 C10.9499239,52.879 10.9708374,53.243 11.1540795,53.534 C11.3353298,53.824 11.6540117,54 11.9955989,54 L23.309802,54 C23.695208,54 24.0447622,53.777 24.2100784,53.428 L30.4044577,40.284 C30.5329264,40.01 30.5319305,39.692 30.3994783,39.42 L24.7269406,27.667 Z M51.0082382,52 L41.985557,52 L26.9547262,19.578 C26.7914017,19.226 26.4388599,19 26.0524581,19 L20.1279625,19 L20.1349337,12 L31.8146251,12 L46.7747483,44.42 C46.9380728,44.774 47.2906147,45 47.6790082,45 L51.0082382,45 L51.0082382,52 Z M52.0041191,43 L48.3143803,43 L33.354257,10.58 C33.1909326,10.226 32.8383907,10 32.450993,10 L19.1400486,10 C18.5913182,10 18.1451636,10.447 18.1441677,10.999 L18.1362006,19.999 C18.1362006,20.265 18.2407681,20.519 18.4269979,20.707 C18.6142235,20.895 18.8671772,21 19.1310857,21 L25.4170861,21 L40.4479168,53.422 C40.6112413,53.774 40.9627873,54 41.350185,54 L52.0041191,54 C52.5548412,54 53,53.552 53,53 L53,44 C53,43.448 52.5548412,43 52.0041191,43 L52.0041191,43 Z" id="lambda__AWS-Lambda_Icon_48_Squid" fill="#FFFFFF"></path>
     </g>
-</g><text x="1268.54" y="418.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Publish</text><text x="1268.54" y="432.0" text-anchor="middle" font-size="9.5" fill="#64748B">P0 先发 · 截止前顺延 · EPSS · CVE 记录</text></g>
+</g><text x="1268.54" y="418.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Publish</text><text x="1268.54" y="432.0" text-anchor="middle" font-size="9.5" fill="#64748B">页面 · P0 墙 · EPSS · CVE 记录</text></g>
+<g class="rv7"><g transform="translate(1435.54,298.00) scale(0.7188)">
+
+    
+    <g id="lambda__Icon-Architecture/48/Arch_AWS-Lambda_48" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="lambda__Icon-Architecture-BG/48/Compute" fill="#ED7100">
+            <rect id="lambda__Rectangle" x="0" y="0" width="64" height="64"></rect>
+        </g>
+        <path d="M22.6794094,52 L13.5740701,52 L23.8376189,30.41 L28.3997494,39.861 L22.6794094,52 Z M24.7269406,27.667 C24.5606285,27.321 24.2120702,27.103 23.8306478,27.103 L23.8276601,27.103 C23.4452418,27.104 23.0966835,27.325 22.9323632,27.672 L11.0973143,52.569 C10.9499239,52.879 10.9708374,53.243 11.1540795,53.534 C11.3353298,53.824 11.6540117,54 11.9955989,54 L23.309802,54 C23.695208,54 24.0447622,53.777 24.2100784,53.428 L30.4044577,40.284 C30.5329264,40.01 30.5319305,39.692 30.3994783,39.42 L24.7269406,27.667 Z M51.0082382,52 L41.985557,52 L26.9547262,19.578 C26.7914017,19.226 26.4388599,19 26.0524581,19 L20.1279625,19 L20.1349337,12 L31.8146251,12 L46.7747483,44.42 C46.9380728,44.774 47.2906147,45 47.6790082,45 L51.0082382,45 L51.0082382,52 Z M52.0041191,43 L48.3143803,43 L33.354257,10.58 C33.1909326,10.226 32.8383907,10 32.450993,10 L19.1400486,10 C18.5913182,10 18.1451636,10.447 18.1441677,10.999 L18.1362006,19.999 C18.1362006,20.265 18.2407681,20.519 18.4269979,20.707 C18.6142235,20.895 18.8671772,21 19.1310857,21 L25.4170861,21 L40.4479168,53.422 C40.6112413,53.774 40.9627873,54 41.350185,54 L52.0041191,54 C52.5548412,54 53,53.552 53,53 L53,44 C53,43.448 52.5548412,43 52.0041191,43 L52.0041191,43 Z" id="lambda__AWS-Lambda_Icon_48_Squid" fill="#FFFFFF"></path>
+    </g>
+</g><text x="1458.54" y="359.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Notify</text><text x="1458.54" y="373.0" text-anchor="middle" font-size="9.5" fill="#64748B">订阅过滤 · 云组件 + 仲裁 · 一个事件一个线程</text></g>
 <g class="rv3"><g transform="translate(675.54,628.40) scale(0.7188)">
 
     
@@ -204,7 +220,7 @@
         <path d="M41.5,43.5 C40.397,43.5 39.5,42.603 39.5,41.5 C39.5,40.397 40.397,39.5 41.5,39.5 C42.603,39.5 43.5,40.397 43.5,41.5 C43.5,42.603 42.603,43.5 41.5,43.5 L41.5,43.5 Z M41.5,37.5 C39.294,37.5 37.5,39.294 37.5,41.5 C37.5,43.706 39.294,45.5 41.5,45.5 C43.706,45.5 45.5,43.706 45.5,41.5 C45.5,39.294 43.706,37.5 41.5,37.5 L41.5,37.5 Z M22.5,32.5 C21.397,32.5 20.5,31.603 20.5,30.5 C20.5,29.397 21.397,28.5 22.5,28.5 C23.603,28.5 24.5,29.397 24.5,30.5 C24.5,31.603 23.603,32.5 22.5,32.5 L22.5,32.5 Z M22.5,26.5 C20.294,26.5 18.5,28.294 18.5,30.5 C18.5,32.706 20.294,34.5 22.5,34.5 C24.706,34.5 26.5,32.706 26.5,30.5 C26.5,28.294 24.706,26.5 22.5,26.5 L22.5,26.5 Z M45.389,47.124 C45.168,46.607 44.936,46.094 44.685,45.591 L42.896,46.486 C43.17,47.035 43.42,47.599 43.656,48.165 C42.82,48.762 41.943,49.288 41.028,49.74 C41.384,48.865 41.694,47.975 41.974,47.012 L40.054,46.454 C39.564,48.134 38.985,49.581 38.184,51.133 C36.357,51.698 34.452,52 32.5,52 C29.465,52 26.567,51.314 23.871,49.976 C22.503,46.615 21.838,43.534 21.838,40.559 C21.838,39.267 22.063,38.196 22.322,36.956 C22.386,36.652 22.45,36.343 22.514,36.024 L20.551,35.638 C20.49,35.949 20.427,36.25 20.365,36.545 C20.094,37.838 19.838,39.06 19.838,40.559 C19.838,43.074 20.274,45.644 21.154,48.354 C16.072,44.724 13,38.854 13,32.5 C13,32.389 13.01,32.273 13.012,32.161 C14.642,31.799 16.123,31.614 17.854,31.571 L17.804,29.572 C16.169,29.612 14.694,29.779 13.163,30.084 C14.081,22.683 19.212,16.394 26.323,14.019 C27.873,14.818 29.02,15.524 30.135,16.37 L31.344,14.776 C30.646,14.248 29.934,13.771 29.146,13.299 C30.244,13.108 31.363,13 32.5,13 C35.032,13 37.532,13.494 39.849,14.439 C39.342,14.593 38.82,14.763 38.243,14.971 L38.923,16.852 C40.316,16.349 41.408,16.04 42.571,15.821 C48.399,19.341 52,25.667 52,32.5 C52,38.156 49.605,43.416 45.389,47.124 L45.389,47.124 Z M43.008,13.749 C39.826,11.95 36.192,11 32.5,11 C30.392,11 28.324,11.301 26.357,11.895 C17.723,14.464 11.568,22.23 11.045,31.196 C11.01,31.625 11,32.062 11,32.5 C11,40.444 15.352,47.707 22.354,51.455 C25.459,53.12 28.968,54 32.5,54 C34.892,54 37.229,53.61 39.437,52.843 C41.684,52.086 43.773,50.963 45.646,49.507 C50.955,45.399 54,39.2 54,32.5 C54,24.732 49.787,17.546 43.008,13.749 L43.008,13.749 Z M38.384,37.411 L37.003,38.858 C34.022,36.015 31.047,34.146 27.637,32.975 L28.287,31.083 C31.979,32.351 35.188,34.362 38.384,37.411 L38.384,37.411 Z M38.444,22.364 C41.282,26.692 42.88,31.444 43.193,36.488 L41.197,36.612 C40.905,31.919 39.417,27.495 36.772,23.46 L38.444,22.364 Z M26.451,26.797 L24.773,25.708 C26.316,23.332 27.639,21.758 29.336,20.278 L30.65,21.786 C29.103,23.135 27.886,24.587 26.451,26.797 L26.451,26.797 Z M34.5,16.5 C35.603,16.5 36.5,17.397 36.5,18.5 C36.5,19.603 35.603,20.5 34.5,20.5 C33.397,20.5 32.5,19.603 32.5,18.5 C32.5,17.397 33.397,16.5 34.5,16.5 L34.5,16.5 Z M34.5,22.5 C36.706,22.5 38.5,20.706 38.5,18.5 C38.5,16.294 36.706,14.5 34.5,14.5 C32.294,14.5 30.5,16.294 30.5,18.5 C30.5,20.706 32.294,22.5 34.5,22.5 L34.5,22.5 Z" id="cloudfront__Amazon-CloudFront_Icon_48_Squid" fill="#FFFFFF"></path>
     </g>
 </g><text x="1648.54" y="418.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">CloudFront</text><text x="1648.54" y="432.0" text-anchor="middle" font-size="9.5" fill="#64748B">OAC 私有源站 · Basic Auth（KVS 哈希，fail closed）</text></g>
-<g class="rv9"><rect x="1815.5" y="357.0" width="46.0" height="46.0" rx="13" fill="#0284C7"/><g transform="translate(1823.36,364.82) scale(1.2650)" color="#FFFFFF"><rect x="3" y="4.5" width="18" height="15" rx="2.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 9h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.4" cy="6.8" r="0.9" fill="currentColor"/><circle cx="9.2" cy="6.8" r="0.9" fill="currentColor"/></g><text x="1838.54" y="418.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">浏览器</text><text x="1838.54" y="432.0" text-anchor="middle" font-size="9.5" fill="#64748B">雷达 UI</text></g>
+<g class="rv9"><rect x="1815.5" y="239.0" width="46.0" height="46.0" rx="13" fill="#0284C7"/><g transform="translate(1823.36,246.82) scale(1.2650)" color="#FFFFFF"><rect x="3" y="4.5" width="18" height="15" rx="2.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 9h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.4" cy="6.8" r="0.9" fill="currentColor"/><circle cx="9.2" cy="6.8" r="0.9" fill="currentColor"/></g><text x="1838.54" y="300.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">浏览器</text><text x="1838.54" y="314.0" text-anchor="middle" font-size="9.5" fill="#64748B">雷达 UI</text></g>
 <g class="rv0"><g transform="translate(105.54,829.00) scale(0.5750)">
 
     
@@ -245,8 +261,8 @@
         </g>
     </g>
 </g><text x="1458.54" y="182.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Bedrock Claude</text><text x="1458.54" y="196.0" text-anchor="middle" font-size="9.5" fill="#64748B">Sonnet 5.5 · 东京区</text></g>
-<g class="rv7"><rect x="1435.5" y="899.8" width="46.0" height="46.0" rx="13" fill="#0D9488"/><g transform="translate(1443.36,907.62) scale(1.2650)" color="#FFFFFF"><rect x="4.6" y="7.4" width="14.8" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3.4v4M8.6 12.4h.02M15.4 12.4h.02" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.2 15.6h5.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="1458.54" y="960.8" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Security Agent</text><text x="1458.54" y="974.8" text-anchor="middle" font-size="9.5" fill="#64748B">规则包 · 代码评审 · 自动修复</text></g>
-<g class="rv7"><rect x="1435.5" y="781.8" width="46.0" height="46.0" rx="13" fill="#0D9488"/><g transform="translate(1443.36,789.62) scale(1.2650)" color="#FFFFFF"><rect x="4.6" y="7.4" width="14.8" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3.4v4M8.6 12.4h.02M15.4 12.4h.02" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.2 15.6h5.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="1458.54" y="842.8" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Continuum</text><text x="1458.54" y="856.8" text-anchor="middle" font-size="9.5" fill="#64748B">us-east-1 · 验证 · 补丁</text></g>
+<g class="rv7"><rect x="1435.5" y="899.8" width="46.0" height="46.0" rx="13" fill="#0D9488"/><g transform="translate(1443.36,907.62) scale(1.2650)" color="#FFFFFF"><rect x="4.6" y="7.4" width="14.8" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3.4v4M8.6 12.4h.02M15.4 12.4h.02" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.2 15.6h5.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="1458.54" y="960.8" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Security Agent</text><text x="1458.54" y="974.8" text-anchor="middle" font-size="9.5" fill="#64748B">只收规则包 · 不按事件评审</text></g>
+<g class="rv7"><rect x="1435.5" y="781.8" width="46.0" height="46.0" rx="13" fill="#0D9488"/><g transform="translate(1443.36,789.62) scale(1.2650)" color="#FFFFFF"><rect x="4.6" y="7.4" width="14.8" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3.4v4M8.6 12.4h.02M15.4 12.4h.02" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.2 15.6h5.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="1458.54" y="842.8" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Continuum</text><text x="1458.54" y="856.8" text-anchor="middle" font-size="9.5" fill="#64748B">us-east-1 · 证实可利用 · 一个问题一个 PR / MR</text></g>
 <g class="rv7"><g transform="translate(1435.54,1407.20) scale(0.5750)">
 
     
@@ -285,6 +301,17 @@
 </g><text x="1458.54" y="1114.2" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">DNS Firewall</text><text x="1458.54" y="1128.2" text-anchor="middle" font-size="9.5" fill="#64748B">IOC 域名 · ALERT→BLOCK</text></g>
 <g class="rv7"><rect x="1435.5" y="1289.2" width="46.0" height="46.0" rx="13" fill="#64748B"/><text x="1458.54" y="1317.1" text-anchor="middle" font-size="13.7" font-weight="700" fill="#FFFFFF">SBOM</text><text x="1458.54" y="1350.2" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Inspector</text><text x="1458.54" y="1364.2" text-anchor="middle" font-size="9.5" fill="#64748B">ScanSbom · 依赖判定</text></g>
 <g class="rv7"><rect x="1435.5" y="1171.2" width="46.0" height="46.0" rx="13" fill="#E11D48"/><g transform="translate(1443.36,1179.02) scale(1.2650)" color="#FFFFFF"><path d="M12 3.4 5.2 6v6c0 4.4 3 7.6 6.8 9 3.8-1.4 6.8-4.6 6.8-9V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.2 12.2l2.2 2.2 4-4.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="1458.54" y="1232.2" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Security Hub</text><text x="1458.54" y="1246.2" text-anchor="middle" font-size="9.5" fill="#64748B">ASFF 汇总</text></g>
+<g class="rv8"><rect x="1625.5" y="239.0" width="46.0" height="46.0" rx="13" fill="#DB2777"/><g transform="translate(1633.36,246.82) scale(1.2650)" color="#FFFFFF"><path d="M4 10.5 13 6v12l-9-4.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 8.6a5 5 0 0 1 0 6.8M18.6 6.2a8.4 8.4 0 0 1 0 11.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="1648.54" y="300.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Slack · Lark ·</text><text x="1648.54" y="315.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">Webhook</text><text x="1648.54" y="329.0" text-anchor="middle" font-size="9.5" fill="#64748B">P0 线程 · 原地更新</text></g>
+<g class="rv9"><g transform="translate(1815.54,357.00) scale(0.7188)">
+<g id="apigateway__Icon-Architecture/48/Arch_Amazon-API-Gateway_48">
+<g id="apigateway__Icon-Architecture-BG/48/Networking-Content-Delivery">
+<rect id="apigateway__Rectangle" width="64" height="64" fill="#8C4FFF"/>
+</g>
+<g id="apigateway__Icon-Service/48/Amazon-API-Gateway_48">
+<path id="apigateway__Amazon-API-Gateway_Icon_48_Squid" fill-rule="evenodd" clip-rule="evenodd" d="M28 43.9999H31V41.9999H28V43.9999ZM33 43.9999H36V41.9999H33V43.9999ZM28 21.9998H31V19.9998H28V21.9998ZM33 21.9998H36V19.9998H33V21.9998ZM22 12.7408L12 18.5738V46.382L22 51.382V12.7408ZM24 19.9998H26V21.9998H24V41.9999H26V43.9999H24V53C24 53.347 23.82 53.668 23.525 53.851C23.365 53.95 23.183 54 23 54C22.847 54 22.694 53.965 22.553 53.895L10.553 47.895C10.214 47.725 10 47.379 10 47V17.9998C10 17.6448 10.188 17.3148 10.496 17.1358L22.496 10.1358C22.805 9.95575 23.188 9.95475 23.498 10.1328C23.809 10.3108 24 10.6418 24 10.9998V19.9998ZM52 18.5738L42 12.7408V51.382L52 46.382V18.5738ZM54 17.9998V47C54 47.379 53.786 47.725 53.447 47.895L41.447 53.895C41.306 53.965 41.153 54 41 54C40.817 54 40.635 53.95 40.475 53.851C40.18 53.668 40 53.347 40 53V43.9999H38V41.9999H40V21.9998H38V19.9998H40V10.9998C40 10.6418 40.191 10.3108 40.502 10.1328C40.812 9.95575 41.195 9.95575 41.504 10.1358L53.504 17.1358C53.812 17.3148 54 17.6448 54 17.9998ZM34.939 27.3419L33.061 26.6578L29.061 37.6579L30.939 38.3419L34.939 27.3419ZM39.707 32.7069C40.098 32.3159 40.098 31.6839 39.707 31.2929L36.707 28.2929L35.293 29.7069L37.586 31.9999L35.293 34.2929L36.707 35.7069L39.707 32.7069ZM27.293 35.7069L24.293 32.7069C23.902 32.3159 23.902 31.6839 24.293 31.2929L27.293 28.2929L28.707 29.7069L26.414 31.9999L28.707 34.2929L27.293 35.7069Z" fill="white"/>
+</g>
+</g>
+</g><text x="1838.54" y="418.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">API Gateway</text><text x="1838.54" y="432.0" text-anchor="middle" font-size="9.5" fill="#64748B">Cognito 令牌 · 只读 API</text></g>
 <circle cx="888.5" cy="321.0" r="29.0" fill="none" stroke="#EA580C" stroke-width="2" opacity="0.7"><animate attributeName="r" values="29.0;42.0" dur="1.9s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.65;0" dur="1.9s" repeatCount="indefinite"/></circle>
 <text x="40" y="1549" font-size="11" font-weight="700" fill="#0F172A">图例</text>
 <circle cx="78" cy="1545" r="5" fill="#DB2777"/><text x="88" y="1549" font-size="10.5" fill="#64748B">事件 event</text>
@@ -293,5 +320,5 @@
 <circle cx="303" cy="1545" r="5" fill="#EA580C"/><text x="313" y="1549" font-size="10.5" fill="#64748B">写入 write</text>
 <circle cx="374" cy="1545" r="5" fill="#0D9488"/><text x="384" y="1549" font-size="10.5" fill="#64748B">响应 reply ←</text>
 <circle cx="455" cy="1545" r="5" fill="#2563EB"/><text x="465" y="1549" font-size="10.5" fill="#64748B">请求 request →</text>
-<text x="40" y="1575" font-size="10" fill="#64748B">LLM 只写带引用的句子、只提建议；等级/严重度/资格/缓解计划/标题采纳全部由代码或人决定 · 每站耗时记账，接近超时先预警</text>
+<text x="40" y="1575" font-size="10" fill="#64748B">LLM 只写带引用的句子、只提建议；等级/严重度/资格/缓解计划全部由代码或人决定 · 补丁只由 Continuum 出，Security Agent 只收规则 · 每站耗时记账，接近超时先预警</text>
 </svg>

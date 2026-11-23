@@ -82,15 +82,24 @@ class IngestResult:
 # CRYPTO_MEDIA_ORGS lives in radar.registry (the sources' facts); imported above.
 
 
+def _crypto_theft(text: str) -> bool:
+    """A theft / loss story about crypto: an attack word AND a crypto word. An attack word alone is not one — live
+    2026-11-20: SlowMist's alert on the MySQL flaw CVE-2026-114952 (「unauthenticated attacker … compromise」) and
+    PANews' 「攻击者可能借此入侵」 were classified web3, were not eventful, and the T1 alert never reached the CVE event."""
+    return signals.web3_incident(text) and bool(_CRYPTO.search(text))
+
+
 def _classify(base: Domain | None, text: str, has_cve: bool, crypto_source: bool = False) -> Domain:
     if base == "web3":
-        return "vuln" if has_cve and not signals.web3_incident(text) else "web3"
+        return "vuln" if has_cve and not _crypto_theft(text) else "web3"
     if base:
         return base
     if _CRYPTO.search(text):
         return "web3"
     vuln = has_cve or bool(_VULN.search(text))
     if crypto_source:   # a crypto outlet's CVE / patch story is a vulnerability, its theft story a theft
+        if has_cve:     # a CVE story is a vulnerability unless it is a crypto theft (_crypto_theft)
+            return "vuln" if not _crypto_theft(text) else "web3"
         return "vuln" if vuln and not signals.web3_incident(text) else "web3"
     return "vuln" if vuln else "incident"
 
@@ -765,6 +774,14 @@ def _reporters(items: list[Item], groups: list[int]) -> int:
                 if i.tier in ("T1", "T2") and i.source_id not in CATALOG_SOURCES and not is_digest(i)})
 
 
+def _fresh_exploit(items: list[Item], exploitation: str) -> bool:
+    """Path A's corroboration may be a public exploit instead of a second reporter, for a CVE the radar saw filed (a
+    CVE List record in the event = newly published; an old CVE's GitHub PoC is not news). Live 2026-11-20: MySQL
+    CVE-2026-114952 (CVSS 9.1, unauthenticated) had its record and two exploit listings — every one a catalog — and
+    stayed P1. 30-day replay: +11 P0, this one among them."""
+    return exploitation == "poc" and any(i.source_id == "cve_list" for i in items)
+
+
 def _critical(ev_domain: Domain, items: list[Item]) -> bool:
     """Path A to P0 (Neo 2026-11-18): a report of this event says its flaw is critical — unauthenticated RCE or CVSS ≥ 9
     (signals.critical_about, attributed like 「exploited」: a digest's or a newsletter's sentence about another bug does
@@ -826,6 +843,7 @@ def _measure(v: float, mentions: list[tuple[float, str]], body: list[tuple[float
 
 
 _BY = "_reporter"   # transient key on amount points while _amounts works; never stored (the history keeps its shape)
+_SAYS = "_says"     # transient too: the report's title + opening, for the consensus' same-incident check
 
 
 def _rep(p: dict[str, Any]) -> str:
@@ -865,7 +883,36 @@ def _mark_outliers(hist: list[dict[str, Any]], structured: set[str]) -> None:
             p["kind"] = "outlier"
 
 
-def _amounts(items: list[Item]) -> tuple[list[dict[str, Any]], float | None, bool, bool, float | None]:
+def _consensus_loss(loss: list[dict[str, Any]], base: dict[str, Any], rep: dict[int, str], structured: set[str],
+                    tier_of: dict[str, str], group_of: dict[str, int], says: dict[int, str] | None = None,
+                    names: set[str] | None = None) -> float | None:
+    """A larger loss the reports agree on after the hack databases' latest figure: ≥ AMOUNT_CONSENSUS_REPORTERS independent
+    reporters (syndication groups), one of them T1 / T2, state a loss within AMOUNT_CONSENSUS_RATIO of each other and more
+    than that above the database figure. Live 2026-11-22: Chainflip confirmed $12M and ~20 reports said so from 05:28 UTC,
+    while DeFiLlama / SlowMist still read $4.86M — the event kept $4.86M for 21 hours and the ≥ $10M team notice waited.
+    Only upward, only later than the database figure: a side story (a freeze, a sub-amount) is smaller, and an older
+    report is what the database already reconciled. Freezes, context and outliers are not loss points. A report counts
+    only if it names the incident (`names`, from the database records): replay 2026-11-23, Gonka AI's event also held
+    K3 Capital's $3.43M sBOLD reports (a clustering error) and the consensus would have made it Gonka's loss."""
+    r = Limits.AMOUNT_CONSENSUS_RATIO
+    low = {n.lower() for n in names or set() if len(n) >= 3}
+    cand = [p for p in loss if rep[id(p)] not in structured and p["observed_at"] > base["observed_at"]
+            and p["value"] > base["value"] * (1 + r)
+            and (not low or any(n in (says or {}).get(id(p), "").lower() for n in low))]
+    best: tuple[int, float] | None = None
+    for c in cand:
+        agree = [q for q in cand if abs(q["value"] - c["value"]) <= r * c["value"]]
+        orgs = {group_of.get(rep[id(q)], hash(rep[id(q)])) for q in agree}
+        strong = any(_TIER_RANK[tier_of[rep[id(q)]]] <= 2 for q in agree)
+        if len(orgs) >= Limits.AMOUNT_CONSENSUS_REPORTERS and strong:
+            vals = sorted(q["value"] for q in agree)
+            pick = (len(orgs), vals[len(vals) // 2])
+            best = pick if best is None or pick > best else best
+    return best[1] if best else None
+
+
+def _amounts(items: list[Item], groups: list[int] | None = None) -> tuple[list[dict[str, Any]], float | None, bool, bool,
+                                                                          float | None]:
     """(history, headline loss, disputed, stable, frozen). Every point carries its measure (signals.amount_kind of the
     report's title; a hack database's structured amount is always the loss): the headline and the dispute flag use loss
     points only, freezes are their own measure (the largest reported — freeze totals only grow, and a single-issuer
@@ -876,7 +923,7 @@ def _amounts(items: list[Item]) -> tuple[list[dict[str, Any]], float | None, boo
     for it in items:
         pts, by = it.extra.get("amount_history") or [], reporter(it)
         if it.extra.get("amount_usd") is not None:
-            hist += [{"value": p["value"], "source_id": it.source_id, _BY: by,
+            hist += [{"value": p["value"], "source_id": it.source_id, _BY: by, _SAYS: f"{it.title} {it.text[:300]}",
                       "observed_at": p["observed_at"], "kind": "loss"} for p in pts]
             continue
         # prose: each number takes the measure of its own clause (a title can state the loss and the freeze); the
@@ -885,14 +932,14 @@ def _amounts(items: list[Item]) -> tuple[list[dict[str, Any]], float | None, boo
         # measure of whichever clause states it (Decrypt: body "$5.57 billion" stolen, title "$5.5 Billion")
         text = it.title or it.text[:200]
         if signals.is_roundup_report(it.title):   # statistics across incidents: context only, no freeze point
-            hist += [{"value": p["value"], "source_id": it.source_id, _BY: by,
+            hist += [{"value": p["value"], "source_id": it.source_id, _BY: by, _SAYS: f"{it.title} {it.text[:300]}",
                       "observed_at": p["observed_at"], "kind": "context"}
                      for p in pts]
             continue
         # a hack database's record IS a loss record, whichever way its line reads (DeFiHackLabs MUS: 「Lost: ~0.4 ETH per
         # cycle …; reported campaign total ~$36.9k」 — no structured field, and the clause split hid the cue)
         if BY_ID.get(it.source_id) and BY_ID[it.source_id].always_eventful:
-            hist += [{"value": p["value"], "source_id": it.source_id, _BY: by,
+            hist += [{"value": p["value"], "source_id": it.source_id, _BY: by, _SAYS: f"{it.title} {it.text[:300]}",
                       "observed_at": p["observed_at"], "kind": "loss"}
                      for p in pts]
             continue
@@ -902,16 +949,18 @@ def _amounts(items: list[Item]) -> tuple[list[dict[str, Any]], float | None, boo
         whole = signals.amount_kind(text)
         for p in pts:
             kind = _measure(p["value"], mentions, body, body_losses, whole)
-            hist.append({"value": p["value"], "source_id": it.source_id, _BY: by,
+            hist.append({"value": p["value"], "source_id": it.source_id, _BY: by, _SAYS: f"{it.title} {it.text[:300]}",
                          "observed_at": p["observed_at"], "kind": kind})
         if pts:
-            hist += [{"value": v, "source_id": it.source_id, _BY: by,
+            hist += [{"value": v, "source_id": it.source_id, _BY: by, _SAYS: f"{it.title} {it.text[:300]}",
                       "observed_at": pts[-1]["observed_at"], "kind": "frozen"}
                      for v, k in mentions if k == "frozen" and not any(_same(v, p["value"]) for p in pts)]
     hist.sort(key=lambda p: (p["observed_at"], p["source_id"]))
     _mark_outliers(hist, structured)
+    says: dict[int, str] = {}
     for p in hist:                       # the stored history keeps its shape: the reporter only groups, here
         rep[id(p)] = p.pop(_BY)
+        says[id(p)] = p.pop(_SAYS, "")
     frozen_pts = [p["value"] for p in hist if p["kind"] == "frozen" and p["value"] > 0]
     frozen = max(frozen_pts) if frozen_pts else None
     loss = [p for p in hist if p["kind"] == "loss"]
@@ -922,9 +971,21 @@ def _amounts(items: list[Item]) -> tuple[list[dict[str, Any]], float | None, boo
     # amounts are often a freeze, a borrow or a sale inside the story (live 2026-10-30: a T1 tweet "Arbitrum Security
     # Council froze $30.5M" displaced DeFiLlama's $5.78B Binance loss as the headline figure).
     pool = [p for p in loss if rep[id(p)] in structured] or loss
+    # the incident's names: each database record's entity, first word and any bracketed name (「Optimizely (OPTIMJACK)」)
+    names = {w for it in items if it.extra.get("amount_usd") is not None and it.entity
+             for w in re.findall(r"[A-Za-z0-9][\w.-]{2,}", it.entity)[:1] + re.findall(r"\(([^)]+)\)", it.entity)}
+    group_of: dict[str, int] = {}        # reporter → syndication group (independence for the consensus)
+    for it, g in zip(items, groups or range(len(items)), strict=True):
+        group_of.setdefault(reporter(it), g)
     best_rank = min(_TIER_RANK[tier_of[rep[id(p)]]] for p in pool)
-    trusted = [p for p in pool if _TIER_RANK[tier_of[rep[id(p)]]] == best_rank]
-    latest = trusted[-1]["value"]
+    trusted = [p for p in pool if _TIER_RANK[tier_of[rep[id(p)]]] == best_rank]   # the stability series, as before
+    if pool is not loss:
+        # hack databases: the latest update wins, whichever database made it (live 2026-11-23: DeFiLlama's $11.96M at
+        # 00:04 waited 2.7 hours behind SlowMist's older $4.86M because SlowMist is T1)
+        latest = _consensus_loss(loss, pool[-1], rep, structured, tier_of, group_of, says, names) or pool[-1]["value"]
+    else:
+        # the same consensus beats the top tier's figure (Chainflip: PeckShield's T1 「~$4M」 tweet vs twenty $12M reports)
+        latest = _consensus_loss(loss, trusted[-1], rep, structured, tier_of, group_of, says, names) or trusted[-1]["value"]
     per_source: dict[str, float] = {}
     # the dispute is judged on the same pool as the headline: hack databases' structured figures, when there are any. Live
     # 2026-11-11: Binance coverage carries every side story (Bitget $292M, Mercado $49M …), so some prose source's largest
@@ -1036,7 +1097,7 @@ def recompute(ev: Event, items: list[Item], now: datetime, title_pairs: set[tupl
     groups = independent_groups(items, title_pairs)
     tiers = _group_tiers(items, groups)
     # a digest's figures and its "exploited" are about the stories it tells, none of them this event
-    hist, latest, disputed, stable, frozen = ([], None, False, False, None) if digest_only else _amounts(items)
+    hist, latest, disputed, stable, frozen = ([], None, False, False, None) if digest_only else _amounts(items, groups)
     # on-chain verdicts live on the event (items only carry the hash): carry them over, then let them count
     seen = {t["hash"]: t for t in ev.tx}
     tx: dict[str, dict[str, Any]] = {}
@@ -1077,7 +1138,8 @@ def recompute(ev: Event, items: list[Item], now: datetime, title_pairs: set[tupl
                             # freshness keeps the earliest timestamp, date-only included: conservative on purpose
                             # (a KEV entry "added 10-20" may be 3 days old) — first_seen moved to the first report
                             fresh=max(items[0].published_at, ev.escalated_at) >= fresh_since,
-                            critical=_critical(ev.domain, items) and _reporters(items, groups) >= Limits.P0_PATH_A_REPORTERS)
+                            critical=_critical(ev.domain, items) and (
+                                _reporters(items, groups) >= Limits.P0_PATH_A_REPORTERS or _fresh_exploit(items, exploitation)))
     ev.cves = _own_cves(items)
     if ev.domain == "vuln" and not ev.cves and items and all(is_list_announcement(i) for i in items):
         ev.severity = "P2"   # R9.6: a catalog announcement naming no CVE is no single vulnerability (is_list_announcement)

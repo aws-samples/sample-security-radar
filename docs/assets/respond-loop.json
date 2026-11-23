@@ -1,11 +1,11 @@
 {
   "kind": "architecture",
-  "title": "Security Radar · 探测器 + 触发器",
-  "subtitle": "外面刚发生的真实事件 → 几分钟内变成 AWS 能执行的规则、精确到行的 finding 与评审 → 在你的仓库里证实、补丁回流",
+  "title": "Security Radar · 一个问题一个补丁",
+  "subtitle": "外面刚发生的真实事件 → 几分钟内精确到行的 finding → AWS Continuum 证实可利用、补丁回流；AWS Security Agent 只收雷达写的规则",
   "theme": "aws",
   "direction": "LR",
   "reveal": true,
-  "footer": "每个仓库只进一个环境（S3 / GitHub / GitLab）· 代码决定何时、推什么、指向哪一行 · AWS agent 判断能否被利用、怎么修 · 人只在合并补丁时介入",
+  "footer": "每个仓库只进一个环境（S3 / GitHub / GitLab）· 代码决定何时、推什么、指向哪一行 · 补丁只由 AWS Continuum 出 · 人只在合并补丁时介入",
   "groups": [
     {
       "id": "radar",
@@ -40,7 +40,7 @@
     {
       "id": "respond",
       "label": "Respond 工位",
-      "sub": "资格 · 规则 · 精确定位",
+      "sub": "资格 · 规则 · 精确到文件:行",
       "icon": "aws:lambda",
       "group": "radar",
       "pulse": true
@@ -48,14 +48,14 @@
     {
       "id": "pack",
       "label": "规则包",
-      "sub": "雷达规则逐字取证",
+      "sub": "每个 P0 一条规则 · 每天重申",
       "icon": "glyph:doc",
       "group": "sa"
     },
     {
       "id": "review",
-      "label": "代码评审",
-      "sub": "读你的仓库 · 命中规则 · 自动修复",
+      "label": "你自己的代码评审",
+      "sub": "使用雷达规则 · 雷达不按事件发起 · 不自动修复",
       "icon": "glyph:agent",
       "group": "sa"
     },
@@ -123,7 +123,8 @@
     {
       "from": "respond",
       "to": "finding",
-      "flow": "write"
+      "flow": "write",
+      "label": "OCSF finding"
     },
     {
       "from": "pack",
@@ -134,12 +135,6 @@
       "from": "finding",
       "to": "validate",
       "flow": "control"
-    },
-    {
-      "from": "review",
-      "to": "ui",
-      "flow": "reply",
-      "label": "findings · diff"
     },
     {
       "from": "validate",

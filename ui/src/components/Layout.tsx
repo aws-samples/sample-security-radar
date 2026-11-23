@@ -9,6 +9,7 @@ import { initialNavMode, isWallPath, storeNavMode, type NavMode } from '@/utils/
 const navItems: { to: string; label: string; icon: NavIconName; exact?: boolean; aria?: string }[] = [
   { to: '/',        label: 'Radar',   icon: 'radar', exact: true },
   { to: '/vuln',    label: 'Vulnerabilities', icon: 'vuln' },
+  { to: '/p0',      label: 'P0 Wall', icon: 'p0', aria: 'P0 Wall · P0 分类墙（按产品）' },
   { to: '/web3',    label: 'Web3',    icon: 'web3' },
   { to: '/wall',    label: 'Dashboard', icon: 'wall', aria: 'Dashboard（大屏）' },
   { to: '/continuum', label: 'Continuum', icon: 'continuum', aria: 'AWS Continuum 融入' },

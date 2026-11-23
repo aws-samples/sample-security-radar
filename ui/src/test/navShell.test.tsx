@@ -34,7 +34,7 @@ describe('shell', () => {
     expect(html).toMatch(/class="app-shell is-rail"/);
     expect(html).toMatch(/data-testid="nav-collapse"[^>]*aria-label="展开侧栏"|aria-label="展开侧栏"[^>]*data-testid="nav-collapse"/);
     const links = html.match(/<a\b[^>]*app-nav-link[^>]*>/g) ?? [];
-    expect(links.length).toBe(11);
+    expect(links.length).toBe(12);
     expect(links.every(a => / title="[^"]+"/.test(a))).toBe(true);     // the rail has no labels: a hover title each
     vi.unstubAllGlobals();
   });
@@ -91,7 +91,7 @@ describe('the sidebar speaks English (Neo 2026-11-19: 「左边栏里面的内�
   it('every label is English; Vulns is written out; 大屏 is Dashboard', () => {
     const LAYOUT = readFileSync(resolve(__dirname, '../components/Layout.tsx'), 'utf8');
     const labels = [...LAYOUT.matchAll(/label: '([^']+)'/g)].map(m => m[1]);
-    expect(labels.length).toBe(11);
+    expect(labels.length).toBe(12);
     expect(labels.filter(l => /[^\x20-\x7e]/.test(l))).toEqual([]);
     expect(labels).toContain('Dashboard');
     expect(labels).toContain('Vulnerabilities');

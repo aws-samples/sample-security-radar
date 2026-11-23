@@ -30,7 +30,7 @@ _ID = r"GHSA(?:-[23456789cfghjmpqrvwx]{4}){3}"
 # github.com/<non-ASCII owner>/… built a URL urllib cannot encode and failed the Analyze step every run): an owner is
 # letters, digits and hyphens (≤ 39), a repository adds "." and "_" (≤ 100); "." and ".." are refused in repos()
 REPO_ADVISORY = re.compile(r"github\.com/([A-Za-z0-9-]{1,39})/([A-Za-z0-9._-]{1,100})/security/advisories/(" + _ID + ")",
-                           re.IGNORECASE)
+                           re.IGNORECASE | re.ASCII)   # without ASCII, IGNORECASE lets [A-Za-z] match the Kelvin sign and long s
 CVE = re.compile(r"^CVE-\d{4}-\d{4,7}$")
 
 Get = Callable[[str], tuple[int, Any]]
