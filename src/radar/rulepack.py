@@ -57,6 +57,13 @@ SAMPLE_OAST = "oast.example.invalid"
 SAMPLE_VALUE = "radarsample"
 
 
+def has_rules(pack: dict | None) -> bool:
+    """The pack holds a rule an edge can apply (managed group, custom rule or a template-derived rule). A pack row with
+    none still exists — it carries `no_rule`, the reason none can be written (live 2026-11-24: MySQL CVE-2026-114952's
+    empty pack made the attack path claim 「雷达生成的 WAF 规则包：在入口匹配攻击请求」; MySQL traffic never passes a WAF)."""
+    return bool(pack and (pack.get("managed") or pack.get("custom") or pack.get("templates")))
+
+
 def key(event_id: str) -> str:
     return KEY + event_id
 

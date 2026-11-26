@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any
 
 from radar import analyst, llm
+from radar.limits import Limits
 
 KEY = "__send_judge__#"           # + event_id: {"send", "reason", "cite", "status", "input_hash", "at", "model"}
 PROMPT_VERSION = "send-judge-v1"
@@ -75,7 +77,9 @@ def judge(ev: dict[str, Any], evidence: list[dict[str, Any]], now_iso: str, call
         return {**base, "send": False, "status": "failed", "reason": "仲裁结果无法解析，暂不发送", "cite": []}
     ids = {e["item_id"] for e in evidence}
     cite = [c for c in raw.get("cite") or [] if isinstance(c, str) and c in ids]
-    reason = str(raw.get("reason") or "")[:200]
+    # security review 2026-11-26: the reason is published and sent in webhook bodies — one line, no control
+    # characters, cut at the length the prompt asks for (was 200, the prompt says 60)
+    reason = re.sub(r"[\x00-\x1f\x7f]+", " ", str(raw.get("reason") or "")).strip()[:Limits.SEND_JUDGE_REASON_MAX]
     if raw["send"] and not cite:     # a send must point at a report; an unsupported yes is not a yes
         return {**base, "send": False, "status": "uncited", "reason": "仲裁同意发送但未引用报道，暂不发送", "cite": []}
     return {**base, "send": raw["send"], "status": "ok", "reason": reason, "cite": cite}

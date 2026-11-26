@@ -11,6 +11,7 @@ class Limits:
     # is not made: llm.converse returns status error / daily_cap and #/ops daily_cap_reached says so.
     BEDROCK_CALLS_PER_DAY_FAST = 2_500
     BEDROCK_CALLS_PER_DAY_BRIEF = 800
+    SEND_JUDGE_REASON_MAX = 60      # characters of the arbitration reason kept (the prompt asks for ≤ 60; security review 2026-11-26)
     SEND_JUDGE_PER_RUN = 4          # send arbitration (radar.send_judge): Haiku calls per analyze run, P0 first
     ATTACK_PATHS_PER_CYCLE = 2       # R9.5: Sonnet calls per analyze run for attack paths (~30 s each)
     MODEL_CALL_RESERVE_S = 120       # analyze starts no model call with less left (live 11-19: avg run 448 s of 600, max 600 = timed out)
@@ -64,6 +65,7 @@ class Limits:
     AMOUNT_DISPUTE_FLOOR = 0.01     # a source's figure below this share of the largest one is a sub-amount or a price, not a rival loss estimate
 
     # --- severity ---
+    P0_PATH_C_REPORTERS = 1         # path C (code execution in a cloud component + public exploit): reporters needed
     P0_FRESH_HOURS = 72             # P0 = "act now": first seen or escalated within this window, else P1
     ITEM_TEXT_MAX = 4000            # an item keeps this many characters of its text (pipeline.normalize)
     WEB3_P0_USD = 1_000_000

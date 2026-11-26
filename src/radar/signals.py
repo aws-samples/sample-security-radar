@@ -117,6 +117,21 @@ _ROUNDUP = re.compile(
     r"[^.]{0,60}\blost to (?:hacks?|exploits?|scams?|attacks?)\b|#\w*stats\w*alert", re.IGNORECASE)
 
 
+# A how-to / explainer / guide is advice, not a report of an event (live 2026-11-25: Securelist's 「How to protect against
+# preinstalled Android malware」 — one T1 article, "exploited" because the malware it describes is in the wild — opened
+# a vulnerability P0 of its own). Headline-anchored: 「How attackers exploited X」 is a report and does not match.
+_GUIDE_TITLE = re.compile(
+    r"^\s*(?:how to (?:protect|defend|detect|prevent|secure|mitigate|stay safe|avoid|harden|spot|check|tell)\b"
+    r"|(?:a |the )?(?:beginner'?s |complete |practical )?guide (?:to|for)\b|what (?:is|are) (?:a |an |the )?\w"
+    r"|(?:\d+ )?(?:tips|best practices|ways) (?:to|for)\b)"
+    r"|^\s*如何(?:防范|防御|防护|保护|检测|识别|应对|避免|加固)|(?:防护|安全|加固|排查)指南\s*$",
+    re.IGNORECASE)
+
+
+def is_guide(title: str | None) -> bool:
+    return bool(_GUIDE_TITLE.search(title or ""))
+
+
 @_memo_text
 def is_roundup_report(title: str | None) -> bool:
     return bool(_ROUNDUP.search(title or ""))
@@ -288,6 +303,27 @@ def _critical_sentence(text: str) -> Exploited:
     if not _CRITICAL.search(text):
         return "unclear"
     return "no" if _CRITICAL_NEG.search(text) else "yes"
+
+
+# Path C (2026-11-26, PostgreSQL CVE-2026-6460: 「a database user who can create objects run code on the server」 with a
+# public PoC, CVSS 8.8 — authenticated, so not 「critical」, and it was never pushed): a report that THE EVENT's flaw
+# executes code. Same attribution as critical_about; the cloud-product, exploit and reporter conditions are pipeline's.
+_CODE_EXEC = re.compile(
+    r"(?i)\b(?:remote code execution|RCE|arbitrary code execution|execute (?:arbitrary )?(?:code|commands|system commands)"
+    r"|run (?:arbitrary )?code|(?:os |system )?command execution|code execution)\b"
+    r"|(?:远程代码执行|任意代码执行|执行任意(?:代码|命令|系统命令)|命令执行)")
+_CODE_EXEC_NEG = re.compile(r"(?i)\b(?:does not|doesn't|cannot|can't|not|no)\s+(?:allow|lead to|enable|permit|result in)\b"
+                            r"[^.]{0,30}\bcode execution\b|\bno (?:evidence of )?(?:remote )?code execution\b")
+
+
+def _code_exec_sentence(text: str) -> Exploited:
+    if not _CODE_EXEC.search(text):
+        return "unclear"
+    return "no" if _CODE_EXEC_NEG.search(text) else "yes"
+
+
+def code_exec_about(title: str, text: str, own_cves: set[str], event_cves: set[str]) -> bool:
+    return bool(_claim_about(_code_exec_sentence, title, text, own_cves, event_cves))
 
 
 def critical_about(title: str, text: str, own_cves: set[str], event_cves: set[str]) -> bool:

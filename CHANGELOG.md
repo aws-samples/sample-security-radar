@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.6.20] - 2026-11-26
+
+A code-execution flaw in a mainstream cloud component with a public exploit is P0, authenticated or not (one independent reporter plus the exploit).
+
+## [1.6.19] - 2026-11-26
+
+A how-to / guide article without a CVE opens no event (it was a vulnerability P0 once).
+
+## [1.6.18] - 2026-11-26
+
+Review follow-ups: the arbitration reason is one line of at most 60 characters; P0-wall placement bounds its input; a failing arbitration does not fail the Analyze run; a test keeps model output out of mock data and fixtures.
+
+## [1.6.17] - 2026-11-25
+
+Theft notices: the loss line opens with 💸 (the headline has 💰).
+
+## [1.6.16] - 2026-11-25
+
+P0 notices: a Web3 theft opens with 💰, a vulnerability with 🚨.
+
+## [1.6.15] - 2026-11-25
+
+Subscriptions can exclude P0-wall products (`not_p0_products`), e.g. a channel that takes every P0 except WordPress plugins.
+
+## [1.6.14] - 2026-11-24
+
+Every event on the P0 wall gets a current detail page, including those outside the listing cap (a demoted P0).
+
+## [1.6.13] - 2026-11-24
+
+The attack path no longer places a WAF block when the rule pack is empty; it says why AWS WAF cannot stop the attack (a non-HTTP protocol such as MySQL on 3306 — with the network-access step that does work —, an OS component, or the pack's own reason).
+
+## [1.6.12] - 2026-11-24
+
+Documentation: CONTRIBUTING says the diagrams are committed and arcflow (the maintainer's diagram tool) is not a dependency.
+
 ## [1.6.11] - 2026-11-23
 
 The loss headline follows the reports: the latest hack-database update wins, and ≥ 3 independent reports of a larger loss (one T1 / T2, naming the incident) raise the figure.

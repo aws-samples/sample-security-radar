@@ -14,6 +14,7 @@ export const HORIZON: Record<Defense['horizon'], { word: string; tone: string }>
   block: { word: '立即拦截', tone: 'block' },
   temporary: { word: '临时缓解', tone: 'temp' },
   fix: { word: '长期修复', tone: 'fix' },
+  none: { word: 'WAF 拦不住', tone: 'none' },   // radar.wafreach: the text says why (protocol / local / no rule)
 };
 const SOURCE_WORD: Record<NonNullable<Defense['source']>, string> = { radar: '雷达', aws: 'AWS' };
 
@@ -60,7 +61,8 @@ export function AttackPathPanel({ path, onEnv, ...c }: { path: AttackPath; onEnv
         ))}
       </ol>
       <p className="ap-legend">
-        {(['block', 'temporary', 'fix'] as const).map(h => <span key={h} className={`ap-key tone-${HORIZON[h].tone}`}>{HORIZON[h].word}</span>)}
+        {(['block', 'temporary', 'fix', ...(path.defenses.some(d => d.horizon === 'none') ? ['none' as const] : [])] as const)
+          .map(h => <span key={h} className={`ap-key tone-${HORIZON[h].tone}`}>{HORIZON[h].word}</span>)}
         <span className="dt-muted">每条处置放在它拦住的那一步下面 · 句子由模型按证据写、代码校验引用与数字</span>
       </p>
     </div>

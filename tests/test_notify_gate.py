@@ -42,10 +42,10 @@ def test_the_headline_has_no_link_quote_marker_or_alert_tag_and_keeps_the_victim
 def test_a_web3_p0_notice_has_emoji_the_summary_the_figures_and_the_event_page_said_for_what_it_is():
     v, m = p0(LIGHTER)
     lines = m["text"].splitlines()
-    assert lines[0] == "🚨 [P0 · Web3 被盗] Lighter has been exploited for ~$10M, the exploiter bridged 640 $ETH"
+    assert lines[0] == "💰 [P0 · Web3 被盗] Lighter has been exploited for ~$10M, the exploiter bridged 640 $ETH"
     assert lines[1] == f"📝 {LIGHTER['summary']}"
     assert lines[2] == "🕐 首报 2026-11-16 11:05（UTC+8）"       # first report, on the team's clock
-    assert lines[3] == "💰 损失 $10.0M ｜ ✅ V2 多方互证 ｜ ⛓️ 链上攻击交易已确认 2 笔"
+    assert lines[3] == "💸 损失 $10.0M ｜ ✅ V2 多方互证 ｜ ⛓️ 链上攻击交易已确认 2 笔"
     assert lines[4] == f"🔗 雷达事件页（原始来源 · 时间线 · 链上证据）：{SITE}/#/events/{LIGHTER['event_id']}"
     assert m["slack"].splitlines()[-1] == f"🔗 <{SITE}/#/events/{LIGHTER['event_id']}|雷达事件页（原始来源 · 时间线 · 链上证据）>"
     assert notify.gate(m, v, SITE, []) == []

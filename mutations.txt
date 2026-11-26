@@ -1672,8 +1672,8 @@ expect = tests/test_sighting.py::test_a_date_only_first_report_is_flagged
 
 [M329 publish: late EPSS / CVE records do not rebuild the pages that carry them]
 file = src/radar/publish.py
-find = detail = [ev for ev in evs if changed is None or ev.event_id in changed or set(ev.cves) & touched]
-replace = detail = [ev for ev in evs if changed is None or ev.event_id in changed]
+find = detail = [ev for ev in pages if changed is None or ev.event_id in changed or set(ev.cves) & touched]
+replace = detail = [ev for ev in pages if changed is None or ev.event_id in changed]
 expect = tests/test_enrich.py::test_epss_that_arrives_later_rebuilds_the_page
 
 [M330 enrich: a changed CVE record is not "touched"]
@@ -7226,3 +7226,141 @@ file = src/radar/pipeline.py
 find = for it, g in zip(items, groups or range(len(items)), strict=True):
 replace = for it, g in zip(items, range(len(items)), strict=True):
 expect = tests/test_amount_consensus_20261123.py::test_one_organisation_on_two_channels_is_one_reporter
+
+[M1746 waf honesty: an empty rule pack counts as having rules]
+file = src/radar/rulepack.py
+find = return bool(pack and (pack.get("managed") or pack.get("custom") or pack.get("templates")))
+replace = return bool(pack)
+expect = tests/test_attack_path_empty_pack_20261124.py::test_has_rules
+
+[M1747 waf honesty: a non-HTTP service is not recognised]
+file = src/radar/wafreach.py
+find = if pl.product in NON_HTTP:
+replace = if False:
+expect = tests/test_attack_path_empty_pack_20261124.py::test_a_non_http_service_says_its_protocol_and_the_network_step
+
+[M1748 waf honesty: the network step is dropped from the page]
+file = src/radar/attack_path.py
+find = if waf.get("network"):
+replace = if False:
+expect = tests/test_attack_path_empty_pack_20261124.py::test_the_page_never_claims_an_empty_pack_blocks
+
+[M1749 waf honesty: the reason WAF cannot stop it is not placed]
+file = src/radar/attack_path.py
+find = elif waf:   # radar.wafreach
+replace = elif False:   # radar.wafreach
+expect = tests/test_attack_path_empty_pack_20261124.py::test_the_page_never_claims_an_empty_pack_blocks
+
+[M1750 waf honesty: an OS component is not told apart]
+file = src/radar/wafreach.py
+find = if pl.group in LOCAL_GROUPS:
+replace = if False:
+expect = tests/test_attack_path_empty_pack_20261124.py::test_an_os_component_is_not_a_web_request
+
+[M1751 p0 wall pages: a wall event outside the listing gets no detail page]
+file = src/radar/publish.py
+find = pages = evs + [e for e in window if e.domain == "vuln" and _p0_at(e) and e.event_id not in listed]
+replace = pages = evs
+expect = tests/test_p0wall_pages_20261124.py::test_a_wall_event_outside_the_listing_still_gets_its_page
+
+[M1752 p0 wall pages: theft and never-P0 events are paged too]
+file = src/radar/publish.py
+find = pages = evs + [e for e in window if e.domain == "vuln" and _p0_at(e) and e.event_id not in listed]
+replace = pages = evs + [e for e in window if e.event_id not in listed]
+expect = tests/test_p0wall_pages_20261124.py::test_a_wall_event_outside_the_listing_still_gets_its_page
+
+[M1753 notify exclusion: an excluded P0-wall tile still matches]
+file = src/radar/notify.py
+find = if str(v.get(_BOUNDS[k]) or "").lower() in {x.lower() for x in want}:
+replace = if False:
+expect = tests/test_notify_exclude_20261125.py::test_a_wordpress_plugin_p0_is_kept_out
+
+[M1754 notify exclusion: the view does not carry the P0-wall tile]
+file = src/radar/notify.py
+find = "p0_product": p0class.place(row.get("title") or "", list(row.get("entities") or [])).product,
+replace = "p0_product": None,
+expect = tests/test_notify_exclude_20261125.py::test_a_wordpress_plugin_p0_is_kept_out
+
+[M1755 notify icon: a Web3 theft looks like a vulnerability alarm again]
+file = src/radar/notify.py
+find = "icon": "💰" if web3 else "🚨",
+replace = "icon": "🚨",
+expect = tests/test_notify_gate.py
+
+[M1756 notify icon: a vulnerability notice loses its alarm]
+file = src/radar/notify.py
+find = "icon": "💰" if web3 else "🚨",
+replace = "icon": "💰",
+expect = tests/test_notify_gate.py
+
+[M1757 notify icon: the loss line repeats the theft headline's 💰]
+file = src/radar/notify.py
+find = facts.append(f"💸 损失 {_usd(v['amount_usd'])}")
+replace = facts.append(f"💰 损失 {_usd(v['amount_usd'])}")
+expect = tests/test_notify_gate.py
+
+[M1758 pcsr: the arbitration reason keeps control characters]
+file = src/radar/send_judge.py
+find = reason = re.sub(r"[\x00-\x1f\x7f]+", " ", str(raw.get("reason") or "")).strip()[:Limits.SEND_JUDGE_REASON_MAX]
+replace = reason = str(raw.get("reason") or "")[:Limits.SEND_JUDGE_REASON_MAX]
+expect = tests/test_pcsr_suggestions_20261126.py::test_the_reason_is_one_line_without_control_characters_and_at_most_60
+
+[M1759 pcsr: the arbitration reason is cut at 200 again]
+file = src/radar/limits.py
+find = SEND_JUDGE_REASON_MAX = 60
+replace = SEND_JUDGE_REASON_MAX = 200
+expect = tests/test_pcsr_suggestions_20261126.py::test_the_reason_is_one_line_without_control_characters_and_at_most_60
+
+[M1760 pcsr: p0class.place reads unbounded entities]
+file = src/radar/p0class.py
+find = ents = [e[:ENTITY_MAX_CHARS] for e in (entities or [])[:ENTITIES_MAX]]
+replace = ents = list(entities or [])
+expect = tests/test_pcsr_suggestions_20261126.py::test_place_bounds_its_entities
+
+[M1761 pcsr: a failing arbitration fails the Analyze run]
+file = src/radar/handlers.py
+find = except Exception as ex:  # noqa: BLE001 — like _ghsa_alias: the arbitration never fails the Analyze run (security review 2026-11-26)
+replace = except ZeroDivisionError as ex:  # noqa: BLE001 — like _ghsa_alias: the arbitration never fails the Analyze run (security review 2026-11-26)
+expect = tests/test_pcsr_suggestions_20261126.py::test_a_failing_arbitration_does_not_fail_the_analyze_run
+
+[M1763 guide: a how-to article opens an event again]
+file = src/radar/pipeline.py
+find = if eventful and not cve_list and signals.is_guide(raw.title):
+replace = if False:
+expect = tests/test_guide_not_event_20261126.py
+
+[M1764 guide: the guide pattern no longer anchors on the headline start]
+file = src/radar/signals.py
+find = r"^\s*(?:how to (?:protect|defend|detect|prevent|secure|mitigate|stay safe|avoid|harden|spot|check|tell)\b"
+replace = r"(?:how to|exploited|found)"
+expect = tests/test_guide_not_event_20261126.py
+
+[M1765 path C: a code-execution flaw in a cloud component stays P1]
+file = src/radar/pipeline.py
+find = or _code_exec_cloud(ev.domain, items, exploitation, _reporters(items, groups), ev.title))
+replace = or False)
+expect = tests/test_path_c_code_exec_20261126.py
+
+[M1766 path C: a single reporter is enough]
+file = src/radar/pipeline.py
+find = if ev_domain != "vuln" or exploitation not in ("poc", "reported", "confirmed") or reporters < Limits.P0_PATH_C_REPORTERS:
+replace = if ev_domain != "vuln" or exploitation not in ("poc", "reported", "confirmed"):
+expect = tests/test_path_c_code_exec_20261126.py
+
+[M1767 path C: a non-cloud product qualifies]
+file = src/radar/pipeline.py
+find = and (p0class.place(i.title, ents).cloud or p0class.place(title, ents).cloud)
+replace = and True
+expect = tests/test_path_c_code_exec_20261126.py
+
+[M1768 path C: a denial does not cancel the code-execution claim]
+file = src/radar/signals.py
+find = return "no" if _CODE_EXEC_NEG.search(text) else "yes"
+replace = return "yes"
+expect = tests/test_path_c_code_exec_20261126.py
+
+[M1769 path C: the exploit no longer counts as the second leg]
+file = src/radar/limits.py
+find = P0_PATH_C_REPORTERS = 1
+replace = P0_PATH_C_REPORTERS = 2
+expect = tests/test_path_c_code_exec_20261126.py::test_the_live_shape_is_p0_end_to_end

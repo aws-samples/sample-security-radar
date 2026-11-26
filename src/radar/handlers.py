@@ -390,7 +390,11 @@ def analyze_events(event: dict[str, Any], _ctx: Any = None) -> dict[str, Any]:
     log.info(json.dumps({"station": "analyze", "to_rewrite": len(todo), "why": reasons, "kept_not_material": kept,
                          "facts_stamped": stamped}))
     paths = _attack_paths(now, since, left)
-    judged = _send_judge(now, since, left)
+    try:
+        judged = _send_judge(now, since, left)
+    except Exception as ex:  # noqa: BLE001 — like _ghsa_alias: the arbitration never fails the Analyze run (security review 2026-11-26)
+        judged = []
+        log.warning(json.dumps({"station": "analyze", "warning": "send_judge_failed", "error": type(ex).__name__}))
     done, deferred = [], 0
     for _, _, ev, ev_in in todo[:MAX_ANALYSES_PER_CYCLE]:
         if left is not None and left() < Limits.MODEL_CALL_RESERVE_S:   # briefs: no call started without the reserve

@@ -34,6 +34,7 @@ from radar import (
     stationtime,
     timeutil,
     triage,
+    wafreach,
 )
 from radar.limits import Limits
 from radar.model import SEVERITY_ORDER, SITE_SCHEMA_VERSION, Event, Item
@@ -225,8 +226,10 @@ def event_doc(ev: Event, store: Store, now: datetime, epss: dict[str, dict[str, 
                     if ev.domain == "vuln" and ev.cves else None),
         # R9.5: how it is attacked and where each defence stops it (radar.attack_path; vulnerability P0 / P1)
         "attack_path": attack_path.public(store.get_source_state(attack_path.key(ev.event_id)) if ev.domain == "vuln" else None,
-                                          rule_pack=bool(store.get_source_state(rulepack.key(ev.event_id))),
-                                          aws_fix_line=(fix or {}).get("line")),
+                                          rule_pack=rulepack.has_rules(store.get_source_state(rulepack.key(ev.event_id))),
+                                          aws_fix_line=(fix or {}).get("line"),
+                                          waf=wafreach.assess(ev.title, ev.entities,
+                                                              store.get_source_state(rulepack.key(ev.event_id)))),
         # when the world knew (CVE record published) vs when the radar knew (first_seen) — see cvemeta.disclosure
         "disclosure": cvemeta.disclosure(ev.cves, meta, ev.first_seen, ev.title),
         # first report published (by its source) vs the radar's first capture — pipeline.sighting decides
@@ -612,7 +615,12 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
     if touched:     # the listing was built before this refresh: rebuild it so cards carry the new CVE dates
         listing, evs = events_doc(store, now, window)
         mark("listing")
-    detail = [ev for ev in evs if changed is None or ev.event_id in changed or set(ev.cves) & touched]
+    # pages = the listing plus every P0-wall event the cap left out (live 2026-11-24: MySQL CVE-2026-114952, demoted to
+    # P1 and outside the 500 listed, kept its 11-23 page — still claiming a WAF block — while the wall and its P0 notice
+    # linked to it). The wall links every event it shows, so each of them gets a current page.
+    listed = {e.event_id for e in evs}
+    pages = evs + [e for e in window if e.domain == "vuln" and _p0_at(e) and e.event_id not in listed]
+    detail = [ev for ev in pages if changed is None or ev.event_id in changed or set(ev.cves) & touched]
     srcs = sources_doc(store, now)
     # status.json: the site-wide freshness beacon (R3.3) — a few bytes every page polls instead of the 400 KB listing
     docs: dict[str, dict[str, Any]] = {"status.json": {"kind": "status", "generated_at": timeutil.iso(now)},
@@ -622,7 +630,7 @@ def build(store: Store, now: datetime, changed: set[str] | None = None,
                                        "announcements.json": announcements.board_doc(
                                            store.get_source_state(announcements.BOARD_KEY), BY_ID, timeutil.iso(now))}
     mark("side_docs")
-    titles = {e.event_id: e.title for e in evs}
+    titles = {e.event_id: e.title for e in pages}
     meta = cvemeta.load(store)
     aws_led = awsfix.load(store)
     ledgers = decision_ledgers(store)

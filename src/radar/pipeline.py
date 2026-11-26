@@ -12,7 +12,7 @@ from functools import lru_cache
 from typing import Any
 from urllib.parse import urlsplit
 
-from radar import anomaly, chain, keys, latency, removals, respond, signals, timeutil
+from radar import anomaly, chain, keys, latency, p0class, removals, respond, signals, timeutil
 from radar.limits import Limits
 from radar.model import EXPLOITATION_ORDER, LEVEL_ORDER, SEVERITY_ORDER, Domain, Event, Item, RawItem, Tier
 from radar.registry import (
@@ -212,6 +212,8 @@ def normalize(raw: RawItem, source: Source, fetched_at: datetime, aliases: dict[
         eventful = signals.web3_incident(raw.title or raw.text) and (names_money or tier == "T1")
     else:
         eventful = bool(cve_list) or exploited == "yes" or (tier != "T3" and signals.security_event(raw.title))
+        if eventful and not cve_list and signals.is_guide(raw.title):
+            eventful = False     # advice is context, not an event (signals.is_guide; it still corroborates by its keys)
 
     published = raw.published_at or fetched_at
     content_hash = hashlib.sha256(f"{raw.title}\x1f{raw.text}\x1f{amount}".encode()).hexdigest()[:16]
@@ -782,6 +784,23 @@ def _fresh_exploit(items: list[Item], exploitation: str) -> bool:
     return exploitation == "poc" and any(i.source_id == "cve_list" for i in items)
 
 
+def _code_exec_cloud(ev_domain: Domain, items: list[Item], exploitation: str, reporters: int, title: str) -> bool:
+    """Path C to P0 (2026-11-26, after PostgreSQL CVE-2026-6460 sat at P1 for 13 days): a report of the event says its flaw
+    executes code (authenticated counts), the product is a mainstream cloud component (radar.p0class), a public exploit
+    exists or exploitation is reported, and ≥ Limits.P0_PATH_C_REPORTERS independent reporting source carries it — the
+    exploit is the second leg (a syndicated story is one reporter: 6460's The Hacker News, its X repost and its Telegram
+    were one, the researcher's write-up came only through T3 aggregators). 30-day replay: 6 events."""
+    if ev_domain != "vuln" or exploitation not in ("poc", "reported", "confirmed") or reporters < Limits.P0_PATH_C_REPORTERS:
+        return False
+    ents = sorted({i.entity for i in items if i.entity})
+    named = [{k[4:] for k in i.keys if k.startswith("cve:")} for i in items]
+    # the product is placed from the report that makes the claim (or the event title): an event titled by its exploit
+    # listing (「Exploit for CVE-2026-6460」) names no product
+    return any(not is_digest(i) and signals.code_exec_about(i.title, i.text, named[n], _others(named, n))
+               and (p0class.place(i.title, ents).cloud or p0class.place(title, ents).cloud)
+               for n, i in enumerate(items))
+
+
 def _critical(ev_domain: Domain, items: list[Item]) -> bool:
     """Path A to P0 (Neo 2026-11-18): a report of this event says its flaw is critical — unauthenticated RCE or CVSS ≥ 9
     (signals.critical_about, attributed like 「exploited」: a digest's or a newsletter's sentence about another bug does
@@ -1138,8 +1157,9 @@ def recompute(ev: Event, items: list[Item], now: datetime, title_pairs: set[tupl
                             # freshness keeps the earliest timestamp, date-only included: conservative on purpose
                             # (a KEV entry "added 10-20" may be 3 days old) — first_seen moved to the first report
                             fresh=max(items[0].published_at, ev.escalated_at) >= fresh_since,
-                            critical=_critical(ev.domain, items) and (
+                            critical=(_critical(ev.domain, items) and (
                                 _reporters(items, groups) >= Limits.P0_PATH_A_REPORTERS or _fresh_exploit(items, exploitation)))
+                            or _code_exec_cloud(ev.domain, items, exploitation, _reporters(items, groups), ev.title))
     ev.cves = _own_cves(items)
     if ev.domain == "vuln" and not ev.cves and items and all(is_list_announcement(i) for i in items):
         ev.severity = "P2"   # R9.6: a catalog announcement naming no CVE is no single vulnerability (is_list_announcement)

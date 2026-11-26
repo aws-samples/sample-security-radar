@@ -32,7 +32,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
-from radar import cloudstack, fetch, products, timeutil, wallets
+from radar import cloudstack, fetch, p0class, products, timeutil, wallets
 from radar.limits import Limits
 
 CHANNELS = ("slack_channel", "slack_dm", "lark_chat", "lark_dm", "webhook")
@@ -62,6 +62,9 @@ FILTER_FIELDS: dict[str, tuple[str, tuple[str, ...] | None, str]] = {
                                    "Java, PHP, Linux, MySQL …; not mobile / desktop apps, SAP, appliances, ICS")),
     "team_send": ("bool", None, "the send arbitration (radar.send_judge) said send; unasked or failed = false"),
     "cves": ("list", None, "a CVE id the event names, case-insensitive"),
+    # Neo 2026-11-23: WordPress plugin P0s stay on the site, never in a company channel — when the channel takes every
+    # P0 (no cloud_stack prefilter, 2026-11-25 #fsidnb-security-radar), this is what keeps them out
+    "not_p0_products": ("notlist", tuple(p.id for p in p0class.PRODUCTS), "P0-wall tile (radar.p0class) the event must NOT be on"),
     "exploitation": ("list", EXPLOITATION, "exploitation status of the event"),
     "min_level": ("atleast", LEVELS, "verification level at least this (a disputed event, level X, never matches)"),
     "min_loss_usd": ("number", None, "headline loss in USD at least this; an event without a loss figure never matches"),
@@ -239,6 +242,7 @@ def view(row: dict[str, Any], has_waf_pack: bool, prs: list[str] | None = None) 
             "has_waf_pack": bool(has_waf_pack), "has_verdict": imp.get("status") in ("affected", "not_affected"),
             "team_send": row.get("team_send") is True, "team_send_reason": row.get("team_send_reason"),
             # published by publish._summary; a row from before the field (an older site file) is computed the same way
+            "p0_product": p0class.place(row.get("title") or "", list(row.get("entities") or [])).product,
             "cloud_stack": bool(row["cloud_stack"]) if "cloud_stack" in row
             else cloudstack.is_cloud_stack(row.get("title") or "", list(row.get("entities") or [])),
             "impact": {"status": imp.get("status"), "affected": imp.get("affected", 0), "checked": imp.get("checked", 0)}
@@ -246,7 +250,7 @@ def view(row: dict[str, Any], has_waf_pack: bool, prs: list[str] | None = None) 
 
 
 # a threshold filter reads the view field it bounds (the view keeps the event's own names: it is what subscribers get)
-_BOUNDS = {"min_level": "level", "min_loss_usd": "amount_usd"}
+_BOUNDS = {"min_level": "level", "min_loss_usd": "amount_usd", "not_p0_products": "p0_product"}
 
 
 def matches(filters: dict[str, Any], v: dict[str, Any]) -> bool:
@@ -261,6 +265,10 @@ def matches(filters: dict[str, Any], v: dict[str, Any]) -> bool:
         if FILTER_FIELDS[k][0] == "atleast":
             scale = FILTER_FIELDS[k][1] or ()
             if v.get(_BOUNDS[k]) not in scale or scale.index(v[_BOUNDS[k]]) < scale.index(want):
+                return False
+            continue
+        if FILTER_FIELDS[k][0] == "notlist":     # an exclusion: the event's value must be none of these
+            if str(v.get(_BOUNDS[k]) or "").lower() in {x.lower() for x in want}:
                 return False
             continue
         if FILTER_FIELDS[k][0] == "number":
@@ -349,7 +357,7 @@ def p0_parts(v: dict[str, Any], link: str) -> dict[str, Any]:
     kind = "Web3 被盗" if web3 else "漏洞"
     facts = []
     if web3 and v.get("amount_usd"):
-        facts.append(f"💰 损失 {_usd(v['amount_usd'])}")
+        facts.append(f"💸 损失 {_usd(v['amount_usd'])}")   # 💸: the headline already opens with 💰 (Neo 2026-11-25)
     ids = (v.get("cves") or []) or [g.upper() for g in (v.get("ghsas") or [])]   # the CVE when there is one, else the GHSA
     if not web3 and ids:
         facts.append("🧩 " + ", ".join(ids[:3]) + (f" 等 {len(ids)} 个" if len(ids) > 3 else ""))
@@ -374,7 +382,9 @@ def p0_parts(v: dict[str, Any], link: str) -> dict[str, Any]:
     # its source, a hyperlink in Slack (Neo 2026-11-18): only AWS's own page, built by radar.awsfix from its template
     aws_url = v.get("aws_fix_url") if facts_tail and str(v.get("aws_fix_url") or "").startswith(AWS_FIX_PREFIX) else None
     head = headline(v.get("title") or "")
-    return {"tag": f"P0 · {kind}", "headline": head, "summary": summary, "ids": id_line(v, head),
+    # Neo 2026-11-25: a theft and a vulnerability must not look alike in the channel — 💰 (Neo picked it over 💸) marks
+    # the money lost; 🚨 stays the vulnerability alarm
+    return {"tag": f"P0 · {kind}", "icon": "💰" if web3 else "🚨", "headline": head, "summary": summary, "ids": id_line(v, head),
             # Neo 2026-11-18 「这两句也不要了」: a vulnerability notice carries no facts row (CVE / exploitation / level —
             # the headline names the CVE, the page holds the rest); a theft keeps its loss and corroboration
             "first": "\n".join(when), "aws": facts_tail, "aws_url": aws_url, "show_facts": web3,
@@ -440,7 +450,7 @@ def id_line(v: dict[str, Any], head: str) -> str | None:
 
 
 def p0_text(parts: dict[str, Any]) -> str:
-    lines = [f"🚨 [{parts['tag']}] {parts['headline']}"]
+    lines = [f"{parts['icon']} [{parts['tag']}] {parts['headline']}"]
     if parts.get("ids"):
         lines.append(parts["ids"])
     if parts["summary"]:
@@ -521,7 +531,7 @@ def ledger_entry(v: dict[str, Any], at: str) -> dict[str, Any]:
 def slack_p0(parts: dict[str, Any]) -> str:
     """Slack mrkdwn: every third-party piece escaped (slack_escape), the link the radar's own (<url|label>)."""
     e = slack_escape
-    lines = [f"🚨 *[{e(parts['tag'])}]* {e(parts['headline'])}"]
+    lines = [f"{parts['icon']} *[{e(parts['tag'])}]* {e(parts['headline'])}"]
     if parts.get("ids"):
         lines.append(e(parts["ids"]))
     if parts["summary"]:

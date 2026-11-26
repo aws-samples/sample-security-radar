@@ -84,7 +84,8 @@ def build(evidence: list[dict[str, Any]], now_iso: str, call: Any = None, model:
     return {**base, **validate(raw, evidence), "reason": None}
 
 
-def public(row: dict[str, Any] | None, *, rule_pack: bool, aws_fix_line: str | None) -> dict[str, Any] | None:
+def public(row: dict[str, Any] | None, *, rule_pack: bool, aws_fix_line: str | None,
+           waf: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """The page's view: the model's grounded steps and defences, plus the radar's OWN defences, placed by code — its
     WAF rule pack stops the request at the entry (Count until a person promotes it); AWS's fixed builds are the fix."""
     if not row or row.get("status") in ("failed", "empty"):
@@ -93,6 +94,10 @@ def public(row: dict[str, Any] | None, *, rule_pack: bool, aws_fix_line: str | N
     if rule_pack:
         own.append({"text": "雷达生成的 WAF 规则包：在入口匹配攻击请求（先 Count 观察，人确认后拦截）", "stage": "entry",
                     "horizon": "block", "source": "radar", "link": "env"})
+    elif waf:   # radar.wafreach: say WHY the edge cannot stop it, and what does (never an empty 「立即拦截」)
+        own.append({"text": waf["why"], "stage": "entry", "horizon": "none", "source": "radar"})
+        if waf.get("network"):
+            own.append({"text": waf["network"], "stage": "entry", "horizon": "temporary", "source": "radar"})
     if aws_fix_line and "已修复" in aws_fix_line:
         own.append({"text": aws_fix_line.removeprefix("🟧 ").split(" ｜ ")[0], "stage": "trigger", "horizon": "fix",
                     "source": "aws"})

@@ -38,6 +38,19 @@ describe('attack path panel', () => {
     expect(lane('condition')).not.toContain('ap-def');
   });
 
+  it('a vulnerability WAF cannot stop says so and why, never an empty 「立即拦截」 (MySQL CVE-2026-114952, 2026-11-24)', () => {
+    const p: AttackPath = { ...PATH, defenses: [
+      { text: 'AWS WAF 拦不住：攻击走 MySQL 协议（端口 3306），不经过 HTTP', stage: 'entry', horizon: 'none', source: 'radar' },
+      { text: '收紧网络访问：3306 端口只对应用服务器开放', stage: 'entry', horizon: 'temporary', source: 'radar' }] };
+    const html = render(p);
+    expect(html).toContain('WAF 拦不住 · 雷达');
+    expect(html).toContain('ap-def tone-none');
+    expect(html).toContain('MySQL 协议（端口 3306）');
+    expect(html).not.toContain('立即拦截 · 雷达');
+    expect(html).toMatch(/ap-key tone-none/);                       // the legend names it when it is there
+    expect(render(PATH)).not.toMatch(/ap-key tone-none/);           // … and only then
+  });
+
   it('a step the evidence does not explain says so instead of staying blank', () => {
     const html = render({ ...PATH, steps: { ...PATH.steps, condition: [] } });
     expect(html).toMatch(/ap-step is-empty/);

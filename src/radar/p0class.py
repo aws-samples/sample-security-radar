@@ -188,16 +188,22 @@ def _title_name(title: str) -> str:
     return " ".join(seen)[:40]
 
 
+ENTITIES_MAX, ENTITY_MAX_CHARS = 10, 80   # the bound decision_input uses
+
+
 def place(title: str, entities: list[str] | None = None) -> Placement:
     """The tile of the affected product. The TITLE decides first (it names the affected product; the entities can carry a
     product that is only mentioned — 「Apache HTTP Server … VMware」 was VMware); entities only when the title names no
     registered product. Unregistered: its own tile in OTHER, named from the title, else from the first entity (the CVE
     record's vendor slug); 「Unknown」 only when there is neither."""
     title_text = _CLASS.sub(" ", _ID.sub("", title or ""))       # 「ICSA-26-237-03 Siemens …」 is Siemens, not the ID
-    all_text = _CLASS.sub(" ", " ".join([title or "", *(entities or [])]))
+    # entities bounded like send_judge.decision_input (security review 2026-11-26): the WordPress alternative grows
+    # quadratically on long input (0.3 s at 6,000 characters, 27 s at 60,000); titles are already capped upstream
+    ents = [e[:ENTITY_MAX_CHARS] for e in (entities or [])[:ENTITIES_MAX]]
+    all_text = _CLASS.sub(" ", " ".join([title or "", *ents]))
     p = _first_named(title_text) or _first_named(all_text)
     if p:
         return Placement(p.id, p.label, p.group)
-    name = _title_name(title) or next((e for e in entities or [] if e and len(e) <= 40), "")
+    name = _title_name(title) or next((e for e in ents if e and len(e) <= 40), "")
     slug = _SLUG.sub("-", name.lower()).strip("-")[:40]
     return Placement(f"x-{slug}" if slug else "x-unknown", name or "Unknown", "other")

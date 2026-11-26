@@ -27,7 +27,7 @@
     {
       "id": "world",
       "label": "公网情报",
-      "sub": "KEV · PSIRT · 媒体 · Web3 · X",
+      "sub": "KEV · PSIRT · 媒体 · X",
       "icon": "glyph:stream"
     },
     {
@@ -55,7 +55,7 @@
     {
       "id": "review",
       "label": "你自己的代码评审",
-      "sub": "使用雷达规则 · 雷达不按事件发起 · 不自动修复",
+      "sub": "用雷达规则 · 不自动修复",
       "icon": "glyph:agent",
       "group": "sa"
     },
@@ -69,35 +69,35 @@
     {
       "id": "validate",
       "label": "验证 · 优先级",
-      "sub": "读你的仓库 · EXPLOITABLE",
+      "sub": "扫描环境 · EXPLOITABLE",
       "icon": "glyph:agent",
       "group": "cn"
     },
     {
       "id": "p_s3",
       "label": "补丁文件",
-      "sub": "S3 环境 · wp-storefront",
+      "sub": "S3 环境",
       "icon": "glyph:doc",
       "group": "cn"
     },
     {
       "id": "p_gh",
       "label": "Pull Request",
-      "sub": "GitHub 环境 · Continuum 原生开",
+      "sub": "GitHub 环境",
       "icon": "glyph:git",
       "group": "cn"
     },
     {
       "id": "p_gl",
       "label": "Merge Request",
-      "sub": "GitLab 环境 · Continuum 原生开",
+      "sub": "GitLab 环境",
       "icon": "glyph:git",
       "group": "cn"
     },
     {
       "id": "ui",
-      "label": "事件页 · 在你的环境中",
-      "sub": "受影响 / 可利用性 / 补丁 · PR · MR 回链",
+      "label": "事件页",
+      "sub": "可利用性 · 补丁 · PR / MR",
       "icon": "aws:cloudfront"
     }
   ],
@@ -118,13 +118,12 @@
       "from": "respond",
       "to": "pack",
       "flow": "write",
-      "label": "安全规则"
+      "label": "规则"
     },
     {
       "from": "respond",
       "to": "finding",
-      "flow": "write",
-      "label": "OCSF finding"
+      "flow": "write"
     },
     {
       "from": "pack",

@@ -1146,7 +1146,7 @@ export interface AwsFix {
   };
 }
 /**
- * R9.5: how a vulnerability is attacked — entry → condition → trigger → impact, each a list of grounded sentences — and the defences, each placed at the step it stops: block (before the request reaches the code), temporary (a host / configuration change until the fix), fix (the update). Defences with source radar / aws are the radar's own (its WAF rule pack, AWS's fixed builds), placed by code. null when the event is not a P0 / P1 vulnerability or no path was built.
+ * R9.5: how a vulnerability is attacked — entry → condition → trigger → impact, each a list of grounded sentences — and the defences, each placed at the step it stops: block (before the request reaches the code), temporary (a host / configuration change until the fix), fix (the update), none (AWS WAF cannot stop it — the text says why, radar.wafreach). Defences with source radar / aws are the radar's own (its WAF rule pack, AWS's fixed builds), placed by code. null when the event is not a P0 / P1 vulnerability or no path was built.
  */
 export interface AttackPath {
   status: "ok" | "partial";
@@ -1162,7 +1162,7 @@ export interface AttackPath {
     cite?: string[];
     grounded?: boolean;
     stage: "entry" | "condition" | "trigger" | "impact";
-    horizon: "block" | "temporary" | "fix";
+    horizon: "block" | "temporary" | "fix" | "none";
     source?: "radar" | "aws";
     link?: string;
   }[];

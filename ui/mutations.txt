@@ -1399,3 +1399,9 @@ file = src/pages/P0WallPage.tsx
 find = {e.severity === 'P0' ? 'P0' : `已降为 ${e.severity}`}
 replace = {'P0'}
 expect = src/test/p0wall.test.tsx
+
+[UM990 a defence WAF cannot provide reads as an immediate block]
+file = src/components/detail/AttackPathPanel.tsx
+find = none: { word: 'WAF 拦不住', tone: 'none' },
+replace = none: { word: '立即拦截', tone: 'block' },
+expect = src/test/attackPath.test.tsx

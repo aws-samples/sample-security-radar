@@ -348,8 +348,8 @@ def test_a_threshold_that_cannot_be_one_is_refused_with_a_code(filters, code):
 def test_the_view_keeps_the_events_own_field_names():
     v = _v(level="V3", amount_usd_latest=5e6, exploitation="confirmed")
     assert (v["level"], v["amount_usd"], v["exploitation"]) == ("V3", 5e6, "confirmed")
-    assert not any(k.startswith("min_") for k in v)            # a filter's name is not a field of what subscribers receive
-    assert set(notify._BOUNDS) == {k for k, (t, _, _) in notify.FILTER_FIELDS.items() if t in ("atleast", "number")}
+    assert not any(k.startswith(("min_", "not_")) for k in v)   # a filter's name is not a field of what subscribers receive
+    assert set(notify._BOUNDS) == {k for k, (t, _, _) in notify.FILTER_FIELDS.items() if t in ("atleast", "number", "notlist")}
 
 
 # ---------------------------------------------------------------- R4.3: updates in the thread of a P0
