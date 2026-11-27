@@ -1,4 +1,4 @@
-"""#fsidnb-security-radar (Neo 2026-11-25) takes every P0, no cloud_stack prefilter; WordPress P0s still never reach a
+"""A channel that takes every P0 (Neo 2026-11-25), no cloud_stack prefilter; WordPress P0s still never reach a
 company channel (Neo 2026-11-23) — the exclusion filter `not_p0_products` keeps them out."""
 from __future__ import annotations
 

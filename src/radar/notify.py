@@ -63,7 +63,7 @@ FILTER_FIELDS: dict[str, tuple[str, tuple[str, ...] | None, str]] = {
     "team_send": ("bool", None, "the send arbitration (radar.send_judge) said send; unasked or failed = false"),
     "cves": ("list", None, "a CVE id the event names, case-insensitive"),
     # Neo 2026-11-23: WordPress plugin P0s stay on the site, never in a company channel — when the channel takes every
-    # P0 (no cloud_stack prefilter, 2026-11-25 #fsidnb-security-radar), this is what keeps them out
+    # P0 (no cloud_stack prefilter, 2026-11-25: a channel that takes every P0), this is what keeps them out
     "not_p0_products": ("notlist", tuple(p.id for p in p0class.PRODUCTS), "P0-wall tile (radar.p0class) the event must NOT be on"),
     "exploitation": ("list", EXPLOITATION, "exploitation status of the event"),
     "min_level": ("atleast", LEVELS, "verification level at least this (a disputed event, level X, never matches)"),
